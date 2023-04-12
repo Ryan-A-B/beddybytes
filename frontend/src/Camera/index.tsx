@@ -1,14 +1,15 @@
 import React from 'react';
 import SelectVideoDevice from './SelectVideoDevice';
 import VideoStream from './VideoStream';
+import './Camera.scss';
 
 const Camera: React.FunctionComponent = () => {
     const [videoDeviceID, setVideoDeviceID] = React.useState('');
     return (
-        <React.Fragment>
+        <main className="camera">
             <SelectVideoDevice value={videoDeviceID} onChange={setVideoDeviceID} />
             {videoDeviceID && <VideoStream videoDeviceID={videoDeviceID} />}
-        </React.Fragment>
+        </main>
     )
 };
 

@@ -45,6 +45,10 @@ type Handlers struct {
 	ClientStore ClientStore
 }
 
+func (handlers *Handlers) Hello(responseWriter http.ResponseWriter, request *http.Request) {
+	responseWriter.Write([]byte("Hello"))
+}
+
 func (handlers *Handlers) HandleWebsocket(responseWriter http.ResponseWriter, request *http.Request) {
 	conn, err := handlers.Upgrader.Upgrade(responseWriter, request, nil)
 	if err != nil {
@@ -91,6 +95,7 @@ func (handlers *Handlers) LoggingMiddleware(next http.Handler) http.Handler {
 
 func (handlers *Handlers) AddRoutes(router *mux.Router) {
 	router.Use(handlers.LoggingMiddleware)
+	router.HandleFunc("/", handlers.Hello).Methods(http.MethodGet).Name("Hello")
 	router.HandleFunc("/ws", handlers.HandleWebsocket).Methods(http.MethodGet).Name("HandleWebsocket")
 }
 

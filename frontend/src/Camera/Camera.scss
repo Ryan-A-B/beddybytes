@@ -1,0 +1,11 @@
+.camera {
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - 64px);
+
+    .video {
+        max-width: 100%;
+        flex-grow: 1;
+        object-fit: cover;
+    }
+}

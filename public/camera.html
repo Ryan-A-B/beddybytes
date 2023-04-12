@@ -36,7 +36,7 @@
       });
     });
 
-    const ws = new WebSocket('wss://10.64.227.111:8000/ws');
+    const ws = new WebSocket('wss://10.64.227.116:8000/ws');
     ws.onopen = () => {
       ws.send(JSON.stringify({
         type: "register",
@@ -52,12 +52,12 @@
     const pc = new RTCPeerConnection({
       iceServers: [
         {
-          urls: ['stun:10.64.227.111:3478'],
+          urls: ['stun:10.64.227.116:3478'],
           username: '',
           credential: '',
         },
         {
-          urls: ['turn:10.64.227.111:3478'],
+          urls: ['turn:10.64.227.116:3478'],
           username: '1680170375',
           credential: '69pVVHmO0rQ81RuNBV0Tn0/0zZU=',
         },

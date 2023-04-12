@@ -1,18 +1,24 @@
 import React from "react";
-import config from "../RTCConfig";
+import * as config from "../config";
+import "./Monitor.scss";
 
-const websocketURL = "wss://10.64.227.111:8000/ws";
+const websocketURL = "wss://10.64.227.116:8000/ws";
 
-const Monitor: React.FunctionComponent = () => {
+const MonitorComponent: React.FunctionComponent = () => {
     const videoRef = React.useRef<HTMLVideoElement>(null);
+    const websocketRef = React.useRef<WebSocket | null>(null);
+    const peerConnectionRef = React.useRef<RTCPeerConnection | null>(null);
     React.useEffect(() => {
+        if (websocketRef.current !== null) return;
+        if (peerConnectionRef.current !== null) return;
+        const video = videoRef.current;
+        if (video === null) return;
         const ws = new WebSocket(websocketURL);
-        const pc = new RTCPeerConnection(config)
+        const pc = new RTCPeerConnection(config.rtc)
         const candidates: RTCIceCandidate[] = [];
         pc.ontrack = (event) => {
             console.log(event)
-            if (videoRef.current === null) return;
-            videoRef.current.srcObject = event.streams[0];
+            video.srcObject = event.streams[0];
         }
         pc.onconnectionstatechange = (event) => {
             console.log(pc.connectionState, event)
@@ -26,7 +32,6 @@ const Monitor: React.FunctionComponent = () => {
             candidates.push(event.candidate);
         }
         pc.onicegatheringstatechange = async () => {
-            console.log(pc.iceGatheringState)
             if (pc.iceGatheringState !== 'complete') return;
             ws.send(JSON.stringify({
                 type: "data",
@@ -59,12 +64,20 @@ const Monitor: React.FunctionComponent = () => {
             await pc.setRemoteDescription(data)
             ws.close()
         }
+        websocketRef.current = ws;
+        peerConnectionRef.current = pc;
+        return () => {
+            ws.close();
+            pc.close();
+            websocketRef.current = null;
+            peerConnectionRef.current = null;
+        }
     }, [])
     return (
-        <div>
-            <video ref={videoRef} autoPlay playsInline />
+        <div className="monitor">
+            <video ref={videoRef} autoPlay playsInline className="video" />
         </div>
     );
 };
 
-export default Monitor;
+export default MonitorComponent;

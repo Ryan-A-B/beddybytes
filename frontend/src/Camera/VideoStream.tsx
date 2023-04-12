@@ -1,8 +1,26 @@
 import React from "react";
 import usePromise from "../hooks/usePromise";
-import config from "../RTCConfig";
+import * as config from "../config";
 
-const websocketURL = "wss://10.64.227.111:8000/ws";
+const websocketURL = "wss://10.64.227.116:8000/ws";
+
+class Connections {
+    private peerConnectionByPeerID: { [peerID: string]: RTCPeerConnection } = {};
+    
+    put(peerID: string, pc: RTCPeerConnection) {
+        const existing = this.peerConnectionByPeerID[peerID];
+        if (existing !== undefined) {
+            existing.close();
+        }
+        this.peerConnectionByPeerID[peerID] = pc;
+    }
+
+    close() {
+        for (const peerID in this.peerConnectionByPeerID) {
+            this.peerConnectionByPeerID[peerID].close();
+        }
+    }
+}
 
 interface Props {
     videoDeviceID: string
@@ -23,12 +41,16 @@ const VideoStream: React.FunctionComponent<Props> = ({ videoDeviceID }) => {
         videoRef.current.srcObject = stream.value;
     }, [stream]);
     const [isStarted, setIsStarted] = React.useState(false);
+    React.useEffect(() => {
+        setIsStarted(false);
+    }, [videoDeviceID])
     const onClick = React.useCallback(() => {
         setIsStarted(true);
     }, []);
     React.useEffect(() => {
         if (!isStarted) return;
         if (stream.state !== 'resolved') throw new Error('Stream is not resolved');
+        const connections = new Connections();
         const ws = new WebSocket(websocketURL);
         ws.onopen = () => {
             ws.send(JSON.stringify({
@@ -44,7 +66,7 @@ const VideoStream: React.FunctionComponent<Props> = ({ videoDeviceID }) => {
             const frame = JSON.parse(event.data);
             const data = frame.data;
             if (data.type !== "offer_and_candidates") return;
-            const pc = new RTCPeerConnection(config);
+            const pc = new RTCPeerConnection(config.rtc);
             await pc.setRemoteDescription(data.offer);
             for (const candidate of data.candidates) {
                 await pc.addIceCandidate(candidate);
@@ -57,13 +79,18 @@ const VideoStream: React.FunctionComponent<Props> = ({ videoDeviceID }) => {
                 to_peer_id: frame.from_peer_id,
                 data: answer,
             }));
+            connections.put(frame.from_peer_id, pc);
+        }
+        return () => {
+            ws.close();
+            connections.close();
         }
     }, [stream, isStarted]);
     if (stream.state === 'pending') return (<div>Getting stream...</div>)
     if (stream.state === 'rejected') return (<div>Failed to get stream: {stream.error.message}</div>)
     return (
         <React.Fragment>
-            <video ref={videoRef} autoPlay playsInline muted />
+            <video ref={videoRef} autoPlay playsInline muted className="video"/>
             {!isStarted && (
                 <button onClick={onClick} className="btn btn-primary">
                     Start
