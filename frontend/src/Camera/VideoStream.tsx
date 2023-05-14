@@ -2,8 +2,6 @@ import React from "react";
 import usePromise from "../hooks/usePromise";
 import * as config from "../config";
 
-const websocketURL = "wss://10.64.227.116:8000/ws";
-
 class Connections {
     private peerConnectionByPeerID: { [peerID: string]: RTCPeerConnection } = {};
     
@@ -51,7 +49,7 @@ const VideoStream: React.FunctionComponent<Props> = ({ videoDeviceID }) => {
         if (!isStarted) return;
         if (stream.state !== 'resolved') throw new Error('Stream is not resolved');
         const connections = new Connections();
-        const ws = new WebSocket(websocketURL);
+        const ws = new WebSocket(config.websocketURL);
         ws.onopen = () => {
             ws.send(JSON.stringify({
                 type: "register",

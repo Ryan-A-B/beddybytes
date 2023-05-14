@@ -1,83 +1,85 @@
 import React from "react";
-import * as config from "../config";
+// import * as config from "../config";
 import "./Monitor.scss";
+import Video from "./Video";
 
-const websocketURL = "wss://10.64.227.116:8000/ws";
-
-const MonitorComponent: React.FunctionComponent = () => {
-    const videoRef = React.useRef<HTMLVideoElement>(null);
-    const websocketRef = React.useRef<WebSocket | null>(null);
-    const peerConnectionRef = React.useRef<RTCPeerConnection | null>(null);
-    React.useEffect(() => {
-        if (websocketRef.current !== null) return;
-        if (peerConnectionRef.current !== null) return;
-        const video = videoRef.current;
-        if (video === null) return;
-        const ws = new WebSocket(websocketURL);
-        const pc = new RTCPeerConnection(config.rtc)
-        const candidates: RTCIceCandidate[] = [];
-        pc.ontrack = (event) => {
-            console.log(event)
-            video.srcObject = event.streams[0];
-        }
-        pc.onconnectionstatechange = (event) => {
-            console.log(pc.connectionState, event)
-        }
-        pc.oniceconnectionstatechange = (event) => {
-            console.log(pc.iceConnectionState, event)
-        }
-        pc.onicecandidate = (event) => {
-            console.log(event)
-            if (!event.candidate) return;
-            candidates.push(event.candidate);
-        }
-        pc.onicegatheringstatechange = async () => {
-            if (pc.iceGatheringState !== 'complete') return;
-            ws.send(JSON.stringify({
-                type: "data",
-                to_peer_id: "camera",
-                data: {
-                    type: "offer_and_candidates",
-                    offer: pc.localDescription,
-                    candidates,
-                },
-            }));
-        }
-        ws.onopen = async () => {
-            ws.send(JSON.stringify({
-                type: "register",
-                register: {
-                    id: "monitor",
-                    peer_ids: ["camera"],
-                },
-            }));
-            pc.addTransceiver('video', { direction: 'recvonly' })
-            pc.addTransceiver('audio', { direction: 'recvonly' })
-            const offer = await pc.createOffer();
-            await pc.setLocalDescription(offer);
-        }
-        ws.onmessage = async (event) => {
-            console.log(event)
-            const frame = JSON.parse(event.data)
-            const data = frame.data
-            if (data.type !== 'answer') return
-            await pc.setRemoteDescription(data)
-            ws.close()
-        }
-        websocketRef.current = ws;
-        peerConnectionRef.current = pc;
-        return () => {
-            ws.close();
-            pc.close();
-            websocketRef.current = null;
-            peerConnectionRef.current = null;
-        }
-    }, [])
+const Monitor: React.FunctionComponent = () => {
+    const [peerID, setPeerID] = React.useState<string>("");
+    const connect = React.useCallback(() => {
+        setPeerID("camera");
+    }, [setPeerID]);
+    // const [stream, setStream] = React.useState<MediaStream | null>(null);
+    // const videoRef = React.useRef<HTMLVideoElement>(null);
+    // React.useEffect(() => {
+    //     if (videoRef.current === null) return;
+    //     if (stream === null) return;
+    //     const video = videoRef.current;
+    //     video.srcObject = stream;
+    //     video.play();
+    // }, [stream])
+    // const [peerConnection, setPeerConnection] = React.useState<RTCPeerConnection | null>(null);
+    // React.useEffect(() => {
+    //     if (peerConnection === null) return;
+    //     return () => {
+    //         peerConnection.ontrack = null;
+    //         peerConnection.onicecandidate = null;
+    //         peerConnection.onicegatheringstatechange = null;
+    //         peerConnection.close()
+    //     }
+    // }, [peerConnection])
+    // const connect = React.useCallback(() => {
+    //     const ws = new WebSocket(config.websocketURL);
+    //     const peerConnection = new RTCPeerConnection(config.rtc);
+    //     const candidates: RTCIceCandidate[] = [];
+    //     peerConnection.ontrack = (event) => {
+    //         setStream(event.streams[0])
+    //     }
+    //     peerConnection.onicecandidate = (event) => {
+    //         if (!event.candidate) return;
+    //         candidates.push(event.candidate);
+    //     }
+    //     peerConnection.onicegatheringstatechange = async () => {
+    //         if (peerConnection.iceGatheringState !== 'complete') return;
+    //         ws.send(JSON.stringify({
+    //             type: "data",
+    //             to_peer_id: "camera",
+    //             data: {
+    //                 type: "offer_and_candidates",
+    //                 offer: peerConnection.localDescription,
+    //                 candidates,
+    //             },
+    //         }));
+    //     }
+    //     setPeerConnection(peerConnection)
+    //     ws.onopen = async () => {
+    //         ws.send(JSON.stringify({
+    //             type: "register",
+    //             register: {
+    //                 id: "monitor",
+    //                 peer_ids: ["camera"],
+    //             },
+    //         }));
+    //         peerConnection.addTransceiver('video', { direction: 'recvonly' })
+    //         peerConnection.addTransceiver('audio', { direction: 'recvonly' })
+    //         const offer = await peerConnection.createOffer();
+    //         await peerConnection.setLocalDescription(offer);
+    //     }
+    //     ws.onmessage = async (event) => {
+    //         const frame = JSON.parse(event.data)
+    //         const data = frame.data
+    //         if (data.type !== 'answer') return
+    //         await peerConnection.setRemoteDescription(data)
+    //         ws.close()
+    //     }
+    // }, [])
     return (
         <div className="monitor">
-            <video ref={videoRef} autoPlay playsInline className="video" />
+            <button onClick={connect} className="btn btn-primary">
+                Connect
+            </button>
+            {peerID && <Video peerID={peerID} />}
         </div>
     );
 };
 
-export default MonitorComponent;
+export default Monitor;

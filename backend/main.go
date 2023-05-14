@@ -6,9 +6,13 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	"time"
 
+	"github.com/dgrijalva/jwt-go"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
+	"github.com/ryan/baby-monitor/backend/account"
+	"github.com/ryan/baby-monitor/backend/internal/fatal"
 )
 
 type MessageType string
@@ -49,7 +53,7 @@ func (handlers *Handlers) Hello(responseWriter http.ResponseWriter, request *htt
 	responseWriter.Write([]byte("Hello"))
 }
 
-func (handlers *Handlers) HandleWebsocket(responseWriter http.ResponseWriter, request *http.Request) {
+func (handlers *Handlers) DeprecatedHandleWebsocket(responseWriter http.ResponseWriter, request *http.Request) {
 	conn, err := handlers.Upgrader.Upgrade(responseWriter, request, nil)
 	if err != nil {
 		log.Println(err)
@@ -62,6 +66,29 @@ func (handlers *Handlers) HandleWebsocket(responseWriter http.ResponseWriter, re
 		return
 	}
 	defer handlers.ClientStore.Remove(client.ID)
+	go handlers.deprecatedProcessIncomingMessages(conn, client)
+	for message := range client.messageC {
+		err := conn.WriteMessage(websocket.TextMessage, message)
+		if err != nil {
+			log.Println(err)
+			return
+		}
+	}
+}
+
+func (handlers *Handlers) HandleWebsocket(responseWriter http.ResponseWriter, request *http.Request) {
+	vars := mux.Vars(request)
+	deviceID := vars["device_id"]
+	conn, err := handlers.Upgrader.Upgrade(responseWriter, request, nil)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	defer conn.Close()
+	client := handlers.ClientStore.Put(PutClientInput{
+		ID: deviceID,
+	})
+	defer handlers.ClientStore.Remove(client.ID)
 	go handlers.processIncomingMessages(conn, client)
 	for message := range client.messageC {
 		err := conn.WriteMessage(websocket.TextMessage, message)
@@ -70,6 +97,10 @@ func (handlers *Handlers) HandleWebsocket(responseWriter http.ResponseWriter, re
 			return
 		}
 	}
+}
+
+func (handlers *Handlers) processIncomingMessages(conn *websocket.Conn, client *Client) {
+
 }
 
 func (handlers *Handlers) RegisterClient(conn *websocket.Conn) (client *Client, err error) {
@@ -96,10 +127,12 @@ func (handlers *Handlers) LoggingMiddleware(next http.Handler) http.Handler {
 func (handlers *Handlers) AddRoutes(router *mux.Router) {
 	router.Use(handlers.LoggingMiddleware)
 	router.HandleFunc("/", handlers.Hello).Methods(http.MethodGet).Name("Hello")
-	router.HandleFunc("/ws", handlers.HandleWebsocket).Methods(http.MethodGet).Name("HandleWebsocket")
+	router.HandleFunc("/ws", handlers.DeprecatedHandleWebsocket).Methods(http.MethodGet).Name("HandleWebsocket")
+
+	router.HandleFunc("/devices/{device_id}/websocket", handlers.HandleWebsocket).Methods(http.MethodGet).Name("HandleWebsocket")
 }
 
-func (handlers *Handlers) processIncomingMessages(conn *websocket.Conn, client *Client) {
+func (handlers *Handlers) deprecatedProcessIncomingMessages(conn *websocket.Conn, client *Client) {
 	var err error
 	for {
 		var incomingMessageFrame IncomingMessageFrame
@@ -134,16 +167,14 @@ func (handlers *Handlers) processIncomingMessages(conn *websocket.Conn, client *
 	}
 }
 
-func contains(slice []string, item string) bool {
-	for _, i := range slice {
-		if i == item {
-			return true
-		}
-	}
-	return false
-}
-
 func main() {
+	accountHandlers := account.Handlers{
+		AccountStore:        account.NewAccountStoreInMemory(),
+		DeviceStore:         account.NewDeviceStoreInMemory(),
+		SigningMethod:       jwt.SigningMethodHS256,
+		Key:                 []byte("secret"),
+		AccessTokenDuration: 24 * time.Hour,
+	}
 	handlers := Handlers{
 		Upgrader: websocket.Upgrader{
 			ReadBufferSize:  1024,
@@ -162,10 +193,9 @@ func main() {
 	}
 	router := mux.NewRouter()
 	handlers.AddRoutes(router)
+	accountHandlers.AddRoutes(router)
 	certificate, err := tls.LoadX509KeyPair("server.crt", "server.key")
-	if err != nil {
-		panic(err)
-	}
+	fatal.OnError(err)
 	server := http.Server{
 		Addr:    ":8000",
 		Handler: router,
@@ -174,4 +204,13 @@ func main() {
 		},
 	}
 	log.Fatal(server.ListenAndServeTLS("", ""))
+}
+
+func contains(slice []string, item string) bool {
+	for _, i := range slice {
+		if i == item {
+			return true
+		}
+	}
+	return false
 }

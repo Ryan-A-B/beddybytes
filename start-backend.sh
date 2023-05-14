@@ -1,5 +1,5 @@
 #!/bin/bash
 set -ex
 
-cd signal
+cd backend
 go run .
