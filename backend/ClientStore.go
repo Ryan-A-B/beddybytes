@@ -6,12 +6,12 @@ import (
 )
 
 type PutClientInput struct {
-	ID      string   `json:"id"`
-	PeerIDs []string `json:"peer_ids"`
+	ID string `json:"id"`
 }
 
 type ClientStore interface {
 	Put(input PutClientInput) (client *Client)
+	List() (clients []*Client)
 	Get(clientID string) (client *Client)
 	Remove(clientID string)
 }
@@ -23,10 +23,16 @@ type ClientStoreInMemory struct {
 func (store *ClientStoreInMemory) Put(input PutClientInput) (client *Client) {
 	client = &Client{
 		ID:       input.ID,
-		PeerIDs:  input.PeerIDs,
 		messageC: make(chan []byte),
 	}
 	store.clients[input.ID] = client
+	return
+}
+
+func (store *ClientStoreInMemory) List() (clients []*Client) {
+	for _, client := range store.clients {
+		clients = append(clients, client)
+	}
 	return
 }
 
@@ -49,6 +55,12 @@ func (store *LockingDecorator) Put(input PutClientInput) (client *Client) {
 	return store.decorated.Put(input)
 }
 
+func (store *LockingDecorator) List() (clients []*Client) {
+	store.mutex.RLock()
+	defer store.mutex.RUnlock()
+	return store.decorated.List()
+}
+
 func (store *LockingDecorator) Get(clientID string) (client *Client) {
 	store.mutex.RLock()
 	defer store.mutex.RUnlock()
@@ -68,6 +80,11 @@ type LoggingDecorator struct {
 func (store *LoggingDecorator) Put(input PutClientInput) (client *Client) {
 	log.Printf("putting client %s", input.ID)
 	return store.decorated.Put(input)
+}
+
+func (store *LoggingDecorator) List() (clients []*Client) {
+	log.Printf("listing clients")
+	return store.decorated.List()
 }
 
 func (store *LoggingDecorator) Get(clientID string) (client *Client) {

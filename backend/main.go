@@ -15,32 +15,18 @@ import (
 	"github.com/ryan/baby-monitor/backend/internal/fatal"
 )
 
-type MessageType string
-
-const (
-	MessageTypeRegister MessageType = "register"
-	MessageTypeData     MessageType = "data"
-)
-
-type MessageFrame struct {
-	Type     MessageType     `json:"type"`
-	Register *PutClientInput `json:"register,omitempty"`
+type IncomingMessageFrame struct {
+	ToPeerID string          `json:"to_peer_id"`
 	Data     json.RawMessage `json:"data"`
 }
 
-type IncomingMessageFrame struct {
-	MessageFrame
-	ToPeerID string `json:"to_peer_id"`
-}
-
 type OutgoingMessageFrame struct {
-	MessageFrame
-	FromPeerID string `json:"from_peer_id"`
+	FromPeerID string          `json:"from_peer_id"`
+	Data       json.RawMessage `json:"data"`
 }
 
 type Client struct {
-	ID       string
-	PeerIDs  []string
+	ID       string `json:"id"`
 	messageC chan []byte
 }
 
@@ -53,32 +39,9 @@ func (handlers *Handlers) Hello(responseWriter http.ResponseWriter, request *htt
 	responseWriter.Write([]byte("Hello"))
 }
 
-func (handlers *Handlers) DeprecatedHandleWebsocket(responseWriter http.ResponseWriter, request *http.Request) {
-	conn, err := handlers.Upgrader.Upgrade(responseWriter, request, nil)
-	if err != nil {
-		log.Println(err)
-		return
-	}
-	defer conn.Close()
-	client, err := handlers.RegisterClient(conn)
-	if err != nil {
-		log.Println(err)
-		return
-	}
-	defer handlers.ClientStore.Remove(client.ID)
-	go handlers.deprecatedProcessIncomingMessages(conn, client)
-	for message := range client.messageC {
-		err := conn.WriteMessage(websocket.TextMessage, message)
-		if err != nil {
-			log.Println(err)
-			return
-		}
-	}
-}
-
 func (handlers *Handlers) HandleWebsocket(responseWriter http.ResponseWriter, request *http.Request) {
 	vars := mux.Vars(request)
-	deviceID := vars["device_id"]
+	clientID := vars["client_id"]
 	conn, err := handlers.Upgrader.Upgrade(responseWriter, request, nil)
 	if err != nil {
 		log.Println(err)
@@ -86,7 +49,7 @@ func (handlers *Handlers) HandleWebsocket(responseWriter http.ResponseWriter, re
 	}
 	defer conn.Close()
 	client := handlers.ClientStore.Put(PutClientInput{
-		ID: deviceID,
+		ID: clientID,
 	})
 	defer handlers.ClientStore.Remove(client.ID)
 	go handlers.processIncomingMessages(conn, client)
@@ -100,21 +63,42 @@ func (handlers *Handlers) HandleWebsocket(responseWriter http.ResponseWriter, re
 }
 
 func (handlers *Handlers) processIncomingMessages(conn *websocket.Conn, client *Client) {
-
+	var err error
+	defer func() {
+		if err != nil {
+			log.Println(err)
+		}
+	}()
+	for {
+		var incomingMessageFrame IncomingMessageFrame
+		err = conn.ReadJSON(&incomingMessageFrame)
+		if err != nil {
+			return
+		}
+		peer := handlers.ClientStore.Get(incomingMessageFrame.ToPeerID)
+		if peer == nil {
+			err = errors.New("client not found")
+			return
+		}
+		outgoingMessageFrame := OutgoingMessageFrame{
+			FromPeerID: client.ID,
+			Data:       incomingMessageFrame.Data,
+		}
+		message, err := json.Marshal(outgoingMessageFrame)
+		if err != nil {
+			return
+		}
+		peer.messageC <- message
+	}
 }
 
-func (handlers *Handlers) RegisterClient(conn *websocket.Conn) (client *Client, err error) {
-	var messageFrame MessageFrame
-	err = conn.ReadJSON(&messageFrame)
+func (handlers *Handlers) ListClients(responseWriter http.ResponseWriter, request *http.Request) {
+	clients := handlers.ClientStore.List()
+	err := json.NewEncoder(responseWriter).Encode(clients)
 	if err != nil {
+		log.Println(err)
 		return
 	}
-	if messageFrame.Type != MessageTypeRegister {
-		err = errors.New("expected register message")
-		return
-	}
-	client = handlers.ClientStore.Put(*messageFrame.Register)
-	return
 }
 
 func (handlers *Handlers) LoggingMiddleware(next http.Handler) http.Handler {
@@ -124,47 +108,22 @@ func (handlers *Handlers) LoggingMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-func (handlers *Handlers) AddRoutes(router *mux.Router) {
-	router.Use(handlers.LoggingMiddleware)
-	router.HandleFunc("/", handlers.Hello).Methods(http.MethodGet).Name("Hello")
-	router.HandleFunc("/ws", handlers.DeprecatedHandleWebsocket).Methods(http.MethodGet).Name("HandleWebsocket")
-
-	router.HandleFunc("/devices/{device_id}/websocket", handlers.HandleWebsocket).Methods(http.MethodGet).Name("HandleWebsocket")
+func (handlers *Handlers) CORSMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(responseWriter http.ResponseWriter, request *http.Request) {
+		responseWriter.Header().Set("Access-Control-Allow-Origin", "*")
+		responseWriter.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+		responseWriter.Header().Set("Access-Control-Allow-Headers", "Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With")
+		next.ServeHTTP(responseWriter, request)
+	})
 }
 
-func (handlers *Handlers) deprecatedProcessIncomingMessages(conn *websocket.Conn, client *Client) {
-	var err error
-	for {
-		var incomingMessageFrame IncomingMessageFrame
-		err = conn.ReadJSON(&incomingMessageFrame)
-		if err != nil {
-			log.Println(err)
-			return
-		}
-		if incomingMessageFrame.Type != MessageTypeData {
-			log.Println("expected data message")
-			return
-		}
-		peer := handlers.ClientStore.Get(incomingMessageFrame.ToPeerID)
-		if peer == nil {
-			log.Println("client not found")
-			return
-		}
-		if !contains(peer.PeerIDs, client.ID) {
-			log.Println("client not a peer")
-			return
-		}
-		outgoingMessageFrame := OutgoingMessageFrame{
-			MessageFrame: incomingMessageFrame.MessageFrame,
-			FromPeerID:   client.ID,
-		}
-		message, err := json.Marshal(outgoingMessageFrame)
-		if err != nil {
-			log.Println(err)
-			return
-		}
-		peer.messageC <- message
-	}
+func (handlers *Handlers) AddRoutes(router *mux.Router) {
+	router.Use(handlers.CORSMiddleware)
+	router.Use(handlers.LoggingMiddleware)
+	router.HandleFunc("/", handlers.Hello).Methods(http.MethodGet).Name("Hello")
+	router.HandleFunc("/clients", handlers.ListClients).Methods(http.MethodGet).Name("ListClients")
+	router.HandleFunc("/clients/{client_id}/websocket", handlers.HandleWebsocket).Methods(http.MethodGet).Name("HandleWebsocket")
+
 }
 
 func main() {
@@ -204,13 +163,4 @@ func main() {
 		},
 	}
 	log.Fatal(server.ListenAndServeTLS("", ""))
-}
-
-func contains(slice []string, item string) bool {
-	for _, i := range slice {
-		if i == item {
-			return true
-		}
-	}
-	return false
 }

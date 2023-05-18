@@ -14,11 +14,11 @@ function App() {
     <div className="container">
       <AuthorizationServer.Context.Provider value={authenticator}>
         <DeviceRegistrar.Context.Provider value={deviceRegistrar}>
-          <Login>
+          {/* <Login> */}
             <Registration>
               <Router />
             </Registration>
-          </Login>
+          {/* </Login> */}
         </DeviceRegistrar.Context.Provider>
       </AuthorizationServer.Context.Provider>
     </div>

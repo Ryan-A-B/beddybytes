@@ -14,6 +14,10 @@ const Form: React.FunctionComponent<Props> = ({ onSuccessfulRegistration }) => {
     const [error, setError] = React.useState<string | null>(null)
     const handleSubmit = React.useCallback((event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault()
+        if (deviceType === "") {
+            setError("Please select a device type")
+            return
+        }
         const device: DeviceRegistrar.Device = {
             id: clientID,
             type: deviceType,
