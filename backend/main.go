@@ -65,6 +65,7 @@ func (handlers *Handlers) HandleWebsocket(responseWriter http.ResponseWriter, re
 func (handlers *Handlers) processIncomingMessages(conn *websocket.Conn, client *Client) {
 	var err error
 	defer func() {
+		close(client.messageC)
 		if err != nil {
 			log.Println(err)
 		}
