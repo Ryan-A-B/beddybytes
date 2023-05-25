@@ -3,25 +3,33 @@ import React from 'react';
 export interface Device {
     id: string
     type: string
+    alias: string
 }
 
 export interface DeviceRegistrar {
-    register: (device: Device) => Promise<Device>
     list: () => Promise<Device[]>
 }
 
 export class MockDeviceRegistrar implements DeviceRegistrar {
     private devices: Device[] = [
-        { id: 'camera', type: 'camera' }
+        { id: 'camera', type: 'camera', alias: 'Camera' },
     ]
 
-    register(device: Device): Promise<Device> {
-        this.devices.push(device)
-        return Promise.resolve(device)
+    list(): Promise<Device[]> {
+        return Promise.resolve(this.devices)
+    }
+}
+
+export class DeviceRegistrarAPI implements DeviceRegistrar {
+    private baseUrl: string
+
+    constructor(baseUrl: string) {
+        this.baseUrl = baseUrl
     }
 
     list(): Promise<Device[]> {
-        return Promise.resolve([])
+        return fetch(`${this.baseUrl}/clients`)
+            .then((response) => response.json())
     }
 }
 

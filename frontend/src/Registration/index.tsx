@@ -22,9 +22,29 @@ const InitialRegistrationState: RegistrationState = {
     state: "unregistered",
 }
 
+const localStorageKey = "registration_state"
+
+const loadRegistrationState = (): RegistrationState| null => {
+    const value = localStorage.getItem(localStorageKey)
+    if (value === null) return null
+    return JSON.parse(value)
+}
+
+const saveRegistrationState = (registrationState: RegistrationState): void => {
+    localStorage.setItem(localStorageKey, JSON.stringify(registrationState))
+}
+
 const useRegistrationState = (): [RegistrationState, (state: RegistrationState) => void] => {
-    const [registrationState, setRegistrationState] = React.useState<RegistrationState>(InitialRegistrationState)
-    return [registrationState, setRegistrationState]
+    const [registrationState, setRegistrationState] = React.useState<RegistrationState>(() => {
+        const state = loadRegistrationState()
+        if (state === null) return InitialRegistrationState
+        return state
+    })
+    const setRegistrationStateAndSave = React.useCallback((state: RegistrationState) => {
+        setRegistrationState(state)
+        saveRegistrationState(state)
+    }, [setRegistrationState])
+    return [registrationState, setRegistrationStateAndSave]
 }
 
 const Registration: React.FunctionComponent<Props> = ({ children }) => {

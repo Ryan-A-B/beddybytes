@@ -1,9 +1,6 @@
 # TODO
 ## Core
 - accounts
-- device metadata
-    - type
-    - alias
 - Progressive Web App
 
 ## Features

@@ -1,12 +1,13 @@
 import { Map } from "immutable";
 import * as config from "../config";
+import { Device } from "../DeviceRegistrar";
 
 class Connections {
     private stream: MediaStream;
     private websocket: WebSocket;
     private pcs: Map<string, RTCPeerConnection> = Map();
-    constructor(clientID: string, stream: MediaStream) {
-        this.websocket = new WebSocket(`wss://${config.serverHost}/clients/${clientID}/websocket`);
+    constructor(device: Device, stream: MediaStream) {
+        this.websocket = new WebSocket(`wss://${config.serverHost}/clients/${device.id}/websocket?client_type=${device.type}&client_alias=${device.alias}`);
         this.websocket.onmessage = this.onMessage;
         this.stream = stream;
     }

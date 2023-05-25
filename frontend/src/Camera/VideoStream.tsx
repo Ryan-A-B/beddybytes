@@ -32,9 +32,9 @@ const VideoStream: React.FunctionComponent<Props> = ({ videoDeviceID }) => {
     React.useEffect(() => {
         if (!isStarted) return;
         if (stream.state !== 'resolved') throw new Error('Stream is not resolved');
-        const connections = new Connections(client.id, stream.value);
+        const connections = new Connections(client, stream.value);
         return connections.close;
-    }, [stream, isStarted]);
+    }, [client, stream, isStarted]);
     if (stream.state === 'pending') return (<div>Getting stream...</div>)
     if (stream.state === 'rejected') return (<div>Failed to get stream: {stream.error.message}</div>)
     return (

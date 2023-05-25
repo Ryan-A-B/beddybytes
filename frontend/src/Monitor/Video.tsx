@@ -13,7 +13,7 @@ const Video: React.FunctionComponent<Props> = ({ peerID }) => {
         if (videoRef.current === null)
             throw new Error("videoRef.current is null");
         const video = videoRef.current;
-        const connection = new Connection(client.id, peerID);
+        const connection = new Connection(client, peerID);
         connection.ontrack = (event: RTCTrackEvent) => {
             const stream = event.streams[0];
             video.srcObject = stream;
@@ -22,7 +22,7 @@ const Video: React.FunctionComponent<Props> = ({ peerID }) => {
         return () => {
             connection.close();
         }
-    }, [])
+    }, [client, peerID])
     return (
         <video ref={videoRef} playsInline className="video" />
     )

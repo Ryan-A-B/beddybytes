@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/ansel1/merry"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
@@ -25,8 +26,22 @@ type OutgoingMessageFrame struct {
 	Data       json.RawMessage `json:"data"`
 }
 
+type ClientType string
+
+const (
+	ClientTypeCamera  ClientType = "camera"
+	ClientTypeMonitor ClientType = "monitor"
+)
+
+var stringToClientType = map[string]ClientType{
+	string(ClientTypeCamera):  ClientTypeCamera,
+	string(ClientTypeMonitor): ClientTypeMonitor,
+}
+
 type Client struct {
-	ID       string `json:"id"`
+	ID       string     `json:"id"`
+	Type     ClientType `json:"type"`
+	Alias    string     `json:"alias"`
 	messageC chan []byte
 }
 
@@ -42,6 +57,13 @@ func (handlers *Handlers) Hello(responseWriter http.ResponseWriter, request *htt
 func (handlers *Handlers) HandleWebsocket(responseWriter http.ResponseWriter, request *http.Request) {
 	vars := mux.Vars(request)
 	clientID := vars["client_id"]
+	clientType, ok := stringToClientType[request.FormValue("client_type")]
+	if !ok {
+		err := merry.Errorf("invalid client_type: %s", request.FormValue("client_type")).WithHTTPCode(http.StatusBadRequest)
+		http.Error(responseWriter, err.Error(), merry.HTTPCode(err))
+		return
+	}
+	clientAlias := request.FormValue("client_alias")
 	conn, err := handlers.Upgrader.Upgrade(responseWriter, request, nil)
 	if err != nil {
 		log.Println(err)
@@ -49,7 +71,9 @@ func (handlers *Handlers) HandleWebsocket(responseWriter http.ResponseWriter, re
 	}
 	defer conn.Close()
 	client := handlers.ClientStore.Put(PutClientInput{
-		ID: clientID,
+		ID:    clientID,
+		Type:  clientType,
+		Alias: clientAlias,
 	})
 	defer handlers.ClientStore.Remove(client.ID)
 	go handlers.processIncomingMessages(conn, client)
@@ -95,6 +119,9 @@ func (handlers *Handlers) processIncomingMessages(conn *websocket.Conn, client *
 
 func (handlers *Handlers) ListClients(responseWriter http.ResponseWriter, request *http.Request) {
 	clients := handlers.ClientStore.List()
+	if clients == nil {
+		clients = []*Client{}
+	}
 	err := json.NewEncoder(responseWriter).Encode(clients)
 	if err != nil {
 		log.Println(err)

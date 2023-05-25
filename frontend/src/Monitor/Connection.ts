@@ -1,12 +1,13 @@
+import { Device } from '../DeviceRegistrar';
 import * as config from '../config';
 
 class Connection {
     private peerID: string;
     private websocket: WebSocket;
     private pc: RTCPeerConnection;
-    constructor(clientID: string, peerID: string) {
+    constructor(device: Device, peerID: string) {
         this.peerID = peerID;
-        this.websocket = new WebSocket(`wss://${config.serverHost}/clients/${clientID}/websocket`);
+        this.websocket = new WebSocket(`wss://${config.serverHost}/clients/${device.id}/websocket?client_type=${device.type}&client_alias=${device.alias}`);
         this.websocket.onopen = this.onOpen;
         this.websocket.onmessage = this.onMessage;
         this.pc = new RTCPeerConnection(config.rtc);

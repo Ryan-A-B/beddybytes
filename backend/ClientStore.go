@@ -6,7 +6,9 @@ import (
 )
 
 type PutClientInput struct {
-	ID string `json:"id"`
+	ID    string     `json:"id"`
+	Type  ClientType `json:"type"`
+	Alias string     `json:"alias"`
 }
 
 type ClientStore interface {
@@ -23,6 +25,8 @@ type ClientStoreInMemory struct {
 func (store *ClientStoreInMemory) Put(input PutClientInput) (client *Client) {
 	client = &Client{
 		ID:       input.ID,
+		Type:     input.Type,
+		Alias:    input.Alias,
 		messageC: make(chan []byte),
 	}
 	store.clients[input.ID] = client

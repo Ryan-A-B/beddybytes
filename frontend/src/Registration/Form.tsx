@@ -1,16 +1,17 @@
 import React from 'react';
 import { v4 as uuid } from 'uuid';
 import * as DeviceRegistrar from '../DeviceRegistrar';
-import Select from './Select';
+import Select from '../FormComponents/Select';
+import Input from '../FormComponents/Input';
 
 interface Props {
     onSuccessfulRegistration: (frame: DeviceRegistrar.Device) => void
 }
 
 const Form: React.FunctionComponent<Props> = ({ onSuccessfulRegistration }) => {
-    const registrar = DeviceRegistrar.useDeviceRegistrar()
     const clientID = React.useMemo(() => uuid(), [])
     const [deviceType, setDeviceType] = React.useState<string>("")
+    const [deviceAlias, setDeviceAlias] = React.useState<string>("")
     const [error, setError] = React.useState<string | null>(null)
     const handleSubmit = React.useCallback((event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault()
@@ -21,17 +22,20 @@ const Form: React.FunctionComponent<Props> = ({ onSuccessfulRegistration }) => {
         const device: DeviceRegistrar.Device = {
             id: clientID,
             type: deviceType,
+            alias: deviceAlias,
         }
-        registrar.register(device)
-            .then(onSuccessfulRegistration)
-            .catch((error) => {
-                setError(error.message)
-            })
-    }, [registrar, onSuccessfulRegistration, clientID, deviceType])
+        onSuccessfulRegistration(device)
+    }, [onSuccessfulRegistration, clientID, deviceType])
     return (
         <form onSubmit={handleSubmit}>
             <div>
                 Client ID: {clientID}
+            </div>
+            <div className="form-group">
+                <label>
+                    Device alias:
+                </label>
+                <Input value={deviceAlias} onChange={setDeviceAlias} placeholder="Camera One" className="form-control" />
             </div>
             <div className="form-group">
                 <label>

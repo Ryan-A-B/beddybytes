@@ -1,20 +1,35 @@
 import React from "react";
-import { Client, listClients } from "../config";
+import { Client } from "../config";
+import * as DeviceRegistrar from "../DeviceRegistrar";
 
 interface useClientListOutput {
+    loading: boolean;
     clientList: Client[];
+    refresh: () => void;
     error: Error | null;
 }
 
 const useClientList = (): useClientListOutput => {
+    const deviceRegistrar = DeviceRegistrar.useDeviceRegistrar();
+    const [loading, setLoading] = React.useState(true);
     const [clientList, setClientList] = React.useState<Client[]>([]);
     const [error, setError] = React.useState<Error | null>(null);
-    React.useEffect(() => {
-        listClients()
-            .then(setClientList)
+    const getClientList = React.useCallback(() => {
+        setLoading(true);
+        deviceRegistrar.list()
+            .then((clients) => {
+                setClientList(clients);
+                setLoading(false);
+            })
             .catch(setError);
     }, []);
-    return { clientList, error };
+    React.useEffect(getClientList, [getClientList]);
+    return {
+        loading,
+        clientList,
+        refresh: getClientList,
+        error
+    };
 };
 
 interface Props extends Omit<React.SelectHTMLAttributes<HTMLSelectElement>, "onChange"> {
@@ -23,7 +38,8 @@ interface Props extends Omit<React.SelectHTMLAttributes<HTMLSelectElement>, "onC
 }
 
 const SelectCamera: React.FunctionComponent<Props> = ({ value, onChange }) => {
-    const { clientList, error } = useClientList();
+    const { loading, clientList, refresh: refreshClientList, error } = useClientList();
+    const cameras = React.useMemo(() => clientList.filter((client) => client.type === "camera"), [clientList]);
     const handleChange = React.useCallback((event: React.ChangeEvent<HTMLSelectElement>) => {
         onChange(event.target.value);
     }, [onChange]);
@@ -32,17 +48,28 @@ const SelectCamera: React.FunctionComponent<Props> = ({ value, onChange }) => {
             Error: {error.message}
         </div>
     );
-    // TODO filter to only cameras
-    // TODO display alias
     return (
-        <select value={value} onChange={handleChange} className="form-select">
-            <option value="">Select a camera</option>
-            {clientList.map((client) => (
-                <option key={client.id} value={client.id}>
-                    {client.id}
-                </option>
-            ))}
-        </select>
+        <div className="row">
+            <div className="col">
+                {loading && <div>Loading...</div>}
+                {!loading && cameras.length === 0 && <div>No cameras found</div>}
+                {!loading && cameras.length > 0 && (
+                    <select value={value} onChange={handleChange} className="form-select">
+                        <option value="">Select a camera</option>
+                        {cameras.map((client) => (
+                            <option key={client.id} value={client.id}>
+                                {client.alias || client.id}
+                            </option>
+                        ))}
+                    </select>
+                )}
+            </div>
+            <div className="col-auto">
+                <button onClick={refreshClientList} className="btn btn-primary">
+                    Refresh
+                </button>
+            </div>
+        </div>
     );
 };
 

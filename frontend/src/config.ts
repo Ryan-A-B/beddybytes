@@ -12,9 +12,6 @@ export const serverHost = "10.64.227.116:8000"
 
 export interface Client {
     id: string;
-}
-
-export const listClients = (): Promise<Client[]> => {
-    return fetch(`https://${serverHost}/clients`)
-        .then((response) => response.json())
+    type: string;
+    alias: string;
 }
