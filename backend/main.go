@@ -1,9 +1,12 @@
 package main
 
 import (
+	"context"
+	"crypto/rand"
 	"crypto/tls"
 	"encoding/json"
 	"errors"
+	"io"
 	"log"
 	"net/http"
 	"time"
@@ -12,7 +15,8 @@ import (
 	"github.com/dgrijalva/jwt-go"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
-	"github.com/ryan/baby-monitor/backend/account"
+	"github.com/ryan/baby-monitor/backend/accounts"
+	"github.com/ryan/baby-monitor/backend/internal"
 	"github.com/ryan/baby-monitor/backend/internal/fatal"
 )
 
@@ -48,6 +52,8 @@ type Client struct {
 type Handlers struct {
 	Upgrader    websocket.Upgrader
 	ClientStore ClientStore
+
+	Key []byte
 }
 
 func (handlers *Handlers) Hello(responseWriter http.ResponseWriter, request *http.Request) {
@@ -55,6 +61,7 @@ func (handlers *Handlers) Hello(responseWriter http.ResponseWriter, request *htt
 }
 
 func (handlers *Handlers) HandleWebsocket(responseWriter http.ResponseWriter, request *http.Request) {
+	ctx := request.Context()
 	vars := mux.Vars(request)
 	clientID := vars["client_id"]
 	clientType, ok := stringToClientType[request.FormValue("client_type")]
@@ -70,13 +77,13 @@ func (handlers *Handlers) HandleWebsocket(responseWriter http.ResponseWriter, re
 		return
 	}
 	defer conn.Close()
-	client := handlers.ClientStore.Put(PutClientInput{
+	client := handlers.ClientStore.Put(ctx, PutClientInput{
 		ID:    clientID,
 		Type:  clientType,
 		Alias: clientAlias,
 	})
-	defer handlers.ClientStore.Remove(client.ID)
-	go handlers.processIncomingMessages(conn, client)
+	defer handlers.ClientStore.Remove(ctx, client.ID)
+	go handlers.processIncomingMessages(ctx, conn, client)
 	for message := range client.messageC {
 		err := conn.WriteMessage(websocket.TextMessage, message)
 		if err != nil {
@@ -86,7 +93,7 @@ func (handlers *Handlers) HandleWebsocket(responseWriter http.ResponseWriter, re
 	}
 }
 
-func (handlers *Handlers) processIncomingMessages(conn *websocket.Conn, client *Client) {
+func (handlers *Handlers) processIncomingMessages(ctx context.Context, conn *websocket.Conn, client *Client) {
 	var err error
 	defer func() {
 		close(client.messageC)
@@ -100,7 +107,7 @@ func (handlers *Handlers) processIncomingMessages(conn *websocket.Conn, client *
 		if err != nil {
 			return
 		}
-		peer := handlers.ClientStore.Get(incomingMessageFrame.ToPeerID)
+		peer := handlers.ClientStore.Get(ctx, incomingMessageFrame.ToPeerID)
 		if peer == nil {
 			err = errors.New("client not found")
 			return
@@ -118,7 +125,8 @@ func (handlers *Handlers) processIncomingMessages(conn *websocket.Conn, client *
 }
 
 func (handlers *Handlers) ListClients(responseWriter http.ResponseWriter, request *http.Request) {
-	clients := handlers.ClientStore.List()
+	ctx := request.Context()
+	clients := handlers.ClientStore.List(ctx)
 	if clients == nil {
 		clients = []*Client{}
 	}
@@ -127,6 +135,10 @@ func (handlers *Handlers) ListClients(responseWriter http.ResponseWriter, reques
 		log.Println(err)
 		return
 	}
+}
+
+func (handlers *Handlers) GetKey(token *jwt.Token) (interface{}, error) {
+	return handlers.Key, nil
 }
 
 func (handlers *Handlers) LoggingMiddleware(next http.Handler) http.Handler {
@@ -145,22 +157,39 @@ func (handlers *Handlers) CORSMiddleware(next http.Handler) http.Handler {
 	})
 }
 
+func (handlers *Handlers) MockAuthorizationMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(responseWriter http.ResponseWriter, request *http.Request) {
+		ctx := request.Context()
+		ctx = internal.ContextWithAccountID(ctx, "account_id")
+		next.ServeHTTP(responseWriter, request.Clone(ctx))
+	})
+}
+
 func (handlers *Handlers) AddRoutes(router *mux.Router) {
 	router.Use(handlers.CORSMiddleware)
 	router.Use(handlers.LoggingMiddleware)
 	router.HandleFunc("/", handlers.Hello).Methods(http.MethodGet).Name("Hello")
-	router.HandleFunc("/clients", handlers.ListClients).Methods(http.MethodGet).Name("ListClients")
-	router.HandleFunc("/clients/{client_id}/websocket", handlers.HandleWebsocket).Methods(http.MethodGet).Name("HandleWebsocket")
+	clientRouter := router.PathPrefix("/clients").Subrouter()
+	// TODO clientRouter.Use(authenticatedRouter.Use(internal.NewAuthorizationMiddleware(handlers.Key).Middleware))
+	clientRouter.Use(handlers.MockAuthorizationMiddleware)
+	clientRouter.HandleFunc("", handlers.ListClients).Methods(http.MethodGet).Name("ListClients")
+	clientRouter.HandleFunc("/{client_id}/websocket", handlers.HandleWebsocket).Methods(http.MethodGet).Name("HandleWebsocket")
+}
 
+func generateKey() (key []byte) {
+	key = make([]byte, 32)
+	_, err := io.ReadFull(rand.Reader, key)
+	fatal.OnError(err)
+	return
 }
 
 func main() {
-	accountHandlers := account.Handlers{
-		AccountStore:        account.NewAccountStoreInMemory(),
-		DeviceStore:         account.NewDeviceStoreInMemory(),
+	key := generateKey()
+	accountHandlers := accounts.Handlers{
+		AccountStore:        accounts.NewAccountStoreInMemory(),
 		SigningMethod:       jwt.SigningMethodHS256,
-		Key:                 []byte("secret"),
-		AccessTokenDuration: 24 * time.Hour,
+		Key:                 key,
+		AccessTokenDuration: 1 * time.Hour,
 	}
 	handlers := Handlers{
 		Upgrader: websocket.Upgrader{
@@ -173,10 +202,11 @@ func main() {
 		ClientStore: &LoggingDecorator{
 			decorated: &LockingDecorator{
 				decorated: &ClientStoreInMemory{
-					clients: make(map[string]*Client),
+					clientsByAccountID: make(map[string]map[string]*Client),
 				},
 			},
 		},
+		Key: key,
 	}
 	router := mux.NewRouter()
 	handlers.AddRoutes(router)

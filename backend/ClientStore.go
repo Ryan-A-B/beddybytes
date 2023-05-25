@@ -1,8 +1,11 @@
 package main
 
 import (
+	"context"
 	"log"
 	"sync"
+
+	"github.com/ryan/baby-monitor/backend/internal"
 )
 
 type PutClientInput struct {
@@ -12,40 +15,60 @@ type PutClientInput struct {
 }
 
 type ClientStore interface {
-	Put(input PutClientInput) (client *Client)
-	List() (clients []*Client)
-	Get(clientID string) (client *Client)
-	Remove(clientID string)
+	Put(ctx context.Context, input PutClientInput) (client *Client)
+	List(ctx context.Context) (clients []*Client)
+	Get(ctx context.Context, clientID string) (client *Client)
+	Remove(ctx context.Context, clientID string)
 }
 
 type ClientStoreInMemory struct {
-	clients map[string]*Client
+	clientsByAccountID map[string]map[string]*Client
 }
 
-func (store *ClientStoreInMemory) Put(input PutClientInput) (client *Client) {
+func (store *ClientStoreInMemory) getClientsByAccountID(accountID string) (clients map[string]*Client) {
+	clients = store.clientsByAccountID[accountID]
+	if clients == nil {
+		clients = make(map[string]*Client)
+		store.clientsByAccountID[accountID] = clients
+	}
+	return
+}
+
+func (store *ClientStoreInMemory) Put(ctx context.Context, input PutClientInput) (client *Client) {
+	accountID := internal.GetAccountIDFromContext(ctx)
+	clients := store.getClientsByAccountID(accountID)
 	client = &Client{
 		ID:       input.ID,
 		Type:     input.Type,
 		Alias:    input.Alias,
 		messageC: make(chan []byte),
 	}
-	store.clients[input.ID] = client
+	clients[input.ID] = client
 	return
 }
 
-func (store *ClientStoreInMemory) List() (clients []*Client) {
-	for _, client := range store.clients {
-		clients = append(clients, client)
+func (store *ClientStoreInMemory) List(ctx context.Context) (clientSlice []*Client) {
+	accountID := internal.GetAccountIDFromContext(ctx)
+	clients := store.getClientsByAccountID(accountID)
+	for _, client := range clients {
+		clientSlice = append(clientSlice, client)
 	}
 	return
 }
 
-func (store *ClientStoreInMemory) Get(clientID string) (client *Client) {
-	return store.clients[clientID]
+func (store *ClientStoreInMemory) Get(ctx context.Context, clientID string) (client *Client) {
+	accountID := internal.GetAccountIDFromContext(ctx)
+	clients := store.getClientsByAccountID(accountID)
+	return clients[clientID]
 }
 
-func (store *ClientStoreInMemory) Remove(clientID string) {
-	delete(store.clients, clientID)
+func (store *ClientStoreInMemory) Remove(ctx context.Context, clientID string) {
+	accountID := internal.GetAccountIDFromContext(ctx)
+	clients := store.getClientsByAccountID(accountID)
+	delete(clients, clientID)
+	if len(clients) == 0 {
+		delete(store.clientsByAccountID, accountID)
+	}
 }
 
 type LockingDecorator struct {
@@ -53,50 +76,50 @@ type LockingDecorator struct {
 	decorated ClientStore
 }
 
-func (store *LockingDecorator) Put(input PutClientInput) (client *Client) {
+func (store *LockingDecorator) Put(ctx context.Context, input PutClientInput) (client *Client) {
 	store.mutex.Lock()
 	defer store.mutex.Unlock()
-	return store.decorated.Put(input)
+	return store.decorated.Put(ctx, input)
 }
 
-func (store *LockingDecorator) List() (clients []*Client) {
+func (store *LockingDecorator) List(ctx context.Context) (clients []*Client) {
 	store.mutex.RLock()
 	defer store.mutex.RUnlock()
-	return store.decorated.List()
+	return store.decorated.List(ctx)
 }
 
-func (store *LockingDecorator) Get(clientID string) (client *Client) {
+func (store *LockingDecorator) Get(ctx context.Context, clientID string) (client *Client) {
 	store.mutex.RLock()
 	defer store.mutex.RUnlock()
-	return store.decorated.Get(clientID)
+	return store.decorated.Get(ctx, clientID)
 }
 
-func (store *LockingDecorator) Remove(clientID string) {
+func (store *LockingDecorator) Remove(ctx context.Context, clientID string) {
 	store.mutex.Lock()
 	defer store.mutex.Unlock()
-	store.decorated.Remove(clientID)
+	store.decorated.Remove(ctx, clientID)
 }
 
 type LoggingDecorator struct {
 	decorated ClientStore
 }
 
-func (store *LoggingDecorator) Put(input PutClientInput) (client *Client) {
+func (store *LoggingDecorator) Put(ctx context.Context, input PutClientInput) (client *Client) {
 	log.Printf("putting client %s", input.ID)
-	return store.decorated.Put(input)
+	return store.decorated.Put(ctx, input)
 }
 
-func (store *LoggingDecorator) List() (clients []*Client) {
+func (store *LoggingDecorator) List(ctx context.Context) (clients []*Client) {
 	log.Printf("listing clients")
-	return store.decorated.List()
+	return store.decorated.List(ctx)
 }
 
-func (store *LoggingDecorator) Get(clientID string) (client *Client) {
+func (store *LoggingDecorator) Get(ctx context.Context, clientID string) (client *Client) {
 	log.Printf("getting client %s", clientID)
-	return store.decorated.Get(clientID)
+	return store.decorated.Get(ctx, clientID)
 }
 
-func (store *LoggingDecorator) Remove(clientID string) {
+func (store *LoggingDecorator) Remove(ctx context.Context, clientID string) {
 	log.Printf("removing client %s", clientID)
-	store.decorated.Remove(clientID)
+	store.decorated.Remove(ctx, clientID)
 }

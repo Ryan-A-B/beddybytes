@@ -1,6 +1,8 @@
 # TODO
 ## Core
 - accounts
+- connection lost banner
+- edit device metadata
 - Progressive Web App
 
 ## Features
@@ -11,3 +13,4 @@
     - both? record on camera then send over data stream to monitor?
 - configurable signal server
 - configurable STUN server
+- use colour from the video stream to set background colour

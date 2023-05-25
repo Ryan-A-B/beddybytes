@@ -19,6 +19,10 @@ const Form: React.FunctionComponent<Props> = ({ onSuccessfulRegistration }) => {
             setError("Please select a device type")
             return
         }
+        if (deviceAlias === "") {
+            setError("Please enter a device alias")
+            return
+        }
         const device: DeviceRegistrar.Device = {
             id: clientID,
             type: deviceType,
