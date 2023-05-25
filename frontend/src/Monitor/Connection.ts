@@ -26,6 +26,7 @@ class Connection {
 
     private onMessage = async (event: MessageEvent) => {
         const frame = JSON.parse(event.data);
+        if (frame.from_peer_id !== this.peerID) return;
         const data = frame.data;
         if (data.description !== undefined) {
             if (data.description.type !== "answer")

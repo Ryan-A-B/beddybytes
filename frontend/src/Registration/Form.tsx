@@ -25,7 +25,7 @@ const Form: React.FunctionComponent<Props> = ({ onSuccessfulRegistration }) => {
             alias: deviceAlias,
         }
         onSuccessfulRegistration(device)
-    }, [onSuccessfulRegistration, clientID, deviceType])
+    }, [onSuccessfulRegistration, clientID, deviceType, deviceAlias])
     return (
         <form onSubmit={handleSubmit}>
             <div>

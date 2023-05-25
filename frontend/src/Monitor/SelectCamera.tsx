@@ -22,7 +22,7 @@ const useClientList = (): useClientListOutput => {
                 setLoading(false);
             })
             .catch(setError);
-    }, []);
+    }, [deviceRegistrar]);
     React.useEffect(getClientList, [getClientList]);
     return {
         loading,
