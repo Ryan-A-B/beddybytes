@@ -1,0 +1,147 @@
+package main
+
+import (
+	"bytes"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+	"time"
+
+	"github.com/dgrijalva/jwt-go"
+	"github.com/gorilla/mux"
+	"github.com/gorilla/websocket"
+	"github.com/ryan/baby-monitor/backend/accounts"
+	uuid "github.com/satori/go.uuid"
+	. "github.com/smartystreets/goconvey/convey"
+)
+
+func TestAccountCreation(t *testing.T) {
+	Convey("TestAccountCreation", t, func() {
+		key := generateKey()
+		accountHandlers := accounts.Handlers{
+			AccountStore:        accounts.NewAccountStoreInMemory(),
+			SigningMethod:       jwt.SigningMethodHS256,
+			Key:                 key,
+			AccessTokenDuration: 1 * time.Hour,
+		}
+		handlers := Handlers{
+			Upgrader: websocket.Upgrader{
+				ReadBufferSize:  1024,
+				WriteBufferSize: 1024,
+				CheckOrigin: func(request *http.Request) bool {
+					return true
+				},
+			},
+			ClientStore: &LoggingDecorator{
+				decorated: &LockingDecorator{
+					decorated: &ClientStoreInMemory{
+						clientsByAccountID: make(map[string]map[string]*Client),
+					},
+				},
+			},
+			Key: key,
+		}
+		router := mux.NewRouter()
+		handlers.AddRoutes(router.NewRoute().Subrouter())
+		accountHandlers.AddRoutes(router.NewRoute().Subrouter())
+		server := httptest.NewServer(router)
+		defer server.Close()
+		client := server.Client()
+		Convey("Create an account", func() {
+			email := uuid.NewV4().String() + "@test.com"
+			password := uuid.NewV4().String()
+			input := accounts.CreateAccountInput{
+				Email:    email,
+				Password: password,
+			}
+			payload, err := json.Marshal(input)
+			So(err, ShouldBeNil)
+			request, err := http.NewRequest(http.MethodPost, server.URL+"/accounts", bytes.NewReader(payload))
+			So(err, ShouldBeNil)
+			response, err := client.Do(request)
+			So(err, ShouldBeNil)
+			So(response.StatusCode, ShouldEqual, http.StatusOK)
+			var account accounts.Account
+			err = json.NewDecoder(response.Body).Decode(&account)
+			So(err, ShouldBeNil)
+			So(account.ID, ShouldNotBeEmpty)
+			So(account.User.ID, ShouldNotBeEmpty)
+			So(account.User.Email, ShouldEqual, input.Email)
+			So(account.User.PasswordSalt, ShouldNotBeNil)
+			So(account.User.PasswordHash, ShouldNotBeNil)
+			Convey("Login with the account", func() {
+				input := accounts.LoginInput{
+					Email:    email,
+					Password: password,
+				}
+				payload, err := json.Marshal(input)
+				So(err, ShouldBeNil)
+				request, err := http.NewRequest(http.MethodPost, server.URL+"/login", bytes.NewReader(payload))
+				So(err, ShouldBeNil)
+				response, err := client.Do(request)
+				So(err, ShouldBeNil)
+				So(response.StatusCode, ShouldEqual, http.StatusOK)
+				var loginOutput accounts.LoginOutput
+				err = json.NewDecoder(response.Body).Decode(&loginOutput)
+				So(err, ShouldBeNil)
+				So(loginOutput.TokenType, ShouldEqual, "Bearer")
+				So(loginOutput.AccessToken, ShouldNotBeEmpty)
+				So(loginOutput.ExpiresIn, ShouldBeGreaterThan, 0)
+				Convey("Get the account", func() {
+					request, err := http.NewRequest(http.MethodGet, server.URL+"/accounts/"+account.ID, nil)
+					So(err, ShouldBeNil)
+					request.Header.Set("Authorization", "Bearer "+loginOutput.AccessToken)
+					response, err := client.Do(request)
+					So(err, ShouldBeNil)
+					So(response.StatusCode, ShouldEqual, http.StatusOK)
+					var account accounts.Account
+					err = json.NewDecoder(response.Body).Decode(&account)
+					So(err, ShouldBeNil)
+					So(account.ID, ShouldNotBeEmpty)
+					So(account.User.ID, ShouldNotBeEmpty)
+					So(account.User.Email, ShouldEqual, input.Email)
+					So(account.User.PasswordSalt, ShouldNotBeNil)
+					So(account.User.PasswordHash, ShouldNotBeNil)
+				})
+				Convey("Delete the account", func() {
+					request, err := http.NewRequest(http.MethodDelete, server.URL+"/accounts/"+account.ID, nil)
+					So(err, ShouldBeNil)
+					request.Header.Set("Authorization", "Bearer "+loginOutput.AccessToken)
+					response, err := client.Do(request)
+					So(err, ShouldBeNil)
+					So(response.StatusCode, ShouldEqual, http.StatusOK)
+					Convey("Get the account", func() {
+						request, err = http.NewRequest(http.MethodGet, server.URL+"/accounts/"+account.ID, nil)
+						So(err, ShouldBeNil)
+						request.Header.Set("Authorization", "Bearer "+loginOutput.AccessToken)
+						response, err = client.Do(request)
+						So(err, ShouldBeNil)
+						So(response.StatusCode, ShouldEqual, http.StatusNotFound)
+					})
+				})
+				Convey(("Get different account"), func() {
+					request, err := http.NewRequest(http.MethodGet, server.URL+"/accounts/"+uuid.NewV4().String(), nil)
+					So(err, ShouldBeNil)
+					request.Header.Set("Authorization", "Bearer "+loginOutput.AccessToken)
+					response, err := client.Do(request)
+					So(err, ShouldBeNil)
+					So(response.StatusCode, ShouldEqual, http.StatusForbidden)
+				})
+			})
+			Convey("Login with the wrong password", func() {
+				input := accounts.LoginInput{
+					Email:    email,
+					Password: uuid.NewV4().String(),
+				}
+				payload, err := json.Marshal(input)
+				So(err, ShouldBeNil)
+				request, err := http.NewRequest(http.MethodPost, server.URL+"/login", bytes.NewReader(payload))
+				So(err, ShouldBeNil)
+				response, err := client.Do(request)
+				So(err, ShouldBeNil)
+				So(response.StatusCode, ShouldEqual, http.StatusUnauthorized)
+			})
+		})
+	})
+}
