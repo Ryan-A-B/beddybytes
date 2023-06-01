@@ -22,7 +22,7 @@ func NewAuthorizationMiddleware(key interface{}) *AuthorizationMiddleware {
 }
 
 func (middleware *AuthorizationMiddleware) Middleware(next http.Handler) http.Handler {
-	const prefix = "Bearer "
+
 	return http.HandlerFunc(func(responseWriter http.ResponseWriter, request *http.Request) {
 		var err error
 		defer func() {
@@ -31,12 +31,10 @@ func (middleware *AuthorizationMiddleware) Middleware(next http.Handler) http.Ha
 				return
 			}
 		}()
-		authorization := request.Header.Get("Authorization")
-		if !strings.HasPrefix(authorization, prefix) {
-			err = merry.New("unauthorized").WithHTTPCode(http.StatusUnauthorized)
+		accessToken, err := middleware.getAccessToken(request)
+		if err != nil {
 			return
 		}
-		accessToken := authorization[len(prefix):]
 		var claims Claims
 		_, err = jwt.ParseWithClaims(accessToken, &claims, middleware.getKey)
 		fatal.OnError(err)
@@ -54,6 +52,41 @@ func (middleware *AuthorizationMiddleware) Middleware(next http.Handler) http.Ha
 		ctx = ContextWithAccountID(ctx, claims.Subject.AccountID)
 		next.ServeHTTP(responseWriter, request.Clone(ctx))
 	})
+}
+
+func (middleware *AuthorizationMiddleware) getAccessToken(request *http.Request) (accessToken string, err error) {
+	accessToken, ok := middleware.getAccessTokenFromAuthorizationHeader(request)
+	if ok {
+		return
+	}
+	accessToken, ok = middleware.getAccessTokenFromFormValues(request)
+	if ok {
+		return
+	}
+	err = merry.New("unauthorized").WithHTTPCode(http.StatusUnauthorized)
+	return
+}
+
+func (middleware *AuthorizationMiddleware) getAccessTokenFromAuthorizationHeader(request *http.Request) (accessToken string, ok bool) {
+	const prefix = "Bearer "
+	authorization := request.Header.Get("Authorization")
+	if !strings.HasPrefix(authorization, prefix) {
+		ok = false
+		return
+	}
+	accessToken = authorization[len(prefix):]
+	ok = true
+	return
+}
+
+func (middleware *AuthorizationMiddleware) getAccessTokenFromFormValues(request *http.Request) (accessToken string, ok bool) {
+	accessToken = request.FormValue("access_token")
+	if accessToken == "" {
+		ok = false
+		return
+	}
+	ok = true
+	return
 }
 
 func (middleware *AuthorizationMiddleware) getKey(token *jwt.Token) (key interface{}, err error) {

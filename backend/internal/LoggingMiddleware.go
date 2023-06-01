@@ -6,6 +6,7 @@ import (
 	"time"
 )
 
+// TODO using this causes: websocket: response does not implement http.Hijacker
 type LoggingResponseWriter struct {
 	http.ResponseWriter
 	statusCode int
@@ -19,12 +20,8 @@ func (loggingResponseWriter *LoggingResponseWriter) WriteHeader(statusCode int) 
 func LoggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(responseWriter http.ResponseWriter, request *http.Request) {
 		t0 := time.Now()
-		loggingResponseWriter := &LoggingResponseWriter{
-			ResponseWriter: responseWriter,
-			statusCode:     http.StatusOK,
-		}
-		next.ServeHTTP(loggingResponseWriter, request)
+		next.ServeHTTP(responseWriter, request)
 		dt := time.Since(t0)
-		log.Println(request.Method, request.URL.Path, loggingResponseWriter.statusCode, dt)
+		log.Println(request.Method, request.URL.Path, dt)
 	})
 }

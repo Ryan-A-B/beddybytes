@@ -1,10 +1,9 @@
 import React from "react";
-import { Client } from "../config";
 import * as DeviceRegistrar from "../DeviceRegistrar";
 
 interface useClientListOutput {
     loading: boolean;
-    clientList: Client[];
+    clientList: DeviceRegistrar.Device[];
     refresh: () => void;
     error: Error | null;
 }
@@ -12,7 +11,7 @@ interface useClientListOutput {
 const useClientList = (): useClientListOutput => {
     const deviceRegistrar = DeviceRegistrar.useDeviceRegistrar();
     const [loading, setLoading] = React.useState(true);
-    const [clientList, setClientList] = React.useState<Client[]>([]);
+    const [clientList, setClientList] = React.useState<DeviceRegistrar.Device[]>([]);
     const [error, setError] = React.useState<Error | null>(null);
     const getClientList = React.useCallback(() => {
         setLoading(true);

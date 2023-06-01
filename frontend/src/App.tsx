@@ -4,20 +4,19 @@ import * as DeviceRegistrar from './DeviceRegistrar';
 import Login from './Login';
 import Registration from './Registration';
 import Router from './Router';
-import * as config from './config';
+import * as Config from './Config';
 import './App.scss';
 
-const authorizationServer = new AuthorizationServer.AuthorizationServerAPI(`https://${config.serverHost}`);
-
 interface DeviceRegistrarProviderProps {
+  config: Config.Config
   children: React.ReactNode
 }
 
-const DeviceRegistrarProvider: React.FunctionComponent<DeviceRegistrarProviderProps> = ({ children }) => {
+const DeviceRegistrarProvider: React.FunctionComponent<DeviceRegistrarProviderProps> = ({ config, children }) => {
   const authorization = AuthorizationServer.useAuthorization();
   const deviceRegistrar = React.useMemo(() => {
-    return new DeviceRegistrar.DeviceRegistrarAPI(`https://${config.serverHost}`, authorization);
-  }, [authorization])
+    return new DeviceRegistrar.DeviceRegistrarAPI(`https://${config.API.host}`, authorization);
+  }, [config, authorization])
   return (
     <DeviceRegistrar.Context.Provider value={deviceRegistrar}>
       {children}
@@ -25,18 +24,39 @@ const DeviceRegistrarProvider: React.FunctionComponent<DeviceRegistrarProviderPr
   );
 }
 
+const getConfig = async () => {
+  const response = await fetch("/config.json")
+  if (!response.ok) throw new Error("failed to fetch config")
+  const config: Config.Config = await response.json()
+  return config
+}
+
 const App: React.FunctionComponent = () => {
+  const [config, setConfig] = React.useState<Config.Config | null>(null)
+  React.useEffect(() => {
+    getConfig()
+      .then((config) => setConfig(config))
+      .catch((error) => console.error(error))
+  }, [])
+  const authorizationServer = React.useMemo(() => {
+    if (config === null) return null
+    return new AuthorizationServer.AuthorizationServerAPI(`https://${config.API.host}`);
+  }, [config])
+
+  if (config === null) return null
   return (
     <div className="container">
-      <AuthorizationServer.Context.Provider value={authorizationServer}>
-        <Login>
-          <DeviceRegistrarProvider>
-            <Registration>
-              <Router />
-            </Registration>
-          </DeviceRegistrarProvider>
-        </Login>
-      </AuthorizationServer.Context.Provider>
+      <Config.Context.Provider value={config}>
+        <AuthorizationServer.Context.Provider value={authorizationServer}>
+          <Login>
+            <DeviceRegistrarProvider config={config}>
+              <Registration>
+                <Router />
+              </Registration>
+            </DeviceRegistrarProvider>
+          </Login>
+        </AuthorizationServer.Context.Provider>
+      </Config.Context.Provider>
     </div>
   );
 }

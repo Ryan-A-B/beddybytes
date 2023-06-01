@@ -105,21 +105,25 @@ type LoggingDecorator struct {
 }
 
 func (store *LoggingDecorator) Put(ctx context.Context, input PutClientInput) (client *Client) {
-	log.Printf("putting client %s", input.ID)
+	accountID := internal.GetAccountIDFromContext(ctx)
+	log.Printf("putting client %s for %s", input.ID, accountID)
 	return store.decorated.Put(ctx, input)
 }
 
 func (store *LoggingDecorator) List(ctx context.Context) (clients []*Client) {
-	log.Printf("listing clients")
+	accountID := internal.GetAccountIDFromContext(ctx)
+	log.Printf("listing clients for %s", accountID)
 	return store.decorated.List(ctx)
 }
 
 func (store *LoggingDecorator) Get(ctx context.Context, clientID string) (client *Client) {
-	log.Printf("getting client %s", clientID)
+	accountID := internal.GetAccountIDFromContext(ctx)
+	log.Printf("getting client %s for %s", clientID, accountID)
 	return store.decorated.Get(ctx, clientID)
 }
 
 func (store *LoggingDecorator) Remove(ctx context.Context, clientID string) {
-	log.Printf("removing client %s", clientID)
+	accountID := internal.GetAccountIDFromContext(ctx)
+	log.Printf("removing client %s for %s", clientID, accountID)
 	store.decorated.Remove(ctx, clientID)
 }

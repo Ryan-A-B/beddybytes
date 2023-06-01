@@ -51,7 +51,9 @@ const Login: React.FunctionComponent<Props> = ({ children }) => {
     }
     return (
         <AuthorizationServer.AuthorizationContext.Provider value={authorization}>
-            {children}
+            <AuthorizationServer.AccessTokenContext.Provider value={loginState.loginFrame.access_token}>
+                {children}
+            </AuthorizationServer.AccessTokenContext.Provider>
         </AuthorizationServer.AuthorizationContext.Provider>
     )
 }

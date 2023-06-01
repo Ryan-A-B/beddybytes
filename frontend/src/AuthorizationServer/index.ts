@@ -110,3 +110,11 @@ export const useAuthorization = () => {
     if (!authorization) throw new Error('No authorization provided')
     return authorization
 }
+
+export const AccessTokenContext = React.createContext<string | null>(null);
+
+export const useAccessToken = () => {
+    const accessToken = React.useContext(AccessTokenContext)
+    if (!accessToken) throw new Error('No access token provided')
+    return accessToken
+}

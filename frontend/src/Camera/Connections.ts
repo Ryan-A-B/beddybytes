@@ -1,13 +1,15 @@
 import { Map } from "immutable";
-import * as config from "../config";
 import { Device } from "../DeviceRegistrar";
+import { Config } from "../Config";
 
 class Connections {
+    private config: Config;
     private stream: MediaStream;
     private websocket: WebSocket;
     private pcs: Map<string, RTCPeerConnection> = Map();
-    constructor(device: Device, stream: MediaStream) {
-        this.websocket = new WebSocket(`wss://${config.serverHost}/clients/${device.id}/websocket?client_type=${device.type}&client_alias=${device.alias}`);
+    constructor(config: Config, device: Device, stream: MediaStream, accessToken: string) {
+        this.config = config;
+        this.websocket = new WebSocket(`wss://${config.API.host}/clients/${device.id}/websocket?client_type=${device.type}&client_alias=${device.alias}&access_token=${accessToken}`);
         this.websocket.onmessage = this.onMessage;
         this.stream = stream;
     }
@@ -19,7 +21,7 @@ class Connections {
             if (data.description.type !== "offer")
                 throw new Error("data.description.type is not answer");
             this.closeExistingPeerConnectionIfAny(frame.from_peer_id);
-            const pc = new RTCPeerConnection(config.rtc);
+            const pc = new RTCPeerConnection(this.config.RTC);
             pc.onicecandidate = this.onICECandidate(frame.from_peer_id);
             this.pcs = this.pcs.set(frame.from_peer_id, pc);
             await pc.setRemoteDescription(data.description);

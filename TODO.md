@@ -3,7 +3,6 @@
 ### Bugs
 
 ### Features
-- accounts
 - hosting
 - payments
 
@@ -13,6 +12,8 @@
 - S7 -> Latitude 7430 no video shows
     - incompatible encodings?
     - chrome works
+- encrypt at rest
+- store JWT pem securely
 
 ### Features
 - connection lost banner
