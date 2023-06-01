@@ -6,29 +6,31 @@ interface Props {
     onSuccessfulLogin: (frame: AuthorizationServer.LoginFrame) => void
 }
 
-const Form: React.FunctionComponent<Props> = ({ onSuccessfulLogin }) => {
+const LoginForm: React.FunctionComponent<Props> = ({ onSuccessfulLogin }) => {
     const authorizationServer = AuthorizationServer.useAuthorizationServer()
-    const [username, setUsername] = React.useState<string>("")
+    const [email, setEmail] = React.useState<string>("")
     const [password, setPassword] = React.useState<string>("")
     const [error, setError] = React.useState<string | null>(null)
     const handleSubmit = React.useCallback((event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault()
-        authorizationServer.login(username, password)
+        authorizationServer.login(email, password)
             .then(onSuccessfulLogin)
             .catch((error) => {
                 setError(error.message)
             })
-    }, [authorizationServer, username, password, onSuccessfulLogin])
+    }, [authorizationServer, email, password, onSuccessfulLogin])
     return (
+        <React.Fragment>
+            <h1>Login</h1>
             <form onSubmit={handleSubmit}>
                 <div className="form-group">
                     <label>
-                        Username:
+                        Email:
                         <Input
                             type="text"
-                            name="username"
-                            value={username}
-                            onChange={setUsername}
+                            name="email"
+                            value={email}
+                            onChange={setEmail}
                             className="form-control"
                         />
                     </label>
@@ -46,11 +48,12 @@ const Form: React.FunctionComponent<Props> = ({ onSuccessfulLogin }) => {
                     </label>
                 </div>
                 {error && <div className="alert alert-danger">{error}</div>}
-                <button type="submit" className="btn btn-primary">
+                <button type="submit" className="btn btn-primary mt-3">
                     Login
                 </button>
             </form>
+        </React.Fragment>
     )
 }
 
-export default Form
+export default LoginForm

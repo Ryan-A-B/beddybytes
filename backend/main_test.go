@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
+	"strings"
 	"testing"
 	"time"
 
@@ -71,14 +73,13 @@ func TestAccountCreation(t *testing.T) {
 			So(account.User.PasswordSalt, ShouldNotBeNil)
 			So(account.User.PasswordHash, ShouldNotBeNil)
 			Convey("Login with the account", func() {
-				input := accounts.LoginInput{
-					Email:    email,
-					Password: password,
-				}
-				payload, err := json.Marshal(input)
+				values := make(url.Values)
+				values.Set("grant_type", "password")
+				values.Set("username", email)
+				values.Set("password", password)
+				request, err := http.NewRequest(http.MethodPost, server.URL+"/token", strings.NewReader(values.Encode()))
 				So(err, ShouldBeNil)
-				request, err := http.NewRequest(http.MethodPost, server.URL+"/login", bytes.NewReader(payload))
-				So(err, ShouldBeNil)
+				request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 				response, err := client.Do(request)
 				So(err, ShouldBeNil)
 				So(response.StatusCode, ShouldEqual, http.StatusOK)
@@ -130,14 +131,14 @@ func TestAccountCreation(t *testing.T) {
 				})
 			})
 			Convey("Login with the wrong password", func() {
-				input := accounts.LoginInput{
-					Email:    email,
-					Password: uuid.NewV4().String(),
-				}
-				payload, err := json.Marshal(input)
+				password := uuid.NewV4().String()
+				values := make(url.Values)
+				values.Set("grant_type", "password")
+				values.Set("username", email)
+				values.Set("password", password)
+				request, err := http.NewRequest(http.MethodPost, server.URL+"/token", strings.NewReader(values.Encode()))
 				So(err, ShouldBeNil)
-				request, err := http.NewRequest(http.MethodPost, server.URL+"/login", bytes.NewReader(payload))
-				So(err, ShouldBeNil)
+				request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 				response, err := client.Do(request)
 				So(err, ShouldBeNil)
 				So(response.StatusCode, ShouldEqual, http.StatusUnauthorized)

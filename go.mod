@@ -1,6 +1,6 @@
 module github.com/ryan/baby-monitor
 
-go 1.17
+go 1.18
 
 require (
 	github.com/ansel1/merry v1.7.0

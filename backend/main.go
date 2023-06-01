@@ -141,22 +141,6 @@ func (handlers *Handlers) GetKey(token *jwt.Token) (interface{}, error) {
 	return handlers.Key, nil
 }
 
-func (handlers *Handlers) LoggingMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(responseWriter http.ResponseWriter, request *http.Request) {
-		log.Println(request.URL.Path, request.Method)
-		next.ServeHTTP(responseWriter, request)
-	})
-}
-
-func (handlers *Handlers) CORSMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(responseWriter http.ResponseWriter, request *http.Request) {
-		responseWriter.Header().Set("Access-Control-Allow-Origin", "*")
-		responseWriter.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-		responseWriter.Header().Set("Access-Control-Allow-Headers", "Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With")
-		next.ServeHTTP(responseWriter, request)
-	})
-}
-
 func (handlers *Handlers) MockAuthorizationMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(responseWriter http.ResponseWriter, request *http.Request) {
 		ctx := request.Context()
@@ -166,8 +150,9 @@ func (handlers *Handlers) MockAuthorizationMiddleware(next http.Handler) http.Ha
 }
 
 func (handlers *Handlers) AddRoutes(router *mux.Router) {
-	router.Use(handlers.CORSMiddleware)
-	router.Use(handlers.LoggingMiddleware)
+	router.Use(internal.LoggingMiddleware)
+	router.Use(mux.CORSMethodMiddleware(router))
+	router.Use(internal.CORSMiddleware)
 	router.HandleFunc("/", handlers.Hello).Methods(http.MethodGet).Name("Hello")
 	clientRouter := router.PathPrefix("/clients").Subrouter()
 	// TODO clientRouter.Use(authenticatedRouter.Use(internal.NewAuthorizationMiddleware(handlers.Key).Middleware))
@@ -186,10 +171,12 @@ func generateKey() (key []byte) {
 func main() {
 	key := generateKey()
 	accountHandlers := accounts.Handlers{
-		AccountStore:        accounts.NewAccountStoreInMemory(),
-		SigningMethod:       jwt.SigningMethodHS256,
-		Key:                 key,
-		AccessTokenDuration: 1 * time.Hour,
+		AccountStore:         accounts.NewAccountStoreInMemory(),
+		SigningMethod:        jwt.SigningMethodHS256,
+		Key:                  key,
+		AccessTokenDuration:  1 * time.Hour,
+		RefreshTokenDuration: 30 * 24 * time.Hour,
+		UsedRefreshTokens:    accounts.NewUsedRefreshTokens(),
 	}
 	handlers := Handlers{
 		Upgrader: websocket.Upgrader{
@@ -209,8 +196,8 @@ func main() {
 		Key: key,
 	}
 	router := mux.NewRouter()
-	handlers.AddRoutes(router)
-	accountHandlers.AddRoutes(router)
+	handlers.AddRoutes(router.NewRoute().Subrouter())
+	accountHandlers.AddRoutes(router.NewRoute().Subrouter())
 	certificate, err := tls.LoadX509KeyPair("server.crt", "server.key")
 	fatal.OnError(err)
 	server := http.Server{

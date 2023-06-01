@@ -1,6 +1,6 @@
 import React from 'react';
-import LoginForm from './Form';
-import * as Authenticator from "../AuthorizationServer";
+import * as AuthorizationServer from "../AuthorizationServer";
+import LoginOrCreateAccount from './LoginOrCreateAccount';
 
 interface Props {
     children: React.ReactNode
@@ -8,7 +8,7 @@ interface Props {
 
 interface LoggedIn {
     state: "logged-in"
-    loginFrame: Authenticator.LoginFrame
+    loginFrame: AuthorizationServer.LoginFrame
 }
 
 interface LoggedOut {
@@ -27,18 +27,23 @@ const useLoginState = (): [LoginState, (state: LoginState) => void] => {
 }
 
 const Login: React.FunctionComponent<Props> = ({ children }) => {
+    const authorizationServer = AuthorizationServer.useAuthorizationServer()
     const [loginState, setLoginState] = useLoginState()
-    const handleSuccessfulLogin = React.useCallback((loginFrame: Authenticator.LoginFrame) => {
+    const handleSuccessfulLogin = React.useCallback((loginFrame: AuthorizationServer.LoginFrame) => {
         setLoginState({
             state: "logged-in",
             loginFrame,
         })
     }, [setLoginState])
-
+    React.useEffect(() => {
+        if (loginState.state === "logged-in") return
+        authorizationServer.refresh()
+            .then((loginFrame) => handleSuccessfulLogin(loginFrame))
+            .catch(() => { console.log("failed to refresh") })
+    }, [authorizationServer, loginState, handleSuccessfulLogin])
     if (loginState.state === "logged-out") {
-        return <LoginForm onSuccessfulLogin={handleSuccessfulLogin} />
+        return <LoginOrCreateAccount onSuccessfulLogin={handleSuccessfulLogin} />
     }
-
     return (
         <React.Fragment>
             {children}

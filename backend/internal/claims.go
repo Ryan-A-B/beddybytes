@@ -12,6 +12,7 @@ type Claims struct {
 	Audience string `json:"aud"`
 	Subject  URN    `json:"sub"`
 	Expiry   int64  `json:"exp"`
+	Scope    string `json:"scp"`
 }
 
 func (claims *Claims) Valid() (err error) {
