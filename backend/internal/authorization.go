@@ -45,12 +45,12 @@ func (middleware *AuthorizationMiddleware) Middleware(next http.Handler) http.Ha
 		}
 		vars := mux.Vars(request)
 		accountID := vars["account_id"]
-		if claims.Subject.AccountID != accountID {
+		if accountID != "" && claims.Subject.AccountID != accountID {
 			err = merry.New("forbidden").WithHTTPCode(http.StatusForbidden)
 			return
 		}
 		ctx := request.Context()
-		ctx = ContextWithAccountID(ctx, accountID)
+		ctx = ContextWithAccountID(ctx, claims.Subject.AccountID)
 		next.ServeHTTP(responseWriter, request.Clone(ctx))
 	})
 }

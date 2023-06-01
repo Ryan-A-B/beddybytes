@@ -41,13 +41,18 @@ const Login: React.FunctionComponent<Props> = ({ children }) => {
             .then((loginFrame) => handleSuccessfulLogin(loginFrame))
             .catch(() => { console.log("failed to refresh") })
     }, [authorizationServer, loginState, handleSuccessfulLogin])
+    const authorization = React.useMemo(() => {
+        if (loginState.state !== "logged-in") return null
+        if (loginState.loginFrame.token_type !== "Bearer") return null
+        return `Bearer ${loginState.loginFrame.access_token}`
+    }, [loginState])
     if (loginState.state === "logged-out") {
         return <LoginOrCreateAccount onSuccessfulLogin={handleSuccessfulLogin} />
     }
     return (
-        <React.Fragment>
+        <AuthorizationServer.AuthorizationContext.Provider value={authorization}>
             {children}
-        </React.Fragment>
+        </AuthorizationServer.AuthorizationContext.Provider>
     )
 }
 

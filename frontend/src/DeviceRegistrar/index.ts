@@ -15,21 +15,33 @@ export class MockDeviceRegistrar implements DeviceRegistrar {
         { id: 'camera', type: 'camera', alias: 'Camera' },
     ]
 
-    list(): Promise<Device[]> {
+    list = async () => {
         return Promise.resolve(this.devices)
     }
 }
 
 export class DeviceRegistrarAPI implements DeviceRegistrar {
-    private baseUrl: string
+    private baseURL: string
+    private authorization: string
 
-    constructor(baseUrl: string) {
-        this.baseUrl = baseUrl
+    constructor(baseUrl: string, authorization: string) {
+        this.baseURL = baseUrl
+        this.authorization = authorization
     }
 
-    list(): Promise<Device[]> {
-        return fetch(`${this.baseUrl}/clients`)
-            .then((response) => response.json())
+    list = async () => {
+        const response = await fetch(`${this.baseURL}/clients`, {
+            method: 'GET',
+            headers: {
+                "Authorization": this.authorization,
+            }
+        })
+        if (!response.ok) {
+            const payload = await response.text()
+            throw new Error(`Failed to list devices: ${payload}`)
+        }
+        const payload = await response.json()
+        return payload as Device[]
     }
 }
 

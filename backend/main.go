@@ -141,24 +141,15 @@ func (handlers *Handlers) GetKey(token *jwt.Token) (interface{}, error) {
 	return handlers.Key, nil
 }
 
-func (handlers *Handlers) MockAuthorizationMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(responseWriter http.ResponseWriter, request *http.Request) {
-		ctx := request.Context()
-		ctx = internal.ContextWithAccountID(ctx, "account_id")
-		next.ServeHTTP(responseWriter, request.Clone(ctx))
-	})
-}
-
 func (handlers *Handlers) AddRoutes(router *mux.Router) {
 	router.Use(internal.LoggingMiddleware)
 	router.Use(mux.CORSMethodMiddleware(router))
 	router.Use(internal.CORSMiddleware)
 	router.HandleFunc("/", handlers.Hello).Methods(http.MethodGet).Name("Hello")
 	clientRouter := router.PathPrefix("/clients").Subrouter()
-	// TODO clientRouter.Use(authenticatedRouter.Use(internal.NewAuthorizationMiddleware(handlers.Key).Middleware))
-	clientRouter.Use(handlers.MockAuthorizationMiddleware)
-	clientRouter.HandleFunc("", handlers.ListClients).Methods(http.MethodGet).Name("ListClients")
-	clientRouter.HandleFunc("/{client_id}/websocket", handlers.HandleWebsocket).Methods(http.MethodGet).Name("HandleWebsocket")
+	clientRouter.Use(internal.NewAuthorizationMiddleware(handlers.Key).Middleware)
+	clientRouter.HandleFunc("", handlers.ListClients).Methods(http.MethodGet, http.MethodOptions).Name("ListClients")
+	clientRouter.HandleFunc("/{client_id}/websocket", handlers.HandleWebsocket).Methods(http.MethodGet, http.MethodOptions).Name("HandleWebsocket")
 }
 
 func generateKey() (key []byte) {

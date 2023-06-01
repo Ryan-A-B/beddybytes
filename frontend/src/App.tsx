@@ -8,19 +8,34 @@ import * as config from './config';
 import './App.scss';
 
 const authorizationServer = new AuthorizationServer.AuthorizationServerAPI(`https://${config.serverHost}`);
-const deviceRegistrar = new DeviceRegistrar.DeviceRegistrarAPI(`https://${config.serverHost}`);
 
-function App() {
+interface DeviceRegistrarProviderProps {
+  children: React.ReactNode
+}
+
+const DeviceRegistrarProvider: React.FunctionComponent<DeviceRegistrarProviderProps> = ({ children }) => {
+  const authorization = AuthorizationServer.useAuthorization();
+  const deviceRegistrar = React.useMemo(() => {
+    return new DeviceRegistrar.DeviceRegistrarAPI(`https://${config.serverHost}`, authorization);
+  }, [authorization])
+  return (
+    <DeviceRegistrar.Context.Provider value={deviceRegistrar}>
+      {children}
+    </DeviceRegistrar.Context.Provider>
+  );
+}
+
+const App: React.FunctionComponent = () => {
   return (
     <div className="container">
       <AuthorizationServer.Context.Provider value={authorizationServer}>
-        <DeviceRegistrar.Context.Provider value={deviceRegistrar}>
-          <Login>
+        <Login>
+          <DeviceRegistrarProvider>
             <Registration>
               <Router />
             </Registration>
-          </Login>
-        </DeviceRegistrar.Context.Provider>
+          </DeviceRegistrarProvider>
+        </Login>
       </AuthorizationServer.Context.Provider>
     </div>
   );

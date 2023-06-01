@@ -102,3 +102,11 @@ export const useAuthorizationServer = () => {
     if (!authorizationServer) throw new Error('No authorization server provided')
     return authorizationServer
 }
+
+export const AuthorizationContext = React.createContext<string | null>(null);
+
+export const useAuthorization = () => {
+    const authorization = React.useContext(AuthorizationContext)
+    if (!authorization) throw new Error('No authorization provided')
+    return authorization
+}

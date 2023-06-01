@@ -250,8 +250,8 @@ func (handlers *Handlers) AddRoutes(router *mux.Router) {
 
 	authenticatedRouter := router.PathPrefix("/accounts/{account_id}").Subrouter()
 	authenticatedRouter.Use(internal.NewAuthorizationMiddleware(handlers.Key).Middleware)
-	authenticatedRouter.HandleFunc("", handlers.GetAccount).Methods(http.MethodGet).Name("GetAccount")
-	authenticatedRouter.HandleFunc("", handlers.DeleteAccount).Methods(http.MethodDelete).Name("DeleteAccount")
+	authenticatedRouter.HandleFunc("", handlers.GetAccount).Methods(http.MethodGet, http.MethodOptions).Name("GetAccount")
+	authenticatedRouter.HandleFunc("", handlers.DeleteAccount).Methods(http.MethodDelete, http.MethodOptions).Name("DeleteAccount")
 }
 
 func (handlers *Handlers) createAccessToken(account *Account) (accessToken string) {
