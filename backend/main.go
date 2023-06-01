@@ -3,12 +3,16 @@ package main
 import (
 	"context"
 	"crypto/rand"
+	"crypto/rsa"
 	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
+	"encoding/pem"
 	"errors"
-	"io"
+	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/ansel1/merry"
@@ -53,7 +57,7 @@ type Handlers struct {
 	Upgrader    websocket.Upgrader
 	ClientStore ClientStore
 
-	Key []byte
+	Key interface{}
 }
 
 func (handlers *Handlers) Hello(responseWriter http.ResponseWriter, request *http.Request) {
@@ -152,21 +156,53 @@ func (handlers *Handlers) AddRoutes(router *mux.Router) {
 	clientRouter.HandleFunc("/{client_id}/websocket", handlers.HandleWebsocket).Methods(http.MethodGet, http.MethodOptions).Name("HandleWebsocket")
 }
 
-func generateKey() (key []byte) {
-	key = make([]byte, 32)
-	_, err := io.ReadFull(rand.Reader, key)
-	fatal.OnError(err)
+func getOrCreateKey() (key interface{}) {
+	key, ok := getKey()
+	if !ok {
+		key = createKey()
+	}
 	return
 }
 
+func getKey() (key interface{}, ok bool) {
+	data, err := ioutil.ReadFile("key.pem")
+	switch {
+	case err == nil:
+		block, _ := pem.Decode(data)
+		fatal.Unless(block != nil, "invalid key")
+		privateKey, err := x509.ParsePKCS1PrivateKey(block.Bytes)
+		fatal.OnError(err)
+		return privateKey, true
+	case os.IsNotExist(err):
+		return nil, false
+	default:
+		fatal.OnError(err)
+		return
+	}
+}
+
+func createKey() interface{} {
+	file, err := os.Create("key.pem")
+	fatal.OnError(err)
+	defer file.Close()
+	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	fatal.OnError(err)
+	err = pem.Encode(file, &pem.Block{
+		Type:  "RSA PRIVATE KEY",
+		Bytes: x509.MarshalPKCS1PrivateKey(privateKey),
+	})
+	fatal.OnError(err)
+	return privateKey
+}
+
 func main() {
-	key := generateKey()
+	key := getOrCreateKey()
 	accountHandlers := accounts.Handlers{
-		AccountStore:         accounts.NewAccountStoreInMemory(),
-		SigningMethod:        jwt.SigningMethodHS256,
+		AccountStore:         accounts.NewAccountStoreFileSystem("account_store"),
+		SigningMethod:        jwt.SigningMethodRS256,
 		Key:                  key,
 		AccessTokenDuration:  1 * time.Hour,
-		RefreshTokenDuration: 30 * 24 * time.Hour,
+		RefreshTokenDuration: 7 * 24 * time.Hour,
 		UsedRefreshTokens:    accounts.NewUsedRefreshTokens(),
 	}
 	handlers := Handlers{

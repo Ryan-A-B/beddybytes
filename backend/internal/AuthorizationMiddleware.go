@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"crypto/rsa"
 	"net/http"
 	"strings"
 
@@ -11,10 +12,10 @@ import (
 )
 
 type AuthorizationMiddleware struct {
-	Key []byte
+	Key interface{}
 }
 
-func NewAuthorizationMiddleware(key []byte) *AuthorizationMiddleware {
+func NewAuthorizationMiddleware(key interface{}) *AuthorizationMiddleware {
 	return &AuthorizationMiddleware{
 		Key: key,
 	}
@@ -56,6 +57,12 @@ func (middleware *AuthorizationMiddleware) Middleware(next http.Handler) http.Ha
 }
 
 func (middleware *AuthorizationMiddleware) getKey(token *jwt.Token) (key interface{}, err error) {
-	key = middleware.Key
-	return
+	switch v := middleware.Key.(type) {
+	case *rsa.PrivateKey:
+		key = &v.PublicKey
+		return
+	default:
+		key = middleware.Key
+		return
+	}
 }

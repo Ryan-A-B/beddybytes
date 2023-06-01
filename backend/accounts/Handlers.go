@@ -3,6 +3,7 @@ package accounts
 import (
 	"bytes"
 	"crypto/rand"
+	"crypto/rsa"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -20,7 +21,7 @@ import (
 type Handlers struct {
 	AccountStore         AccountStore
 	SigningMethod        jwt.SigningMethod
-	Key                  []byte
+	Key                  interface{}
 	AccessTokenDuration  time.Duration
 	RefreshTokenDuration time.Duration
 	UsedRefreshTokens    UsedRefreshTokens
@@ -37,16 +38,15 @@ func NewUsedRefreshTokens() UsedRefreshTokens {
 	}
 }
 
-func (usedRefreshTokens *UsedRefreshTokens) TryAdd(refreshToken string) (err error) {
+func (usedRefreshTokens *UsedRefreshTokens) TryAdd(refreshToken string) bool {
 	usedRefreshTokens.mutex.Lock()
 	defer usedRefreshTokens.mutex.Unlock()
 	_, ok := usedRefreshTokens.cache[refreshToken]
 	if ok {
-		err = merry.New("unauthorized").WithHTTPCode(http.StatusUnauthorized)
-		return
+		return false
 	}
 	usedRefreshTokens.cache[refreshToken] = struct{}{}
-	return
+	return true
 }
 
 type CreateAccountInput struct {
@@ -181,6 +181,7 @@ func (handlers *Handlers) TokenUsingRefreshTokenGrant(responseWriter http.Respon
 	}()
 	cookie, err := request.Cookie("refresh_token")
 	if err != nil {
+		log.Println(err)
 		err = merry.New("unauthorized").WithHTTPCode(http.StatusUnauthorized)
 		return
 	}
@@ -188,19 +189,23 @@ func (handlers *Handlers) TokenUsingRefreshTokenGrant(responseWriter http.Respon
 	var claims internal.Claims
 	_, err = jwt.ParseWithClaims(refreshToken, &claims, handlers.getKey)
 	if err != nil {
+		log.Println(err)
 		err = merry.New("unauthorized").WithHTTPCode(http.StatusUnauthorized)
 		return
 	}
 	if claims.Scope != "refresh_token" {
+		log.Println(`claims.Scope != "refresh_token"`)
 		err = merry.New("unauthorized").WithHTTPCode(http.StatusUnauthorized)
 		return
 	}
-	err = handlers.UsedRefreshTokens.TryAdd(refreshToken)
-	if err != nil {
+	if added := handlers.UsedRefreshTokens.TryAdd(refreshToken); !added {
+		log.Println("refresh token has already been used")
+		err = merry.New("unauthorized").WithHTTPCode(http.StatusUnauthorized)
 		return
 	}
 	account, err := handlers.AccountStore.Get(claims.Subject.AccountID)
 	if err != nil {
+		log.Println(err)
 		err = merry.New("unauthorized").WithHTTPCode(http.StatusUnauthorized)
 		return
 	}
@@ -212,6 +217,28 @@ func (handlers *Handlers) TokenUsingRefreshTokenGrant(responseWriter http.Respon
 	http.SetCookie(responseWriter, handlers.createRefreshTokenCookie(account))
 	responseWriter.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(responseWriter).Encode(output)
+}
+
+func (handlers *Handlers) Logout(responseWriter http.ResponseWriter, request *http.Request) {
+	var err error
+	defer func() {
+		if err != nil {
+			http.Error(responseWriter, err.Error(), merry.HTTPCode(err))
+			return
+		}
+	}()
+	cookie, err := request.Cookie("refresh_token")
+	switch err {
+	case nil:
+		cookie.MaxAge = -1
+		http.SetCookie(responseWriter, cookie)
+		return
+	case http.ErrNoCookie:
+		err = nil
+		return
+	default:
+		fatal.OnError(err)
+	}
 }
 
 func (handlers *Handlers) GetAccount(responseWriter http.ResponseWriter, request *http.Request) {
@@ -274,7 +301,6 @@ func (handlers *Handlers) createAccessToken(account *Account) (accessToken strin
 }
 
 func (handlers *Handlers) createRefreshToken(account *Account) (refreshToken string) {
-	// TODO make it a refresh token
 	expiry := time.Now().Add(handlers.RefreshTokenDuration)
 	claims := internal.Claims{
 		Issuer:   "baby-monitor",
@@ -307,6 +333,12 @@ func (handlers *Handlers) createRefreshTokenCookie(account *Account) *http.Cooki
 }
 
 func (handlers *Handlers) getKey(token *jwt.Token) (key interface{}, err error) {
-	key = handlers.Key
-	return
+	switch v := handlers.Key.(type) {
+	case *rsa.PrivateKey:
+		key = &v.PublicKey
+		return
+	default:
+		key = handlers.Key
+		return
+	}
 }
