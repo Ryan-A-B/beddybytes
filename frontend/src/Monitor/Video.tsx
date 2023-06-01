@@ -26,7 +26,7 @@ const Video: React.FunctionComponent<Props> = ({ peerID }) => {
         return () => {
             connection.close();
         }
-    }, [config, client, peerID])
+    }, [config, client, peerID, accessToken])
     return (
         <video ref={videoRef} playsInline className="video" />
     )
