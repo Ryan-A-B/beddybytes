@@ -26,6 +26,27 @@ const useLoginState = (): [LoginState, (state: LoginState) => void] => {
     return [loginState, setLoginState]
 }
 
+const useAttemptRefresh = (authorizationServer: AuthorizationServer.AuthorizationServer, loginState: LoginState, handleSuccessfulLogin: (loginFrame: AuthorizationServer.LoginFrame) => void) => {
+    React.useEffect(() => {
+        if (loginState.state === "logged-in") return
+        authorizationServer.refresh()
+            .then((loginFrame) => handleSuccessfulLogin(loginFrame))
+            .catch(() => { console.log("failed to refresh") })
+    }, [authorizationServer, loginState, handleSuccessfulLogin])
+}
+
+const useMaintainLogin = (authorizationServer: AuthorizationServer.AuthorizationServer, loginState: LoginState, handleSuccessfulLogin: (loginFrame: AuthorizationServer.LoginFrame) => void) => {
+    React.useEffect(() => {
+        if (loginState.state !== "logged-in") return
+        const timeout = setTimeout(() => {
+            authorizationServer.refresh()
+                .then((loginFrame) => handleSuccessfulLogin(loginFrame))
+                .catch(() => { console.log("failed to refresh") })
+        }, loginState.loginFrame.expires_in * 900)
+        return () => { clearTimeout(timeout) }
+    }, [authorizationServer, loginState, handleSuccessfulLogin])
+}
+
 const Login: React.FunctionComponent<Props> = ({ children }) => {
     const authorizationServer = AuthorizationServer.useAuthorizationServer()
     const [loginState, setLoginState] = useLoginState()
@@ -35,12 +56,8 @@ const Login: React.FunctionComponent<Props> = ({ children }) => {
             loginFrame,
         })
     }, [setLoginState])
-    React.useEffect(() => {
-        if (loginState.state === "logged-in") return
-        authorizationServer.refresh()
-            .then((loginFrame) => handleSuccessfulLogin(loginFrame))
-            .catch(() => { console.log("failed to refresh") })
-    }, [authorizationServer, loginState, handleSuccessfulLogin])
+    useAttemptRefresh(authorizationServer, loginState, handleSuccessfulLogin)
+    useMaintainLogin(authorizationServer, loginState, handleSuccessfulLogin)
     const authorization = React.useMemo(() => {
         if (loginState.state !== "logged-in") return null
         if (loginState.loginFrame.token_type !== "Bearer") return null

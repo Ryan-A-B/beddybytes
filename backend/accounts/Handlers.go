@@ -324,7 +324,7 @@ func (handlers *Handlers) createRefreshTokenCookie(account *Account) *http.Cooki
 	return &http.Cookie{
 		Name:     "refresh_token",
 		Value:    handlers.createRefreshToken(account),
-		Domain:   "10.64.227.116",
+		Domain:   internal.Domain,
 		Path:     "/token",
 		HttpOnly: true,
 		Secure:   true,

@@ -73,7 +73,8 @@ export class AuthorizationServerAPI implements AuthorizationServer {
             credentials: 'include',
         })
         if (!response.ok) {
-            throw new Error(`Failed to login: ${response.statusText}`)
+            const payload = await response.text()
+            throw new Error(`Failed to login: ${payload}`)
         }
         return response.json()
     }
@@ -89,7 +90,8 @@ export class AuthorizationServerAPI implements AuthorizationServer {
             credentials: 'include',
         })
         if (!response.ok) {
-            throw new Error(`Failed to refresh token: ${response.statusText}`)
+            const payload = await response.text()
+            throw new Error(`Failed to refresh token: ${payload}`)
         }
         return response.json()
     }

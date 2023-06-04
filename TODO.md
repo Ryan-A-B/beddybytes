@@ -14,6 +14,7 @@
     - chrome works
 - encrypt at rest
 - store JWT pem securely
+- only get new token on demand
 
 ### Features
 - connection lost banner

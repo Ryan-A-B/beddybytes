@@ -28,11 +28,12 @@ const CreateAccountForm: React.FunctionComponent<Props> = ({ onSuccessfulLogin }
                     <label>
                         Email:
                         <Input
-                            type="text"
+                            type="email"
                             name="email"
                             value={email}
                             onChange={setEmail}
                             className="form-control"
+                            required
                         />
                     </label>
                 </div>
@@ -45,6 +46,7 @@ const CreateAccountForm: React.FunctionComponent<Props> = ({ onSuccessfulLogin }
                             value={password}
                             onChange={setPassword}
                             className="form-control"
+                            required
                         />
                     </label>
                 </div>

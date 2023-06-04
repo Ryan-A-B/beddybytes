@@ -8,7 +8,6 @@ import (
 	"github.com/ansel1/merry"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/gorilla/mux"
-	"github.com/ryan/baby-monitor/backend/internal/fatal"
 )
 
 type AuthorizationMiddleware struct {
@@ -37,7 +36,6 @@ func (middleware *AuthorizationMiddleware) Middleware(next http.Handler) http.Ha
 		}
 		var claims Claims
 		_, err = jwt.ParseWithClaims(accessToken, &claims, middleware.getKey)
-		fatal.OnError(err)
 		if err != nil {
 			err = merry.New("unauthorized").WithHTTPCode(http.StatusUnauthorized)
 			return
