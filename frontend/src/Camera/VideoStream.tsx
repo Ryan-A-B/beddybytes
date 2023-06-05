@@ -38,7 +38,7 @@ const VideoStream: React.FunctionComponent<Props> = ({ videoDeviceID }) => {
         if (stream.state !== 'resolved') throw new Error('Stream is not resolved');
         const connections = new Connections(config, client, stream.value, accessToken);
         return connections.close;
-    }, [config, client, stream, isStarted, accessToken]);
+    }, [config, client, stream, isStarted]); // eslint-disable-line react-hooks/exhaustive-deps
     if (stream.state === 'pending') return (<div>Getting stream...</div>)
     if (stream.state === 'rejected') return (<div>Failed to get stream: {stream.error.message}</div>)
     return (
