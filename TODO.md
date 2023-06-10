@@ -3,7 +3,6 @@
 ### Bugs
 
 ### Features
-- hosting
 - payments
 
 ## Next

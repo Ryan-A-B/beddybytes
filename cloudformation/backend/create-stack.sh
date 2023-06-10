@@ -9,7 +9,8 @@ aws cloudformation create-stack \
     --region $region \
     --stack-name $stack_name \
     --template-body file://cloudformation.yml \
-    --parameters file://parameters.json
+    --parameters file://parameters.json \
+    --capabilities CAPABILITY_IAM
 
 aws cloudformation wait stack-create-complete \
     --region $region \

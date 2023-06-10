@@ -209,13 +209,16 @@ func newAccountStore(ctx context.Context, key []byte) *accounts.AccountStore {
 			Root: "account_store",
 		})
 	case "s3":
-		config, err := awsconfig.LoadDefaultConfig(ctx)
+		region := internal.EnvStringOrFatal("ACCOUNT_STORE_S3_REGION")
+		config, err := awsconfig.LoadDefaultConfig(ctx, awsconfig.WithRegion(region))
 		fatal.OnError(err)
 		s = store.NewS3Store(&store.NewS3StoreInput{
 			Client: s3.NewFromConfig(config),
 			Bucket: internal.EnvStringOrFatal("ACCOUNT_STORE_S3_BUCKET"),
 			Prefix: "account_store/",
 		})
+	default:
+		fatal.OnError(errors.New("unknown account store implementation"))
 	}
 	return &accounts.AccountStore{
 		Store: store.NewCachingDecorator(&store.NewCachingDecoratorInput{

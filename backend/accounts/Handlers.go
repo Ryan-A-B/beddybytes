@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"strings"
 	"sync"
 	"time"
 
@@ -327,10 +328,16 @@ func (handlers *Handlers) createRefreshToken(account *Account) (refreshToken str
 }
 
 func (handlers *Handlers) createRefreshTokenCookie(account *Account) *http.Cookie {
+	// TODO don't need to do this every time
+	domain := handlers.FrontendURL.Hostname()
+	index := strings.Index(domain, ".")
+	if index != -1 {
+		domain = domain[index:]
+	}
 	return &http.Cookie{
 		Name:     "refresh_token",
 		Value:    handlers.createRefreshToken(account),
-		Domain:   handlers.FrontendURL.Hostname(),
+		Domain:   domain,
 		Path:     "/token",
 		HttpOnly: true,
 		Secure:   true,
