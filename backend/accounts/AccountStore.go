@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 
@@ -33,10 +32,8 @@ type AccountStore struct {
 func (store *AccountStore) Put(ctx context.Context, account *Account) (err error) {
 	existingAccount, err := store.Get(ctx, account.ID)
 	if merry.HTTPCode(err) == http.StatusOK {
-		fmt.Println("updating existing account")
 		return store.update(ctx, existingAccount, account)
 	}
-	fmt.Println("creating new account")
 	return store.create(ctx, account)
 }
 
