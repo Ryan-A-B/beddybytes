@@ -21,7 +21,6 @@ func NewAuthorizationMiddleware(key interface{}) *AuthorizationMiddleware {
 }
 
 func (middleware *AuthorizationMiddleware) Middleware(next http.Handler) http.Handler {
-
 	return http.HandlerFunc(func(responseWriter http.ResponseWriter, request *http.Request) {
 		var err error
 		defer func() {

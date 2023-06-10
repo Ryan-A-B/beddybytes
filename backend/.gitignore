@@ -1,2 +1,4 @@
+init.sh
+server.crt
+server.key
 account_store
-key.pem

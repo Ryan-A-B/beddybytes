@@ -1,5 +1,6 @@
 #!/bin/bash
+. init.sh
 set -ex
 
 cd backend
-go run .
+echo leeM3ahghooghoo6aex2Dahn8iVahzoh | go run .

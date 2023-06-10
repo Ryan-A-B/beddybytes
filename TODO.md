@@ -12,11 +12,14 @@
 - S7 -> Latitude 7430 no video shows
     - incompatible encodings?
     - chrome works
-- encrypt at rest
-- store JWT pem securely
 - only get new token on demand
+    - `getToken` function in context
+- docker
+- docker-compose
+    - https proxy
 
 ### Features
+- end session button
 - connection lost banner
     - attempt reconnect
     - Picture in Picture doesn't support custom elements
@@ -33,6 +36,7 @@
     - both? record on camera then send over data stream to monitor?
 - configurable signal server
 - configurable STUN server
+- show number of active connections
 
 ## Later
 ### Bugs

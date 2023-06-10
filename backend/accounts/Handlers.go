@@ -7,19 +7,22 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"net/url"
 	"sync"
 	"time"
 
 	"github.com/ansel1/merry"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/gorilla/mux"
+	uuid "github.com/satori/go.uuid"
+
 	"github.com/ryan/baby-monitor/backend/internal"
 	"github.com/ryan/baby-monitor/backend/internal/fatal"
-	uuid "github.com/satori/go.uuid"
 )
 
 type Handlers struct {
-	AccountStore         AccountStore
+	FrontendURL          *url.URL
+	AccountStore         *AccountStore
 	SigningMethod        jwt.SigningMethod
 	Key                  interface{}
 	AccessTokenDuration  time.Duration
@@ -73,6 +76,7 @@ func (handlers *Handlers) CreateAccount(responseWriter http.ResponseWriter, requ
 			http.Error(responseWriter, err.Error(), merry.HTTPCode(err))
 		}
 	}()
+	ctx := request.Context()
 	var input CreateAccountInput
 	err = json.NewDecoder(request.Body).Decode(&input)
 	if err != nil {
@@ -97,7 +101,7 @@ func (handlers *Handlers) CreateAccount(responseWriter http.ResponseWriter, requ
 			PasswordHash: passwordHash,
 		},
 	}
-	err = handlers.AccountStore.Put(&account)
+	err = handlers.AccountStore.Put(ctx, &account)
 	if err != nil {
 		return
 	}
@@ -141,6 +145,7 @@ func (handlers *Handlers) TokenUsingPasswordGrant(responseWriter http.ResponseWr
 			return
 		}
 	}()
+	ctx := request.Context()
 	email := request.FormValue("username")
 	if email == "" {
 		err = merry.New("email is required").WithHTTPCode(http.StatusBadRequest)
@@ -151,7 +156,7 @@ func (handlers *Handlers) TokenUsingPasswordGrant(responseWriter http.ResponseWr
 		err = merry.New("password is required").WithHTTPCode(http.StatusBadRequest)
 		return
 	}
-	account, err := handlers.AccountStore.GetByEmail(email)
+	account, err := handlers.AccountStore.GetByEmail(ctx, email)
 	if err != nil {
 		err = merry.New("unauthorized").WithHTTPCode(http.StatusUnauthorized)
 		return
@@ -179,6 +184,7 @@ func (handlers *Handlers) TokenUsingRefreshTokenGrant(responseWriter http.Respon
 			return
 		}
 	}()
+	ctx := request.Context()
 	cookie, err := request.Cookie("refresh_token")
 	if err != nil {
 		log.Println(err)
@@ -203,7 +209,7 @@ func (handlers *Handlers) TokenUsingRefreshTokenGrant(responseWriter http.Respon
 		err = merry.New("unauthorized").WithHTTPCode(http.StatusUnauthorized)
 		return
 	}
-	account, err := handlers.AccountStore.Get(claims.Subject.AccountID)
+	account, err := handlers.AccountStore.Get(ctx, claims.Subject.AccountID)
 	if err != nil {
 		log.Println(err)
 		err = merry.New("unauthorized").WithHTTPCode(http.StatusUnauthorized)
@@ -251,7 +257,7 @@ func (handlers *Handlers) GetAccount(responseWriter http.ResponseWriter, request
 	}()
 	ctx := request.Context()
 	accountID := internal.GetAccountIDFromContext(ctx)
-	account, err := handlers.AccountStore.Get(accountID)
+	account, err := handlers.AccountStore.Get(ctx, accountID)
 	if err != nil {
 		return
 	}
@@ -261,7 +267,7 @@ func (handlers *Handlers) GetAccount(responseWriter http.ResponseWriter, request
 func (handlers *Handlers) DeleteAccount(responseWriter http.ResponseWriter, request *http.Request) {
 	ctx := request.Context()
 	accountID := internal.GetAccountIDFromContext(ctx)
-	err := handlers.AccountStore.Remove(accountID)
+	err := handlers.AccountStore.Remove(ctx, accountID)
 	if err != nil {
 		http.Error(responseWriter, err.Error(), http.StatusInternalServerError)
 		return
@@ -271,7 +277,7 @@ func (handlers *Handlers) DeleteAccount(responseWriter http.ResponseWriter, requ
 func (handlers *Handlers) AddRoutes(router *mux.Router) {
 	router.Use(internal.LoggingMiddleware)
 	router.Use(mux.CORSMethodMiddleware(router))
-	router.Use(internal.CORSMiddleware)
+	router.Use(internal.CORSMiddleware(handlers.FrontendURL.String()))
 	router.HandleFunc("/token", handlers.Token).Methods(http.MethodPost, http.MethodOptions).Name("Token")
 	router.HandleFunc("/accounts", handlers.CreateAccount).Methods(http.MethodPost, http.MethodOptions).Name("CreateAccount")
 
@@ -324,7 +330,7 @@ func (handlers *Handlers) createRefreshTokenCookie(account *Account) *http.Cooki
 	return &http.Cookie{
 		Name:     "refresh_token",
 		Value:    handlers.createRefreshToken(account),
-		Domain:   internal.Domain,
+		Domain:   handlers.FrontendURL.Hostname(),
 		Path:     "/token",
 		HttpOnly: true,
 		Secure:   true,

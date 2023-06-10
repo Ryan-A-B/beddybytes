@@ -1,0 +1,100 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Parameters:
+  AvailabilityZone:
+    Type: AWS::EC2::AvailabilityZone::Name
+    Description: Availability zone where the EC2 instance will be launched
+  InstanceType:
+    Type: String
+    Description: EC2 instance type for the API server
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+    Description: VPC ID where the EC2 instance will be launched
+  SubnetId:
+    Type: AWS::EC2::Subnet::Id
+    Description: Subnet ID where the EC2 instance will be launched
+  EBSVolumeSize:
+    Type: Number
+    Description: Size of the EBS volume in GiB
+  PublicKeyMaterial:
+    Type: String
+    Description: Public key material for the EC2 key pair
+  SSHLocation:
+    Description: The IP address range that can be used to SSH to the EC2 instances
+    Type: String
+    MinLength: '9'
+    MaxLength: '18'
+
+Resources:
+  ApiSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for the API server
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: !Ref SSHLocation
+
+  Ec2Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      AvailabilityZone: !Ref AvailabilityZone
+      ImageId: ami-00669ff0e8f36cb95  # Amazon Linux 2023 AMI (ARM EBM HVM)
+      InstanceType: !Ref InstanceType
+      KeyName: !Ref KeyPair
+      SecurityGroupIds:
+        - !Ref ApiSecurityGroup
+      SubnetId: !Ref SubnetId
+      UserData:
+        yum install git -y
+        wget https://go.dev/dl/go1.20.5.linux-arm64.tar.gz
+        sudo tar -C /usr/local -xzf go1.20.5.linux-arm64.tar.gz
+        export PATH=$PATH:/usr/local/go/bin
+        sudo git clone https://github.com/Ryan-A-B/baby-monitor.git
+
+  KeyPair:
+    Type: AWS::EC2::KeyPair
+    Properties:
+      KeyName: !Sub ${AWS::StackName}-keypair
+      PublicKeyMaterial: !Ref PublicKeyMaterial
+
+  ElasticIP:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+      InstanceId: !Ref Ec2Instance
+
+  EBSVolume:
+    Type: AWS::EC2::Volume
+    Properties:
+      AvailabilityZone: !Ref AvailabilityZone
+      Size: !Ref EBSVolumeSize
+      Tags:
+        - Key: Name
+          Value: APIVolume
+
+  VolumeAttachment:
+    Type: AWS::EC2::VolumeAttachment
+    Properties:
+      Device: /dev/sdf
+      InstanceId: !Ref Ec2Instance
+      VolumeId: !Ref EBSVolume
+
+Outputs:
+  InstanceId:
+    Description: The instance ID of the API server
+    Value: !Ref Ec2Instance
+  PublicIpAddress:
+    Description: The public IP address of the API server
+    Value: !GetAtt Ec2Instance.PublicIp
+  ElasticIpAddress:
+    Description: The Elastic IP address associated with the API server
+    Value: !Ref ElasticIP
+  VolumeId:
+    Description: The ID of the attached EBS volume
+    Value: !Ref EBSVolume

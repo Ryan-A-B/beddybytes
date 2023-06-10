@@ -1,17 +1,14 @@
 package main
 
 import (
+	"bufio"
 	"context"
-	"crypto/rand"
-	"crypto/rsa"
 	"crypto/tls"
-	"crypto/x509"
 	"encoding/json"
-	"encoding/pem"
 	"errors"
-	"io/ioutil"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"time"
 
@@ -19,9 +16,11 @@ import (
 	"github.com/dgrijalva/jwt-go"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
+
 	"github.com/ryan/baby-monitor/backend/accounts"
 	"github.com/ryan/baby-monitor/backend/internal"
 	"github.com/ryan/baby-monitor/backend/internal/fatal"
+	"github.com/ryan/baby-monitor/backend/internal/store"
 )
 
 type IncomingMessageFrame struct {
@@ -54,6 +53,7 @@ type Client struct {
 }
 
 type Handlers struct {
+	FrontendURL *url.URL
 	Upgrader    websocket.Upgrader
 	ClientStore ClientStore
 
@@ -148,7 +148,7 @@ func (handlers *Handlers) GetKey(token *jwt.Token) (interface{}, error) {
 func (handlers *Handlers) AddRoutes(router *mux.Router) {
 	router.Use(internal.LoggingMiddleware)
 	router.Use(mux.CORSMethodMiddleware(router))
-	router.Use(internal.CORSMiddleware)
+	router.Use(internal.CORSMiddleware(handlers.FrontendURL.String()))
 	router.HandleFunc("/", handlers.Hello).Methods(http.MethodGet).Name("Hello")
 	clientRouter := router.PathPrefix("/clients").Subrouter()
 	clientRouter.Use(internal.NewAuthorizationMiddleware(handlers.Key).Middleware)
@@ -156,56 +156,20 @@ func (handlers *Handlers) AddRoutes(router *mux.Router) {
 	clientRouter.HandleFunc("/{client_id}/websocket", handlers.HandleWebsocket).Methods(http.MethodGet, http.MethodOptions).Name("HandleWebsocket")
 }
 
-func getOrCreateKey() (key interface{}) {
-	key, ok := getKey()
-	if !ok {
-		key = createKey()
-	}
-	return
-}
-
-func getKey() (key interface{}, ok bool) {
-	data, err := ioutil.ReadFile("key.pem")
-	switch {
-	case err == nil:
-		block, _ := pem.Decode(data)
-		fatal.Unless(block != nil, "invalid key")
-		privateKey, err := x509.ParsePKCS1PrivateKey(block.Bytes)
-		fatal.OnError(err)
-		return privateKey, true
-	case os.IsNotExist(err):
-		return nil, false
-	default:
-		fatal.OnError(err)
-		return
-	}
-}
-
-func createKey() interface{} {
-	file, err := os.Create("key.pem")
-	fatal.OnError(err)
-	defer file.Close()
-	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
-	fatal.OnError(err)
-	err = pem.Encode(file, &pem.Block{
-		Type:  "RSA PRIVATE KEY",
-		Bytes: x509.MarshalPKCS1PrivateKey(privateKey),
-	})
-	fatal.OnError(err)
-	return privateKey
-}
-
 func main() {
-	key := getOrCreateKey()
+	key := loadKey()
+	frontendURL := internal.EnvURLOrFatal("FRONTEND_URL")
 	accountHandlers := accounts.Handlers{
-		AccountStore:         accounts.NewAccountStoreFileSystem("account_store"),
-		SigningMethod:        jwt.SigningMethodRS256,
+		FrontendURL:          frontendURL,
+		AccountStore:         newAccountStore(key),
+		SigningMethod:        jwt.SigningMethodHS256,
 		Key:                  key,
 		AccessTokenDuration:  1 * time.Hour,
 		RefreshTokenDuration: 7 * 24 * time.Hour,
 		UsedRefreshTokens:    accounts.NewUsedRefreshTokens(),
 	}
 	handlers := Handlers{
+		FrontendURL: frontendURL,
 		Upgrader: websocket.Upgrader{
 			ReadBufferSize:  1024,
 			WriteBufferSize: 1024,
@@ -225,14 +189,56 @@ func main() {
 	router := mux.NewRouter()
 	handlers.AddRoutes(router.NewRoute().Subrouter())
 	accountHandlers.AddRoutes(router.NewRoute().Subrouter())
-	certificate, err := tls.LoadX509KeyPair("server.crt", "server.key")
-	fatal.OnError(err)
+	addr := internal.EnvStringOrFatal("SERVER_ADDR")
 	server := http.Server{
-		Addr:    ":8000",
-		Handler: router,
-		TLSConfig: &tls.Config{
-			Certificates: []tls.Certificate{certificate},
-		},
+		Addr:      addr,
+		Handler:   router,
+		TLSConfig: getTLSConfig(),
 	}
 	log.Fatal(server.ListenAndServeTLS("", ""))
+}
+
+func newAccountStore(key []byte) *accounts.AccountStore {
+	var s store.Store
+	switch internal.EnvStringOrDefault("ACCOUNT_STORE_IMPLEMENTATION", "file_system") {
+	case "file_system":
+		s = store.NewFileSystemStore(&store.NewFileSystemStoreInput{
+			Root: "account_store",
+		})
+	case "s3":
+		s = store.NewS3Store(&store.NewS3StoreInput{
+			Bucket: internal.EnvStringOrFatal("ACCOUNT_STORE_S3_BUCKET"),
+			Prefix: internal.EnvStringOrFatal("ACCOUNT_STORE_S3_PREFIX"),
+		})
+	}
+	return &accounts.AccountStore{
+		Store: store.NewCachingDecorator(&store.NewCachingDecoratorInput{
+			Store: store.NewEncryptingDecorator(&store.NewEncryptingDecoratorInput{
+				Store: s,
+				Key:   key,
+			}),
+		}),
+	}
+}
+
+func loadKey() []byte {
+	scanner := bufio.NewScanner(os.Stdin)
+	ok := scanner.Scan()
+	if !ok {
+		fatal.OnError(scanner.Err())
+	}
+	key := scanner.Bytes()
+	return key
+}
+
+func getTLSConfig() *tls.Config {
+	return &tls.Config{
+		Certificates: []tls.Certificate{loadCertificate()},
+	}
+}
+
+func loadCertificate() tls.Certificate {
+	certificate, err := tls.LoadX509KeyPair("server.crt", "server.key")
+	fatal.OnError(err)
+	return certificate
 }

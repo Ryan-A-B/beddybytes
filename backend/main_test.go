@@ -14,9 +14,11 @@ import (
 	"github.com/dgrijalva/jwt-go"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
-	"github.com/ryan/baby-monitor/backend/accounts"
 	uuid "github.com/satori/go.uuid"
 	. "github.com/smartystreets/goconvey/convey"
+
+	"github.com/ryan/baby-monitor/backend/accounts"
+	"github.com/ryan/baby-monitor/backend/internal/store"
 )
 
 func generateKey() []byte {
@@ -31,13 +33,21 @@ func generateKey() []byte {
 func TestAccountCreation(t *testing.T) {
 	Convey("TestAccountCreation", t, func() {
 		key := generateKey()
+		frontendURL := &url.URL{
+			Scheme: "http",
+			Host:   "localhost",
+		}
 		accountHandlers := accounts.Handlers{
-			AccountStore:        accounts.NewAccountStoreInMemory(),
+			FrontendURL: frontendURL,
+			AccountStore: &accounts.AccountStore{
+				Store: store.NewMemoryStore(),
+			},
 			SigningMethod:       jwt.SigningMethodHS256,
 			Key:                 key,
 			AccessTokenDuration: 1 * time.Hour,
 		}
 		handlers := Handlers{
+			FrontendURL: frontendURL,
 			Upgrader: websocket.Upgrader{
 				ReadBufferSize:  1024,
 				WriteBufferSize: 1024,
