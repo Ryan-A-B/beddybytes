@@ -1,8 +1,5 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Parameters:
-  AvailabilityZone:
-    Type: AWS::EC2::AvailabilityZone::Name
-    Description: Availability zone where the EC2 instance will be launched
   InstanceType:
     Type: String
     Description: EC2 instance type for the API server
@@ -12,9 +9,6 @@ Parameters:
   SubnetId:
     Type: AWS::EC2::Subnet::Id
     Description: Subnet ID where the EC2 instance will be launched
-  EBSVolumeSize:
-    Type: Number
-    Description: Size of the EBS volume in GiB
   PublicKeyMaterial:
     Type: String
     Description: Public key material for the EC2 key pair
@@ -23,8 +17,34 @@ Parameters:
     Type: String
     MinLength: '9'
     MaxLength: '18'
+  HostedZoneName:
+    Description: The name of the hosted zone where the DNS record will be created
+    Type: String
+  DomainName:
+    Description: The domain name where the DNS record will be created
+    Type: String
 
 Resources:
+  DNSRecord:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneName: !Ref HostedZoneName
+      Name: !Ref DomainName
+      Type: A
+      TTL: '900'
+      ResourceRecords:
+        - !Ref ElasticIP
+
+  Ec2Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: ami-00669ff0e8f36cb95  # Amazon Linux 2023 AMI (ARM EBM HVM)
+      InstanceType: !Ref InstanceType
+      KeyName: !Ref KeyPair
+      SecurityGroupIds:
+        - !Ref ApiSecurityGroup
+      SubnetId: !Ref SubnetId
+
   ApiSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
@@ -32,30 +52,17 @@ Resources:
       VpcId: !Ref VpcId
       SecurityGroupIngress:
         - IpProtocol: tcp
-          FromPort: 443
-          ToPort: 443
-          CidrIp: 0.0.0.0/0
-        - IpProtocol: tcp
           FromPort: 22
           ToPort: 22
           CidrIp: !Ref SSHLocation
-
-  Ec2Instance:
-    Type: AWS::EC2::Instance
-    Properties:
-      AvailabilityZone: !Ref AvailabilityZone
-      ImageId: ami-00669ff0e8f36cb95  # Amazon Linux 2023 AMI (ARM EBM HVM)
-      InstanceType: !Ref InstanceType
-      KeyName: !Ref KeyPair
-      SecurityGroupIds:
-        - !Ref ApiSecurityGroup
-      SubnetId: !Ref SubnetId
-      UserData:
-        yum install git -y
-        wget https://go.dev/dl/go1.20.5.linux-arm64.tar.gz
-        sudo tar -C /usr/local -xzf go1.20.5.linux-arm64.tar.gz
-        export PATH=$PATH:/usr/local/go/bin
-        sudo git clone https://github.com/Ryan-A-B/baby-monitor.git
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
 
   KeyPair:
     Type: AWS::EC2::KeyPair
@@ -68,23 +75,6 @@ Resources:
     Properties:
       Domain: vpc
       InstanceId: !Ref Ec2Instance
-
-  EBSVolume:
-    Type: AWS::EC2::Volume
-    DeletionPolicy: Retain
-    Properties:
-      AvailabilityZone: !Ref AvailabilityZone
-      Size: !Ref EBSVolumeSize
-      Tags:
-        - Key: Name
-          Value: APIVolume
-
-  VolumeAttachment:
-    Type: AWS::EC2::VolumeAttachment
-    Properties:
-      Device: /dev/sdf
-      InstanceId: !Ref Ec2Instance
-      VolumeId: !Ref EBSVolume
 
   Bucket:
     Type: AWS::S3::Bucket
@@ -102,6 +92,3 @@ Outputs:
   ElasticIpAddress:
     Description: The Elastic IP address associated with the API server
     Value: !Ref ElasticIP
-  VolumeId:
-    Description: The ID of the attached EBS volume
-    Value: !Ref EBSVolume

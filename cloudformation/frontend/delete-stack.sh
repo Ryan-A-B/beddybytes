@@ -2,9 +2,8 @@
 . init.sh
 set -ex
 
-
-region=ap-southeast-2
-stack_name=baby-monitor-backend
+region=us-east-1
+stack_name=baby-monitor-frontend
 
 aws cloudformation delete-stack \
     --region $region \

@@ -1,0 +1,80 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Parameters:
+  HostedZoneId:
+    Description: The ID of the hosted zone where the DNS record will be created
+    Type: String
+  HostedZoneName:
+    Description: The name of the hosted zone where the DNS record will be created
+    Type: String
+  DomainName:
+    Description: The domain name where the DNS record will be created
+    Type: String
+
+Resources:
+  DNSRecord:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneName: !Ref HostedZoneName
+      Name: !Ref DomainName
+      Type: A
+      AliasTarget:
+        HostedZoneId: Z2FDTNDATAQYW2
+        DNSName: !GetAtt CDN.DomainName
+      
+  Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub ${AWS::StackName}-bucket
+
+  OAI:
+    Type: AWS::CloudFront::CloudFrontOriginAccessIdentity
+    Properties:
+      CloudFrontOriginAccessIdentityConfig:
+        Comment: !Sub ${AWS::StackName}-oai
+
+  CachePolicy:
+    Type: AWS::CloudFront::CachePolicy
+    Properties:
+      CachePolicyConfig:
+        Name: !Sub ${AWS::StackName}-cache-policy
+        DefaultTTL: 86400 # 1 day
+        MaxTTL: 31536000 # 1 year
+        MinTTL: 86400 # 1 day
+        ParametersInCacheKeyAndForwardedToOrigin:
+          CookiesConfig:
+            CookieBehavior: none
+          EnableAcceptEncodingBrotli: true
+          EnableAcceptEncodingGzip: true
+          HeadersConfig:
+            HeaderBehavior: none
+          QueryStringsConfig:
+            QueryStringBehavior: none
+
+  Certificate:
+    Type: AWS::CertificateManager::Certificate
+    Properties:
+      DomainName: !Ref DomainName
+      ValidationMethod: DNS
+      DomainValidationOptions:
+        - DomainName: !Ref DomainName
+          HostedZoneId: !Ref HostedZoneId
+
+  CDN:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Origins:
+          - DomainName: !GetAtt Bucket.DomainName
+            Id: !Ref Bucket
+            S3OriginConfig:
+              OriginAccessIdentity: !Sub origin-access-identity/cloudfront/${OAI}
+        DefaultCacheBehavior:
+          TargetOriginId: !Ref Bucket
+          ViewerProtocolPolicy: redirect-to-https
+          CachePolicyId: !Ref CachePolicy
+        Enabled: true
+        Aliases:
+          - !Ref DomainName
+        ViewerCertificate:
+          AcmCertificateArn: !Ref Certificate
+          SslSupportMethod: sni-only
