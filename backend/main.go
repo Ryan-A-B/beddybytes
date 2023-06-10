@@ -13,6 +13,8 @@ import (
 	"time"
 
 	"github.com/ansel1/merry"
+	awsconfig "github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
@@ -157,11 +159,12 @@ func (handlers *Handlers) AddRoutes(router *mux.Router) {
 }
 
 func main() {
+	ctx := context.Background()
 	key := loadKey()
 	frontendURL := internal.EnvURLOrFatal("FRONTEND_URL")
 	accountHandlers := accounts.Handlers{
 		FrontendURL:          frontendURL,
-		AccountStore:         newAccountStore(key),
+		AccountStore:         newAccountStore(ctx, key),
 		SigningMethod:        jwt.SigningMethodHS256,
 		Key:                  key,
 		AccessTokenDuration:  1 * time.Hour,
@@ -198,7 +201,7 @@ func main() {
 	log.Fatal(server.ListenAndServeTLS("", ""))
 }
 
-func newAccountStore(key []byte) *accounts.AccountStore {
+func newAccountStore(ctx context.Context, key []byte) *accounts.AccountStore {
 	var s store.Store
 	switch internal.EnvStringOrDefault("ACCOUNT_STORE_IMPLEMENTATION", "file_system") {
 	case "file_system":
@@ -206,9 +209,12 @@ func newAccountStore(key []byte) *accounts.AccountStore {
 			Root: "account_store",
 		})
 	case "s3":
+		config, err := awsconfig.LoadDefaultConfig(ctx)
+		fatal.OnError(err)
 		s = store.NewS3Store(&store.NewS3StoreInput{
+			Client: s3.NewFromConfig(config),
 			Bucket: internal.EnvStringOrFatal("ACCOUNT_STORE_S3_BUCKET"),
-			Prefix: internal.EnvStringOrFatal("ACCOUNT_STORE_S3_PREFIX"),
+			Prefix: "account_store/",
 		})
 	}
 	return &accounts.AccountStore{

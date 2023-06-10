@@ -43,7 +43,7 @@ func (store *S3Store) getObjectKey(key string) string {
 
 func (store *S3Store) notFoundOrFatal(err error) error {
 	var noSuchKey *types.NoSuchKey
-	fatal.Unless(errors.As(err, &noSuchKey), "unexpected error")
+	fatal.Unless(errors.As(err, &noSuchKey), "unexpected error: "+err.Error())
 	return ErrNotFound.WithCause(err)
 }
 
@@ -80,8 +80,8 @@ func (store *S3Store) Delete(ctx context.Context, key string) (err error) {
 		Bucket: &store.bucket,
 		Key:    &objectKey,
 	})
-	err = store.notFoundOrFatal(err)
 	if err != nil {
+		store.notFoundOrFatal(err)
 		return nil
 	}
 	return

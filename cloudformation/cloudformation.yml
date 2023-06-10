@@ -71,6 +71,7 @@ Resources:
 
   EBSVolume:
     Type: AWS::EC2::Volume
+    DeletionPolicy: Retain
     Properties:
       AvailabilityZone: !Ref AvailabilityZone
       Size: !Ref EBSVolumeSize
@@ -84,6 +85,12 @@ Resources:
       Device: /dev/sdf
       InstanceId: !Ref Ec2Instance
       VolumeId: !Ref EBSVolume
+
+  Bucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    Properties:
+      BucketName: !Sub ${AWS::StackName}-bucket
 
 Outputs:
   InstanceId:
