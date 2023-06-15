@@ -6,7 +6,7 @@ import (
 
 	"github.com/ansel1/merry"
 
-	"github.com/ryan/baby-monitor/backend/internal/fatal"
+	"github.com/Ryan-A-B/baby-monitor/backend/internal/fatal"
 )
 
 type CompositeStore struct {

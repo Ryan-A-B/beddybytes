@@ -1,4 +1,4 @@
-module github.com/ryan/baby-monitor
+module github.com/Ryan-A-B/baby-monitor
 
 go 1.18
 

@@ -13,9 +13,9 @@ import (
 	"github.com/gorilla/mux"
 	. "github.com/smartystreets/goconvey/convey"
 
-	"github.com/ryan/baby-monitor/backend/accounts"
-	"github.com/ryan/baby-monitor/backend/internal/fatal"
-	"github.com/ryan/baby-monitor/backend/internal/store"
+	"github.com/Ryan-A-B/baby-monitor/backend/accounts"
+	"github.com/Ryan-A-B/baby-monitor/backend/internal/fatal"
+	"github.com/Ryan-A-B/baby-monitor/backend/internal/store"
 )
 
 func TestHandlers(t *testing.T) {

@@ -1,21 +1,20 @@
 # TODO
 ## Now
 ### Bugs
+- logs
 
 ### Features
 - payments
 
 ## Next
 ### Bugs
+- server hardening
 - websocket to notify when a new camera comes online
 - S7 -> Latitude 7430 no video shows
     - incompatible encodings?
     - chrome works
 - only get new token on demand
     - `getToken` function in context
-- docker
-- docker-compose
-    - https proxy
 
 ### Features
 - end session button
@@ -36,9 +35,13 @@
 - configurable signal server
 - configurable STUN server
 - show number of active connections
+- stats
+- continuous integration
 
 ## Later
 ### Bugs
+- frontend/node_modules/react-scripts/config/webpackDevServer.config.js
+    - devServer.client.webSocketURL.protocol = wss
 ### Features
 - use colour from the video stream to set background colour
 - MQTT?

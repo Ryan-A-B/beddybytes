@@ -11,7 +11,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 
-	"github.com/ryan/baby-monitor/backend/internal/fatal"
+	"github.com/Ryan-A-B/baby-monitor/backend/internal/fatal"
 )
 
 type S3Store struct {

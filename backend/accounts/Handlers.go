@@ -17,8 +17,8 @@ import (
 	"github.com/gorilla/mux"
 	uuid "github.com/satori/go.uuid"
 
-	"github.com/ryan/baby-monitor/backend/internal"
-	"github.com/ryan/baby-monitor/backend/internal/fatal"
+	"github.com/Ryan-A-B/baby-monitor/backend/internal"
+	"github.com/Ryan-A-B/baby-monitor/backend/internal/fatal"
 )
 
 type Handlers struct {

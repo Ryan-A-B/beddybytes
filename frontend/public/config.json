@@ -11,6 +11,6 @@
         "iceCandidatePoolSize": 10
     },
     "API": {
-        "host": "10.64.227.116:8000"
+        "host": "api.babymonitor.local:8443"
     }
 }

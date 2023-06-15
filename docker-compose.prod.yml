@@ -1,0 +1,41 @@
+version: '3'
+
+services:
+  reverse-proxy:
+    image: traefik:v2.10
+    restart: always
+    ports:
+      - target: 80
+        host_ip: 127.0.0.1
+        published: "80"
+        protocol: tcp
+        mode: host
+      - target: 443
+        host_ip: 127.0.0.1
+        published: "443"
+        protocol: tcp
+        mode: host
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./traefik/traefik.prod.yml:/etc/traefik/traefik.yml
+      - ./traefik/letsencrypt:/letsencrypt
+  api:
+    image: baby-monitor-backend
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: always
+    ports:
+      - "8000:8000"
+    environment:
+      - ENCRYPTION_KEY=
+      - APP_URL=https://app.babymonitor.creativeilk.com
+      - SERVER_ADDR=:8000
+      - ACCOUNT_STORE_IMPLEMENTATION=s3
+      - ACCOUNT_STORE_S3_BUCKET=
+    labels:
+      - "traefik.http.routers.api.rule=Host(`api.babymonitor.local`)"
+      - "traefik.http.routers.api.entrypoints=websecure"
+      - "traefik.http.routers.api.tls=true"
+      - "traefik.http.routers.api.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.api.tls.domains[0].main=api.babymonitor.creativeilk.com"

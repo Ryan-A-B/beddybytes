@@ -1,9 +1,9 @@
 #!/bin/bash
 set -ex
 
-WORKDIR=$(pwd)/frontend
+workdir=$(pwd)/frontend
 
 docker run --rm -it \
-    -v $WORKDIR:$WORKDIR \
-    -w $WORKDIR \
+    -v $workdir:$workdir \
+    -w $workdir \
     node:18 yarn build

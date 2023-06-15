@@ -1,0 +1,19 @@
+providers:
+  docker: {}
+  file:
+    directory: /etc/traefik/
+    filename: dynamic_conf.yml
+    watch: true
+
+entryPoints:
+  web:
+    address: :80
+  websecure:
+    address: :443
+
+api:
+  dashboard: true
+  insecure: true
+
+log:
+  level: INFO

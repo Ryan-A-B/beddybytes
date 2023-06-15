@@ -1,0 +1,60 @@
+version: '3'
+
+services:
+  reverse-proxy:
+    image: traefik:v2.10
+    restart: always
+    ports:
+      - target: 80
+        host_ip: 127.0.0.1
+        published: "8080"
+        protocol: tcp
+        mode: host
+      - target: 443
+        host_ip: 127.0.0.1
+        published: "8443"
+        protocol: tcp
+        mode: host
+      - target: 8080
+        host_ip: 127.0.0.1
+        published: "9000"
+        protocol: tcp
+        mode: host
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./traefik/traefik.local.yml:/etc/traefik/traefik.yml
+      - ./traefik/dynamic_conf.local.yml:/etc/traefik/dynamic_conf.yml
+      - ./traefik/certificates:/opt/certificates
+  api:
+    image: baby-monitor-backend
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: always
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./account_store:/opt/account_store
+    environment:
+      - ENCRYPTION_KEY=passwordpasswordpasswordpassword
+      - APP_URL=https://app.babymonitor.local:8443
+      - SERVER_ADDR=:8000
+    labels:
+      - traefik.http.routers.api.rule=Host(`api.babymonitor.local`)
+      - traefik.http.routers.api.entrypoints=websecure
+      - traefik.http.routers.api.tls=true
+  app:
+    image: node:18
+    command: yarn start
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend/:/opt/frontend
+    environment:
+      - WDS_SOCKET_HOST=app.babymonitor.local
+      - WDS_SOCKET_PORT=8443
+    working_dir: /opt/frontend
+    labels:
+      - traefik.http.routers.app.rule=Host(`app.babymonitor.local`)
+      - traefik.http.routers.app.entrypoints=websecure
+      - traefik.http.routers.app.tls=true

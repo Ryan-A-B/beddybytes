@@ -1,15 +1,13 @@
 package main
 
 import (
-	"bufio"
 	"context"
-	"crypto/tls"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"net/url"
-	"os"
 	"time"
 
 	"github.com/ansel1/merry"
@@ -19,10 +17,10 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 
-	"github.com/ryan/baby-monitor/backend/accounts"
-	"github.com/ryan/baby-monitor/backend/internal"
-	"github.com/ryan/baby-monitor/backend/internal/fatal"
-	"github.com/ryan/baby-monitor/backend/internal/store"
+	"github.com/Ryan-A-B/baby-monitor/backend/accounts"
+	"github.com/Ryan-A-B/baby-monitor/backend/internal"
+	"github.com/Ryan-A-B/baby-monitor/backend/internal/fatal"
+	"github.com/Ryan-A-B/baby-monitor/backend/internal/store"
 )
 
 type IncomingMessageFrame struct {
@@ -160,8 +158,8 @@ func (handlers *Handlers) AddRoutes(router *mux.Router) {
 
 func main() {
 	ctx := context.Background()
-	key := loadKey()
-	frontendURL := internal.EnvURLOrFatal("FRONTEND_URL")
+	key := []byte(internal.EnvStringOrFatal("ENCRYPTION_KEY"))
+	frontendURL := internal.EnvURLOrFatal("APP_URL")
 	accountHandlers := accounts.Handlers{
 		FrontendURL:          frontendURL,
 		AccountStore:         newAccountStore(ctx, key),
@@ -194,11 +192,11 @@ func main() {
 	accountHandlers.AddRoutes(router.NewRoute().Subrouter())
 	addr := internal.EnvStringOrFatal("SERVER_ADDR")
 	server := http.Server{
-		Addr:      addr,
-		Handler:   router,
-		TLSConfig: getTLSConfig(),
+		Addr:    addr,
+		Handler: router,
 	}
-	log.Fatal(server.ListenAndServeTLS("", ""))
+	fmt.Printf("Listening on %s\n", addr)
+	log.Fatal(server.ListenAndServe())
 }
 
 func newAccountStore(ctx context.Context, key []byte) *accounts.AccountStore {
@@ -228,26 +226,4 @@ func newAccountStore(ctx context.Context, key []byte) *accounts.AccountStore {
 			}),
 		}),
 	}
-}
-
-func loadKey() []byte {
-	scanner := bufio.NewScanner(os.Stdin)
-	ok := scanner.Scan()
-	if !ok {
-		fatal.OnError(scanner.Err())
-	}
-	key := scanner.Bytes()
-	return key
-}
-
-func getTLSConfig() *tls.Config {
-	return &tls.Config{
-		Certificates: []tls.Certificate{loadCertificate()},
-	}
-}
-
-func loadCertificate() tls.Certificate {
-	certificate, err := tls.LoadX509KeyPair("server.crt", "server.key")
-	fatal.OnError(err)
-	return certificate
 }

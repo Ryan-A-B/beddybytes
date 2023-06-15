@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ryan/baby-monitor/backend/internal/store"
+	"github.com/Ryan-A-B/baby-monitor/backend/internal/store"
 	uuid "github.com/satori/go.uuid"
 	. "github.com/smartystreets/goconvey/convey"
 )

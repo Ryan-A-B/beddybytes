@@ -7,7 +7,7 @@ import (
 	uuid "github.com/satori/go.uuid"
 	. "github.com/smartystreets/goconvey/convey"
 
-	"github.com/ryan/baby-monitor/backend/internal/store"
+	"github.com/Ryan-A-B/baby-monitor/backend/internal/store"
 )
 
 func TestCompositeStore(t *testing.T) {
