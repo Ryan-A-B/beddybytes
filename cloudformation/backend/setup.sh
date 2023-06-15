@@ -1,23 +1,30 @@
 #!/bin/bash
 set -ex
 
-# Install Docker
-sudo yum install docker -y
-sudo service docker start
-sudo usermod -a -G docker ec2-user
-
 # Clone the baby-monitor repo
 sudo yum install git -y
 git clone https://github.com/Ryan-A-B/baby-monitor.git
 
-# Install Go
-wget https://go.dev/dl/go1.20.5.linux-arm64.tar.gz
-sudo tar -C /usr/local -xzf go1.20.5.linux-arm64.tar.gz
-export PATH=$PATH:/usr/local/go/bin
+# Install Docker
+# https://docs.docker.com/engine/install/ubuntu/#install-using-the-repository
+sudo apt-get update
+sudo apt-get install ca-certificates curl gnupg
 
-# Run certbot
-sudo docker run -it --rm --name certbot \
-    --network host \
-    -v "/etc/letsencrypt:/etc/letsencrypt" \
-    -v "/var/lib/letsencrypt:/var/lib/letsencrypt" \
-    certbot/certbot certonly --standalone
+sudo install -m 0755 -d /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+sudo chmod a+r /etc/apt/keyrings/docker.gpg
+
+echo \
+  "deb [arch="$(dpkg --print-architecture)" signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+  "$(. /etc/os-release && echo "$VERSION_CODENAME")" stable" | \
+  sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+sudo apt-get update
+
+sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+
+sudo groupadd docker
+sudo usermod -aG docker $USER
+
+# update docker-compose.prod.yml with environment variables
+# update traefik/traefik.prod.yml with email for letsencrypt

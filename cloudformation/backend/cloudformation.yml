@@ -38,7 +38,7 @@ Resources:
   Ec2Instance:
     Type: AWS::EC2::Instance
     Properties:
-      ImageId: ami-00669ff0e8f36cb95  # Amazon Linux 2023 AMI (ARM EBM HVM)
+      ImageId: ami-0370d04afa44db778  # Ubuntu 22.04 AMI (ARM HVM)
       InstanceType: !Ref InstanceType
       KeyName: !Ref KeyPair
       SecurityGroupIds:
