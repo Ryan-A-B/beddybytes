@@ -8,6 +8,7 @@
 
 ## Next
 ### Bugs
+- replace react favicon
 - server hardening
 - websocket to notify when a new camera comes online
 - S7 -> Latitude 7430 no video shows

@@ -48,6 +48,10 @@ class Connection {
         }));
     }
 
+    set onconnectionstatechange(connectionstatechange: (event: Event) => void) {
+        this.pc.onconnectionstatechange = connectionstatechange;
+    }
+
     set ontrack(ontrack: (event: RTCTrackEvent) => void) {
         this.pc.ontrack = ontrack;
     }
@@ -59,6 +63,7 @@ class Connection {
 
         this.pc.onicecandidate = null;
         this.pc.ontrack = null;
+        this.pc.onconnectionstatechange = null;
         this.pc.close();
     }
 }
