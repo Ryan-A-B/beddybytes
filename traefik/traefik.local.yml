@@ -17,3 +17,12 @@ api:
 
 log:
   level: INFO
+
+accessLog: {}
+
+metrics:
+  influxDB2:
+    address: http://influxdb:8086
+    token: ll06xbBsf99S5AiAd1eMBy0j65SsmiNYo5Fb5Vgr4ix34LnFIJKMNWkdWM7i-QnTAP7ArBkRML9jG6chq_h8tA==
+    org: creativeilk
+    bucket: traefik

@@ -18,3 +18,7 @@ certificatesResolvers:
 
 log:
   level: WARN
+
+accessLog:
+  filePath: /opt/access.log
+  bufferingSize: 128

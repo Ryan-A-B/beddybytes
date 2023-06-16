@@ -21,37 +21,36 @@ const LoginForm: React.FunctionComponent<Props> = ({ onSuccessfulLogin }) => {
     }, [authorizationServer, email, password, onSuccessfulLogin])
     return (
         <React.Fragment>
-            <h1>Login</h1>
             <form onSubmit={handleSubmit}>
-                <div className="form-group">
+                <div className="form-group mb-3">
                     <label>
                         Email:
-                        <Input
-                            type="email"
-                            name="email"
-                            value={email}
-                            onChange={setEmail}
-                            className="form-control"
-                            required
-                        />
                     </label>
+                    <Input
+                        type="email"
+                        name="email"
+                        value={email}
+                        onChange={setEmail}
+                        className="form-control"
+                        required
+                    />
                 </div>
-                <div className="form-group">
+                <div className="form-group mb-3">
                     <label>
                         Password:
-                        <Input
-                            type="password"
-                            name="password"
-                            value={password}
-                            onChange={setPassword}
-                            className="form-control"
-                            required
-                        />
                     </label>
+                    <Input
+                        type="password"
+                        name="password"
+                        value={password}
+                        onChange={setPassword}
+                        className="form-control"
+                        required
+                    />
                 </div>
                 {error && <div className="alert alert-danger">{error}</div>}
-                <button type="submit" className="btn btn-primary mt-3">
-                    Login
+                <button type="submit" className="btn btn-primary w-100">
+                    Log In
                 </button>
             </form>
         </React.Fragment>

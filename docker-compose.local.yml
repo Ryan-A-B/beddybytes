@@ -1,7 +1,7 @@
 version: '3'
 
 services:
-  reverse-proxy:
+  traefik:
     image: traefik:v2.10
     restart: always
     ports:
@@ -13,7 +13,7 @@ services:
       - ./traefik/traefik.local.yml:/etc/traefik/traefik.yml
       - ./traefik/dynamic_conf.local.yml:/etc/traefik/dynamic_conf.yml
       - ./traefik/certificates:/opt/certificates
-  api:
+  backend:
     image: baby-monitor-backend
     build:
       context: .
@@ -28,10 +28,10 @@ services:
       - APP_URL=https://app.babymonitor.local:8443
       - SERVER_ADDR=:8000
     labels:
-      - traefik.http.routers.api.rule=Host(`api.babymonitor.local`)
-      - traefik.http.routers.api.entrypoints=websecure
-      - traefik.http.routers.api.tls=true
-  app:
+      - traefik.http.routers.backend.rule=Host(`api.babymonitor.local`)
+      - traefik.http.routers.backend.entrypoints=websecure
+      - traefik.http.routers.backend.tls=true
+  frontend:
     image: node:18
     command: yarn start
     ports:
@@ -43,6 +43,13 @@ services:
       - WDS_SOCKET_PORT=8443
     working_dir: /opt/frontend
     labels:
-      - traefik.http.routers.app.rule=Host(`app.babymonitor.local`)
-      - traefik.http.routers.app.entrypoints=websecure
-      - traefik.http.routers.app.tls=true
+      - traefik.http.routers.frontend.rule=Host(`app.babymonitor.local`)
+      - traefik.http.routers.frontend.entrypoints=websecure
+      - traefik.http.routers.frontend.tls=true
+  influxdb:
+    image: influxdb:2.7-alpine
+    restart: always
+    ports:
+      - "8086:8086"
+    volumes:
+      - ./influxdb/data:/var/lib/influxdb2
