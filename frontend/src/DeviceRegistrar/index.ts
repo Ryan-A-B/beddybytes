@@ -1,8 +1,12 @@
 import React from 'react';
 
+type DeviceTypeMonitor = 'monitor';
+type DeviceTypeCamera = 'camera';
+type DeviceType = DeviceTypeMonitor | DeviceTypeCamera;
+
 export interface Device {
     id: string
-    type: string
+    type?: DeviceType
     alias: string
 }
 
@@ -12,7 +16,7 @@ export interface DeviceRegistrar {
 
 export class MockDeviceRegistrar implements DeviceRegistrar {
     private devices: Device[] = [
-        { id: 'camera', type: 'camera', alias: 'Camera' },
+        { id: 'camera', alias: 'Camera' },
     ]
 
     list = async () => {

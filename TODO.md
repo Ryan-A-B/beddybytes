@@ -2,8 +2,10 @@
 ## Now
 ### Bugs
 - logs
+- stats
 
 ### Features
+- end session button
 - payments
 
 ## Next
@@ -18,8 +20,7 @@
     - `getToken` function in context
 
 ### Features
-- end session button
-- connection lost banner
+- connection lost
     - attempt reconnect
     - Picture in Picture doesn't support custom elements
         - disable picture in picture when connection is lost
@@ -36,14 +37,22 @@
 - configurable signal server
 - configurable STUN server
 - show number of active connections
-- stats
 - continuous integration
 
 ## Later
 ### Bugs
+- scale
+    - use AWS IoT as message broker on production
+        - when monitor comes on line it sends message asking what cameras are available
+            - accounts/{account_id}
+        - for WebRTC negotiation 
+            - accounts/{account_id}/to_device/{device_id}/from_device/{device_id}
 - frontend/node_modules/react-scripts/config/webpackDevServer.config.js
     - devServer.client.webSocketURL.protocol = wss
+
 ### Features
 - use colour from the video stream to set background colour
-- MQTT?
+    - display video twice
+        - fullscreen in background blurred
+        - actual video stream
 - Lighting payments

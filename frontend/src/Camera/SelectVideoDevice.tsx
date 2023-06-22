@@ -6,10 +6,21 @@ interface Props {
     onChange: (value: string) => void
 }
 
+const getUniqueDevices = (devices: MediaDeviceInfo[]): MediaDeviceInfo[] => {
+    const deviceIDs: string[] = [];
+    return devices.filter((device) => {
+        if (deviceIDs.includes(device.deviceId)) return false;
+        deviceIDs.push(device.deviceId);
+        return true;
+    });
+}
+
 const SelectVideoDevice: React.FunctionComponent<Props> = ({ value, onChange }) => {
     const promise = React.useMemo(() => {
+        const deviceIDs: string[] = [];
         return navigator.mediaDevices.enumerateDevices()
             .then((devices) => devices.filter((device) => device.kind === 'videoinput'))
+            .then(getUniqueDevices)
     }, []);
     const videoDevices = usePromise(promise);
     const handleChange = React.useCallback((event: React.ChangeEvent<HTMLSelectElement>) => {

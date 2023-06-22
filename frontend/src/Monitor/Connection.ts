@@ -7,14 +7,22 @@ class Connection {
     private pc: RTCPeerConnection;
     constructor(config: Config, device: Device, peerID: string, accessToken: string) {
         this.peerID = peerID;
-        this.websocket = new WebSocket(`wss://${config.API.host}/clients/${device.id}/websocket?client_type=${device.type}&client_alias=${device.alias}&access_token=${accessToken}`);
-        this.websocket.onopen = this.onOpen;
-        this.websocket.onmessage = this.onMessage;
+        const query = new URLSearchParams({
+            client_type: "monitor",
+            client_alias: device.alias,
+            access_token: accessToken,
+        });
+        const websocketURL = `wss://${config.API.host}/clients/${device.id}/websocket?${query.toString()}`;
+        this.websocket = new WebSocket(websocketURL);
+        this.websocket.onopen = this.onWebSocketOpen;
+        this.websocket.onmessage = this.onWebSocketMessage;
+        this.websocket.onerror = this.onWebSocketError;
+
         this.pc = new RTCPeerConnection(config.RTC);
         this.pc.onicecandidate = this.onICECandidate;
     }
 
-    private onOpen = async () => {
+    private onWebSocketOpen = async () => {
         this.pc.addTransceiver('video', { direction: 'recvonly' })
         this.pc.addTransceiver('audio', { direction: 'recvonly' })
         await this.pc.setLocalDescription();
@@ -24,7 +32,7 @@ class Connection {
         }));
     }
 
-    private onMessage = async (event: MessageEvent) => {
+    private onWebSocketMessage = async (event: MessageEvent) => {
         const frame = JSON.parse(event.data);
         if (frame.from_peer_id !== this.peerID) return;
         const data = frame.data;
@@ -38,6 +46,10 @@ class Connection {
             await this.pc.addIceCandidate(candidate);
             return
         }
+    }
+
+    private onWebSocketError = (event: Event) => {
+        console.error(event);
     }
 
     private onICECandidate = (event: RTCPeerConnectionIceEvent) => {
@@ -59,6 +71,7 @@ class Connection {
     close() {
         this.websocket.onopen = null;
         this.websocket.onmessage = null;
+        this.websocket.onerror = null;
         this.websocket.close();
 
         this.pc.onicecandidate = null;

@@ -1,11 +1,15 @@
 import React from 'react';
+import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import * as AuthorizationServer from './AuthorizationServer';
 import * as DeviceRegistrar from './DeviceRegistrar';
 import Login from './Login';
 import Registration from './Registration';
-import Router from './Router';
+import Navbar from './Navbar';
 import * as Config from './Config';
 import './App.scss';
+import Instructions from './Instructions';
+import Monitor from './Monitor';
+import Camera from './Camera';
 
 interface DeviceRegistrarProviderProps {
   config: Config.Config
@@ -45,19 +49,26 @@ const App: React.FunctionComponent = () => {
 
   if (config === null) return null
   return (
-    <div className="container">
+    <BrowserRouter>
+      <Navbar />
       <Config.Context.Provider value={config}>
         <AuthorizationServer.Context.Provider value={authorizationServer}>
           <Login>
             <DeviceRegistrarProvider config={config}>
               <Registration>
-                <Router />
+                <div className="container">
+                  <Routes>
+                    <Route path="/" element={<Instructions />} />
+                    <Route path="/monitor" element={<Monitor />} />
+                    <Route path="/camera" element={<Camera />} />
+                  </Routes>
+                </div>
               </Registration>
             </DeviceRegistrarProvider>
           </Login>
         </AuthorizationServer.Context.Provider>
       </Config.Context.Provider>
-    </div>
+    </BrowserRouter>
   );
 }
 

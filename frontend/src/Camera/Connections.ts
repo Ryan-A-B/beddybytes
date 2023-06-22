@@ -9,7 +9,13 @@ class Connections {
     private pcs: Map<string, RTCPeerConnection> = Map();
     constructor(config: Config, device: Device, stream: MediaStream, accessToken: string) {
         this.config = config;
-        this.websocket = new WebSocket(`wss://${config.API.host}/clients/${device.id}/websocket?client_type=${device.type}&client_alias=${device.alias}&access_token=${accessToken}`);
+        const query = new URLSearchParams({
+            client_type: "camera",
+            client_alias: device.alias,
+            access_token: accessToken,
+        });
+        const websocketURL = `wss://${config.API.host}/clients/${device.id}/websocket?${query.toString()}`;
+        this.websocket = new WebSocket(websocketURL);
         this.websocket.onmessage = this.onMessage;
         this.stream = stream;
     }

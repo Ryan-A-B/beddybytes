@@ -48,8 +48,8 @@ const SelectCamera: React.FunctionComponent<Props> = ({ value, onChange }) => {
         </div>
     );
     return (
-        <div className="row justify-content-center">
-            <div className="col-lg-4 col-md-5 col">
+        <div className="row">
+            <div className="col">
                 {loading && <div>Loading...</div>}
                 {!loading && cameras.length === 0 && <div>No cameras found</div>}
                 {!loading && cameras.length > 0 && (

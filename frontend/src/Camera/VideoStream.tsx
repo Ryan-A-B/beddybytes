@@ -43,7 +43,7 @@ const VideoStream: React.FunctionComponent<Props> = ({ videoDeviceID }) => {
     if (stream.state === 'rejected') return (<div>Failed to get stream: {stream.error.message}</div>)
     return (
         <React.Fragment>
-            <video ref={videoRef} autoPlay playsInline muted className="video" />
+            <video ref={videoRef} autoPlay playsInline muted className="video my-3" />
             {!isStarted && (
                 <button onClick={onClick} className="btn btn-primary">
                     Start

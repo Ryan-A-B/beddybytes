@@ -36,7 +36,6 @@ const Video: React.FunctionComponent<Props> = ({ peerID }) => {
             if (event.type !== "connectionstatechange") throw new Error("event.type is not connectionstatechange");
             const connection = event.target as RTCPeerConnection;
             setConnectionState(connection.connectionState);
-            console.log(`connectionState: ${connection.connectionState}`);
         };
         return () => {
             connection.close();
