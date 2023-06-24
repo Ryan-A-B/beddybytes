@@ -1,18 +1,21 @@
 import { Device } from '../DeviceRegistrar';
 import { Config } from '../Config';
 
+type OnClose = () => void;
+
 class Connection {
     private peerID: string;
     private websocket: WebSocket;
     private pc: RTCPeerConnection;
-    constructor(config: Config, device: Device, peerID: string, accessToken: string) {
+    onclose: OnClose | null = null;
+    constructor(config: Config, deviceID: string, peerID: string, accessToken: string) {
         this.peerID = peerID;
         const query = new URLSearchParams({
             client_type: "monitor",
-            client_alias: device.alias,
+            client_alias: "monitor",
             access_token: accessToken,
         });
-        const websocketURL = `wss://${config.API.host}/clients/${device.id}/websocket?${query.toString()}`;
+        const websocketURL = `wss://${config.API.host}/clients/${deviceID}/websocket?${query.toString()}`;
         this.websocket = new WebSocket(websocketURL);
         this.websocket.onopen = this.onWebSocketOpen;
         this.websocket.onmessage = this.onWebSocketMessage;
@@ -44,6 +47,10 @@ class Connection {
         if (data.candidate !== undefined) {
             const candidate = new RTCIceCandidate(data.candidate);
             await this.pc.addIceCandidate(candidate);
+            return
+        }
+        if (data.close !== undefined) {
+            this.close();
             return
         }
     }
@@ -78,6 +85,8 @@ class Connection {
         this.pc.ontrack = null;
         this.pc.onconnectionstatechange = null;
         this.pc.close();
+
+        if (this.onclose !== null) this.onclose();
     }
 }
 

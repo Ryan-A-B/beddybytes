@@ -59,8 +59,8 @@ const App: React.FunctionComponent = () => {
                 <div className="container">
                   <Routes>
                     <Route path="/" element={<Instructions />} />
-                    <Route path="/monitor" element={<Monitor />} />
                     <Route path="/camera" element={<Camera />} />
+                    <Route path="/monitor" element={<Monitor />} />
                   </Routes>
                 </div>
               </Registration>

@@ -1,15 +1,16 @@
 # TODO
 ## Now
 ### Bugs
+- rate limiting
 - logs
 - stats
 
 ### Features
-- end session button
 - payments
 
 ## Next
 ### Bugs
+- responive slightly broken on phone (S7)
 - replace react favicon
 - server hardening
 - websocket to notify when a new camera comes online

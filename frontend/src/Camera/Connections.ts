@@ -7,14 +7,14 @@ class Connections {
     private stream: MediaStream;
     private websocket: WebSocket;
     private pcs: Map<string, RTCPeerConnection> = Map();
-    constructor(config: Config, device: Device, stream: MediaStream, accessToken: string) {
+    constructor(config: Config, deviceID: string, sessionName: string, stream: MediaStream, accessToken: string) {
         this.config = config;
         const query = new URLSearchParams({
             client_type: "camera",
-            client_alias: device.alias,
+            client_alias: sessionName,
             access_token: accessToken,
         });
-        const websocketURL = `wss://${config.API.host}/clients/${device.id}/websocket?${query.toString()}`;
+        const websocketURL = `wss://${config.API.host}/clients/${deviceID}/websocket?${query.toString()}`;
         this.websocket = new WebSocket(websocketURL);
         this.websocket.onmessage = this.onMessage;
         this.stream = stream;
@@ -64,10 +64,17 @@ class Connections {
         }));
     }
 
-    close() {
+    close = () => {
+        this.pcs.forEach((pc, deviceID) => {
+            // TODO send this via RTCDataChannel
+            this.websocket.send(JSON.stringify({
+                to_peer_id: deviceID,
+                data: { close: null },
+            }));
+            pc.close()
+        });
         this.websocket.onmessage = null;
         this.websocket.close();
-        this.pcs.forEach((pc) => pc.close());
     }
 }
 

@@ -7,9 +7,11 @@ import { useAccessToken } from "../AuthorizationServer";
 
 interface Props {
     videoDeviceID: string
+    sessionName: string
+    sessionActive: boolean
 }
 
-const VideoStream: React.FunctionComponent<Props> = ({ videoDeviceID }) => {
+const VideoStream: React.FunctionComponent<Props> = ({ videoDeviceID, sessionName, sessionActive }) => {
     const config = useConfig();
     const accessToken = useAccessToken();
     const client = DeviceRegistrar.useDevice();
@@ -26,30 +28,16 @@ const VideoStream: React.FunctionComponent<Props> = ({ videoDeviceID }) => {
         if (videoRef.current === null) return;
         videoRef.current.srcObject = stream.value;
     }, [stream]);
-    const [isStarted, setIsStarted] = React.useState(false);
     React.useEffect(() => {
-        setIsStarted(false);
-    }, [videoDeviceID])
-    const onClick = React.useCallback(() => {
-        setIsStarted(true);
-    }, []);
-    React.useEffect(() => {
-        if (!isStarted) return;
+        if (!sessionActive) return;
         if (stream.state !== 'resolved') throw new Error('Stream is not resolved');
-        const connections = new Connections(config, client, stream.value, accessToken);
+        const connections = new Connections(config, client.id, sessionName, stream.value, accessToken);
         return connections.close;
-    }, [config, client, stream, isStarted]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [config, client.id, stream, sessionName, sessionActive]); // eslint-disable-line react-hooks/exhaustive-deps
     if (stream.state === 'pending') return (<div>Getting stream...</div>)
     if (stream.state === 'rejected') return (<div>Failed to get stream: {stream.error.message}</div>)
     return (
-        <React.Fragment>
-            <video ref={videoRef} autoPlay playsInline muted className="video my-3" />
-            {!isStarted && (
-                <button onClick={onClick} className="btn btn-primary">
-                    Start
-                </button>
-            )}
-        </React.Fragment>
+        <video ref={videoRef} autoPlay playsInline muted className="video my-3" />
     )
 };
 

@@ -33,12 +33,21 @@ Resources:
       PolicyDocument:
         Version: 2008-10-17
         Statement:
-          - Sid: AllowCloudFrontServicePrincipal
+          - Sid: AllowGetObject
             Effect: Allow
             Principal: 
               Service: cloudfront.amazonaws.com
             Action: s3:GetObject
             Resource: !Sub arn:aws:s3:::${Bucket}/*
+            Condition:
+              StringEquals:
+                aws:SourceArn: !Sub arn:aws:cloudfront::${AWS::AccountId}:distribution/${CDN}
+          - Sid: AllowListBucket
+            Effect: Allow
+            Principal:
+              Service: cloudfront.amazonaws.com
+            Action: s3:ListBucket
+            Resource: !Sub arn:aws:s3:::${Bucket}
             Condition:
               StringEquals:
                 aws:SourceArn: !Sub arn:aws:cloudfront::${AWS::AccountId}:distribution/${CDN}
@@ -100,3 +109,7 @@ Resources:
         ViewerCertificate:
           AcmCertificateArn: !Ref Certificate
           SslSupportMethod: sni-only
+        CustomErrorResponses:
+          - ErrorCode: 404
+            ResponseCode: 200
+            ResponsePagePath: /index.html

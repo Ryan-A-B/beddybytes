@@ -4,6 +4,7 @@ import usePromise from "../hooks/usePromise";
 interface Props {
     value: string
     onChange: (value: string) => void
+    disabled?: boolean
 }
 
 const getUniqueDevices = (devices: MediaDeviceInfo[]): MediaDeviceInfo[] => {
@@ -15,7 +16,7 @@ const getUniqueDevices = (devices: MediaDeviceInfo[]): MediaDeviceInfo[] => {
     });
 }
 
-const SelectVideoDevice: React.FunctionComponent<Props> = ({ value, onChange }) => {
+const SelectVideoDevice: React.FunctionComponent<Props> = ({ value, onChange, disabled }) => {
     const promise = React.useMemo(() => {
         const deviceIDs: string[] = [];
         return navigator.mediaDevices.enumerateDevices()
@@ -29,7 +30,7 @@ const SelectVideoDevice: React.FunctionComponent<Props> = ({ value, onChange }) 
     if (videoDevices.state === 'pending') return (<div>Getting devices...</div>);
     if (videoDevices.state === 'rejected') return (<div>Failed to get devices</div>);
     return (
-        <select value={value} onChange={handleChange} className="form-select">
+        <select value={value} onChange={handleChange} className="form-select" disabled={disabled}>
             <option value="">Select a video device</option>
             {videoDevices.value.map((device, i) => (
                 <option key={device.deviceId} value={device.deviceId}>

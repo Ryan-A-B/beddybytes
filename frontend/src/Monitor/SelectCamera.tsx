@@ -34,10 +34,15 @@ const useClientList = (): useClientListOutput => {
 interface Props extends Omit<React.SelectHTMLAttributes<HTMLSelectElement>, "onChange"> {
     value: string;
     onChange: (value: string) => void;
+    refreshKey: string; // TODO this isn't a good way to do this
 }
 
-const SelectCamera: React.FunctionComponent<Props> = ({ value, onChange }) => {
+const SelectCamera: React.FunctionComponent<Props> = ({ value, onChange, refreshKey }) => {
     const { loading, clientList, refresh: refreshClientList, error } = useClientList();
+    React.useEffect(() => {
+        if (refreshKey === "") return;
+        refreshClientList();
+    }, [refreshClientList, refreshKey]);
     const cameras = React.useMemo(() => clientList.filter((client) => client.type === "camera"), [clientList]);
     const handleChange = React.useCallback((event: React.ChangeEvent<HTMLSelectElement>) => {
         onChange(event.target.value);

@@ -7,7 +7,7 @@ type DeviceType = DeviceTypeMonitor | DeviceTypeCamera;
 export interface Device {
     id: string
     type?: DeviceType
-    alias: string
+    alias?: string
 }
 
 export interface DeviceRegistrar {
@@ -16,7 +16,7 @@ export interface DeviceRegistrar {
 
 export class MockDeviceRegistrar implements DeviceRegistrar {
     private devices: Device[] = [
-        { id: 'camera', alias: 'Camera' },
+        { id: 'camera' },
     ]
 
     list = async () => {
