@@ -47,7 +47,6 @@ func TestAccountCreation(t *testing.T) {
 			AccessTokenDuration: 1 * time.Hour,
 		}
 		handlers := Handlers{
-			FrontendURL: frontendURL,
 			Upgrader: websocket.Upgrader{
 				ReadBufferSize:  1024,
 				WriteBufferSize: 1024,
@@ -103,7 +102,7 @@ func TestAccountCreation(t *testing.T) {
 				response, err := client.Do(request)
 				So(err, ShouldBeNil)
 				So(response.StatusCode, ShouldEqual, http.StatusOK)
-				var loginOutput accounts.LoginOutput
+				var loginOutput accounts.AccessTokenOutput
 				err = json.NewDecoder(response.Body).Decode(&loginOutput)
 				So(err, ShouldBeNil)
 				So(loginOutput.TokenType, ShouldEqual, "Bearer")

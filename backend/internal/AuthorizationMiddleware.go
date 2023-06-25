@@ -39,6 +39,14 @@ func (middleware *AuthorizationMiddleware) Middleware(next http.Handler) http.Ha
 			err = merry.New("unauthorized").WithHTTPCode(http.StatusUnauthorized)
 			return
 		}
+		if claims.Subject.Service != "iam" {
+			err = merry.New("unauthorized").WithHTTPCode(http.StatusUnauthorized)
+			return
+		}
+		if claims.Subject.ResourceType != "user" {
+			err = merry.New("unauthorized").WithHTTPCode(http.StatusUnauthorized)
+			return
+		}
 		vars := mux.Vars(request)
 		accountID := vars["account_id"]
 		if accountID != "" && claims.Subject.AccountID != accountID {

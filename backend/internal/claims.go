@@ -8,11 +8,12 @@ import (
 )
 
 type Claims struct {
-	Issuer   string `json:"iss"`
-	Audience string `json:"aud"`
-	Subject  URN    `json:"sub"`
-	Expiry   int64  `json:"exp"`
-	Scope    string `json:"scp"`
+	ID       string `json:"jti,omitempty"`
+	Issuer   string `json:"iss,omitempty"`
+	Audience string `json:"aud,omitempty"`
+	Subject  URN    `json:"sub,omitempty"`
+	Expiry   int64  `json:"exp,omitempty"`
+	Scope    string `json:"scp,omitempty"`
 }
 
 func (claims *Claims) Valid() (err error) {
@@ -23,12 +24,6 @@ func (claims *Claims) Valid() (err error) {
 	if claims.Audience != "baby-monitor" {
 		err = merry.New("invalid audience").WithHTTPCode(http.StatusUnauthorized)
 		return
-	}
-	if claims.Subject.Service != "iam" {
-		return merry.New("invalid subject").WithHTTPCode(http.StatusUnauthorized)
-	}
-	if claims.Subject.ResourceType != "user" {
-		return merry.New("invalid subject").WithHTTPCode(http.StatusUnauthorized)
 	}
 	if claims.Expiry < time.Now().Unix() {
 		err = merry.New("token has expired").WithHTTPCode(http.StatusUnauthorized)

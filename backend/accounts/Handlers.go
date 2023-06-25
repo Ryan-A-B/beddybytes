@@ -22,35 +22,47 @@ import (
 )
 
 type Handlers struct {
-	FrontendURL          *url.URL
-	AccountStore         *AccountStore
-	SigningMethod        jwt.SigningMethod
-	Key                  interface{}
-	AccessTokenDuration  time.Duration
-	RefreshTokenDuration time.Duration
-	UsedRefreshTokens    UsedRefreshTokens
+	FrontendURL                  *url.URL
+	AccountStore                 *AccountStore
+	SigningMethod                jwt.SigningMethod
+	Key                          interface{}
+	AccessTokenDuration          time.Duration
+	RefreshTokenDuration         time.Duration
+	UsedTokens                   UsedTokens
+	AnonymousAccessTokenDuration time.Duration
 }
 
-type UsedRefreshTokens struct {
+type UsedTokens struct {
 	mutex sync.Mutex
 	cache map[string]struct{}
 }
 
-func NewUsedRefreshTokens() UsedRefreshTokens {
-	return UsedRefreshTokens{
+func NewUsedTokens() UsedTokens {
+	return UsedTokens{
 		cache: make(map[string]struct{}),
 	}
 }
 
-func (usedRefreshTokens *UsedRefreshTokens) TryAdd(refreshToken string) bool {
+func (usedRefreshTokens *UsedTokens) TryAdd(key string) bool {
 	usedRefreshTokens.mutex.Lock()
 	defer usedRefreshTokens.mutex.Unlock()
-	_, ok := usedRefreshTokens.cache[refreshToken]
+	_, ok := usedRefreshTokens.cache[key]
 	if ok {
 		return false
 	}
-	usedRefreshTokens.cache[refreshToken] = struct{}{}
+	usedRefreshTokens.cache[key] = struct{}{}
 	return true
+}
+
+func (handlers *Handlers) AnonymousToken(responseWriter http.ResponseWriter, request *http.Request) {
+	remoteAddress := request.Header.Get("X-Forwarded-For")
+	output := AccessTokenOutput{
+		TokenType:   "Bearer",
+		AccessToken: handlers.createAnonymousAccessToken(remoteAddress),
+		ExpiresIn:   int(handlers.AnonymousAccessTokenDuration.Seconds()),
+	}
+	responseWriter.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(responseWriter).Encode(output)
 }
 
 type CreateAccountInput struct {
@@ -70,6 +82,47 @@ func (input *CreateAccountInput) Validate() (err error) {
 	return
 }
 
+func (handlers *Handlers) CheckCreateAccountAuthorization(request *http.Request) (err error) {
+	const prefix = "Bearer "
+	authorization := request.Header.Get("Authorization")
+	if !strings.HasPrefix(authorization, prefix) {
+		err = merry.New("unauthorized").WithHTTPCode(http.StatusUnauthorized)
+		return
+	}
+	accessToken := authorization[len(prefix):]
+	var claims internal.Claims
+	_, err = jwt.ParseWithClaims(accessToken, &claims, func(token *jwt.Token) (interface{}, error) {
+		return handlers.Key, nil
+	})
+	if err != nil {
+		log.Println("failed to parse access token:", err)
+		err = merry.New("unauthorized").WithHTTPCode(http.StatusUnauthorized)
+		return
+	}
+	if claims.Subject.ResourceType != "remote_address" {
+		log.Println("invalid resource type:", claims.Subject.ResourceType)
+		err = merry.New("unauthorized").WithHTTPCode(http.StatusUnauthorized)
+		return
+	}
+	remoteAddress := request.Header.Get("X-Forwarded-For")
+	if claims.Subject.ResourceID != remoteAddress {
+		log.Println("invalid resource ID:", claims.Subject.ResourceID)
+		err = merry.New("unauthorized").WithHTTPCode(http.StatusUnauthorized)
+		return
+	}
+	if claims.Scope != "iam:CreateAccount" {
+		log.Println("invalid scope:", claims.Scope)
+		err = merry.New("unauthorized").WithHTTPCode(http.StatusUnauthorized)
+		return
+	}
+	if added := handlers.UsedTokens.TryAdd(claims.ID); !added {
+		log.Println("token already used:", claims.ID)
+		err = merry.New("unauthorized").WithHTTPCode(http.StatusUnauthorized)
+		return
+	}
+	return
+}
+
 func (handlers *Handlers) CreateAccount(responseWriter http.ResponseWriter, request *http.Request) {
 	var err error
 	defer func() {
@@ -77,10 +130,15 @@ func (handlers *Handlers) CreateAccount(responseWriter http.ResponseWriter, requ
 			http.Error(responseWriter, err.Error(), merry.HTTPCode(err))
 		}
 	}()
+	err = handlers.CheckCreateAccountAuthorization(request)
+	if err != nil {
+		return
+	}
 	ctx := request.Context()
 	var input CreateAccountInput
 	err = json.NewDecoder(request.Body).Decode(&input)
 	if err != nil {
+		err = merry.WithHTTPCode(err, http.StatusBadRequest)
 		return
 	}
 	err = input.Validate()
@@ -110,7 +168,7 @@ func (handlers *Handlers) CreateAccount(responseWriter http.ResponseWriter, requ
 	json.NewEncoder(responseWriter).Encode(account)
 }
 
-type LoginOutput struct {
+type AccessTokenOutput struct {
 	TokenType   string `json:"token_type"`
 	AccessToken string `json:"access_token"`
 	ExpiresIn   int    `json:"expires_in"`
@@ -167,7 +225,7 @@ func (handlers *Handlers) TokenUsingPasswordGrant(responseWriter http.ResponseWr
 		err = merry.New("unauthorized").WithHTTPCode(http.StatusUnauthorized)
 		return
 	}
-	output := LoginOutput{
+	output := AccessTokenOutput{
 		TokenType:   "Bearer",
 		AccessToken: handlers.createAccessToken(account),
 		ExpiresIn:   int(handlers.AccessTokenDuration.Seconds()),
@@ -205,7 +263,7 @@ func (handlers *Handlers) TokenUsingRefreshTokenGrant(responseWriter http.Respon
 		err = merry.New("unauthorized").WithHTTPCode(http.StatusUnauthorized)
 		return
 	}
-	if added := handlers.UsedRefreshTokens.TryAdd(refreshToken); !added {
+	if added := handlers.UsedTokens.TryAdd(claims.ID); !added {
 		log.Println("refresh token has already been used")
 		err = merry.New("unauthorized").WithHTTPCode(http.StatusUnauthorized)
 		return
@@ -216,7 +274,7 @@ func (handlers *Handlers) TokenUsingRefreshTokenGrant(responseWriter http.Respon
 		err = merry.New("unauthorized").WithHTTPCode(http.StatusUnauthorized)
 		return
 	}
-	output := LoginOutput{
+	output := AccessTokenOutput{
 		TokenType:   "Bearer",
 		AccessToken: handlers.createAccessToken(account),
 		ExpiresIn:   int(handlers.AccessTokenDuration.Seconds()),
@@ -278,7 +336,8 @@ func (handlers *Handlers) DeleteAccount(responseWriter http.ResponseWriter, requ
 func (handlers *Handlers) AddRoutes(router *mux.Router) {
 	router.Use(internal.LoggingMiddleware)
 	router.Use(mux.CORSMethodMiddleware(router))
-	router.Use(internal.CORSMiddleware(handlers.FrontendURL.String()))
+	router.Use(internal.SkipOptionsMiddleware)
+	router.HandleFunc("/anonymous_token", handlers.AnonymousToken).Methods(http.MethodPost, http.MethodOptions).Name("AnonymousToken")
 	router.HandleFunc("/token", handlers.Token).Methods(http.MethodPost, http.MethodOptions).Name("Token")
 	router.HandleFunc("/accounts", handlers.CreateAccount).Methods(http.MethodPost, http.MethodOptions).Name("CreateAccount")
 
@@ -286,6 +345,27 @@ func (handlers *Handlers) AddRoutes(router *mux.Router) {
 	authenticatedRouter.Use(internal.NewAuthorizationMiddleware(handlers.Key).Middleware)
 	authenticatedRouter.HandleFunc("", handlers.GetAccount).Methods(http.MethodGet, http.MethodOptions).Name("GetAccount")
 	authenticatedRouter.HandleFunc("", handlers.DeleteAccount).Methods(http.MethodDelete, http.MethodOptions).Name("DeleteAccount")
+}
+
+func (handlers *Handlers) createAnonymousAccessToken(remoteAddress string) (accessToken string) {
+	expiry := time.Now().Add(handlers.AnonymousAccessTokenDuration)
+	claims := internal.Claims{
+		ID:       uuid.NewV4().String(),
+		Issuer:   "baby-monitor",
+		Audience: "baby-monitor",
+		Subject: internal.URN{
+			Service:      "",
+			Region:       "",
+			AccountID:    "",
+			ResourceType: "remote_address",
+			ResourceID:   remoteAddress,
+		},
+		Scope:  "iam:CreateAccount",
+		Expiry: expiry.Unix(),
+	}
+	accessToken, err := jwt.NewWithClaims(handlers.SigningMethod, &claims).SignedString(handlers.Key)
+	fatal.OnError(err)
+	return
 }
 
 func (handlers *Handlers) createAccessToken(account *Account) (accessToken string) {
@@ -310,6 +390,7 @@ func (handlers *Handlers) createAccessToken(account *Account) (accessToken strin
 func (handlers *Handlers) createRefreshToken(account *Account) (refreshToken string) {
 	expiry := time.Now().Add(handlers.RefreshTokenDuration)
 	claims := internal.Claims{
+		ID:       uuid.NewV4().String(),
 		Issuer:   "baby-monitor",
 		Audience: "baby-monitor",
 		Subject: internal.URN{

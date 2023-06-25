@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"net/url"
 	"time"
 
 	"github.com/ansel1/merry"
@@ -53,7 +52,6 @@ type Client struct {
 }
 
 type Handlers struct {
-	FrontendURL *url.URL
 	Upgrader    websocket.Upgrader
 	ClientStore ClientStore
 
@@ -148,7 +146,7 @@ func (handlers *Handlers) GetKey(token *jwt.Token) (interface{}, error) {
 func (handlers *Handlers) AddRoutes(router *mux.Router) {
 	router.Use(internal.LoggingMiddleware)
 	router.Use(mux.CORSMethodMiddleware(router))
-	router.Use(internal.CORSMiddleware(handlers.FrontendURL.String()))
+	router.Use(internal.SkipOptionsMiddleware)
 	router.HandleFunc("/", handlers.Hello).Methods(http.MethodGet).Name("Hello")
 	clientRouter := router.PathPrefix("/clients").Subrouter()
 	clientRouter.Use(internal.NewAuthorizationMiddleware(handlers.Key).Middleware)
@@ -161,16 +159,16 @@ func main() {
 	key := []byte(internal.EnvStringOrFatal("ENCRYPTION_KEY"))
 	frontendURL := internal.EnvURLOrFatal("APP_URL")
 	accountHandlers := accounts.Handlers{
-		FrontendURL:          frontendURL,
-		AccountStore:         newAccountStore(ctx, key),
-		SigningMethod:        jwt.SigningMethodHS256,
-		Key:                  key,
-		AccessTokenDuration:  1 * time.Hour,
-		RefreshTokenDuration: 7 * 24 * time.Hour,
-		UsedRefreshTokens:    accounts.NewUsedRefreshTokens(),
+		FrontendURL:                  frontendURL,
+		AccountStore:                 newAccountStore(ctx, key),
+		SigningMethod:                jwt.SigningMethodHS256,
+		Key:                          key,
+		AccessTokenDuration:          1 * time.Hour,
+		RefreshTokenDuration:         7 * 24 * time.Hour,
+		UsedTokens:                   accounts.NewUsedTokens(),
+		AnonymousAccessTokenDuration: 10 * time.Second,
 	}
 	handlers := Handlers{
-		FrontendURL: frontendURL,
 		Upgrader: websocket.Upgrader{
 			ReadBufferSize:  1024,
 			WriteBufferSize: 1024,

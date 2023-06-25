@@ -46,17 +46,30 @@ export class AuthorizationServerAPI implements AuthorizationServer {
     }
 
     createAccount = async (email: string, password: string) => {
-        const response = await fetch(`${this.baseURL}/accounts`, {
+        const tokenResponse = await fetch(`${this.baseURL}/anonymous_token`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+        })
+        if (!tokenResponse.ok) {
+            const payload = await tokenResponse.text()
+            throw new Error(`Failed to create account: ${payload}`)
+        }
+        const { token_type, access_token } = await tokenResponse.json()
+        if (token_type !== 'Bearer')
+            throw new Error(`Failed to create account: invalid token type ${token_type}`)
+        const createAccountResponse = await fetch(`${this.baseURL}/accounts`, {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `${token_type} ${access_token}`
+            },
             body: JSON.stringify({
                 email,
                 password
             }),
             credentials: 'include',
         })
-        if (!response.ok) {
-            const payload = await response.text()
+        if (!createAccountResponse.ok) {
+            const payload = await createAccountResponse.text()
             throw new Error(`Failed to create account: ${payload}`)
         }
     }

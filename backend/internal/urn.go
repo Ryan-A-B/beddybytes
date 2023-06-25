@@ -8,7 +8,7 @@ import (
 	"github.com/ansel1/merry"
 )
 
-var urnPattern = regexp.MustCompile(`^urn:([a-z0-9-]+):([a-z0-9-]*):([a-z0-9-]+):([a-z0-9-]+)/([a-z0-9-]+)$`)
+var urnPattern = regexp.MustCompile(`^urn:([a-z0-9-]*):([a-z0-9-]*):([a-z0-9-]*):([a-z0-9_-]+)/(.+)$`)
 
 type URN struct {
 	Service      string
