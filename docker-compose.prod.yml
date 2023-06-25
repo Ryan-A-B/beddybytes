@@ -13,7 +13,7 @@ services:
       - ./traefik/letsencrypt:/letsencrypt
       - ./access.log:/opt/access.log
     labels:
-      - "traefik.http.middlewares.headers-cors.headers.accesscontrolalloworiginlist=https://app.babymonitor.creativeilk.com:8443"
+      - "traefik.http.middlewares.headers-cors.headers.accesscontrolalloworiginlist=https://app.babymonitor.creativeilk.com"
       - "traefik.http.middlewares.headers-cors.headers.accesscontrolallowheaders=Content-Type,Authorization"
       - "traefik.http.middlewares.headers-cors.headers.accesscontrolallowcredentials=true"
 
