@@ -1,6 +1,8 @@
 # TODO
 ## Now
 ### Bugs
+- integration tests for API prod release
+- notify on account creation
 - logs
 - stats
 

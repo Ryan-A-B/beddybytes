@@ -94,6 +94,21 @@ func TestHandlers(t *testing.T) {
 						So(response.StatusCode, ShouldEqual, http.StatusUnauthorized)
 					})
 				})
+				Convey("invalid email", func() {
+					input := accounts.CreateAccountInput{
+						Email:    "test",
+						Password: "passwordpasswordpassword",
+					}
+					data, err := json.Marshal(input)
+					So(err, ShouldBeNil)
+					request, err := http.NewRequest(http.MethodPost, server.URL+"/accounts", bytes.NewReader(data))
+					So(err, ShouldBeNil)
+					request.Header.Set("X-Forwarded-For", "127.0.0.1")
+					request.Header.Set("Authorization", "Bearer "+output.AccessToken)
+					response, err := client.Do(request)
+					So(err, ShouldBeNil)
+					So(response.StatusCode, ShouldEqual, http.StatusBadRequest)
+				})
 			})
 		})
 	})

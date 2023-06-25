@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -70,9 +71,15 @@ type CreateAccountInput struct {
 	Password string `json:"password"`
 }
 
+var EmailPattern = regexp.MustCompile(`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+(\.[a-zA-Z]{2,})+$`)
+
 func (input *CreateAccountInput) Validate() (err error) {
 	if input.Email == "" {
 		err = merry.New("email is required").WithHTTPCode(http.StatusBadRequest)
+		return
+	}
+	if !EmailPattern.MatchString(input.Email) {
+		err = merry.New("invalid email").WithHTTPCode(http.StatusBadRequest)
 		return
 	}
 	if len(input.Password) < 20 {

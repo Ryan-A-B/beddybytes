@@ -18,11 +18,11 @@ services:
       - "traefik.http.middlewares.headers-cors.headers.accesscontrolallowcredentials=true"
 
       - "traefik.http.middlewares.rate-limit-anonymous-token.ratelimit.average=1"
-      - "traefik.http.middlewares.rate-limit-anonymous-token.ratelimit.period=10s"
+      - "traefik.http.middlewares.rate-limit-anonymous-token.ratelimit.period=5m"
       - "traefik.http.middlewares.rate-limit-anonymous-token.ratelimit.burst=1"
 
       - "traefik.http.middlewares.rate-limit-create-account.ratelimit.average=1"
-      - "traefik.http.middlewares.rate-limit-create-account.ratelimit.period=10s"
+      - "traefik.http.middlewares.rate-limit-create-account.ratelimit.period=5m"
       - "traefik.http.middlewares.rate-limit-create-account.ratelimit.burst=1"
 
       - "traefik.http.middlewares.rate-limit-options.ratelimit.average=1"
