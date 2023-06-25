@@ -1,7 +1,6 @@
 # TODO
 ## Now
 ### Bugs
-- rate limiting
 - logs
 - stats
 
