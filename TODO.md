@@ -2,8 +2,8 @@
 ## Now
 ### Bugs
 - integration tests for API prod release
-- notify on account creation
 - logs
+    - print reason for request failed
 - stats
 
 ### Features
@@ -40,6 +40,7 @@
 - configurable STUN server
 - show number of active connections
 - continuous integration
+- noise when connection lost
 
 ## Later
 ### Bugs

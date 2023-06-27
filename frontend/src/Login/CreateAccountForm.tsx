@@ -46,6 +46,7 @@ const CreateAccountForm: React.FunctionComponent<Props> = ({ onSuccessfulLogin }
                         value={password}
                         onChange={setPassword}
                         className="form-control"
+                        minLength={20}
                         required
                     />
                 </div>

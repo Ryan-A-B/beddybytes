@@ -11,18 +11,18 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./traefik/traefik.prod.yml:/etc/traefik/traefik.yml
       - ./traefik/letsencrypt:/letsencrypt
-      - ./access.log:/opt/access.log
+      - ./traefik/logs:/opt/logs
     labels:
       - "traefik.http.middlewares.headers-cors.headers.accesscontrolalloworiginlist=https://app.babymonitor.creativeilk.com"
       - "traefik.http.middlewares.headers-cors.headers.accesscontrolallowheaders=Content-Type,Authorization"
       - "traefik.http.middlewares.headers-cors.headers.accesscontrolallowcredentials=true"
 
       - "traefik.http.middlewares.rate-limit-anonymous-token.ratelimit.average=1"
-      - "traefik.http.middlewares.rate-limit-anonymous-token.ratelimit.period=5m"
+      - "traefik.http.middlewares.rate-limit-anonymous-token.ratelimit.period=20s"
       - "traefik.http.middlewares.rate-limit-anonymous-token.ratelimit.burst=1"
 
       - "traefik.http.middlewares.rate-limit-create-account.ratelimit.average=1"
-      - "traefik.http.middlewares.rate-limit-create-account.ratelimit.period=5m"
+      - "traefik.http.middlewares.rate-limit-create-account.ratelimit.period=20s"
       - "traefik.http.middlewares.rate-limit-create-account.ratelimit.burst=1"
 
       - "traefik.http.middlewares.rate-limit-options.ratelimit.average=1"
