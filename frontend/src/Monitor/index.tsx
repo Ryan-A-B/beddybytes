@@ -1,8 +1,6 @@
 import React from "react";
 import { v4 as uuid } from "uuid";
-import { useConfig } from "../Config";
-import { useAccessToken } from "../AuthorizationServer";
-import * as DeviceRegistrar from '../DeviceRegistrar';
+import * as DeviceRegistrar from '../DeviceRegistrar'
 import "./Monitor.scss";
 import SelectCamera from "./SelectCamera";
 import Video from "./Video";
@@ -16,8 +14,6 @@ const isConnectionLost = (connectionState: RTCPeerConnectionState) => {
 }
 
 const Monitor: React.FunctionComponent = () => {
-    const config = useConfig();
-    const accessToken = useAccessToken();
     const client = DeviceRegistrar.useDevice();
     const [cameraID, setCameraID] = React.useState<string>("");
     const [stream, setStream] = React.useState<MediaStream | null>(null);
@@ -28,7 +24,7 @@ const Monitor: React.FunctionComponent = () => {
         if (cameraID === "") return;
         setSessionEnded(false);
         setConnectionState("new");
-        const connection = new Connection(config, client.id, cameraID, accessToken);
+        const connection = new Connection(client.id, cameraID);
         connection.ontrack = (event: RTCTrackEvent) => {
             const stream = event.streams[0];
             setStream(stream);
@@ -44,7 +40,7 @@ const Monitor: React.FunctionComponent = () => {
             setSessionEnded(true);
             setRefreshKey(uuid());
         };
-    }, [config, client.id, cameraID]) // eslint-disable-line react-hooks/exhaustive-deps
+    }, [client.id, cameraID])
     return (
         <div className="monitor">
             <SelectCamera value={cameraID} onChange={setCameraID} refreshKey={refreshKey} />

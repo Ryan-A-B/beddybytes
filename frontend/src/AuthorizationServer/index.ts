@@ -1,4 +1,5 @@
 import React from 'react';
+import settings from "../settings"
 
 export interface LoginFrame {
     token_type: string
@@ -58,7 +59,7 @@ export class AuthorizationServerAPI implements AuthorizationServer {
             throw new Error(`Failed to create account: invalid token type ${token_type}`)
         const createAccountResponse = await fetch(`${this.baseURL}/accounts`, {
             method: 'POST',
-            headers: { 
+            headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `${token_type} ${access_token}`
             },
@@ -112,24 +113,9 @@ export class AuthorizationServerAPI implements AuthorizationServer {
 
 export const Context = React.createContext<AuthorizationServer | null>(null);
 
-export const useAuthorizationServer = () => {
-    const authorizationServer = React.useContext(Context)
-    if (!authorizationServer) throw new Error('No authorization server provided')
-    return authorizationServer
-}
-
-export const AuthorizationContext = React.createContext<string | null>(null);
-
-export const useAuthorization = () => {
-    const authorization = React.useContext(AuthorizationContext)
-    if (!authorization) throw new Error('No authorization provided')
-    return authorization
-}
-
-export const AccessTokenContext = React.createContext<string | null>(null);
-
-export const useAccessToken = () => {
-    const accessToken = React.useContext(AccessTokenContext)
-    if (!accessToken) throw new Error('No access token provided')
-    return accessToken
+export const useAuthorizationServer = (): AuthorizationServer => {
+    const { API: { host } } = settings
+    return React.useMemo(() => {
+        return new AuthorizationServerAPI(`https://${host}`)
+    }, [host])
 }

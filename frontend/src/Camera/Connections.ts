@@ -1,23 +1,30 @@
 import { Map } from "immutable";
-import { Device } from "../DeviceRegistrar";
-import { Config } from "../Config";
+import settings from "../settings";
+import authorization from "../authorization";
 
 class Connections {
-    private config: Config;
+    private deviceID: string;
+    private sessionName: string;
     private stream: MediaStream;
-    private websocket: WebSocket;
+    private websocket: WebSocket | null = null;
     private pcs: Map<string, RTCPeerConnection> = Map();
-    constructor(config: Config, deviceID: string, sessionName: string, stream: MediaStream, accessToken: string) {
-        this.config = config;
+    constructor(deviceID: string, sessionName: string, stream: MediaStream) {
+        this.deviceID = deviceID;
+        this.sessionName = sessionName;
+        this.stream = stream;
+        this.startWebSocket();
+    }
+
+    private startWebSocket = async () => {
+        const accessToken = await authorization.getAccessToken();
         const query = new URLSearchParams({
             client_type: "camera",
-            client_alias: sessionName,
+            client_alias: this.sessionName,
             access_token: accessToken,
         });
-        const websocketURL = `wss://${config.API.host}/clients/${deviceID}/websocket?${query.toString()}`;
+        const websocketURL = `wss://${settings.API.host}/clients/${this.deviceID}/websocket?${query.toString()}`;
         this.websocket = new WebSocket(websocketURL);
         this.websocket.onmessage = this.onMessage;
-        this.stream = stream;
     }
 
     private onMessage = async (event: MessageEvent) => {
@@ -27,13 +34,15 @@ class Connections {
             if (data.description.type !== "offer")
                 throw new Error("data.description.type is not answer");
             this.closeExistingPeerConnectionIfAny(frame.from_peer_id);
-            const pc = new RTCPeerConnection(this.config.RTC);
+            const pc = new RTCPeerConnection(settings.RTC);
             pc.onicecandidate = this.onICECandidate(frame.from_peer_id);
             this.pcs = this.pcs.set(frame.from_peer_id, pc);
             await pc.setRemoteDescription(data.description);
             this.stream.getTracks().forEach((track) => pc.addTrack(track, this.stream));
             const answer = await pc.createAnswer();
             await pc.setLocalDescription(answer);
+            if (this.websocket === null)
+                throw new Error("this.websocket is null");
             this.websocket.send(JSON.stringify({
                 to_peer_id: frame.from_peer_id,
                 data: { description: answer },
@@ -58,6 +67,8 @@ class Connections {
 
     private onICECandidate = (peerID: string) => (event: RTCPeerConnectionIceEvent) => {
         if (event.candidate === null) return;
+        if (this.websocket === null)
+            throw new Error("this.websocket is null");
         this.websocket.send(JSON.stringify({
             to_peer_id: peerID,
             data: { candidate: event.candidate },
@@ -67,12 +78,16 @@ class Connections {
     close = () => {
         this.pcs.forEach((pc, deviceID) => {
             // TODO send this via RTCDataChannel
+            if (this.websocket === null)
+                throw new Error("this.websocket is null");
             this.websocket.send(JSON.stringify({
                 to_peer_id: deviceID,
                 data: { close: null },
             }));
             pc.close()
         });
+        if (this.websocket === null)
+            throw new Error("this.websocket is null");
         this.websocket.onmessage = null;
         this.websocket.close();
     }

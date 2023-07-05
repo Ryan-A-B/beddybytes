@@ -2,8 +2,6 @@ import React from "react";
 import * as DeviceRegistrar from '../DeviceRegistrar';
 import usePromise from "../hooks/usePromise";
 import Connections from "./Connections";
-import { useConfig } from "../Config";
-import { useAccessToken } from "../AuthorizationServer";
 
 interface Props {
     videoDeviceID: string
@@ -12,8 +10,6 @@ interface Props {
 }
 
 const VideoStream: React.FunctionComponent<Props> = ({ videoDeviceID, sessionName, sessionActive }) => {
-    const config = useConfig();
-    const accessToken = useAccessToken();
     const client = DeviceRegistrar.useDevice();
     const videoRef = React.useRef<HTMLVideoElement>(null);
     const getUserMedia = React.useMemo(() => {
@@ -31,9 +27,9 @@ const VideoStream: React.FunctionComponent<Props> = ({ videoDeviceID, sessionNam
     React.useEffect(() => {
         if (!sessionActive) return;
         if (stream.state !== 'resolved') throw new Error('Stream is not resolved');
-        const connections = new Connections(config, client.id, sessionName, stream.value, accessToken);
+        const connections = new Connections(client.id, sessionName, stream.value);
         return connections.close;
-    }, [config, client.id, stream, sessionName, sessionActive]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [client.id, stream, sessionName, sessionActive]);
     if (stream.state === 'pending') return (<div>Getting stream...</div>)
     if (stream.state === 'rejected') return (<div>Failed to get stream: {stream.error.message}</div>)
     return (

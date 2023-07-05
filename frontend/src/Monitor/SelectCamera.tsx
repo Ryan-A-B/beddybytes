@@ -1,5 +1,7 @@
 import React from "react";
+import settings from "../settings";
 import * as DeviceRegistrar from "../DeviceRegistrar";
+import fetchClientList from "./fetchClientList";
 
 interface useClientListOutput {
     loading: boolean;
@@ -9,19 +11,18 @@ interface useClientListOutput {
 }
 
 const useClientList = (): useClientListOutput => {
-    const deviceRegistrar = DeviceRegistrar.useDeviceRegistrar();
     const [loading, setLoading] = React.useState(true);
     const [clientList, setClientList] = React.useState<DeviceRegistrar.Device[]>([]);
     const [error, setError] = React.useState<Error | null>(null);
     const getClientList = React.useCallback(() => {
         setLoading(true);
-        deviceRegistrar.list()
+        fetchClientList(settings.API.host)
             .then((clients) => {
                 setClientList(clients);
                 setLoading(false);
             })
             .catch(setError);
-    }, [deviceRegistrar]);
+    }, []);
     React.useEffect(getClientList, [getClientList]);
     return {
         loading,

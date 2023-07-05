@@ -1,34 +1,42 @@
-import { Device } from '../DeviceRegistrar';
-import { Config } from '../Config';
+import settings from "../settings"
+import authorization from "../authorization";
 
 type OnClose = () => void;
 
 class Connection {
+    private deviceID: string;
     private peerID: string;
-    private websocket: WebSocket;
+    private websocket: WebSocket | null = null;
     private pc: RTCPeerConnection;
     onclose: OnClose | null = null;
-    constructor(config: Config, deviceID: string, peerID: string, accessToken: string) {
+    constructor(deviceID: string, peerID: string) {
+        this.deviceID = deviceID;
         this.peerID = peerID;
+        this.startWebSocket();
+        this.pc = new RTCPeerConnection(settings.RTC);
+        this.pc.onicecandidate = this.onICECandidate;
+    }
+
+    private startWebSocket = async () => {
+        const accessToken = await authorization.getAccessToken();
         const query = new URLSearchParams({
             client_type: "monitor",
             client_alias: "monitor",
             access_token: accessToken,
         });
-        const websocketURL = `wss://${config.API.host}/clients/${deviceID}/websocket?${query.toString()}`;
+        const websocketURL = `wss://${settings.API.host}/clients/${this.deviceID}/websocket?${query.toString()}`;
         this.websocket = new WebSocket(websocketURL);
         this.websocket.onopen = this.onWebSocketOpen;
         this.websocket.onmessage = this.onWebSocketMessage;
         this.websocket.onerror = this.onWebSocketError;
-
-        this.pc = new RTCPeerConnection(config.RTC);
-        this.pc.onicecandidate = this.onICECandidate;
     }
 
     private onWebSocketOpen = async () => {
         this.pc.addTransceiver('video', { direction: 'recvonly' })
         this.pc.addTransceiver('audio', { direction: 'recvonly' })
         await this.pc.setLocalDescription();
+        if (this.websocket === null)
+            throw new Error("this.websocket is null")
         this.websocket.send(JSON.stringify({
             to_peer_id: this.peerID,
             data: { description: this.pc.localDescription },
@@ -60,7 +68,10 @@ class Connection {
     }
 
     private onICECandidate = (event: RTCPeerConnectionIceEvent) => {
-        if (event.candidate === null) return;
+        if (event.candidate === null)
+            return;
+        if (this.websocket === null)
+            throw new Error("this.websocket is null");
         this.websocket.send(JSON.stringify({
             to_peer_id: this.peerID,
             data: { candidate: event.candidate },
@@ -76,10 +87,12 @@ class Connection {
     }
 
     close() {
-        this.websocket.onopen = null;
-        this.websocket.onmessage = null;
-        this.websocket.onerror = null;
-        this.websocket.close();
+        if (this.websocket !== null) {
+            this.websocket.onopen = null;
+            this.websocket.onmessage = null;
+            this.websocket.onerror = null;
+            this.websocket.close();
+        }
 
         this.pc.onicecandidate = null;
         this.pc.ontrack = null;

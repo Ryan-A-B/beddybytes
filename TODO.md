@@ -36,8 +36,6 @@
     - instruct camera to do the recording (better quality)
     - record the stream coming over webrtc (more intuitive)
     - both? record on camera then send over data stream to monitor?
-- configurable signal server
-- configurable STUN server
 - show number of active connections
 - continuous integration
 - noise when connection lost
@@ -54,6 +52,8 @@
     - devServer.client.webSocketURL.protocol = wss
 
 ### Features
+- configurable signal server
+- configurable STUN server
 - use colour from the video stream to set background colour
     - display video twice
         - fullscreen in background blurred

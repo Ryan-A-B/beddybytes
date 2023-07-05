@@ -164,7 +164,7 @@ func main() {
 		SigningMethod:                jwt.SigningMethodHS256,
 		Key:                          key,
 		AccessTokenDuration:          1 * time.Hour,
-		RefreshTokenDuration:         7 * 24 * time.Hour,
+		RefreshTokenDuration:         30 * 24 * time.Hour,
 		UsedTokens:                   accounts.NewUsedTokens(),
 		AnonymousAccessTokenDuration: 10 * time.Second,
 	}

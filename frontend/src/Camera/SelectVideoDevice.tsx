@@ -18,7 +18,6 @@ const getUniqueDevices = (devices: MediaDeviceInfo[]): MediaDeviceInfo[] => {
 
 const SelectVideoDevice: React.FunctionComponent<Props> = ({ value, onChange, disabled }) => {
     const promise = React.useMemo(() => {
-        const deviceIDs: string[] = [];
         return navigator.mediaDevices.enumerateDevices()
             .then((devices) => devices.filter((device) => device.kind === 'videoinput'))
             .then(getUniqueDevices)
