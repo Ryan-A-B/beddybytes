@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
-	"net/url"
 	"regexp"
 	"strings"
 	"sync"
@@ -23,7 +22,7 @@ import (
 )
 
 type Handlers struct {
-	FrontendURL                  *url.URL
+	CookieDomain                 string
 	AccountStore                 *AccountStore
 	SigningMethod                jwt.SigningMethod
 	Key                          interface{}
@@ -416,19 +415,14 @@ func (handlers *Handlers) createRefreshToken(account *Account) (refreshToken str
 }
 
 func (handlers *Handlers) createRefreshTokenCookie(account *Account) *http.Cookie {
-	// TODO don't need to do this every time
-	domain := handlers.FrontendURL.Hostname()
-	index := strings.Index(domain, ".")
-	if index != -1 {
-		domain = domain[index:]
-	}
 	return &http.Cookie{
 		Name:     "refresh_token",
 		Value:    handlers.createRefreshToken(account),
-		Domain:   domain,
+		Domain:   handlers.CookieDomain,
 		Path:     "/token",
 		HttpOnly: true,
 		Secure:   true,
+		Expires:  time.Now().Add(handlers.RefreshTokenDuration),
 		SameSite: http.SameSiteStrictMode,
 	}
 }

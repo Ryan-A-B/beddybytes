@@ -157,9 +157,9 @@ func (handlers *Handlers) AddRoutes(router *mux.Router) {
 func main() {
 	ctx := context.Background()
 	key := []byte(internal.EnvStringOrFatal("ENCRYPTION_KEY"))
-	frontendURL := internal.EnvURLOrFatal("APP_URL")
+	cookieDomain := internal.EnvStringOrFatal("COOKIE_DOMAIN")
 	accountHandlers := accounts.Handlers{
-		FrontendURL:                  frontendURL,
+		CookieDomain:                 cookieDomain,
 		AccountStore:                 newAccountStore(ctx, key),
 		SigningMethod:                jwt.SigningMethodHS256,
 		Key:                          key,

@@ -42,7 +42,7 @@ services:
       - "8000:8000"
     environment:
       - ENCRYPTION_KEY=
-      - APP_URL=https://app.babymonitor.creativeilk.com
+      - COOKIE_DOMAIN=.babymonitor.creativeilk.com
       - SERVER_ADDR=:8000
       - ACCOUNT_STORE_IMPLEMENTATION=s3
       - ACCOUNT_STORE_S3_REGION=

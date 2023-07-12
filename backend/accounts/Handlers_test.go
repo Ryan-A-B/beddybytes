@@ -7,7 +7,6 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"testing"
 	"time"
 
@@ -24,10 +23,7 @@ func TestHandlers(t *testing.T) {
 	Convey("TestHandlers", t, func() {
 		key := generateKey()
 		handlers := accounts.Handlers{
-			FrontendURL: &url.URL{
-				Scheme: "http",
-				Host:   "localhost",
-			},
+			CookieDomain: "localhost",
 			AccountStore: &accounts.AccountStore{
 				Store: store.NewMemoryStore(),
 			},

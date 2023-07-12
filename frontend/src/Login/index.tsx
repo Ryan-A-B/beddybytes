@@ -1,5 +1,5 @@
 import React from 'react';
-import authorization, { AccessTokenOutput, AuthorizationEventTypeStateChange } from '../authorization';
+import authorization, { AuthorizationEventTypeStateChange } from '../authorization';
 import LoginOrCreateAccount from './LoginOrCreateAccount';
 
 interface Props {

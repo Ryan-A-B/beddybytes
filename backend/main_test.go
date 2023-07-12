@@ -33,12 +33,8 @@ func generateKey() []byte {
 func TestAccountCreation(t *testing.T) {
 	Convey("TestAccountCreation", t, func() {
 		key := generateKey()
-		frontendURL := &url.URL{
-			Scheme: "http",
-			Host:   "localhost",
-		}
 		accountHandlers := accounts.Handlers{
-			FrontendURL: frontendURL,
+			CookieDomain: "localhost",
 			AccountStore: &accounts.AccountStore{
 				Store: store.NewMemoryStore(),
 			},
