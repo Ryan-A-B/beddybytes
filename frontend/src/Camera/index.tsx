@@ -34,10 +34,11 @@ const Camera: React.FunctionComponent = () => {
         if (videoDeviceID === '') return false;
         return true;
     }, [sessionName, videoDeviceID]);
-    React.useEffect(() => {
+    const onSessionActiveChange = React.useCallback((sessionActive: boolean) => {
+        setSessionActive(sessionActive);
         if (sessionActive) return;
         setVideoDeviceID('');
-    }, [sessionActive]);
+    }, []);
     return (
         <main className="camera">
             <div className="row align-items-center g-2">
@@ -60,7 +61,7 @@ const Camera: React.FunctionComponent = () => {
                     <Checkbox
                         id="input-session-active"
                         value={sessionActive}
-                        onChange={setSessionActive}
+                        onChange={onSessionActiveChange}
                         className="btn-check"
                         disabled={!canActivateSession}
                     />
@@ -69,7 +70,14 @@ const Camera: React.FunctionComponent = () => {
                     </label>
                 </div>
             </div>
-            {videoDeviceID && <VideoStream videoDeviceID={videoDeviceID} sessionName={sessionName} sessionActive={sessionActive} />}
+            {videoDeviceID && (
+                <VideoStream
+                    videoDeviceID={videoDeviceID}
+                    sessionName={sessionName}
+                    sessionActive={sessionActive}
+                    key={videoDeviceID}
+                />
+            )}
         </main >
     )
 };

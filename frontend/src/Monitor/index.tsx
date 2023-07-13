@@ -22,8 +22,6 @@ const Monitor: React.FunctionComponent = () => {
     const [refreshKey, setRefreshKey] = React.useState("");
     React.useEffect(() => {
         if (cameraID === "") return;
-        setSessionEnded(false);
-        setConnectionState("new");
         const connection = new Connection(client.id, cameraID);
         connection.ontrack = (event: RTCTrackEvent) => {
             const stream = event.streams[0];
@@ -40,6 +38,12 @@ const Monitor: React.FunctionComponent = () => {
             setSessionEnded(true);
             setRefreshKey(uuid());
         };
+        return () => {
+            connection.close();
+            setStream(null);
+            setSessionEnded(false);
+            setConnectionState("new");
+        }
     }, [client.id, cameraID])
     return (
         <div className="monitor">
@@ -54,7 +58,12 @@ const Monitor: React.FunctionComponent = () => {
                     Connection Lost
                 </div>
             )}
-            {stream && <Video stream={stream} />}
+            {stream && (
+                <Video
+                    stream={stream}
+                    key={cameraID}
+                />
+            )}
         </div>
     );
 };

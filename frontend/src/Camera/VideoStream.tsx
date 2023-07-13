@@ -22,7 +22,11 @@ const VideoStream: React.FunctionComponent<Props> = ({ videoDeviceID, sessionNam
     React.useEffect(() => {
         if (stream.state !== 'resolved') return;
         if (videoRef.current === null) return;
-        videoRef.current.srcObject = stream.value;
+        const video = videoRef.current;
+        video.srcObject = stream.value;
+        return () => {
+            video.srcObject = null;
+        }
     }, [stream]);
     React.useEffect(() => {
         if (!sessionActive) return;

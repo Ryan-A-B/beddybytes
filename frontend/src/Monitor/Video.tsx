@@ -12,6 +12,9 @@ const Video: React.FunctionComponent<Props> = ({ stream }) => {
         const video = videoRef.current
         video.srcObject = stream;
         video.play();
+        return () => {
+            video.srcObject = null;
+        }
     }, [stream])
     return (
         <video ref={videoRef} playsInline className="video" />
