@@ -1,8 +1,6 @@
 # TODO
 ## Now
 ### Bugs
-- Monitor video doesn't disappear when unselecting video stream
-- camera changing video stream breaks
 - integration tests for API prod release
 - logs
     - print reason for request failed

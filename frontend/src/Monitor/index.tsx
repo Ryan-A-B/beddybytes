@@ -16,38 +16,45 @@ const isConnectionLost = (connectionState: RTCPeerConnectionState) => {
 const Monitor: React.FunctionComponent = () => {
     const client = DeviceRegistrar.useDevice();
     const [cameraID, setCameraID] = React.useState<string>("");
+    const [connection, setConnection] = React.useState<Connection | null>(null);
     const [stream, setStream] = React.useState<MediaStream | null>(null);
     const [sessionEnded, setSessionEnded] = React.useState(false);
     const [connectionState, setConnectionState] = React.useState<RTCPeerConnectionState>("new");
     const [refreshKey, setRefreshKey] = React.useState("");
-    React.useEffect(() => {
+
+    const onCameraIDChange = React.useCallback((cameraID: string) => {
+        setCameraID(cameraID);
+        setStream(null);
+        setSessionEnded(false);
+
+        if (connection !== null) {
+            connection.onclose = null;
+            connection.close();
+        }
         if (cameraID === "") return;
-        const connection = new Connection(client.id, cameraID);
-        connection.ontrack = (event: RTCTrackEvent) => {
+
+        const newConnection = new Connection(client.id, cameraID);
+        newConnection.ontrack = (event: RTCTrackEvent) => {
             const stream = event.streams[0];
             setStream(stream);
-        };
-        connection.onconnectionstatechange = (event: Event) => {
+        }
+        newConnection.onconnectionstatechange = (event: Event) => {
             if (event.type !== "connectionstatechange") throw new Error("event.type is not connectionstatechange");
             const connection = event.target as RTCPeerConnection;
             setConnectionState(connection.connectionState);
-        };
-        connection.onclose = () => {
+        }
+        newConnection.onclose = () => {
             setCameraID("");
             setStream(null);
             setSessionEnded(true);
             setRefreshKey(uuid());
-        };
-        return () => {
-            connection.close();
-            setStream(null);
-            setSessionEnded(false);
-            setConnectionState("new");
         }
-    }, [client.id, cameraID])
+        setConnection(newConnection);
+    }, [client.id, connection]);
+
     return (
         <div className="monitor">
-            <SelectCamera value={cameraID} onChange={setCameraID} refreshKey={refreshKey} />
+            <SelectCamera value={cameraID} onChange={onCameraIDChange} refreshKey={refreshKey} />
             {sessionEnded && (
                 <div className="alert alert-danger" role="alert">
                     Session Ended
