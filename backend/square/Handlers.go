@@ -33,7 +33,8 @@ func (handlers *Handlers) HandleWebhook(responseWriter http.ResponseWriter, requ
 		return
 	}
 	hash := hmac.New(sha256.New, handlers.SignatureKey)
-	_, err = io.WriteString(hash, request.URL.String())
+	requestURL := "https://" + request.Host + request.URL.String()
+	_, err = io.WriteString(hash, requestURL)
 	fatal.OnError(err)
 	_, err = hash.Write(payload)
 	fatal.OnError(err)
