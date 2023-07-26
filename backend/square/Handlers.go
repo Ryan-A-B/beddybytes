@@ -4,7 +4,6 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/base64"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
@@ -33,11 +32,16 @@ func (handlers *Handlers) HandleWebhook(responseWriter http.ResponseWriter, requ
 	if err != nil {
 		return
 	}
+	requestURL := handlers.getRequestURL(request)
+	err = handlers.checkSignature(signature, requestURL, payload)
+	if err != nil {
+		return
+	}
+	log.Println("webhook payload: " + string(payload))
+}
+
+func (handlers *Handlers) checkSignature(signature []byte, requestURL string, payload []byte) (err error) {
 	hash := hmac.New(sha256.New, handlers.SignatureKey)
-	requestURL := "https://" + request.Host + request.URL.String()
-	fmt.Println(requestURL)
-	fmt.Println(string(payload))
-	fmt.Println(base64.StdEncoding.EncodeToString(signature))
 	_, err = io.WriteString(hash, requestURL)
 	fatal.OnError(err)
 	_, err = hash.Write(payload)
@@ -47,13 +51,7 @@ func (handlers *Handlers) HandleWebhook(responseWriter http.ResponseWriter, requ
 		err = merry.New("signature does not match").WithHTTPCode(http.StatusForbidden)
 		return
 	}
-	log.Println("new webhook")
-	log.Println("webhook payload: " + string(payload))
-	for header, values := range request.Header {
-		for _, value := range values {
-			log.Println(header + ": " + value)
-		}
-	}
+	return
 }
 
 func (handlers *Handlers) getSignature(request *http.Request) (signature []byte, err error) {
@@ -77,4 +75,8 @@ func (handlers *Handlers) getPayload(request *http.Request) (payload []byte, err
 		return
 	}
 	return
+}
+
+func (handlers *Handlers) getRequestURL(request *http.Request) string {
+	return "https://" + request.Host + request.URL.String()
 }
