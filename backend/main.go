@@ -159,9 +159,7 @@ func main() {
 	ctx := context.Background()
 	key := []byte(internal.EnvStringOrFatal("ENCRYPTION_KEY"))
 	cookieDomain := internal.EnvStringOrFatal("COOKIE_DOMAIN")
-	squareHandlers := square.Handlers{
-		SignatureKey: internal.EnvStringOrFatal("SQUARE_SIGNATURE_KEY"),
-	}
+	squareHandlers := newSquareHandlers()
 	accountHandlers := accounts.Handlers{
 		CookieDomain:                 cookieDomain,
 		AccountStore:                 newAccountStore(ctx, key),
@@ -228,5 +226,12 @@ func newAccountStore(ctx context.Context, key []byte) *accounts.AccountStore {
 				Key:   key,
 			}),
 		}),
+	}
+}
+
+func newSquareHandlers() *square.Handlers {
+	signatureKey := internal.EnvStringOrFatal("SQUARE_SIGNATURE_KEY")
+	return &square.Handlers{
+		SignatureKey: []byte(signatureKey),
 	}
 }
