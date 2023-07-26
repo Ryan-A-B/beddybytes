@@ -15,8 +15,8 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 
 	"github.com/Ryan-A-B/baby-monitor/backend/accounts"
-	"github.com/Ryan-A-B/baby-monitor/backend/internal/fatal"
 	"github.com/Ryan-A-B/baby-monitor/backend/internal/store"
+	"github.com/Ryan-A-B/baby-monitor/internal/fatal"
 )
 
 func TestHandlers(t *testing.T) {

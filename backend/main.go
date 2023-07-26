@@ -18,8 +18,9 @@ import (
 
 	"github.com/Ryan-A-B/baby-monitor/backend/accounts"
 	"github.com/Ryan-A-B/baby-monitor/backend/internal"
-	"github.com/Ryan-A-B/baby-monitor/backend/internal/fatal"
 	"github.com/Ryan-A-B/baby-monitor/backend/internal/store"
+	"github.com/Ryan-A-B/baby-monitor/backend/square"
+	"github.com/Ryan-A-B/baby-monitor/internal/fatal"
 )
 
 type IncomingMessageFrame struct {
@@ -158,6 +159,7 @@ func main() {
 	ctx := context.Background()
 	key := []byte(internal.EnvStringOrFatal("ENCRYPTION_KEY"))
 	cookieDomain := internal.EnvStringOrFatal("COOKIE_DOMAIN")
+	squareHandlers := square.Handlers{}
 	accountHandlers := accounts.Handlers{
 		CookieDomain:                 cookieDomain,
 		AccountStore:                 newAccountStore(ctx, key),
@@ -188,6 +190,7 @@ func main() {
 	router := mux.NewRouter()
 	handlers.AddRoutes(router.NewRoute().Subrouter())
 	accountHandlers.AddRoutes(router.NewRoute().Subrouter())
+	router.HandleFunc("/square-sandbox/webhook", squareHandlers.HandleWebhook).Methods(http.MethodPost).Name("HandleWebhook")
 	addr := internal.EnvStringOrFatal("SERVER_ADDR")
 	server := http.Server{
 		Addr:    addr,

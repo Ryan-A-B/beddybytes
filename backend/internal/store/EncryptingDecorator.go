@@ -8,7 +8,7 @@ import (
 	"crypto/rand"
 	"io"
 
-	"github.com/Ryan-A-B/baby-monitor/backend/internal/fatal"
+	"github.com/Ryan-A-B/baby-monitor/internal/fatal"
 )
 
 type EncryptingDecorator struct {

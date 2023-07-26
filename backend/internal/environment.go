@@ -5,7 +5,7 @@ import (
 	"net/url"
 	"os"
 
-	"github.com/Ryan-A-B/baby-monitor/backend/internal/fatal"
+	"github.com/Ryan-A-B/baby-monitor/internal/fatal"
 )
 
 func EnvStringOrDefault(key string, defaultValue string) string {

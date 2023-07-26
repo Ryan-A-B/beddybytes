@@ -18,8 +18,9 @@
 - S7 -> Latitude 7430 no video shows
     - incompatible encodings?
     - chrome works
-- only get new token on demand
-    - `getToken` function in context
+- S7 switching cameras fails
+    - S22 works with chrome
+        - but not brave
 
 ### Features
 - connection lost
@@ -42,6 +43,7 @@
 
 ## Later
 ### Bugs
+- microphone didn't come through when also playing sound from different app?
 - scale
     - use AWS IoT as message broker on production
         - when monitor comes on line it sends message asking what cameras are available

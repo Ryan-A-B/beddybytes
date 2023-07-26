@@ -9,7 +9,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/Ryan-A-B/baby-monitor/backend/internal/fatal"
+	"github.com/Ryan-A-B/baby-monitor/internal/fatal"
 )
 
 type FileSystemStore struct {

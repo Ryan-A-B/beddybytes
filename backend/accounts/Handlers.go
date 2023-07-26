@@ -18,7 +18,7 @@ import (
 	uuid "github.com/satori/go.uuid"
 
 	"github.com/Ryan-A-B/baby-monitor/backend/internal"
-	"github.com/Ryan-A-B/baby-monitor/backend/internal/fatal"
+	"github.com/Ryan-A-B/baby-monitor/internal/fatal"
 )
 
 type Handlers struct {
