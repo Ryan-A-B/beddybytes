@@ -10,6 +10,7 @@ import (
 )
 
 type Handlers struct {
+	SignatureKey string
 }
 
 func (handlers *Handlers) HandleWebhook(responseWriter http.ResponseWriter, request *http.Request) {
@@ -19,5 +20,11 @@ func (handlers *Handlers) HandleWebhook(responseWriter http.ResponseWriter, requ
 		log.Println(err)
 		return
 	}
+	log.Println("new webhook")
 	log.Println("webhook payload: " + string(payload))
+	for header, values := range request.Header {
+		for _, value := range values {
+			log.Println(header + ": " + value)
+		}
+	}
 }

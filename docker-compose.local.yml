@@ -47,6 +47,7 @@ services:
       - ENCRYPTION_KEY=passwordpasswordpasswordpassword
       - COOKIE_DOMAIN=.babymonitor.local
       - SERVER_ADDR=:8000
+      - SQUARE_SIGNATURE_KEY=password
     labels:
       - "traefik.http.routers.anonymous-token.rule=Host(`api.babymonitor.local`) && Path(`/anonymous_token`) && Method(`POST`)"
       - "traefik.http.routers.anonymous-token.entrypoints=websecure"
