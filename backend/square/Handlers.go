@@ -4,6 +4,7 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/base64"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
@@ -34,6 +35,9 @@ func (handlers *Handlers) HandleWebhook(responseWriter http.ResponseWriter, requ
 	}
 	hash := hmac.New(sha256.New, handlers.SignatureKey)
 	requestURL := "https://" + request.Host + request.URL.String()
+	fmt.Println(requestURL)
+	fmt.Println(string(payload))
+	fmt.Println(base64.StdEncoding.EncodeToString(signature))
 	_, err = io.WriteString(hash, requestURL)
 	fatal.OnError(err)
 	_, err = hash.Write(payload)
