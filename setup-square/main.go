@@ -7,9 +7,10 @@ import (
 	"net/http"
 	"os"
 
+	uuid "github.com/satori/go.uuid"
+
 	"github.com/Ryan-A-B/baby-monitor/internal/fatal"
 	"github.com/Ryan-A-B/baby-monitor/internal/square"
-	uuid "github.com/satori/go.uuid"
 )
 
 func main() {

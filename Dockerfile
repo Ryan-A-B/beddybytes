@@ -3,6 +3,7 @@ WORKDIR /app
 COPY go.mod go.sum ./
 RUN go mod download
 COPY backend ./backend
+COPY internal ./internal
 RUN go build -o backend ./backend
 
 FROM alpine:latest
