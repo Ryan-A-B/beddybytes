@@ -45,7 +45,7 @@ func (payments *SquarePayments) GetPaymentLinkURL(accountID string, subscription
 			LocationID: payments.locationID,
 			Name:       "Baby Monitor",
 			Price: square.Money{
-				Amount:   0,
+				Amount:   500,
 				Currency: square.AUD,
 			},
 		},
