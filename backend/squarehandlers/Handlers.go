@@ -148,10 +148,14 @@ func (handlers *Handlers) handlePaymentEvent(ctx context.Context, event *Event) 
 	}
 	switch account.Subscription.State {
 	case accounts.SubscriptionStateTrial:
+		t0 := time.Now()
+		if t0.Before(account.Subscription.Trial.Expiry) {
+			t0 = account.Subscription.Trial.Expiry
+		}
 		account.Subscription = accounts.Subscription{
 			State: accounts.SubscriptionStateActive,
 			Active: &accounts.SubscriptionActive{
-				Expiry: account.Subscription.Trial.Expiry.AddDate(0, 1, 0),
+				Expiry: t0.AddDate(0, 1, 0),
 			},
 		}
 	case accounts.SubscriptionStateActive:

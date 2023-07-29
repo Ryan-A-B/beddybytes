@@ -22,11 +22,12 @@ func main() {
 		ApplicationID: os.Getenv("SQUARE_APPLICATION_ID"),
 		AccessToken:   os.Getenv("SQUARE_ACCESS_TOKEN"),
 	})
-	subscriptionPlan, err := CreateSubscriptionPlan(client)
-	fatal.OnError(err)
-	subscriptionPlanID := subscriptionPlan["catalog_object"].(map[string]interface{})["id"].(string)
-	log.Println("subscription plan created: " + subscriptionPlanID)
-	PrintJSON(subscriptionPlan)
+	// subscriptionPlan, err := CreateSubscriptionPlan(client)
+	// fatal.OnError(err)
+	// subscriptionPlanID := subscriptionPlan["catalog_object"].(map[string]interface{})["id"].(string)
+	// log.Println("subscription plan created: " + subscriptionPlanID)
+	// PrintJSON(subscriptionPlan)
+	subscriptionPlanID := os.Getenv("SQUARE_SUBSCRIPTION_PLAN_ID")
 	subscriptionPlanVariation, err := CreateSubscriptionPlanVariation(client, subscriptionPlanID)
 	fatal.OnError(err)
 	subscriptionPlanVariationID := subscriptionPlanVariation["catalog_object"].(map[string]interface{})["id"].(string)
@@ -43,7 +44,7 @@ func CreateSubscriptionPlan(client *square.Client) (output square.UpsertCatalogO
 			Type: square.CatalogObjectTypeSubscriptionPlan,
 			ID:   objectID,
 			SubscriptionPlan: &square.SubscriptionPlan{
-				Name: "Baby Monitor",
+				Name: "Baby Monitor Subscription",
 			},
 		},
 	}
@@ -61,20 +62,9 @@ func CreateSubscriptionPlanVariation(client *square.Client, subscriptionPlanID s
 			Type: square.CatalogObjectTypeSubscriptionPlanVariation,
 			ID:   objectID,
 			SubscriptionPlanVariation: &square.SubscriptionPlanVariation{
-				Name:               "MonthlyWithFreeTrial",
+				Name:               "Monthly",
 				SubscriptionPlanID: subscriptionPlanID,
 				Phases: []square.SubscriptionPhase{
-					{
-						Cadence: square.Weekly,
-						Periods: square.NewInt32(1),
-						Pricing: square.SubscriptionPricing{
-							Type: square.SubscriptionPricingTypeStatic,
-							Price: square.Money{
-								Amount:   0,
-								Currency: square.AUD,
-							},
-						},
-					},
 					{
 						Cadence: square.Monthly,
 						Pricing: square.SubscriptionPricing{

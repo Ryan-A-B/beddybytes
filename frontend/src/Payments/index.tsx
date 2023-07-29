@@ -103,7 +103,15 @@ const Payments: React.FunctionComponent = () => {
         return null;
     return (
         <div className="alert alert-info">
-            {promise.value.account.subscription.state === "trial" && (
+            {promise.value.account.subscription.state === "trial" && moment(promise.value.account.subscription.trial.expiry).isBefore(moment()) && (
+                <React.Fragment>
+                    Your trial has ended.&nbsp;
+                    <a href={promise.value.paymentLinkURL} target="_blank">
+                        Activate your account
+                    </a>
+                </React.Fragment>
+            )}
+            {promise.value.account.subscription.state === "trial" && moment(promise.value.account.subscription.trial.expiry).isAfter(moment()) && (
                 <React.Fragment>
                     Your trial ends in {moment(promise.value.account.subscription.trial.expiry).fromNow()}.&nbsp;
                     <a href={promise.value.paymentLinkURL} target="_blank">

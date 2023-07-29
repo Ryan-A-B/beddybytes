@@ -161,7 +161,6 @@ const Monthly Cadence = "MONTHLY"
 
 type SubscriptionPhase struct {
 	Cadence Cadence             `json:"cadence"`
-	Periods *int32              `json:"periods,omitempty"`
 	Pricing SubscriptionPricing `json:"pricing"`
 }
 
@@ -208,8 +207,4 @@ func (client *Client) UpsertCatalogObject(input *UpsertCatalogObjectInput) (outp
 		return
 	}
 	return
-}
-
-func NewInt32(i int32) *int32 {
-	return &i
 }
