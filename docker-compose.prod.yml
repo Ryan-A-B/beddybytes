@@ -70,7 +70,7 @@ services:
       - "traefik.http.routers.create-account.tls.domains[0].main=api.babymonitor.creativeilk.com"
       - "traefik.http.routers.create-account.middlewares=headers-cors@docker,rate-limit-create-account@docker"
 
-      - "traefik.http.routers.square.rule=Host(`api.babymonitor.creativeilk.com`) && Path(`/square`) && Method(`POST`)"
+      - "traefik.http.routers.square.rule=Host(`api.babymonitor.creativeilk.com`) && PathPrefix(`/square`) && Method(`POST`)"
       - "traefik.http.routers.square.entrypoints=websecure"
       - "traefik.http.routers.square.tls=true"
       - "traefik.http.routers.square.tls.certresolver=letsencrypt"

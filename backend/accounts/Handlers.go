@@ -29,8 +29,6 @@ type Handlers struct {
 	RefreshTokenDuration         time.Duration
 	UsedTokens                   UsedTokens
 	AnonymousAccessTokenDuration time.Duration
-
-	TrialDuration time.Duration
 }
 
 type UsedTokens struct {
@@ -162,7 +160,7 @@ func (handlers *Handlers) CreateAccount(responseWriter http.ResponseWriter, requ
 		Subscription: Subscription{
 			State: SubscriptionStateTrial,
 			Trial: &SubscriptionTrial{
-				Expiry: time.Now().Add(handlers.TrialDuration).Round(24 * time.Hour).UTC(),
+				Expiry: time.Now().AddDate(0, 0, 7).UTC(),
 			},
 		},
 		User: user,

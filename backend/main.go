@@ -172,8 +172,6 @@ func main() {
 		RefreshTokenDuration:         30 * 24 * time.Hour,
 		UsedTokens:                   accounts.NewUsedTokens(),
 		AnonymousAccessTokenDuration: 10 * time.Second,
-
-		TrialDuration: 7 * 24 * time.Hour,
 	}
 	handlers := Handlers{
 		Upgrader: websocket.Upgrader{

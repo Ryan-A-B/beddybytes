@@ -24,9 +24,9 @@ const (
 
 type Subscription struct {
 	State    SubscriptionState     `json:"state"`
-	Trial    *SubscriptionTrial    `json:"trial"`
-	Active   *SubscriptionActive   `json:"active"`
-	Canceled *SubscriptionCanceled `json:"canceled"`
+	Trial    *SubscriptionTrial    `json:"trial,omitempty"`
+	Active   *SubscriptionActive   `json:"active,omitempty"`
+	Canceled *SubscriptionCanceled `json:"canceled,omitempty"`
 }
 
 type SubscriptionTrial struct {
