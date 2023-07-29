@@ -2,6 +2,7 @@ package internal
 
 import (
 	"crypto/rsa"
+	"log"
 	"net/http"
 	"strings"
 
@@ -25,6 +26,7 @@ func (middleware *AuthorizationMiddleware) Middleware(next http.Handler) http.Ha
 		var err error
 		defer func() {
 			if err != nil {
+				log.Println("Warn: ", err)
 				http.Error(responseWriter, err.Error(), merry.HTTPCode(err))
 				return
 			}

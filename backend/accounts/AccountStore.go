@@ -6,26 +6,12 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
-	"time"
 
 	"github.com/ansel1/merry"
 
 	"github.com/Ryan-A-B/baby-monitor/backend/internal/store"
 	"github.com/Ryan-A-B/baby-monitor/internal/fatal"
 )
-
-type Account struct {
-	ID      string     `json:"id"`
-	EndDate *time.Time `json:"end_date,omitempty"`
-	User    User       `json:"user"`
-}
-
-type User struct {
-	ID           string `json:"id"`
-	Email        string `json:"email"`
-	PasswordSalt []byte `json:"password_salt"`
-	PasswordHash []byte `json:"password_hash"`
-}
 
 type AccountStore struct {
 	Store store.Store

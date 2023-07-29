@@ -44,10 +44,17 @@ services:
     volumes:
       - ./account_store:/opt/account_store
     environment:
-      - ENCRYPTION_KEY=passwordpasswordpasswordpassword
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY}
       - COOKIE_DOMAIN=.babymonitor.local
       - SERVER_ADDR=:8000
-      - SQUARE_SIGNATURE_KEY=password
+      - SQUARE_SCHEME=https
+      - SQUARE_HOST=connect.squareupsandbox.com
+      - SQUARE_VERSION=2023-07-20
+      - SQUARE_APPLICATION_ID=${SQUARE_APPLICATION_ID}
+      - SQUARE_ACCESS_TOKEN=${SQUARE_ACCESS_TOKEN}
+      - SQUARE_SUBSCRIPTION_PLAN_ID=${SQUARE_SUBSCRIPTION_PLAN_ID}
+      - SQUARE_LOCATION_ID=${SQUARE_LOCATION_ID}
+      - SQUARE_SIGNATURE_KEY=${SQUARE_SIGNATURE_KEY}
     labels:
       - "traefik.http.routers.anonymous-token.rule=Host(`api.babymonitor.local`) && Path(`/anonymous_token`) && Method(`POST`)"
       - "traefik.http.routers.anonymous-token.entrypoints=websecure"
@@ -90,3 +97,17 @@ services:
       - "8086:8086"
     volumes:
       - ./influxdb/data:/var/lib/influxdb2
+      
+secrets:
+  ENCRYPTION_KEY:
+    external: true
+  SQUARE_APPLICATION_ID:
+    external: true
+  SQUARE_ACCESS_TOKEN:
+    external: true
+  SQUARE_SUBSCRIPTION_PLAN_ID:
+    external: true
+  SQUARE_LOCATION_ID:
+    external: true
+  SQUARE_SIGNATURE_KEY:
+    external: true

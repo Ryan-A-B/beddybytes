@@ -17,6 +17,7 @@ func OnError(err error) {
 	if err != nil {
 		buffer := make([]byte, 1<<16)
 		runtime.Stack(buffer, false)
-		log.Fatalf("%s\n%s", err, buffer)
+		log.Println("FATAL", err)
+		log.Fatal(string(buffer))
 	}
 }

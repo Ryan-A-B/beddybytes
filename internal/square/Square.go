@@ -4,11 +4,13 @@ import (
 	"bytes"
 	"encoding/json"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"net/url"
 
-	"github.com/Ryan-A-B/baby-monitor/internal/fatal"
 	"github.com/ansel1/merry"
+
+	"github.com/Ryan-A-B/baby-monitor/internal/fatal"
 )
 
 type Client struct {
@@ -47,7 +49,7 @@ type CreatePaymentLinkInput struct {
 }
 
 type CheckoutOptions struct {
-	SubscriptionPlanVariationID string `json:"subscription_plan_id"` // ???
+	SubscriptionPlanID string `json:"subscription_plan_id"`
 }
 
 type QuickPay struct {
@@ -56,7 +58,18 @@ type QuickPay struct {
 	Price      Money  `json:"price_money"`
 }
 
-type CreatePaymentLinkOutput map[string]interface{}
+type CreatePaymentLinkOutput struct {
+	PaymentLink *PaymentLink `json:"payment_link"`
+}
+
+type PaymentLink struct {
+	ID              string           `json:"id"`
+	CheckoutOptions *CheckoutOptions `json:"checkout_options"`
+	CreatedAt       string           `json:"created_at"`
+	LongURL         string           `json:"long_url"`
+	OrderID         string           `json:"order_id"`
+	URL             string           `json:"url"`
+}
 
 type Currency string
 
@@ -67,7 +80,7 @@ type Money struct {
 	Currency Currency `json:"currency"`
 }
 
-func (client *Client) CreatePaymentLink(input *CreatePaymentLinkInput) (output CreatePaymentLinkOutput, err error) {
+func (client *Client) CreatePaymentLink(input *CreatePaymentLinkInput) (output *CreatePaymentLinkOutput, err error) {
 	target := url.URL{
 		Scheme: client.scheme,
 		Host:   client.host,
@@ -76,9 +89,7 @@ func (client *Client) CreatePaymentLink(input *CreatePaymentLinkInput) (output C
 	payload, err := json.Marshal(input)
 	fatal.OnError(err)
 	request, err := http.NewRequest(http.MethodPost, target.String(), bytes.NewReader(payload))
-	if err != nil {
-		return
-	}
+	fatal.OnError(err)
 	request.Header.Add("Square-Version", client.version)
 	request.Header.Add("Authorization", client.authorization)
 	request.Header.Add("Content-Type", "application/json")
@@ -86,13 +97,15 @@ func (client *Client) CreatePaymentLink(input *CreatePaymentLinkInput) (output C
 	fatal.OnError(err)
 	defer response.Body.Close()
 	if response.StatusCode != http.StatusOK {
+		log.Println("Warn: Square API returned status code " + response.Status)
 		var data []byte
 		data, err = ioutil.ReadAll(response.Body)
 		fatal.OnError(err)
+		log.Println("Warn: Square API returned body " + string(data))
 		err = merry.New(string(data)).WithHTTPCode(response.StatusCode)
 		return
 	}
-	output = make(CreatePaymentLinkOutput)
+	output = new(CreatePaymentLinkOutput)
 	err = json.NewDecoder(response.Body).Decode(&output)
 	if err != nil {
 		return

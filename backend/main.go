@@ -19,8 +19,9 @@ import (
 	"github.com/Ryan-A-B/baby-monitor/backend/accounts"
 	"github.com/Ryan-A-B/baby-monitor/backend/internal"
 	"github.com/Ryan-A-B/baby-monitor/backend/internal/store"
-	"github.com/Ryan-A-B/baby-monitor/backend/square"
+	"github.com/Ryan-A-B/baby-monitor/backend/squarehandlers"
 	"github.com/Ryan-A-B/baby-monitor/internal/fatal"
+	"github.com/Ryan-A-B/baby-monitor/internal/square"
 )
 
 type IncomingMessageFrame struct {
@@ -70,6 +71,7 @@ func (handlers *Handlers) HandleWebsocket(responseWriter http.ResponseWriter, re
 	clientType, ok := stringToClientType[request.FormValue("client_type")]
 	if !ok {
 		err := merry.Errorf("invalid client_type: %s", request.FormValue("client_type")).WithHTTPCode(http.StatusBadRequest)
+		log.Println("Warn: ", err)
 		http.Error(responseWriter, err.Error(), merry.HTTPCode(err))
 		return
 	}
@@ -159,16 +161,19 @@ func main() {
 	ctx := context.Background()
 	key := []byte(internal.EnvStringOrFatal("ENCRYPTION_KEY"))
 	cookieDomain := internal.EnvStringOrFatal("COOKIE_DOMAIN")
-	squareHandlers := newSquareHandlers()
+	accountStore := newAccountStore(ctx, key)
+	squareHandlers := newSquareHandlers(accountStore, key)
 	accountHandlers := accounts.Handlers{
 		CookieDomain:                 cookieDomain,
-		AccountStore:                 newAccountStore(ctx, key),
+		AccountStore:                 accountStore,
 		SigningMethod:                jwt.SigningMethodHS256,
 		Key:                          key,
 		AccessTokenDuration:          1 * time.Hour,
 		RefreshTokenDuration:         30 * 24 * time.Hour,
 		UsedTokens:                   accounts.NewUsedTokens(),
 		AnonymousAccessTokenDuration: 10 * time.Second,
+
+		TrialDuration: 7 * 24 * time.Hour,
 	}
 	handlers := Handlers{
 		Upgrader: websocket.Upgrader{
@@ -190,7 +195,7 @@ func main() {
 	router := mux.NewRouter()
 	handlers.AddRoutes(router.NewRoute().Subrouter())
 	accountHandlers.AddRoutes(router.NewRoute().Subrouter())
-	router.HandleFunc("/square-sandbox/webhook", squareHandlers.HandleWebhook).Methods(http.MethodPost).Name("HandleWebhook")
+	squareHandlers.AddRoutes(router.NewRoute().Subrouter())
 	addr := internal.EnvStringOrFatal("SERVER_ADDR")
 	server := http.Server{
 		Addr:    addr,
@@ -229,9 +234,31 @@ func newAccountStore(ctx context.Context, key []byte) *accounts.AccountStore {
 	}
 }
 
-func newSquareHandlers() *square.Handlers {
+func newSquareHandlers(accountStore *accounts.AccountStore, key []byte) *squarehandlers.Handlers {
 	signatureKey := internal.EnvStringOrFatal("SQUARE_SIGNATURE_KEY")
-	return &square.Handlers{
-		SignatureKey: []byte(signatureKey),
+	return &squarehandlers.Handlers{
+		Key:            key,
+		AccountStore:   accountStore,
+		SquarePayments: newSquarePayments(),
+		SignatureKey:   []byte(signatureKey),
 	}
+}
+
+func newSquarePayments() *squarehandlers.SquarePayments {
+	return squarehandlers.NewSquarePayments(&squarehandlers.NewSquarePaymentsInput{
+		Client:             newSquareClient(),
+		SubscriptionPlanID: internal.EnvStringOrFatal("SQUARE_SUBSCRIPTION_PLAN_ID"),
+		LocationID:         internal.EnvStringOrFatal("SQUARE_LOCATION_ID"),
+	})
+}
+
+func newSquareClient() *square.Client {
+	return square.NewClient(&square.NewClientInput{
+		HTTPClient:    http.DefaultClient,
+		Scheme:        internal.EnvStringOrFatal("SQUARE_SCHEME"),
+		Host:          internal.EnvStringOrFatal("SQUARE_HOST"),
+		Version:       internal.EnvStringOrFatal("SQUARE_VERSION"),
+		ApplicationID: internal.EnvStringOrFatal("SQUARE_APPLICATION_ID"),
+		AccessToken:   internal.EnvStringOrFatal("SQUARE_ACCESS_TOKEN"),
+	})
 }

@@ -14,7 +14,6 @@ import (
 )
 
 func main() {
-	locationID := os.Getenv("SQUARE_LOCATION_ID")
 	client := square.NewClient(&square.NewClientInput{
 		HTTPClient:    http.DefaultClient,
 		Scheme:        os.Getenv("SQUARE_SCHEME"),
@@ -33,9 +32,6 @@ func main() {
 	subscriptionPlanVariationID := subscriptionPlanVariation["catalog_object"].(map[string]interface{})["id"].(string)
 	log.Println("subscription plan variation created: " + subscriptionPlanVariationID)
 	PrintJSON(subscriptionPlanVariation)
-	output, err := CreatePaymentLink(client, locationID, subscriptionPlanVariationID)
-	fatal.OnError(err)
-	PrintJSON(output)
 }
 
 func CreateSubscriptionPlan(client *square.Client) (output square.UpsertCatalogObjectOutput, err error) {
@@ -94,27 +90,6 @@ func CreateSubscriptionPlanVariation(client *square.Client, subscriptionPlanID s
 		},
 	}
 	output, err = client.UpsertCatalogObject(&input)
-	fatal.OnError(err)
-	return
-}
-
-func CreatePaymentLink(client *square.Client, locationID string, subscriptionPlanVariationID string) (output square.CreatePaymentLinkOutput, err error) {
-	idempotencyKey := uuid.NewV4().String()
-	input := square.CreatePaymentLinkInput{
-		IdempotencyKey: idempotencyKey,
-		CheckoutOptions: &square.CheckoutOptions{
-			SubscriptionPlanVariationID: subscriptionPlanVariationID,
-		},
-		QuickPay: &square.QuickPay{
-			LocationID: locationID,
-			Name:       "Baby Monitor",
-			Price: square.Money{
-				Amount:   500,
-				Currency: square.AUD,
-			},
-		},
-	}
-	output, err = client.CreatePaymentLink(&input)
 	fatal.OnError(err)
 	return
 }

@@ -2,7 +2,6 @@ package accounts
 
 import (
 	"bytes"
-	"crypto/rand"
 	"crypto/rsa"
 	"encoding/json"
 	"log"
@@ -30,6 +29,8 @@ type Handlers struct {
 	RefreshTokenDuration         time.Duration
 	UsedTokens                   UsedTokens
 	AnonymousAccessTokenDuration time.Duration
+
+	TrialDuration time.Duration
 }
 
 type UsedTokens struct {
@@ -133,6 +134,7 @@ func (handlers *Handlers) CreateAccount(responseWriter http.ResponseWriter, requ
 	var err error
 	defer func() {
 		if err != nil {
+			log.Println("Warn:", err)
 			http.Error(responseWriter, err.Error(), merry.HTTPCode(err))
 		}
 	}()
@@ -151,20 +153,19 @@ func (handlers *Handlers) CreateAccount(responseWriter http.ResponseWriter, requ
 	if err != nil {
 		return
 	}
-	passwordSalt := make([]byte, 32)
-	_, err = rand.Read(passwordSalt)
-	if err != nil {
-		return
-	}
-	passwordHash := calculatePasswordHash(input.Password, passwordSalt)
+	user := NewUser(&NewUserInput{
+		Email:    input.Email,
+		Password: input.Password,
+	})
 	account := Account{
 		ID: uuid.NewV4().String(),
-		User: User{
-			ID:           uuid.NewV4().String(),
-			Email:        input.Email,
-			PasswordSalt: passwordSalt,
-			PasswordHash: passwordHash,
+		Subscription: Subscription{
+			State: SubscriptionStateTrial,
+			Trial: &SubscriptionTrial{
+				Expiry: time.Now().Add(handlers.TrialDuration).Round(24 * time.Hour).UTC(),
+			},
 		},
+		User: user,
 	}
 	err = handlers.AccountStore.Put(ctx, &account)
 	if err != nil {
@@ -185,7 +186,7 @@ func (handlers *Handlers) Token(responseWriter http.ResponseWriter, request *htt
 	var err error
 	defer func() {
 		if err != nil {
-			log.Println(err)
+			log.Println("Warn:", err)
 			http.Error(responseWriter, err.Error(), merry.HTTPCode(err))
 			return
 		}
@@ -206,6 +207,7 @@ func (handlers *Handlers) TokenUsingPasswordGrant(responseWriter http.ResponseWr
 	var err error
 	defer func() {
 		if err != nil {
+			log.Println("Warn:", err)
 			http.Error(responseWriter, err.Error(), merry.HTTPCode(err))
 			return
 		}
@@ -245,6 +247,7 @@ func (handlers *Handlers) TokenUsingRefreshTokenGrant(responseWriter http.Respon
 	var err error
 	defer func() {
 		if err != nil {
+			log.Println("Warn:", err)
 			http.Error(responseWriter, err.Error(), merry.HTTPCode(err))
 			return
 		}
@@ -294,6 +297,7 @@ func (handlers *Handlers) Logout(responseWriter http.ResponseWriter, request *ht
 	var err error
 	defer func() {
 		if err != nil {
+			log.Println("Warn:", err)
 			http.Error(responseWriter, err.Error(), merry.HTTPCode(err))
 			return
 		}
@@ -316,6 +320,7 @@ func (handlers *Handlers) GetAccount(responseWriter http.ResponseWriter, request
 	var err error
 	defer func() {
 		if err != nil {
+			log.Println("Warn:", err)
 			http.Error(responseWriter, err.Error(), merry.HTTPCode(err))
 			return
 		}
@@ -334,6 +339,7 @@ func (handlers *Handlers) DeleteAccount(responseWriter http.ResponseWriter, requ
 	accountID := internal.GetAccountIDFromContext(ctx)
 	err := handlers.AccountStore.Remove(ctx, accountID)
 	if err != nil {
+		log.Println("Warn:", err)
 		http.Error(responseWriter, err.Error(), http.StatusInternalServerError)
 		return
 	}

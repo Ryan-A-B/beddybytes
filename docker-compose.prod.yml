@@ -41,29 +41,42 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - ENCRYPTION_KEY=
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY}
       - COOKIE_DOMAIN=.babymonitor.creativeilk.com
       - SERVER_ADDR=:8000
       - ACCOUNT_STORE_IMPLEMENTATION=s3
-      - ACCOUNT_STORE_S3_REGION=
-      - ACCOUNT_STORE_S3_BUCKET=
-      - SQUARE_SIGNATURE_KEY=
+      - ACCOUNT_STORE_S3_REGION=${ACCOUNT_STORE_S3_REGION}
+      - ACCOUNT_STORE_S3_BUCKET=${ACCOUNT_STORE_S3_BUCKET}
+      - SQUARE_SCHEME=https
+      - SQUARE_HOST=connect.squareup.com
+      - SQUARE_VERSION=2023-07-20
+      - SQUARE_APPLICATION_ID=${SQUARE_APPLICATION_ID}
+      - SQUARE_ACCESS_TOKEN=${SQUARE_ACCESS_TOKEN}
+      - SQUARE_SUBSCRIPTION_PLAN_ID=${SQUARE_SUBSCRIPTION_PLAN_ID}
+      - SQUARE_LOCATION_ID=${SQUARE_LOCATION_ID}
+      - SQUARE_SIGNATURE_KEY=${SQUARE_SIGNATURE_KEY}
     labels:
-      - "traefik.http.routers.anonymous-token.rule=Host(`api.babymonitor.local`) && Path(`/anonymous_token`) && Method(`POST`)"
+      - "traefik.http.routers.anonymous-token.rule=Host(`api.babymonitor.creativeilk.com`) && Path(`/anonymous_token`) && Method(`POST`)"
       - "traefik.http.routers.anonymous-token.entrypoints=websecure"
       - "traefik.http.routers.anonymous-token.tls=true"
       - "traefik.http.routers.anonymous-token.tls.certresolver=letsencrypt"
       - "traefik.http.routers.anonymous-token.tls.domains[0].main=api.babymonitor.creativeilk.com"
       - "traefik.http.routers.anonymous-token.middlewares=headers-cors@docker,rate-limit-anonymous-token@docker"
 
-      - "traefik.http.routers.create-account.rule=Host(`api.babymonitor.local`) && Path(`/accounts`) && Method(`POST`)"
+      - "traefik.http.routers.create-account.rule=Host(`api.babymonitor.creativeilk.com`) && Path(`/accounts`) && Method(`POST`)"
       - "traefik.http.routers.create-account.entrypoints=websecure"
       - "traefik.http.routers.create-account.tls=true"
       - "traefik.http.routers.create-account.tls.certresolver=letsencrypt"
       - "traefik.http.routers.create-account.tls.domains[0].main=api.babymonitor.creativeilk.com"
       - "traefik.http.routers.create-account.middlewares=headers-cors@docker,rate-limit-create-account@docker"
 
-      - "traefik.http.routers.backend-options.rule=Host(`api.babymonitor.local`) && Method(`OPTIONS`)"
+      - "traefik.http.routers.create-account.rule=Host(`api.babymonitor.creativeilk.com`) && Path(`/square-sandbox`) && Method(`POST`)"
+      - "traefik.http.routers.create-account.entrypoints=websecure"
+      - "traefik.http.routers.create-account.tls=true"
+      - "traefik.http.routers.create-account.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.create-account.tls.domains[0].main=api.babymonitor.creativeilk.com"
+
+      - "traefik.http.routers.backend-options.rule=Host(`api.babymonitor.creativeilk.com`) && Method(`OPTIONS`)"
       - "traefik.http.routers.backend-options.entrypoints=websecure"
       - "traefik.http.routers.backend-options.tls=true"
       - "traefik.http.routers.backend-options.tls.certresolver=letsencrypt"
@@ -76,3 +89,21 @@ services:
       - "traefik.http.routers.backend.tls.certresolver=letsencrypt"
       - "traefik.http.routers.backend.tls.domains[0].main=api.babymonitor.creativeilk.com"
       - "traefik.http.routers.backend.middlewares=headers-cors@docker,rate-limit-backend@docker"
+
+secrets:
+  ENCRYPTION_KEY:
+    external: true
+  ACCOUNT_STORE_S3_REGION:
+    external: true
+  ACCOUNT_STORE_S3_BUCKET:
+    external: true
+  SQUARE_APPLICATION_ID:
+    external: true
+  SQUARE_ACCESS_TOKEN:
+    external: true
+  SQUARE_SUBSCRIPTION_PLAN_ID:
+    external: true
+  SQUARE_LOCATION_ID:
+    external: true
+  SQUARE_SIGNATURE_KEY:
+    external: true
