@@ -92,10 +92,6 @@ services:
 secrets:
   ENCRYPTION_KEY:
     external: true
-  ACCOUNT_STORE_S3_REGION:
-    external: true
-  ACCOUNT_STORE_S3_BUCKET:
-    external: true
   SQUARE_APPLICATION_ID:
     external: true
   SQUARE_ACCESS_TOKEN:
