@@ -13,11 +13,12 @@ import (
 	"github.com/Ryan-A-B/baby-monitor/internal/fatal"
 )
 
+const Version = "2023-07-20"
+
 type Client struct {
 	httpClient    *http.Client
 	scheme        string
 	host          string
-	version       string
 	applicationID string
 	authorization string
 }
@@ -26,7 +27,6 @@ type NewClientInput struct {
 	HTTPClient    *http.Client
 	Scheme        string
 	Host          string
-	Version       string
 	ApplicationID string
 	AccessToken   string
 }
@@ -36,7 +36,6 @@ func NewClient(input *NewClientInput) *Client {
 		httpClient:    input.HTTPClient,
 		scheme:        input.Scheme,
 		host:          input.Host,
-		version:       input.Version,
 		applicationID: input.ApplicationID,
 		authorization: "Bearer " + input.AccessToken,
 	}
@@ -90,7 +89,7 @@ func (client *Client) CreatePaymentLink(input *CreatePaymentLinkInput) (output *
 	fatal.OnError(err)
 	request, err := http.NewRequest(http.MethodPost, target.String(), bytes.NewReader(payload))
 	fatal.OnError(err)
-	request.Header.Add("Square-Version", client.version)
+	request.Header.Add("Square-Version", Version)
 	request.Header.Add("Authorization", client.authorization)
 	request.Header.Add("Content-Type", "application/json")
 	response, err := client.httpClient.Do(request)
@@ -188,7 +187,7 @@ func (client *Client) UpsertCatalogObject(input *UpsertCatalogObjectInput) (outp
 	if err != nil {
 		return
 	}
-	request.Header.Add("Square-Version", client.version)
+	request.Header.Add("Square-Version", Version)
 	request.Header.Add("Authorization", client.authorization)
 	request.Header.Add("Content-Type", "application/json")
 	response, err := client.httpClient.Do(request)

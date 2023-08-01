@@ -2,6 +2,7 @@ package accounts_test
 
 import (
 	"bytes"
+	"context"
 	"crypto/rand"
 	"encoding/json"
 	"io"
@@ -21,9 +22,11 @@ import (
 
 func TestHandlers(t *testing.T) {
 	Convey("TestHandlers", t, func() {
+		ctx := context.Background()
 		key := generateKey()
 		handlers := accounts.Handlers{
 			CookieDomain: "localhost",
+			EventLog:     newEventLog(ctx),
 			AccountStore: &accounts.AccountStore{
 				Store: store.NewMemoryStore(),
 			},

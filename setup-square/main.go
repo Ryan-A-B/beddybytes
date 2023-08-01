@@ -18,16 +18,15 @@ func main() {
 		HTTPClient:    http.DefaultClient,
 		Scheme:        os.Getenv("SQUARE_SCHEME"),
 		Host:          os.Getenv("SQUARE_HOST"),
-		Version:       os.Getenv("SQUARE_VERSION"),
 		ApplicationID: os.Getenv("SQUARE_APPLICATION_ID"),
 		AccessToken:   os.Getenv("SQUARE_ACCESS_TOKEN"),
 	})
-	// subscriptionPlan, err := CreateSubscriptionPlan(client)
-	// fatal.OnError(err)
-	// subscriptionPlanID := subscriptionPlan["catalog_object"].(map[string]interface{})["id"].(string)
-	// log.Println("subscription plan created: " + subscriptionPlanID)
-	// PrintJSON(subscriptionPlan)
-	subscriptionPlanID := os.Getenv("SQUARE_SUBSCRIPTION_PLAN_ID")
+	subscriptionPlan, err := CreateSubscriptionPlan(client)
+	fatal.OnError(err)
+	subscriptionPlanID := subscriptionPlan["catalog_object"].(map[string]interface{})["id"].(string)
+	log.Println("subscription plan created: " + subscriptionPlanID)
+	PrintJSON(subscriptionPlan)
+	// subscriptionPlanID := os.Getenv("SQUARE_SUBSCRIPTION_PLAN_ID")
 	subscriptionPlanVariation, err := CreateSubscriptionPlanVariation(client, subscriptionPlanID)
 	fatal.OnError(err)
 	subscriptionPlanVariationID := subscriptionPlanVariation["catalog_object"].(map[string]interface{})["id"].(string)
@@ -41,8 +40,9 @@ func CreateSubscriptionPlan(client *square.Client) (output square.UpsertCatalogO
 	input := square.UpsertCatalogObjectInput{
 		IdempotencyKey: idempotencyKey,
 		Object: square.CatalogObject{
-			Type: square.CatalogObjectTypeSubscriptionPlan,
-			ID:   objectID,
+			Type:                  square.CatalogObjectTypeSubscriptionPlan,
+			ID:                    objectID,
+			PresentAtAllLocations: true,
 			SubscriptionPlan: &square.SubscriptionPlan{
 				Name: "Baby Monitor Subscription",
 			},
@@ -59,10 +59,11 @@ func CreateSubscriptionPlanVariation(client *square.Client, subscriptionPlanID s
 	input := square.UpsertCatalogObjectInput{
 		IdempotencyKey: idempotencyKey,
 		Object: square.CatalogObject{
-			Type: square.CatalogObjectTypeSubscriptionPlanVariation,
-			ID:   objectID,
+			Type:                  square.CatalogObjectTypeSubscriptionPlanVariation,
+			ID:                    objectID,
+			PresentAtAllLocations: true,
 			SubscriptionPlanVariation: &square.SubscriptionPlanVariation{
-				Name:               "Monthly",
+				Name:               "Baby Monitor Subscription",
 				SubscriptionPlanID: subscriptionPlanID,
 				Phases: []square.SubscriptionPhase{
 					{

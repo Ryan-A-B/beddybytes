@@ -1,16 +1,21 @@
 # TODO
 ## Now
 ### Bugs
+- delay payment until end of trial period
+    - or end of active subscription
 - integration tests for API prod release
 - logs
     - print reason for request failed
 - stats
 
 ### Features
-- payments
+- cancel subscription
 
 ## Next
+- pause subscription
 ### Bugs
+- PaymentLinkMutex is expensive
+- mock square for testing
 - responive slightly broken on phone (S7)
 - replace react favicon
 - server hardening

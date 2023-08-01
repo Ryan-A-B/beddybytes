@@ -10,17 +10,14 @@ import (
 	"time"
 
 	"github.com/ansel1/merry"
-	awsconfig "github.com/aws/aws-sdk-go-v2/config"
-	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 
 	"github.com/Ryan-A-B/baby-monitor/backend/accounts"
 	"github.com/Ryan-A-B/baby-monitor/backend/internal"
+	"github.com/Ryan-A-B/baby-monitor/backend/internal/eventlog"
 	"github.com/Ryan-A-B/baby-monitor/backend/internal/store"
-	"github.com/Ryan-A-B/baby-monitor/backend/squarehandlers"
-	"github.com/Ryan-A-B/baby-monitor/internal/fatal"
 	"github.com/Ryan-A-B/baby-monitor/internal/square"
 )
 
@@ -161,18 +158,28 @@ func main() {
 	ctx := context.Background()
 	key := []byte(internal.EnvStringOrFatal("ENCRYPTION_KEY"))
 	cookieDomain := internal.EnvStringOrFatal("COOKIE_DOMAIN")
-	accountStore := newAccountStore(ctx, key)
-	squareHandlers := newSquareHandlers(accountStore, key)
 	accountHandlers := accounts.Handlers{
-		CookieDomain:                 cookieDomain,
-		AccountStore:                 accountStore,
+		CookieDomain: cookieDomain,
+		EventLog:     newEventLog(),
+		AccountStore: &accounts.AccountStore{
+			Store: store.NewMemoryStore(),
+		},
 		SigningMethod:                jwt.SigningMethodHS256,
 		Key:                          key,
 		AccessTokenDuration:          1 * time.Hour,
 		RefreshTokenDuration:         30 * 24 * time.Hour,
 		UsedTokens:                   accounts.NewUsedTokens(),
 		AnonymousAccessTokenDuration: 10 * time.Second,
+
+		AccountIDByOrderID: make(map[string]string),
+		SignatureKey:       []byte(internal.EnvStringOrFatal("SQUARE_SIGNATURE_KEY")),
+
+		Client:                 newSquareClient(),
+		SubscriptionPlanID:     internal.EnvStringOrFatal("SQUARE_SUBSCRIPTION_PLAN_ID"),
+		LocationID:             internal.EnvStringOrFatal("SQUARE_LOCATION_ID"),
+		PaymentLinkByAccountID: make(map[string]*square.PaymentLink),
 	}
+	go accountHandlers.RunProjection(ctx)
 	handlers := Handlers{
 		Upgrader: websocket.Upgrader{
 			ReadBufferSize:  1024,
@@ -193,7 +200,6 @@ func main() {
 	router := mux.NewRouter()
 	handlers.AddRoutes(router.NewRoute().Subrouter())
 	accountHandlers.AddRoutes(router.NewRoute().Subrouter())
-	squareHandlers.AddRoutes(router.NewRoute().Subrouter())
 	addr := internal.EnvStringOrFatal("SERVER_ADDR")
 	server := http.Server{
 		Addr:    addr,
@@ -203,50 +209,14 @@ func main() {
 	log.Fatal(server.ListenAndServe())
 }
 
-func newAccountStore(ctx context.Context, key []byte) *accounts.AccountStore {
-	var s store.Store
-	switch internal.EnvStringOrDefault("ACCOUNT_STORE_IMPLEMENTATION", "file_system") {
-	case "file_system":
-		s = store.NewFileSystemStore(&store.NewFileSystemStoreInput{
-			Root: "account_store",
-		})
-	case "s3":
-		region := internal.EnvStringOrFatal("ACCOUNT_STORE_S3_REGION")
-		config, err := awsconfig.LoadDefaultConfig(ctx, awsconfig.WithRegion(region))
-		fatal.OnError(err)
-		s = store.NewS3Store(&store.NewS3StoreInput{
-			Client: s3.NewFromConfig(config),
-			Bucket: internal.EnvStringOrFatal("ACCOUNT_STORE_S3_BUCKET"),
-			Prefix: "account_store/",
-		})
-	default:
-		fatal.OnError(errors.New("unknown account store implementation"))
-	}
-	return &accounts.AccountStore{
-		Store: store.NewCachingDecorator(&store.NewCachingDecoratorInput{
-			Store: store.NewEncryptingDecorator(&store.NewEncryptingDecoratorInput{
-				Store: s,
-				Key:   key,
+func newEventLog() eventlog.EventLog {
+	return eventlog.NewThreadSafeDecorator(&eventlog.NewThreadSafeDecoratorInput{
+		Decorated: eventlog.NewFollowingDecorator(&eventlog.NewFollowingDecoratorInput{
+			Decorated: eventlog.NewFileEventLog(&eventlog.NewFileEventLogInput{
+				FolderPath: internal.EnvStringOrFatal("FILE_EVENT_LOG_FOLDER_PATH"),
 			}),
+			BufferSize: 32,
 		}),
-	}
-}
-
-func newSquareHandlers(accountStore *accounts.AccountStore, key []byte) *squarehandlers.Handlers {
-	signatureKey := internal.EnvStringOrFatal("SQUARE_SIGNATURE_KEY")
-	return &squarehandlers.Handlers{
-		Key:            key,
-		AccountStore:   accountStore,
-		SquarePayments: newSquarePayments(),
-		SignatureKey:   []byte(signatureKey),
-	}
-}
-
-func newSquarePayments() *squarehandlers.SquarePayments {
-	return squarehandlers.NewSquarePayments(&squarehandlers.NewSquarePaymentsInput{
-		Client:             newSquareClient(),
-		SubscriptionPlanID: internal.EnvStringOrFatal("SQUARE_SUBSCRIPTION_PLAN_ID"),
-		LocationID:         internal.EnvStringOrFatal("SQUARE_LOCATION_ID"),
 	})
 }
 
@@ -255,7 +225,6 @@ func newSquareClient() *square.Client {
 		HTTPClient:    http.DefaultClient,
 		Scheme:        internal.EnvStringOrFatal("SQUARE_SCHEME"),
 		Host:          internal.EnvStringOrFatal("SQUARE_HOST"),
-		Version:       internal.EnvStringOrFatal("SQUARE_VERSION"),
 		ApplicationID: internal.EnvStringOrFatal("SQUARE_APPLICATION_ID"),
 		AccessToken:   internal.EnvStringOrFatal("SQUARE_ACCESS_TOKEN"),
 	})

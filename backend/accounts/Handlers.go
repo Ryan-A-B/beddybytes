@@ -17,11 +17,14 @@ import (
 	uuid "github.com/satori/go.uuid"
 
 	"github.com/Ryan-A-B/baby-monitor/backend/internal"
+	"github.com/Ryan-A-B/baby-monitor/backend/internal/eventlog"
 	"github.com/Ryan-A-B/baby-monitor/internal/fatal"
+	"github.com/Ryan-A-B/baby-monitor/internal/square"
 )
 
 type Handlers struct {
 	CookieDomain                 string
+	EventLog                     eventlog.EventLog
 	AccountStore                 *AccountStore
 	SigningMethod                jwt.SigningMethod
 	Key                          interface{}
@@ -29,6 +32,33 @@ type Handlers struct {
 	RefreshTokenDuration         time.Duration
 	UsedTokens                   UsedTokens
 	AnonymousAccessTokenDuration time.Duration
+
+	SignatureKey []byte
+
+	PaymentLinkMutex       sync.Mutex
+	Client                 *square.Client
+	SubscriptionPlanID     string
+	LocationID             string
+	PaymentLinkByAccountID map[string]*square.PaymentLink
+
+	AppliedPayments    map[string]struct{}
+	AccountIDByOrderID map[string]string
+}
+
+func (handlers *Handlers) AddRoutes(router *mux.Router) {
+	router.Use(internal.LoggingMiddleware)
+	router.Use(mux.CORSMethodMiddleware(router))
+	router.Use(internal.SkipOptionsMiddleware)
+	router.HandleFunc("/anonymous_token", handlers.AnonymousToken).Methods(http.MethodPost, http.MethodOptions).Name("AnonymousToken")
+	router.HandleFunc("/token", handlers.Token).Methods(http.MethodPost, http.MethodOptions).Name("Token")
+	router.HandleFunc("/accounts", handlers.CreateAccount).Methods(http.MethodPost, http.MethodOptions).Name("CreateAccount")
+	router.HandleFunc("/square/webhook", handlers.HandleWebhook).Methods(http.MethodPost).Name("HandleWebhook")
+
+	authenticatedRouter := router.PathPrefix("/accounts/{account_id}").Subrouter()
+	authenticatedRouter.Use(internal.NewAuthorizationMiddleware(handlers.Key).Middleware)
+	authenticatedRouter.HandleFunc("", handlers.GetAccount).Methods(http.MethodGet, http.MethodOptions).Name("GetAccount")
+	authenticatedRouter.HandleFunc("", handlers.DeleteAccount).Methods(http.MethodDelete, http.MethodOptions).Name("DeleteAccount")
+	authenticatedRouter.HandleFunc("/payment_link_url", handlers.GetPaymentLinkURL).Methods(http.MethodGet, http.MethodOptions).Name("GetPaymentLinkURL")
 }
 
 type UsedTokens struct {
@@ -169,6 +199,13 @@ func (handlers *Handlers) CreateAccount(responseWriter http.ResponseWriter, requ
 	if err != nil {
 		return
 	}
+	data, err := json.Marshal(account)
+	fatal.OnError(err)
+	_, err = handlers.EventLog.Append(ctx, &eventlog.AppendInput{
+		Type: EventTypeAccountCreated,
+		Data: data,
+	})
+	fatal.OnError(err)
 	responseWriter.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(responseWriter).Encode(account)
 }
@@ -341,20 +378,6 @@ func (handlers *Handlers) DeleteAccount(responseWriter http.ResponseWriter, requ
 		http.Error(responseWriter, err.Error(), http.StatusInternalServerError)
 		return
 	}
-}
-
-func (handlers *Handlers) AddRoutes(router *mux.Router) {
-	router.Use(internal.LoggingMiddleware)
-	router.Use(mux.CORSMethodMiddleware(router))
-	router.Use(internal.SkipOptionsMiddleware)
-	router.HandleFunc("/anonymous_token", handlers.AnonymousToken).Methods(http.MethodPost, http.MethodOptions).Name("AnonymousToken")
-	router.HandleFunc("/token", handlers.Token).Methods(http.MethodPost, http.MethodOptions).Name("Token")
-	router.HandleFunc("/accounts", handlers.CreateAccount).Methods(http.MethodPost, http.MethodOptions).Name("CreateAccount")
-
-	authenticatedRouter := router.PathPrefix("/accounts/{account_id}").Subrouter()
-	authenticatedRouter.Use(internal.NewAuthorizationMiddleware(handlers.Key).Middleware)
-	authenticatedRouter.HandleFunc("", handlers.GetAccount).Methods(http.MethodGet, http.MethodOptions).Name("GetAccount")
-	authenticatedRouter.HandleFunc("", handlers.DeleteAccount).Methods(http.MethodDelete, http.MethodOptions).Name("DeleteAccount")
 }
 
 func (handlers *Handlers) createAnonymousAccessToken(remoteAddress string) (accessToken string) {
