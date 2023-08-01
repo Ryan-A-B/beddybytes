@@ -42,14 +42,14 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - ./account_store:/opt/account_store
+      - ./eventlog:/opt/eventlog
     environment:
       - ENCRYPTION_KEY=${ENCRYPTION_KEY}
       - COOKIE_DOMAIN=.babymonitor.local
       - SERVER_ADDR=:8000
+      - FILE_EVENT_LOG_FOLDER_PATH=/opt/eventlog
       - SQUARE_SCHEME=https
       - SQUARE_HOST=connect.squareupsandbox.com
-      - SQUARE_VERSION=2023-07-20
       - SQUARE_APPLICATION_ID=${SQUARE_APPLICATION_ID}
       - SQUARE_ACCESS_TOKEN=${SQUARE_ACCESS_TOKEN}
       - SQUARE_SUBSCRIPTION_PLAN_ID=${SQUARE_SUBSCRIPTION_PLAN_ID}

@@ -171,13 +171,15 @@ func main() {
 		UsedTokens:                   accounts.NewUsedTokens(),
 		AnonymousAccessTokenDuration: 10 * time.Second,
 
-		AccountIDByOrderID: make(map[string]string),
-		SignatureKey:       []byte(internal.EnvStringOrFatal("SQUARE_SIGNATURE_KEY")),
+		SignatureKey: []byte(internal.EnvStringOrFatal("SQUARE_SIGNATURE_KEY")),
 
 		Client:                 newSquareClient(),
 		SubscriptionPlanID:     internal.EnvStringOrFatal("SQUARE_SUBSCRIPTION_PLAN_ID"),
 		LocationID:             internal.EnvStringOrFatal("SQUARE_LOCATION_ID"),
 		PaymentLinkByAccountID: make(map[string]*square.PaymentLink),
+
+		AppliedPayments:    make(map[string]struct{}),
+		AccountIDByOrderID: make(map[string]string),
 	}
 	go accountHandlers.RunProjection(ctx)
 	handlers := Handlers{

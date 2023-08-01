@@ -1,6 +1,7 @@
 # TODO
 ## Now
 ### Bugs
+- backup eventlog to S3
 - delay payment until end of trial period
     - or end of active subscription
 - integration tests for API prod release

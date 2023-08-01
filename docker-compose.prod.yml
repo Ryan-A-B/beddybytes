@@ -40,16 +40,15 @@ services:
     restart: always
     ports:
       - "8000:8000"
+    volumes:
+      - ./eventlog:/opt/eventlog
     environment:
       - ENCRYPTION_KEY=${ENCRYPTION_KEY}
       - COOKIE_DOMAIN=.babymonitor.creativeilk.com
       - SERVER_ADDR=:8000
-      - ACCOUNT_STORE_IMPLEMENTATION=s3
-      - ACCOUNT_STORE_S3_REGION=${ACCOUNT_STORE_S3_REGION}
-      - ACCOUNT_STORE_S3_BUCKET=${ACCOUNT_STORE_S3_BUCKET}
+      - FILE_EVENT_LOG_FOLDER_PATH=/opt/eventlog
       - SQUARE_SCHEME=https
       - SQUARE_HOST=connect.squareup.com
-      - SQUARE_VERSION=2023-07-20
       - SQUARE_APPLICATION_ID=${SQUARE_APPLICATION_ID}
       - SQUARE_ACCESS_TOKEN=${SQUARE_ACCESS_TOKEN}
       - SQUARE_SUBSCRIPTION_PLAN_ID=${SQUARE_SUBSCRIPTION_PLAN_ID}

@@ -62,7 +62,7 @@ const getAccount = (accessToken: string): Promise<Account> => {
 }
 
 const getPaymentLinkURL = (accessToken: string): Promise<string | null> => {
-    return fetch(`https://${settings.API.host}/payment_link_url`, {
+    return fetch(`https://${settings.API.host}/accounts/current/payment_link_url`, {
         method: "GET",
         headers: {
             "Authorization": `Bearer ${accessToken}`,
