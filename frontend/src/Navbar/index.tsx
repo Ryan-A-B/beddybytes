@@ -21,6 +21,11 @@ const Navbar: React.FunctionComponent = () => {
                                 Monitor
                             </NavLink>
                         </li>
+                        <li className="nav-item">
+                            <NavLink to="/account">
+                                Account
+                            </NavLink>
+                        </li>
                     </ul>
                 </div>
             </div>

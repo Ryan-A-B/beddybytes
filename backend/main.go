@@ -181,6 +181,7 @@ func main() {
 		AppliedInvoiceIDs:         make(map[string]struct{}),
 		AccountIDByOrderID:        make(map[string]string),
 		AccountIDBySubscriptionID: make(map[string]string),
+		SquareSubscriptionByID:    make(map[string]*square.Subscription),
 	}
 	go accountHandlers.RunProjection(ctx)
 	handlers := Handlers{

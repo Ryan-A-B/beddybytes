@@ -29,6 +29,7 @@ func TestProjection(t *testing.T) {
 			AppliedInvoiceIDs:         make(map[string]struct{}),
 			AccountIDByOrderID:        make(map[string]string),
 			AccountIDBySubscriptionID: make(map[string]string),
+			SquareSubscriptionByID:    make(map[string]*square.Subscription),
 		}
 		go handlers.RunProjection(ctx)
 
@@ -86,14 +87,16 @@ func TestProjection(t *testing.T) {
 
 				Convey("apply square subscription created", func() {
 					subscriptionID := uuid.NewV4().String()
+					buyerSelfManagementToken := uuid.NewV4().String()
 					squareEvent := square.Event{
 						Type: "subscription.created",
 						Data: square.EventData{
 							Type: "subscription",
 							Object: square.Object{
 								Subscription: &square.Subscription{
-									ID:              subscriptionID,
-									OrderTemplateID: frame.PaymentLink.OrderID,
+									ID:                       subscriptionID,
+									OrderTemplateID:          frame.PaymentLink.OrderID,
+									BuyerSelfManagementToken: buyerSelfManagementToken,
 								},
 							},
 						},
@@ -167,6 +170,7 @@ func TestProjection(t *testing.T) {
 							So(err, ShouldBeNil)
 							So(account.Subscription.State, ShouldEqual, accounts.SubscriptionStateActive)
 							So(account.Subscription.Active, ShouldNotBeNil)
+							So(account.Subscription.Active.ManagementURL, ShouldEqual, "https://squareup.com/buyer-subscriptions/manage?buyer_management_token="+buyerSelfManagementToken)
 							So(account.Subscription.Active.Expiry, ShouldEqual, trialExpiry.AddDate(0, 1, 0))
 
 							Convey("apply square invoice payment made", func() {
@@ -195,6 +199,7 @@ func TestProjection(t *testing.T) {
 								So(err, ShouldBeNil)
 								So(account.Subscription.State, ShouldEqual, accounts.SubscriptionStateActive)
 								So(account.Subscription.Active, ShouldNotBeNil)
+								So(account.Subscription.Active.ManagementURL, ShouldEqual, "https://squareup.com/buyer-subscriptions/manage?buyer_management_token="+buyerSelfManagementToken)
 								So(account.Subscription.Active.Expiry, ShouldEqual, trialExpiry.AddDate(0, 1, 0))
 							})
 						})

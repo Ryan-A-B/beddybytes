@@ -10,10 +10,8 @@
 - stats
 
 ### Features
-- cancel subscription
 
 ## Next
-- pause subscription
 ### Bugs
 - PaymentLinkMutex is expensive
 - mock square for testing
@@ -29,6 +27,7 @@
         - but not brave
 
 ### Features
+- pause subscription
 - connection lost
     - attempt reconnect
     - Picture in Picture doesn't support custom elements

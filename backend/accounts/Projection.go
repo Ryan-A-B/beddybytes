@@ -72,6 +72,7 @@ func (handlers *Handlers) ApplySquareSubscriptionCreatedEvent(ctx context.Contex
 		return
 	}
 	handlers.AccountIDBySubscriptionID[squareEvent.Data.Object.Subscription.ID] = accountID
+	handlers.SquareSubscriptionByID[squareEvent.Data.Object.Subscription.ID] = squareEvent.Data.Object.Subscription
 }
 
 func (handlers *Handlers) ApplySquareInvoiceEvent(ctx context.Context, event *eventlog.Event) {
@@ -100,10 +101,16 @@ func (handlers *Handlers) ApplySquareInvoiceEvent(ctx context.Context, event *ev
 		if t0.Before(account.Subscription.Trial.Expiry) {
 			t0 = account.Subscription.Trial.Expiry
 		}
+		squareSubscription, ok := handlers.SquareSubscriptionByID[squareEvent.Data.Object.Invoice.SubscriptionID]
+		if !ok {
+			log.Println("Error: no square subscription found for subscription ID", squareEvent.Data.Object.Invoice.SubscriptionID)
+			return
+		}
 		account.Subscription = Subscription{
 			State: SubscriptionStateActive,
 			Active: &SubscriptionActive{
-				Expiry: t0.AddDate(0, 1, 0),
+				ManagementURL: squareSubscription.GetSelfManagementURL(),
+				Expiry:        t0.AddDate(0, 1, 0),
 			},
 		}
 	case SubscriptionStateActive:

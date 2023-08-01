@@ -44,6 +44,7 @@ type Handlers struct {
 	AppliedInvoiceIDs         map[string]struct{}
 	AccountIDByOrderID        map[string]string
 	AccountIDBySubscriptionID map[string]string
+	SquareSubscriptionByID    map[string]*square.Subscription
 }
 
 func (handlers *Handlers) AddRoutes(router *mux.Router) {

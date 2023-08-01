@@ -5,8 +5,9 @@ import Registration from './Registration';
 import Navbar from './Navbar';
 import Payments from './Payments';
 import Instructions from './Instructions';
-import Monitor from './Monitor';
 import Camera from './Camera';
+import Monitor from './Monitor';
+import Account from './Account';
 import './App.scss';
 
 const App: React.FunctionComponent = () => {
@@ -21,6 +22,7 @@ const App: React.FunctionComponent = () => {
                   <Route path="/" element={<Instructions />} />
                   <Route path="/camera" element={<Camera />} />
                   <Route path="/monitor" element={<Monitor />} />
+                  <Route path="/account" element={<Account />} />
                 </Routes>
               </div>
             </Registration>

@@ -34,7 +34,8 @@ type SubscriptionTrial struct {
 }
 
 type SubscriptionActive struct {
-	Expiry time.Time `json:"expiry"`
+	ManagementURL string    `json:"management_url"`
+	Expiry        time.Time `json:"expiry"`
 }
 
 type SubscriptionCanceled struct {
