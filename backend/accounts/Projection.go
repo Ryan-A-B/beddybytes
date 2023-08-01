@@ -13,8 +13,11 @@ import (
 
 const EventTypeAccountCreated = "account.created"
 const EventTypePaymentLinkCreated = "payment_link.created"
-const EventTypeSquarePaymentCreated = "square.payment.created"
-const EventTypeSquarePaymentUpdated = "square.payment.updated"
+const EventTypeSquareSubscriptionCreated = "square.subscription.created"
+const EventTypeSquareInvoiceCreated = "square.invoice.created"
+const EventTypeSquareInvoiceUpdated = "square.invoice.updated"
+const EventTypeSquareInvoicePublished = "square.invoice.published"
+const EventTypeSquareInvoicePaymentMade = "square.invoice.payment_made"
 
 func (handlers *Handlers) RunProjection(ctx context.Context) {
 	iterator := handlers.EventLog.GetEventIterator(ctx, &eventlog.GetEventIteratorInput{
@@ -33,15 +36,16 @@ func (handlers *Handlers) ApplyEvent(ctx context.Context, event *eventlog.Event)
 		handlers.ApplyAccountCreatedEvent(ctx, event)
 	case EventTypePaymentLinkCreated:
 		handlers.ApplyPaymentLinkCreatedEvent(ctx, event)
-	case EventTypeSquarePaymentCreated, EventTypeSquarePaymentUpdated:
-		handlers.ApplySquarePaymentEvent(ctx, event)
+	case EventTypeSquareSubscriptionCreated:
+		handlers.ApplySquareSubscriptionCreatedEvent(ctx, event)
+	case EventTypeSquareInvoiceCreated, EventTypeSquareInvoiceUpdated, EventTypeSquareInvoicePublished, EventTypeSquareInvoicePaymentMade:
+		handlers.ApplySquareInvoiceEvent(ctx, event)
 	}
 }
 
 func (handlers *Handlers) ApplyAccountCreatedEvent(ctx context.Context, event *eventlog.Event) {
 	var account Account
-	var err error
-	err = json.Unmarshal(event.Data, &account)
+	err := json.Unmarshal(event.Data, &account)
 	fatal.OnError(err)
 	err = handlers.AccountStore.Put(ctx, &account)
 	fatal.OnError(err)
@@ -57,24 +61,37 @@ func (handlers *Handlers) ApplyPaymentLinkCreatedEvent(ctx context.Context, even
 	handlers.PaymentLinkByAccountID[frame.AccountID] = frame.PaymentLink
 }
 
-func (handlers *Handlers) ApplySquarePaymentEvent(ctx context.Context, event *eventlog.Event) {
+func (handlers *Handlers) ApplySquareSubscriptionCreatedEvent(ctx context.Context, event *eventlog.Event) {
 	var squareEvent square.Event
 	err := json.Unmarshal(event.Data, &squareEvent)
 	fatal.OnError(err)
-	if squareEvent.Data.Object.Payment.Status != "COMPLETED" {
-		return
-	}
-	if _, ok := handlers.AppliedPayments[squareEvent.Data.Object.Payment.ID]; ok {
-		return
-	}
-	accountID, ok := handlers.AccountIDByOrderID[squareEvent.Data.Object.Payment.OrderID]
+	orderID := squareEvent.Data.Object.Subscription.OrderTemplateID
+	accountID, ok := handlers.AccountIDByOrderID[orderID]
 	if !ok {
-		log.Println("Error: could not find account id for order id: " + squareEvent.Data.Object.Payment.OrderID)
+		log.Println("Error: no account found for order ID", orderID)
+		return
+	}
+	handlers.AccountIDBySubscriptionID[squareEvent.Data.Object.Subscription.ID] = accountID
+}
+
+func (handlers *Handlers) ApplySquareInvoiceEvent(ctx context.Context, event *eventlog.Event) {
+	var squareEvent square.Event
+	err := json.Unmarshal(event.Data, &squareEvent)
+	fatal.OnError(err)
+	if squareEvent.Data.Object.Invoice.Status != square.InvoiceStatusPaid {
+		return
+	}
+	if _, ok := handlers.AppliedInvoiceIDs[squareEvent.Data.Object.Invoice.ID]; ok {
+		return
+	}
+	accountID, ok := handlers.AccountIDBySubscriptionID[squareEvent.Data.Object.Invoice.SubscriptionID]
+	if !ok {
+		log.Println("Error: no account found for subscription ID", squareEvent.Data.Object.Invoice.SubscriptionID)
 		return
 	}
 	account, err := handlers.AccountStore.Get(ctx, accountID)
 	if err != nil {
-		log.Println("Error: could not find account: " + accountID)
+		log.Println("Error: failed to get account", err)
 		return
 	}
 	switch account.Subscription.State {
@@ -105,5 +122,5 @@ func (handlers *Handlers) ApplySquarePaymentEvent(ctx context.Context, event *ev
 	}
 	err = handlers.AccountStore.Put(ctx, account)
 	fatal.OnError(err)
-	handlers.AppliedPayments[squareEvent.Data.Object.Payment.ID] = struct{}{}
+	handlers.AppliedInvoiceIDs[squareEvent.Data.Object.Invoice.ID] = struct{}{}
 }

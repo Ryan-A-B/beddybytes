@@ -41,8 +41,9 @@ type Handlers struct {
 	LocationID             string
 	PaymentLinkByAccountID map[string]*square.PaymentLink
 
-	AppliedPayments    map[string]struct{}
-	AccountIDByOrderID map[string]string
+	AppliedInvoiceIDs         map[string]struct{}
+	AccountIDByOrderID        map[string]string
+	AccountIDBySubscriptionID map[string]string
 }
 
 func (handlers *Handlers) AddRoutes(router *mux.Router) {

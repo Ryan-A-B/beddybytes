@@ -178,8 +178,9 @@ func main() {
 		LocationID:             internal.EnvStringOrFatal("SQUARE_LOCATION_ID"),
 		PaymentLinkByAccountID: make(map[string]*square.PaymentLink),
 
-		AppliedPayments:    make(map[string]struct{}),
-		AccountIDByOrderID: make(map[string]string),
+		AppliedInvoiceIDs:         make(map[string]struct{}),
+		AccountIDByOrderID:        make(map[string]string),
+		AccountIDBySubscriptionID: make(map[string]string),
 	}
 	go accountHandlers.RunProjection(ctx)
 	handlers := Handlers{

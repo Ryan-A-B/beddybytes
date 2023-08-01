@@ -25,9 +25,10 @@ func TestProjection(t *testing.T) {
 			AccountStore: &accounts.AccountStore{
 				Store: store.NewMemoryStore(),
 			},
-			PaymentLinkByAccountID: make(map[string]*square.PaymentLink),
-			AppliedPayments:        make(map[string]struct{}),
-			AccountIDByOrderID:     make(map[string]string),
+			PaymentLinkByAccountID:    make(map[string]*square.PaymentLink),
+			AppliedInvoiceIDs:         make(map[string]struct{}),
+			AccountIDByOrderID:        make(map[string]string),
+			AccountIDBySubscriptionID: make(map[string]string),
 		}
 		go handlers.RunProjection(ctx)
 
@@ -83,18 +84,16 @@ func TestProjection(t *testing.T) {
 				So(ok, ShouldBeTrue)
 				So(paymentLink, ShouldResemble, frame.PaymentLink)
 
-				Convey("apply square payment approved", func() {
-					paymentID := uuid.NewV4().String()
+				Convey("apply square subscription created", func() {
+					subscriptionID := uuid.NewV4().String()
 					squareEvent := square.Event{
-						Type: "payment.created",
+						Type: "subscription.created",
 						Data: square.EventData{
-							Type: "payment",
+							Type: "subscription",
 							Object: square.Object{
-								Payment: &square.Payment{
-									ID:      paymentID,
-									OrderID: frame.PaymentLink.OrderID,
-									Status:  "APPROVED",
-									Version: 1,
+								Subscription: &square.Subscription{
+									ID:              subscriptionID,
+									OrderTemplateID: frame.PaymentLink.OrderID,
 								},
 							},
 						},
@@ -113,17 +112,17 @@ func TestProjection(t *testing.T) {
 					So(account.Subscription.Trial, ShouldNotBeNil)
 					So(account.Subscription.Trial.Expiry, ShouldEqual, trialExpiry)
 
-					Convey("apply square payment completed", func() {
+					Convey("apply square invoice created", func() {
+						invoiceID := uuid.NewV4().String()
 						squareEvent := square.Event{
-							Type: "payment.updated",
+							Type: "invoice.created",
 							Data: square.EventData{
-								Type: "payment",
+								Type: "invoice",
 								Object: square.Object{
-									Payment: &square.Payment{
-										ID:      paymentID,
-										OrderID: frame.PaymentLink.OrderID,
-										Status:  "COMPLETED",
-										Version: 2,
+									Invoice: &square.Invoice{
+										ID:             invoiceID,
+										SubscriptionID: subscriptionID,
+										Status:         square.InvoiceStatusDraft,
 									},
 								},
 							},
@@ -138,21 +137,20 @@ func TestProjection(t *testing.T) {
 						time.Sleep(10 * time.Millisecond)
 						account, err := handlers.AccountStore.Get(ctx, account.ID)
 						So(err, ShouldBeNil)
-						So(account.Subscription.State, ShouldEqual, accounts.SubscriptionStateActive)
-						So(account.Subscription.Active, ShouldNotBeNil)
-						So(account.Subscription.Active.Expiry, ShouldEqual, trialExpiry.AddDate(0, 1, 0))
+						So(account.Subscription.State, ShouldEqual, accounts.SubscriptionStateTrial)
+						So(account.Subscription.Trial, ShouldNotBeNil)
+						So(account.Subscription.Trial.Expiry, ShouldEqual, trialExpiry)
 
-						Convey("apply square payment update", func() {
+						Convey("apply square invoice published", func() {
 							squareEvent := square.Event{
-								Type: "payment.updated",
+								Type: "invoice.published",
 								Data: square.EventData{
-									Type: "payment",
+									Type: "invoice",
 									Object: square.Object{
-										Payment: &square.Payment{
-											ID:      paymentID,
-											OrderID: frame.PaymentLink.OrderID,
-											Status:  "COMPLETED",
-											Version: 3,
+										Invoice: &square.Invoice{
+											ID:             invoiceID,
+											SubscriptionID: subscriptionID,
+											Status:         square.InvoiceStatusPaid,
 										},
 									},
 								},
@@ -170,6 +168,35 @@ func TestProjection(t *testing.T) {
 							So(account.Subscription.State, ShouldEqual, accounts.SubscriptionStateActive)
 							So(account.Subscription.Active, ShouldNotBeNil)
 							So(account.Subscription.Active.Expiry, ShouldEqual, trialExpiry.AddDate(0, 1, 0))
+
+							Convey("apply square invoice payment made", func() {
+								squareEvent := square.Event{
+									Type: "invoice.payment_made",
+									Data: square.EventData{
+										Type: "invoice",
+										Object: square.Object{
+											Invoice: &square.Invoice{
+												ID:             invoiceID,
+												SubscriptionID: subscriptionID,
+												Status:         square.InvoiceStatusPaid,
+											},
+										},
+									},
+								}
+								data, err := json.Marshal(&squareEvent)
+								So(err, ShouldBeNil)
+								_, err = handlers.EventLog.Append(ctx, &eventlog.AppendInput{
+									Type: "square." + string(squareEvent.Type),
+									Data: data,
+								})
+								So(err, ShouldBeNil)
+								time.Sleep(10 * time.Millisecond)
+								account, err := handlers.AccountStore.Get(ctx, account.ID)
+								So(err, ShouldBeNil)
+								So(account.Subscription.State, ShouldEqual, accounts.SubscriptionStateActive)
+								So(account.Subscription.Active, ShouldNotBeNil)
+								So(account.Subscription.Active.Expiry, ShouldEqual, trialExpiry.AddDate(0, 1, 0))
+							})
 						})
 					})
 				})

@@ -26,5 +26,7 @@ type EventData struct {
 }
 
 type Object struct {
-	Payment *Payment `json:"payment"`
+	Payment      *Payment      `json:"payment"`
+	Subscription *Subscription `json:"subscription"`
+	Invoice      *Invoice      `json:"invoice"`
 }
