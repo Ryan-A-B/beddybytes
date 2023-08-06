@@ -17,13 +17,13 @@ import (
 
 	"github.com/Ryan-A-B/baby-monitor/backend/accounts"
 	"github.com/Ryan-A-B/baby-monitor/backend/internal/store"
+	"github.com/Ryan-A-B/baby-monitor/backend/internal/xhttp"
 	"github.com/Ryan-A-B/baby-monitor/internal/fatal"
 )
 
 func TestHandlers(t *testing.T) {
 	Convey("TestHandlers", t, func() {
 		ctx := context.Background()
-		key := generateKey()
 		handlers := accounts.Handlers{
 			CookieDomain: "localhost",
 			EventLog:     newEventLog(ctx),
@@ -31,11 +31,12 @@ func TestHandlers(t *testing.T) {
 				Store: store.NewMemoryStore(),
 			},
 			SigningMethod:                jwt.SigningMethodHS256,
-			Key:                          key,
+			Key:                          generateKey(),
 			AccessTokenDuration:          1 * time.Hour,
 			UsedTokens:                   accounts.NewUsedTokens(),
 			AnonymousAccessTokenDuration: 10 * time.Second,
 		}
+		go handlers.RunProjection(ctx)
 		router := mux.NewRouter()
 		handlers.AddRoutes(router.NewRoute().Subrouter())
 		server := httptest.NewServer(router)
@@ -77,6 +78,35 @@ func TestHandlers(t *testing.T) {
 					response, err := client.Do(request)
 					So(err, ShouldBeNil)
 					So(response.StatusCode, ShouldEqual, 200)
+
+					Convey("Email already in use", func() {
+						Convey("GetAnonymousAccessToken", func() {
+							request, err := http.NewRequest(http.MethodPost, server.URL+"/anonymous_token", nil)
+							So(err, ShouldBeNil)
+							request.Header.Set("X-Forwarded-For", "127.0.0.1")
+							response, err := client.Do(request)
+							So(err, ShouldBeNil)
+							So(response.StatusCode, ShouldEqual, 200)
+							var output accounts.AccessTokenOutput
+							err = json.NewDecoder(response.Body).Decode(&output)
+							So(err, ShouldBeNil)
+
+							Convey("CreateAccount", func() {
+								request, err := http.NewRequest(http.MethodPost, server.URL+"/accounts", bytes.NewReader(data))
+								So(err, ShouldBeNil)
+								request.Header.Set("X-Forwarded-For", "127.0.0.1")
+								request.Header.Set("Authorization", "Bearer "+output.AccessToken)
+								response, err := client.Do(request)
+								So(err, ShouldBeNil)
+								So(response.StatusCode, ShouldEqual, 400)
+								var errorFrame xhttp.ErrorFrame
+								err = json.NewDecoder(response.Body).Decode(&errorFrame)
+								So(err, ShouldBeNil)
+								So(errorFrame.Code, ShouldEqual, "email_already_in_use")
+								So(errorFrame.Message, ShouldNotBeEmpty)
+							})
+						})
+					})
 				})
 				Convey("Unauthorized", func() {
 					Convey("No token", func() {
@@ -91,6 +121,11 @@ func TestHandlers(t *testing.T) {
 						response, err := client.Do(request)
 						So(err, ShouldBeNil)
 						So(response.StatusCode, ShouldEqual, http.StatusUnauthorized)
+						var errorFrame xhttp.ErrorFrame
+						err = json.NewDecoder(response.Body).Decode(&errorFrame)
+						So(err, ShouldBeNil)
+						So(errorFrame.Code, ShouldEqual, "unauthorized")
+						So(errorFrame.Message, ShouldNotBeEmpty)
 					})
 				})
 				Convey("invalid email", func() {
@@ -107,6 +142,11 @@ func TestHandlers(t *testing.T) {
 					response, err := client.Do(request)
 					So(err, ShouldBeNil)
 					So(response.StatusCode, ShouldEqual, http.StatusBadRequest)
+					var errorFrame xhttp.ErrorFrame
+					err = json.NewDecoder(response.Body).Decode(&errorFrame)
+					So(err, ShouldBeNil)
+					So(errorFrame.Code, ShouldEqual, "invalid_input")
+					So(errorFrame.Message, ShouldNotBeEmpty)
 				})
 			})
 		})

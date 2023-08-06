@@ -7,10 +7,14 @@ export interface LoginFrame {
     expires_in: number
 }
 
+export interface ErrorFrame {
+    code: string
+    message: string
+}
+
 export interface AuthorizationServer {
     createAccount: (email: string, password: string) => Promise<void>
     login: (email: string, password: string) => Promise<LoginFrame>
-    refresh: () => Promise<LoginFrame>
 }
 
 export class MockAuthorizationServer implements AuthorizationServer {
@@ -33,10 +37,6 @@ export class MockAuthorizationServer implements AuthorizationServer {
             expires_in: 3600,
         }
     }
-
-    refresh = async () => {
-        throw new Error('Not implemented')
-    }
 }
 
 export class AuthorizationServerAPI implements AuthorizationServer {
@@ -46,7 +46,7 @@ export class AuthorizationServerAPI implements AuthorizationServer {
         this.baseURL = baseURL
     }
 
-    createAccount = async (email: string, password: string) => {
+    getAnonymousToken = async () => {
         const tokenResponse = await fetch(`${this.baseURL}/anonymous_token`, {
             method: 'POST',
         })
@@ -57,11 +57,17 @@ export class AuthorizationServerAPI implements AuthorizationServer {
         const { token_type, access_token } = await tokenResponse.json()
         if (token_type !== 'Bearer')
             throw new Error(`Failed to create account: invalid token type ${token_type}`)
+        return access_token
+    }
+    
+    // TODO return Result<Account, ErrorFrame>
+    createAccount = async (email: string, password: string) => {
+        const accessToken = await this.getAnonymousToken()
         const createAccountResponse = await fetch(`${this.baseURL}/accounts`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `${token_type} ${access_token}`
+                'Authorization': `Bearer ${accessToken}`
             },
             body: JSON.stringify({
                 email,
@@ -70,9 +76,10 @@ export class AuthorizationServerAPI implements AuthorizationServer {
             credentials: 'include',
         })
         if (!createAccountResponse.ok) {
-            const payload = await createAccountResponse.text()
-            throw new Error(`Failed to create account: ${payload}`)
+            const payload = await createAccountResponse.json()
+            throw payload as ErrorFrame
         }
+        // TODO payload as account?
     }
 
     login = async (email: string, password: string) => {
@@ -89,23 +96,6 @@ export class AuthorizationServerAPI implements AuthorizationServer {
         if (!response.ok) {
             const payload = await response.text()
             throw new Error(`Failed to login: ${payload}`)
-        }
-        return response.json()
-    }
-
-    refresh = async () => {
-        const response = await fetch(`${this.baseURL}/token`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: new URLSearchParams({
-                grant_type: 'refresh_token',
-                // expects refresh token to be stored in httpOnly cookie
-            }),
-            credentials: 'include',
-        })
-        if (!response.ok) {
-            const payload = await response.text()
-            throw new Error(`Failed to refresh token: ${payload}`)
         }
         return response.json()
     }

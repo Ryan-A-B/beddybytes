@@ -1,15 +1,18 @@
 import React from "react";
-import Input from "../FormComponents/Input";
 import * as AuthorizationServer from "../AuthorizationServer";
+import Input from "../FormComponents/Input";
 
 interface Props {
-    onSuccessfulLogin: (frame: AuthorizationServer.LoginFrame) => void
+    email: string;
+    setEmail: React.Dispatch<React.SetStateAction<string>>;
+    password: string;
+    setPassword: React.Dispatch<React.SetStateAction<string>>;
+    authorizationServer: AuthorizationServer.AuthorizationServer;
+    switchToCreateAccount: () => void;
+    onSuccessfulLogin: (frame: AuthorizationServer.LoginFrame) => void;
 }
 
-const LoginForm: React.FunctionComponent<Props> = ({ onSuccessfulLogin }) => {
-    const authorizationServer = AuthorizationServer.useAuthorizationServer()
-    const [email, setEmail] = React.useState<string>("")
-    const [password, setPassword] = React.useState<string>("")
+const LoginForm: React.FunctionComponent<Props> = ({ email, setEmail, password, setPassword, authorizationServer, switchToCreateAccount, onSuccessfulLogin }) => {
     const [error, setError] = React.useState<string | null>(null)
     const handleSubmit = React.useCallback((event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault()
@@ -32,6 +35,7 @@ const LoginForm: React.FunctionComponent<Props> = ({ onSuccessfulLogin }) => {
                         value={email}
                         onChange={setEmail}
                         className="form-control"
+                        autoFocus
                         required
                     />
                 </div>
@@ -48,6 +52,9 @@ const LoginForm: React.FunctionComponent<Props> = ({ onSuccessfulLogin }) => {
                         required
                     />
                 </div>
+                <p>
+                    Don't have an account? <button type="button" className="btn btn-link p-0" onClick={switchToCreateAccount}>Create one</button>.
+                </p>
                 {error && <div className="alert alert-danger">{error}</div>}
                 <button type="submit" className="btn btn-primary w-100">
                     Log In

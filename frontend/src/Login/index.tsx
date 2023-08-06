@@ -1,6 +1,6 @@
-import React from 'react';
+import React from "react";
 import authorization, { AuthorizationEventTypeStateChange } from '../authorization';
-import LoginOrCreateAccount from './LoginOrCreateAccount';
+import LoginOrCreateAccount from "./LoginOrCreateAccount";
 
 interface Props {
     children: React.ReactNode

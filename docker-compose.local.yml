@@ -17,22 +17,6 @@ services:
       - "traefik.http.middlewares.headers-cors.headers.accesscontrolalloworiginlist=https://app.babymonitor.local:8443"
       - "traefik.http.middlewares.headers-cors.headers.accesscontrolallowheaders=Content-Type,Authorization"
       - "traefik.http.middlewares.headers-cors.headers.accesscontrolallowcredentials=true"
-      
-      - "traefik.http.middlewares.rate-limit-anonymous-token.ratelimit.average=1"
-      - "traefik.http.middlewares.rate-limit-anonymous-token.ratelimit.period=10s"
-      - "traefik.http.middlewares.rate-limit-anonymous-token.ratelimit.burst=1"
-
-      - "traefik.http.middlewares.rate-limit-create-account.ratelimit.average=1"
-      - "traefik.http.middlewares.rate-limit-create-account.ratelimit.period=10s"
-      - "traefik.http.middlewares.rate-limit-create-account.ratelimit.burst=1"
-
-      - "traefik.http.middlewares.rate-limit-options.ratelimit.average=1"
-      - "traefik.http.middlewares.rate-limit-options.ratelimit.period=1s"
-      - "traefik.http.middlewares.rate-limit-options.ratelimit.burst=5"
-
-      - "traefik.http.middlewares.rate-limit-backend.ratelimit.average=1"
-      - "traefik.http.middlewares.rate-limit-backend.ratelimit.period=1s"
-      - "traefik.http.middlewares.rate-limit-backend.ratelimit.burst=5"
   backend:
     image: baby-monitor-backend
     build:
@@ -59,22 +43,22 @@ services:
       - "traefik.http.routers.anonymous-token.rule=Host(`api.babymonitor.local`) && Path(`/anonymous_token`) && Method(`POST`)"
       - "traefik.http.routers.anonymous-token.entrypoints=websecure"
       - "traefik.http.routers.anonymous-token.tls=true"
-      - "traefik.http.routers.anonymous-token.middlewares=headers-cors@docker,rate-limit-anonymous-token@docker"
+      - "traefik.http.routers.anonymous-token.middlewares=headers-cors@docker"
 
       - "traefik.http.routers.create-account.rule=Host(`api.babymonitor.local`) && Path(`/accounts`) && Method(`POST`)"
       - "traefik.http.routers.create-account.entrypoints=websecure"
       - "traefik.http.routers.create-account.tls=true"
-      - "traefik.http.routers.create-account.middlewares=headers-cors@docker,rate-limit-create-account@docker"
+      - "traefik.http.routers.create-account.middlewares=headers-cors@docker"
 
       - "traefik.http.routers.backend-options.rule=Host(`api.babymonitor.local`) && Method(`OPTIONS`)"
       - "traefik.http.routers.backend-options.entrypoints=websecure"
       - "traefik.http.routers.backend-options.tls=true"
-      - "traefik.http.routers.backend-options.middlewares=headers-cors@docker,rate-limit-options@docker"
+      - "traefik.http.routers.backend-options.middlewares=headers-cors@docker"
 
       - "traefik.http.routers.backend.rule=Host(`api.babymonitor.local`)"
       - "traefik.http.routers.backend.entrypoints=websecure"
       - "traefik.http.routers.backend.tls=true"
-      - "traefik.http.routers.backend.middlewares=headers-cors@docker,rate-limit-backend@docker"
+      - "traefik.http.routers.backend.middlewares=headers-cors@docker"
   frontend:
     image: node:18
     command: yarn start

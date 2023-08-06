@@ -18,6 +18,7 @@ import (
 
 	"github.com/Ryan-A-B/baby-monitor/backend/internal"
 	"github.com/Ryan-A-B/baby-monitor/backend/internal/eventlog"
+	"github.com/Ryan-A-B/baby-monitor/backend/internal/xhttp"
 	"github.com/Ryan-A-B/baby-monitor/internal/fatal"
 	"github.com/Ryan-A-B/baby-monitor/internal/square"
 )
@@ -104,26 +105,40 @@ type CreateAccountInput struct {
 var EmailPattern = regexp.MustCompile(`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+(\.[a-zA-Z]{2,})+$`)
 
 func (input *CreateAccountInput) Validate() (err error) {
+	defer func() {
+		if err != nil {
+			err = xhttp.ErrorWithCode(err, "invalid_input")
+		}
+	}()
 	if input.Email == "" {
 		err = merry.New("email is required").WithHTTPCode(http.StatusBadRequest)
+		err = merry.WithUserMessage(err, "email is required")
 		return
 	}
 	if !EmailPattern.MatchString(input.Email) {
 		err = merry.New("invalid email").WithHTTPCode(http.StatusBadRequest)
+		err = merry.WithUserMessage(err, "invalid email")
 		return
 	}
 	if len(input.Password) < 20 {
 		err = merry.New("password is too short").WithHTTPCode(http.StatusBadRequest)
+		err = merry.WithUserMessage(err, "password is too short")
 		return
 	}
 	return
 }
 
 func (handlers *Handlers) CheckCreateAccountAuthorization(request *http.Request) (err error) {
+	defer func() {
+		if err != nil {
+			err = merry.WithUserMessage(err, "Unauthorized")
+			err = xhttp.ErrorWithCode(err, "unauthorized")
+		}
+	}()
 	const prefix = "Bearer "
 	authorization := request.Header.Get("Authorization")
 	if !strings.HasPrefix(authorization, prefix) {
-		err = merry.New("unauthorized").WithHTTPCode(http.StatusUnauthorized)
+		err = merry.New("invalid authorization header").WithHTTPCode(http.StatusUnauthorized)
 		return
 	}
 	accessToken := authorization[len(prefix):]
@@ -132,29 +147,24 @@ func (handlers *Handlers) CheckCreateAccountAuthorization(request *http.Request)
 		return handlers.Key, nil
 	})
 	if err != nil {
-		log.Println("failed to parse access token:", err)
-		err = merry.New("unauthorized").WithHTTPCode(http.StatusUnauthorized)
+		err = merry.New("failed to parse access token: " + err.Error()).WithHTTPCode(http.StatusUnauthorized)
 		return
 	}
 	if claims.Subject.ResourceType != "remote_address" {
-		log.Println("invalid resource type:", claims.Subject.ResourceType)
-		err = merry.New("unauthorized").WithHTTPCode(http.StatusUnauthorized)
+		err = merry.New("invalid resource type: " + claims.Subject.ResourceType).WithHTTPCode(http.StatusUnauthorized)
 		return
 	}
 	remoteAddress := request.Header.Get("X-Forwarded-For")
 	if claims.Subject.ResourceID != remoteAddress {
-		log.Println("invalid resource ID:", claims.Subject.ResourceID)
-		err = merry.New("unauthorized").WithHTTPCode(http.StatusUnauthorized)
+		err = merry.New("invalid resource ID: " + claims.Subject.ResourceID).WithHTTPCode(http.StatusUnauthorized)
 		return
 	}
 	if claims.Scope != "iam:CreateAccount" {
-		log.Println("invalid scope:", claims.Scope)
-		err = merry.New("unauthorized").WithHTTPCode(http.StatusUnauthorized)
+		err = merry.New("invalid scope: " + claims.Scope).WithHTTPCode(http.StatusUnauthorized)
 		return
 	}
 	if added := handlers.UsedTokens.TryAdd(claims.ID); !added {
-		log.Println("token already used:", claims.ID)
-		err = merry.New("unauthorized").WithHTTPCode(http.StatusUnauthorized)
+		err = merry.New("token already used: " + claims.ID).WithHTTPCode(http.StatusUnauthorized)
 		return
 	}
 	return
@@ -165,7 +175,7 @@ func (handlers *Handlers) CreateAccount(responseWriter http.ResponseWriter, requ
 	defer func() {
 		if err != nil {
 			log.Println("Warn:", err)
-			http.Error(responseWriter, err.Error(), merry.HTTPCode(err))
+			xhttp.Error(responseWriter, err)
 		}
 	}()
 	err = handlers.CheckCreateAccountAuthorization(request)
@@ -177,10 +187,18 @@ func (handlers *Handlers) CreateAccount(responseWriter http.ResponseWriter, requ
 	err = json.NewDecoder(request.Body).Decode(&input)
 	if err != nil {
 		err = merry.WithHTTPCode(err, http.StatusBadRequest)
+		err = merry.WithUserMessage(err, "unable to parse request body")
+		err = xhttp.ErrorWithCode(err, "invalid_input")
 		return
 	}
 	err = input.Validate()
 	if err != nil {
+		return
+	}
+	err = handlers.AccountStore.checkEmail(ctx, input.Email)
+	if err != nil {
+		err = merry.WithUserMessage(err, "email already in use")
+		err = xhttp.ErrorWithCode(err, "email_already_in_use")
 		return
 	}
 	user := NewUser(&NewUserInput{
@@ -196,10 +214,6 @@ func (handlers *Handlers) CreateAccount(responseWriter http.ResponseWriter, requ
 			},
 		},
 		User: user,
-	}
-	err = handlers.AccountStore.Put(ctx, &account)
-	if err != nil {
-		return
 	}
 	data, err := json.Marshal(account)
 	fatal.OnError(err)
