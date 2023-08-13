@@ -2,21 +2,19 @@
 ## Now
 ### Bugs
 - backup eventlog to S3
-- delay payment until end of trial period
-    - or end of active subscription
 - integration tests for API prod release
-- logs
-    - print reason for request failed
 - stats
 
 ### Features
+- call duration
+- show camera battery level on monitor
 
 ## Next
 ### Bugs
 - PaymentLinkMutex is expensive
 - mock square for testing
 - responive slightly broken on phone (S7)
-- replace react favicon
+- replace react logo
 - server hardening
 - websocket to notify when a new camera comes online
 - S7 -> Latitude 7430 no video shows
@@ -25,6 +23,8 @@
 - S7 switching cameras fails
     - S22 works with chrome
         - but not brave
+- delay payment until end of trial period
+    - or end of active subscription
 
 ### Features
 - pause subscription
@@ -32,7 +32,6 @@
     - attempt reconnect
     - Picture in Picture doesn't support custom elements
         - disable picture in picture when connection is lost
-- call duration
 - monitor time taken to connect call
     - show spinner
 - edit device metadata
