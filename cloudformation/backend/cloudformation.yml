@@ -12,22 +12,11 @@ Parameters:
   PublicKeyMaterial:
     Type: String
     Description: Public key material for the EC2 key pair
-  SSHLocation:
-    Description: The IP address range that can be used to SSH to the EC2 instances
-    Type: String
-    MinLength: '9'
-    MaxLength: '18'
   HostedZoneName:
     Description: The name of the hosted zone where the DNS record will be created
     Type: String
   DomainName:
     Description: The domain name where the DNS record will be created
-    Type: String
-  EmailAddressOne:
-    Description: The email address to subscribe to the SNS topic
-    Type: String
-  EmailAddressTwo:
-    Description: The email address to subscribe to the SNS topic
     Type: String
 
 Resources:
@@ -72,11 +61,14 @@ Resources:
                   - s3:GetObject
                   - s3:PutObject
                   - s3:DeleteObject
-                Resource: !Sub arn:aws:s3:::${AWS::StackName}-bucket/account_store/*
+                Resource: !Join
+                  - '/'
+                  - - !GetAtt Bucket.Arn
+                    - '*'
               - Effect: Allow
                 Action:
                   - s3:ListBucket
-                Resource: !Sub arn:aws:s3:::${AWS::StackName}-bucket
+                Resource: !GetAtt Bucket.Arn
 
   IAMInstanceProfile:
     Type: AWS::IAM::InstanceProfile
@@ -90,10 +82,6 @@ Resources:
       GroupDescription: Security group for the API server
       VpcId: !Ref VpcId
       SecurityGroupIngress:
-        - IpProtocol: tcp
-          FromPort: 22
-          ToPort: 22
-          CidrIp: !Ref SSHLocation
         - IpProtocol: tcp
           FromPort: 80
           ToPort: 80
@@ -120,37 +108,6 @@ Resources:
     DeletionPolicy: Retain
     Properties:
       BucketName: !Sub ${AWS::StackName}-bucket
-      NotificationConfiguration:
-        TopicConfigurations:
-          - Event: s3:ObjectCreated:*
-            Topic: !Ref AccountCreatedTopic
-
-  AccountCreatedTopic:
-    Type: AWS::SNS::Topic
-    Properties:
-      TopicName: !Sub ${AWS::StackName}-account-created-topic
-      Subscription:
-        - Endpoint: !Ref EmailAddressOne
-          Protocol: email
-        - Endpoint: !Ref EmailAddressTwo
-          Protocol: email
-  
-  AccountCreatedTopicPolicy:
-    Type: AWS::SNS::TopicPolicy
-    Properties:
-      Topics:
-        - !Ref AccountCreatedTopic
-      PolicyDocument:
-        Version: 2012-10-17
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: s3.amazonaws.com
-            Action: sns:Publish
-            Resource: !Ref AccountCreatedTopic
-            Condition:
-              ArnLike:
-                aws:SourceArn: !Sub arn:aws:s3:::${AWS::StackName}-bucket
 
 Outputs:
   InstanceId:
@@ -162,3 +119,6 @@ Outputs:
   ElasticIpAddress:
     Description: The Elastic IP address associated with the API server
     Value: !Ref ElasticIP
+  SecurityGroupId:
+    Description: The security group ID of the API server
+    Value: !Ref ApiSecurityGroup

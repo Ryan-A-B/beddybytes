@@ -5,6 +5,9 @@ import (
 	"encoding/json"
 )
 
+// Add Resource URN to event log
+// urn:{account_id}:session/{session_id} ???
+
 type Event struct {
 	ID            string          `json:"id"`
 	Type          string          `json:"type"`

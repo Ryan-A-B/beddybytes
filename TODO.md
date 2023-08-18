@@ -2,12 +2,17 @@
 ## Now
 ### Bugs
 - backup eventlog to S3
+- reconnect websocket
+- reconnect WebRTC
 - integration tests for API prod release
 - stats
 
 ### Features
 - call duration
 - show camera battery level on monitor
+- picture in picture for all browsers
+    - currently only firefox displays button
+    - close if connection lost
 
 ## Next
 ### Bugs
@@ -44,6 +49,7 @@
 - show number of active connections
 - continuous integration
 - noise when connection lost
+- battery usage analytics
 
 ## Later
 ### Bugs

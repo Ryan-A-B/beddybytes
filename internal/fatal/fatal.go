@@ -1,6 +1,7 @@
 package fatal
 
 import (
+	"encoding/json"
 	"log"
 	"runtime"
 )
@@ -20,4 +21,15 @@ func OnError(err error) {
 		log.Println("FATAL", err)
 		log.Fatal(string(buffer))
 	}
+}
+
+func UnlessMarshalJSON(v interface{}) (data []byte) {
+	data, err := json.Marshal(v)
+	OnError(err)
+	return
+}
+
+func UnlessUnmarshalJSON(data []byte, v interface{}) {
+	err := json.Unmarshal(data, v)
+	OnError(err)
 }

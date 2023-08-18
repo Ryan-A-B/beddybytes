@@ -7,10 +7,12 @@ import (
 	"github.com/Ryan-A-B/baby-monitor/backend/internal/eventlog"
 )
 
-type FileEventLogFactory struct{}
+type FileEventLogFactory struct {
+	pattern string
+}
 
 func (factory *FileEventLogFactory) Create() eventlog.EventLog {
-	folderPath, err := os.MkdirTemp("testdata", "TestFileEventLog-*")
+	folderPath, err := os.MkdirTemp("testdata", factory.pattern)
 	if err != nil {
 		panic(err)
 	}
@@ -21,5 +23,13 @@ func (factory *FileEventLogFactory) Create() eventlog.EventLog {
 }
 
 func TestFileEventLog(t *testing.T) {
-	testEventLog(t, new(FileEventLogFactory))
+	testEventLog(t, &FileEventLogFactory{
+		pattern: "TestFileEventLog-*",
+	})
+}
+
+func BenchmarkFileEventLog(b *testing.B) {
+	benchmarkEventLog(b, &FileEventLogFactory{
+		pattern: "BenchmarkFileEventLog-*",
+	})
 }

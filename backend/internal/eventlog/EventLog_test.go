@@ -9,6 +9,7 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 
 	"github.com/Ryan-A-B/baby-monitor/backend/internal/eventlog"
+	"github.com/Ryan-A-B/baby-monitor/internal/fatal"
 )
 
 type EventLogFactory interface {
@@ -97,4 +98,22 @@ func testEventLog(t *testing.T, factory EventLogFactory) {
 		So(iterator.Next(), ShouldBeFalse)
 		So(iterator.Err(), ShouldBeNil)
 	})
+}
+
+func benchmarkEventLog(b *testing.B, factory EventLogFactory) {
+	ctx := context.Background()
+	eventLog := factory.Create()
+	input := &eventlog.AppendInput{
+		Type: uuid.NewV4().String(),
+		Data: fatal.UnlessMarshalJSON(map[string]string{
+			uuid.NewV4().String(): uuid.NewV4().String(),
+		}),
+	}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, err := eventLog.Append(ctx, input)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
 }
