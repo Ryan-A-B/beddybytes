@@ -1,0 +1,34 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Parameters:
+  HostedZoneName:
+    Description: The name of the hosted zone where the DNS record will be created
+    Type: String
+  DomainName:
+    Description: The domain name where the DNS record will be created
+    Type: String
+  WordpressIP1:
+    Description: The IP address of the first Wordpress instance
+    Type: String
+  WordpressIP2:
+    Description: The IP address of the second Wordpress instance
+    Type: String
+Resources:
+  DNSARecord:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneName: !Ref HostedZoneName
+      Name: !Ref DomainName
+      Type: A
+      TTL: '900'
+      ResourceRecords:
+        - !Ref WordpressIP1
+        - !Ref WordpressIP2
+  DNSCNAMERecord:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneName: !Ref HostedZoneName
+      Name: !Sub www.${DomainName}
+      Type: CNAME
+      TTL: '900'
+      ResourceRecords:
+        - !Ref DomainName
