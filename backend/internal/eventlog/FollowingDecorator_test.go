@@ -41,14 +41,14 @@ func TestFollowingDecorator(t *testing.T) {
 				So(event.UnixTimestamp, ShouldBeGreaterThan, 0)
 				So(event.Data, ShouldResemble, json.RawMessage(data))
 				iterator := eventLog.GetEventIterator(ctx, &eventlog.GetEventIteratorInput{
-					Cursor: 0,
+					FromCursor: 0,
 				})
 				So(iterator.Next(), ShouldBeTrue)
 				So(iterator.Event(), ShouldResemble, event)
 			})
 			Convey("after iterator created", func() {
 				iterator := eventLog.GetEventIterator(ctx, &eventlog.GetEventIteratorInput{
-					Cursor: 0,
+					FromCursor: 0,
 				})
 				data, err := json.Marshal(map[string]string{
 					uuid.NewV4().String(): uuid.NewV4().String(),
@@ -86,7 +86,7 @@ func TestFollowingDecorator(t *testing.T) {
 					events[i] = event
 				}
 				iterator := eventLog.GetEventIterator(ctx, &eventlog.GetEventIteratorInput{
-					Cursor: 0,
+					FromCursor: 0,
 				})
 				for i := 0; i < nEvents; i++ {
 					So(iterator.Next(), ShouldBeTrue)
@@ -95,7 +95,7 @@ func TestFollowingDecorator(t *testing.T) {
 			})
 			Convey("after iterator created", func() {
 				iterator := eventLog.GetEventIterator(ctx, &eventlog.GetEventIteratorInput{
-					Cursor: 0,
+					FromCursor: 0,
 				})
 				nEvents := 100
 				events := make([]*eventlog.Event, nEvents)
@@ -133,7 +133,7 @@ func TestFollowingDecorator(t *testing.T) {
 					events[i] = event
 				}
 				iterator := eventLog.GetEventIterator(ctx, &eventlog.GetEventIteratorInput{
-					Cursor: 0,
+					FromCursor: 0,
 				})
 				for i := firstBatchSize; i < nEvents; i++ {
 					data, err := json.Marshal(map[string]string{

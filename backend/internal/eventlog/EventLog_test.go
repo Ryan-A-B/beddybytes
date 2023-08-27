@@ -20,24 +20,27 @@ func testEventLog(t *testing.T, factory EventLogFactory) {
 	ctx := context.Background()
 	Convey("append one", t, func() {
 		eventLog := factory.Create()
+		accountID := uuid.NewV4().String()
 		data, err := json.Marshal(map[string]string{
 			uuid.NewV4().String(): uuid.NewV4().String(),
 		})
 		So(err, ShouldBeNil)
 		event, err := eventLog.Append(ctx, &eventlog.AppendInput{
-			Type: "test",
-			Data: data,
+			Type:      "test",
+			AccountID: accountID,
+			Data:      data,
 		})
 		So(err, ShouldBeNil)
 		So(event, ShouldNotBeNil)
 		So(event.ID, ShouldNotBeEmpty)
 		So(event.Type, ShouldEqual, "test")
+		So(event.AccountID, ShouldEqual, accountID)
 		So(event.LogicalClock, ShouldBeGreaterThan, 0)
 		So(event.UnixTimestamp, ShouldNotEqual, 0)
 		So(event.Data, ShouldResemble, json.RawMessage(data))
 		Convey("iterate", func() {
 			iterator := eventLog.GetEventIterator(ctx, &eventlog.GetEventIteratorInput{
-				Cursor: event.LogicalClock - 1,
+				FromCursor: event.LogicalClock - 1,
 			})
 			So(iterator, ShouldNotBeNil)
 			So(iterator.Next(), ShouldBeTrue)
@@ -63,7 +66,7 @@ func testEventLog(t *testing.T, factory EventLogFactory) {
 		}
 		Convey("iterate", func() {
 			iterator := eventLog.GetEventIterator(ctx, &eventlog.GetEventIteratorInput{
-				Cursor: events[0].LogicalClock - 1,
+				FromCursor: events[0].LogicalClock - 1,
 			})
 			So(iterator, ShouldNotBeNil)
 			for i := 0; i < 100; i++ {
@@ -79,7 +82,7 @@ func testEventLog(t *testing.T, factory EventLogFactory) {
 	Convey("append while iterating", t, func() {
 		eventLog := factory.Create()
 		iterator := eventLog.GetEventIterator(ctx, &eventlog.GetEventIteratorInput{
-			Cursor: 0,
+			FromCursor: 0,
 		})
 		n := 100
 		for i := 0; i < n; i++ {

@@ -31,8 +31,11 @@ func TestProjection(t *testing.T) {
 			AccountIDBySubscriptionID: make(map[string]string),
 			SquareSubscriptionByID:    make(map[string]*square.Subscription),
 		}
-		go handlers.RunProjection(ctx)
-
+		go eventlog.Project(ctx, &eventlog.ProjectInput{
+			EventLog:   handlers.EventLog,
+			FromCursor: 0,
+			Apply:      handlers.ApplyEvent,
+		})
 		Convey("create account", func() {
 			user := accounts.NewUser(&accounts.NewUserInput{
 				Email:    "test@example.com",

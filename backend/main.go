@@ -51,8 +51,10 @@ type Client struct {
 }
 
 type Handlers struct {
-	Upgrader    websocket.Upgrader
-	ClientStore ClientStore
+	Upgrader          websocket.Upgrader
+	ClientStore       ClientStore
+	SessionProjection SessionProjection
+	EventLog          eventlog.EventLog
 
 	Key interface{}
 }
@@ -152,15 +154,22 @@ func (handlers *Handlers) AddRoutes(router *mux.Router) {
 	clientRouter.Use(internal.NewAuthorizationMiddleware(handlers.Key).Middleware)
 	clientRouter.HandleFunc("", handlers.ListClients).Methods(http.MethodGet, http.MethodOptions).Name("ListClients")
 	clientRouter.HandleFunc("/{client_id}/websocket", handlers.HandleWebsocket).Methods(http.MethodGet, http.MethodOptions).Name("HandleWebsocket")
+
+	sessionRouter := router.PathPrefix("/sessions").Subrouter()
+	clientRouter.Use(internal.NewAuthorizationMiddleware(handlers.Key).Middleware)
+	sessionRouter.HandleFunc("", handlers.ListSessions).Methods(http.MethodGet, http.MethodOptions).Name("ListSessions")
+	sessionRouter.HandleFunc("/{session_id}", handlers.StartSession).Methods(http.MethodPut, http.MethodOptions).Name("StartSession")
+	sessionRouter.HandleFunc("/{session_id}", handlers.EndSession).Methods(http.MethodDelete, http.MethodOptions).Name("EndSession")
 }
 
 func main() {
 	ctx := context.Background()
 	key := []byte(internal.EnvStringOrFatal("ENCRYPTION_KEY"))
 	cookieDomain := internal.EnvStringOrFatal("COOKIE_DOMAIN")
+	eventLog := newEventLog()
 	accountHandlers := accounts.Handlers{
 		CookieDomain: cookieDomain,
-		EventLog:     newEventLog(),
+		EventLog:     eventLog,
 		AccountStore: &accounts.AccountStore{
 			Store: store.NewMemoryStore(),
 		},
@@ -183,7 +192,11 @@ func main() {
 		AccountIDBySubscriptionID: make(map[string]string),
 		SquareSubscriptionByID:    make(map[string]*square.Subscription),
 	}
-	go accountHandlers.RunProjection(ctx)
+	go eventlog.Project(ctx, &eventlog.ProjectInput{
+		EventLog:   accountHandlers.EventLog,
+		FromCursor: 0,
+		Apply:      accountHandlers.ApplyEvent,
+	})
 	handlers := Handlers{
 		Upgrader: websocket.Upgrader{
 			ReadBufferSize:  1024,
@@ -199,8 +212,19 @@ func main() {
 				},
 			},
 		},
-		Key: key,
+		SessionProjection: SessionProjection{
+			SessionStore: NewThreadSafeDecorator(&NewThreadSafeDecoratorInput{
+				Decorated: new(SessionStoreInMemory),
+			}),
+		},
+		EventLog: eventLog,
+		Key:      key,
 	}
+	go eventlog.Project(ctx, &eventlog.ProjectInput{
+		EventLog:   handlers.EventLog,
+		FromCursor: 0,
+		Apply:      handlers.SessionProjection.ApplyEvent,
+	})
 	router := mux.NewRouter()
 	handlers.AddRoutes(router.NewRoute().Subrouter())
 	accountHandlers.AddRoutes(router.NewRoute().Subrouter())

@@ -16,6 +16,7 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 
 	"github.com/Ryan-A-B/baby-monitor/backend/accounts"
+	"github.com/Ryan-A-B/baby-monitor/backend/internal/eventlog"
 	"github.com/Ryan-A-B/baby-monitor/backend/internal/store"
 	"github.com/Ryan-A-B/baby-monitor/backend/internal/xhttp"
 	"github.com/Ryan-A-B/baby-monitor/internal/fatal"
@@ -36,7 +37,11 @@ func TestHandlers(t *testing.T) {
 			UsedTokens:                   accounts.NewUsedTokens(),
 			AnonymousAccessTokenDuration: 10 * time.Second,
 		}
-		go handlers.RunProjection(ctx)
+		go eventlog.Project(ctx, &eventlog.ProjectInput{
+			EventLog:   handlers.EventLog,
+			FromCursor: 0,
+			Apply:      handlers.ApplyEvent,
+		})
 		router := mux.NewRouter()
 		handlers.AddRoutes(router.NewRoute().Subrouter())
 		server := httptest.NewServer(router)

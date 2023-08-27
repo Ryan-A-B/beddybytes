@@ -45,6 +45,7 @@ func (log *FileEventLog) Append(ctx context.Context, input *AppendInput) (event 
 	event = &Event{
 		ID:            uuid.NewV4().String(),
 		Type:          input.Type,
+		AccountID:     input.AccountID,
 		LogicalClock:  log.cursor,
 		UnixTimestamp: time.Now().Unix(),
 		Data:          input.Data,
@@ -65,7 +66,7 @@ func (log *FileEventLog) GetEventIterator(ctx context.Context, input *GetEventIt
 	file, err := os.Open(filePath)
 	fatal.OnError(err)
 	scanner := bufio.NewScanner(file)
-	for i := 0; i < input.Cursor; i++ {
+	for i := 0; i < input.FromCursor; i++ {
 		ok := scanner.Scan()
 		if !ok {
 			return new(NullEventIterator)

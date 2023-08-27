@@ -19,17 +19,6 @@ const EventTypeSquareInvoiceUpdated = "square.invoice.updated"
 const EventTypeSquareInvoicePublished = "square.invoice.published"
 const EventTypeSquareInvoicePaymentMade = "square.invoice.payment_made"
 
-func (handlers *Handlers) RunProjection(ctx context.Context) {
-	iterator := handlers.EventLog.GetEventIterator(ctx, &eventlog.GetEventIteratorInput{
-		Cursor: 0,
-	})
-	for iterator.Next() {
-		event := iterator.Event()
-		handlers.ApplyEvent(ctx, event)
-	}
-	fatal.OnError(iterator.Err())
-}
-
 func (handlers *Handlers) ApplyEvent(ctx context.Context, event *eventlog.Event) {
 	switch event.Type {
 	case EventTypeAccountCreated:
