@@ -18,8 +18,8 @@ export interface EndSessionInput {
 
 export interface Sessions extends EventTarget {
     list(): List<Session>;
-    start(input: StartSessionInput): Session;
-    end(input: EndSessionInput): void;
+    start(input: StartSessionInput): Promise<Session>;
+    end(input: EndSessionInput): Promise<void>;
 }
 
 export const EventTypeSessionsChanged = 'sessions.changed';

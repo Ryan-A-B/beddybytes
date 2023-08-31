@@ -5,6 +5,9 @@ import "./Monitor.scss";
 import SelectCamera from "./SelectCamera";
 import Video from "./Video";
 import Connection from "./Connection";
+import SessionDropdown from "../Sessions/SessionDropdown";
+import SessionsMock from "../Sessions/SessionsMock";
+import { Session } from "../Sessions/Sessions";
 
 const isConnectionLost = (connectionState: RTCPeerConnectionState) => {
     if (connectionState === "disconnected") return true;
@@ -13,8 +16,15 @@ const isConnectionLost = (connectionState: RTCPeerConnectionState) => {
     return false;
 }
 
+const sessions = new SessionsMock();
+sessions.start({
+    client_id: uuid(),
+    session_name: "Test Session",
+});
+
 const Monitor: React.FunctionComponent = () => {
     const client = DeviceRegistrar.useDevice();
+    const [session, setSession] = React.useState<Session | null>(null);
     const [cameraID, setCameraID] = React.useState<string>("");
     const [connection, setConnection] = React.useState<Connection | null>(null);
     const [stream, setStream] = React.useState<MediaStream | null>(null);
@@ -54,6 +64,7 @@ const Monitor: React.FunctionComponent = () => {
 
     return (
         <div className="monitor">
+            <SessionDropdown sessions={sessions} value={session} onChange={setSession} />
             <SelectCamera value={cameraID} onChange={onCameraIDChange} refreshKey={refreshKey} />
             {sessionEnded && (
                 <div className="alert alert-danger" role="alert">

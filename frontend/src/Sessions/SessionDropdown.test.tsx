@@ -1,8 +1,7 @@
 import { render, fireEvent } from '@testing-library/react';
-import { List } from 'immutable';
 import { v4 as uuid } from 'uuid';
 
-import SessionsDropdown from './SessionsDropdown';
+import SessionsDropdown from './SessionDropdown';
 import SessionsMock from './SessionsMock';
 import { Session } from './Sessions';
 import { act } from 'react-dom/test-utils';
@@ -32,7 +31,10 @@ describe('SessionsDropdown', () => {
         const mock = new SessionsMock();
         const clientID = uuid();
         const sessionName = uuid();
-        mock.start(clientID, sessionName);
+        mock.start({
+            client_id: clientID,
+            session_name: sessionName,
+        });
         let value: Session | null = null;
         const onChange = jest.fn((session: Session | null) => { value = session })
         const component = render(
@@ -54,7 +56,7 @@ describe('SessionsDropdown', () => {
         expect(value).toEqual(null);
     });
 
-    it('should rerender when sessions change', () => {
+    it('should rerender when sessions change', async () => {
         const mock = new SessionsMock();
         let value: Session | null = null;
         const onChange = jest.fn((session: Session | null) => { value = session })
@@ -78,8 +80,11 @@ describe('SessionsDropdown', () => {
         const clientID = uuid();
         const sessionName = uuid();
         let session: Session | null = null
-        act(() => {
-            session = mock.start(clientID, sessionName);
+        await act(async () => {
+            session = await mock.start({
+                client_id: clientID,
+                session_name: sessionName,
+            });
         });
         if (session === null) throw new Error(`session not found`);
         {
@@ -95,7 +100,9 @@ describe('SessionsDropdown', () => {
 
         act(() => {
             if (session === null) throw new Error(`session not found`);
-            mock.end(session.id);
+            mock.end({
+                session_id: session.id,
+            });
         });
         {
             const div = body.querySelector(`div`);
@@ -108,11 +115,14 @@ describe('SessionsDropdown', () => {
         // TODO if value is set and the session is ended, the value should be set to null?
     });
 
-    it('should call onChange when a session is selected', () => {
+    it('should call onChange when a session is selected', async () => {
         const mock = new SessionsMock();
         const clientID = uuid();
         const sessionName = 'Session 1';
-        const expectedSession = mock.start(clientID, sessionName);
+        const expectedSession = await mock.start({
+            client_id: clientID,
+            session_name: sessionName,
+        });
         let value: Session | null = null;
         const onChange = jest.fn((session: Session | null) => { value = session })
         const component = render(

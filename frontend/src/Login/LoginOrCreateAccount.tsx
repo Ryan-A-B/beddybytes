@@ -80,7 +80,7 @@ const LoginOrCreateAccount: React.FunctionComponent<Props> = ({ onSuccessfulLogi
                     <p>Baby Monitor by Creative Ilk is</p>
                     <ul>
                         <li>🔒<b>Private</b>: All video and audio is streamed directly between your own devices, no video or audio ever gets sent to our server</li>
-                        <li>🧘<b>Flexible</b>: The number of cameras and monitors you can use is only limited by the number of devices you have, go wild.</li>
+                        <li>🧘<b>Flexible</b>: The number of cameras and monitors you can use is only limited by the number of devices you have, go wild</li>
                         <li>🚀<b>Fast</b>: Your video stream doesn't get sent to a data centre halfway around the world and back, meaning minimal delay, lag and buffering</li>
                         <li>✅<b>Efficient</b>: Your video stream is kept within your local network so internet bandwidth is dramatically reduced</li>
                     </ul>

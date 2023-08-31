@@ -12,7 +12,7 @@ class SessionsMock extends EventTarget implements Sessions {
         return this.sessions;
     }
 
-    start = (input: StartSessionInput): Session => {
+    start = async (input: StartSessionInput): Promise<Session> => {
         const now = moment();
         const session: Session = {
             id: uuid(),
@@ -25,7 +25,7 @@ class SessionsMock extends EventTarget implements Sessions {
         return session;
     }
 
-    end = (input: EndSessionInput): void => {
+    end = async (input: EndSessionInput): Promise<void> => {
         this.sessions = this.sessions.filter(session => session.id !== input.session_id);
         this.dispatchEvent(new SessionsChangedEvent(this.sessions));
     }

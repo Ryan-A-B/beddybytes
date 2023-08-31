@@ -25,7 +25,7 @@ const SessionsDropdown: React.FunctionComponent<Props> = ({ sessions, value, onC
         </div>
     );
     return (
-        <select value={value?.id ?? ''} onChange={handleChange}>
+        <select value={value?.id ?? ''} onChange={handleChange} className="form-select">
             <option value="">Select a session</option>
             {sessionList.map((session) => (
                 <option value={session.id} key={session.id}>
