@@ -1,5 +1,20 @@
 import React from "react";
-import usePromise from "../hooks/usePromise";
+
+const useMediaDeviceEnumeration = (): MediaDeviceInfo[] => {
+    const [devices, setDevices] = React.useState<MediaDeviceInfo[]>([]);
+    React.useEffect(() => {
+        const handleDeviceChange = async () => {
+            const devices = await navigator.mediaDevices.enumerateDevices()
+            setDevices(devices);
+        };
+        navigator.mediaDevices.addEventListener('devicechange', handleDeviceChange);
+        handleDeviceChange();
+        return () => {
+            navigator.mediaDevices.removeEventListener('devicechange', handleDeviceChange);
+        };
+    }, []);
+    return devices;
+}
 
 interface Props {
     value: string
@@ -17,21 +32,18 @@ const getUniqueDevices = (devices: MediaDeviceInfo[]): MediaDeviceInfo[] => {
 }
 
 const SelectVideoDevice: React.FunctionComponent<Props> = ({ value, onChange, disabled }) => {
-    const promise = React.useMemo(() => {
-        return navigator.mediaDevices.enumerateDevices()
-            .then((devices) => devices.filter((device) => device.kind === 'videoinput'))
-            .then(getUniqueDevices)
-    }, []);
-    const videoDevices = usePromise(promise);
+    const devices = useMediaDeviceEnumeration();
+    const videoDevices = React.useMemo(() => {
+        const videoDevices = devices.filter((device) => device.kind === 'videoinput');
+        return getUniqueDevices(videoDevices);
+    }, [devices]);
     const handleChange = React.useCallback((event: React.ChangeEvent<HTMLSelectElement>) => {
         onChange(event.target.value);
     }, [onChange]);
-    if (videoDevices.state === 'pending') return (<div>Getting devices...</div>);
-    if (videoDevices.state === 'rejected') return (<div>Failed to get devices</div>);
     return (
         <select value={value} onChange={handleChange} className="form-select" disabled={disabled}>
             <option value="">Select a video device</option>
-            {videoDevices.value.map((device, i) => (
+            {videoDevices.map((device, i) => (
                 <option key={device.deviceId} value={device.deviceId}>
                     {device.label || `Camera ${i + 1}`}
                 </option>
