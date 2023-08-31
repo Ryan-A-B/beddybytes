@@ -4,6 +4,7 @@ import Checkbox from '../FormComponents/Checkbox';
 import SelectVideoDevice from './SelectVideoDevice';
 import VideoStream from './VideoStream';
 import './Camera.scss';
+import useVideoAndAudioPermission from './useVideoAndAudioPermission';
 
 const DefaultSessionName = 'Camera';
 
@@ -26,6 +27,7 @@ const getCheckboxLabelClassName = (sessionActive: boolean) => {
 }
 
 const Camera: React.FunctionComponent = () => {
+    const permissionPromiseState = useVideoAndAudioPermission();
     const [sessionName, setSessionName] = useSessionName();
     const [videoDeviceID, setVideoDeviceID] = React.useState('');
     const [sessionActive, setSessionActive] = React.useState(false);
@@ -39,6 +41,16 @@ const Camera: React.FunctionComponent = () => {
         if (sessionActive) return;
         setVideoDeviceID('');
     }, []);
+    if (permissionPromiseState.state === 'pending') return (
+        <div>
+            Requesting permission to access camera and microphone...
+        </div>
+    );
+    if (permissionPromiseState.state === 'rejected') return (
+        <div>
+            Permission to access camera and microphone denied. To use this device as a camera, please allow access to the camera and microphone.
+        </div>
+    );
     return (
         <main className="camera">
             <div className="row align-items-center g-2">
