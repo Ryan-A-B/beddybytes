@@ -1,11 +1,9 @@
 # TODO
 ## Now
 ### Bugs
-- backup eventlog to S3
 - reconnect websocket
 - reconnect WebRTC
-- integration tests for API prod release
-- stats
+- when changing camera stop current stream first
 
 ### Features
 - call duration
@@ -13,6 +11,10 @@
 - picture in picture for all browsers
     - currently only firefox displays button
     - close if connection lost
+- add cloudfront content security policy and permissions policy to cloudformation
+- backup eventlog to S3
+- integration tests for API prod release
+- stats
 
 ## Next
 ### Bugs

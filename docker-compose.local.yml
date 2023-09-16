@@ -17,6 +17,7 @@ services:
       - "traefik.http.middlewares.headers-cors.headers.accesscontrolalloworiginlist=https://app.babymonitor.local:8443"
       - "traefik.http.middlewares.headers-cors.headers.accesscontrolallowheaders=Content-Type,Authorization"
       - "traefik.http.middlewares.headers-cors.headers.accesscontrolallowcredentials=true"
+      - "traefik.http.middlewares.headers-cors.headers.accessControlAllowMethods=GET,OPTIONS,POST,PUT,DELETE"
   backend:
     image: baby-monitor-backend
     build:
@@ -40,21 +41,6 @@ services:
       - SQUARE_LOCATION_ID=${SQUARE_LOCATION_ID}
       - SQUARE_SIGNATURE_KEY=${SQUARE_SIGNATURE_KEY}
     labels:
-      - "traefik.http.routers.anonymous-token.rule=Host(`api.babymonitor.local`) && Path(`/anonymous_token`) && Method(`POST`)"
-      - "traefik.http.routers.anonymous-token.entrypoints=websecure"
-      - "traefik.http.routers.anonymous-token.tls=true"
-      - "traefik.http.routers.anonymous-token.middlewares=headers-cors@docker"
-
-      - "traefik.http.routers.create-account.rule=Host(`api.babymonitor.local`) && Path(`/accounts`) && Method(`POST`)"
-      - "traefik.http.routers.create-account.entrypoints=websecure"
-      - "traefik.http.routers.create-account.tls=true"
-      - "traefik.http.routers.create-account.middlewares=headers-cors@docker"
-
-      - "traefik.http.routers.backend-options.rule=Host(`api.babymonitor.local`) && Method(`OPTIONS`)"
-      - "traefik.http.routers.backend-options.entrypoints=websecure"
-      - "traefik.http.routers.backend-options.tls=true"
-      - "traefik.http.routers.backend-options.middlewares=headers-cors@docker"
-
       - "traefik.http.routers.backend.rule=Host(`api.babymonitor.local`)"
       - "traefik.http.routers.backend.entrypoints=websecure"
       - "traefik.http.routers.backend.tls=true"

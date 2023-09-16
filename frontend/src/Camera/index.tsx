@@ -1,10 +1,13 @@
 import React from 'react';
 import Input from '../FormComponents/Input';
-import Checkbox from '../FormComponents/Checkbox';
+import useConnection from '../Connection/useConnection';
+import { Session } from '../Sessions/Sessions';
+import SessionsWriterAPI from '../Sessions/SessionsWriterAPI';
 import SelectVideoDevice from './SelectVideoDevice';
 import VideoStream from './VideoStream';
-import './Camera.scss';
 import useVideoAndAudioPermission from './useVideoAndAudioPermission';
+import SessionToggle from './SessionToggle';
+import './Camera.scss';
 
 const DefaultSessionName = 'Camera';
 
@@ -21,26 +24,33 @@ const useSessionName = () => {
     return [sessionName, setAndStoreSessionName] as const;
 }
 
-const getCheckboxLabelClassName = (sessionActive: boolean) => {
-    if (sessionActive) return 'btn btn-danger w-100';
-    return 'btn btn-primary w-100';
-}
+const sessions = new SessionsWriterAPI();
 
 const Camera: React.FunctionComponent = () => {
+    const connection = useConnection();
     const permissionPromiseState = useVideoAndAudioPermission();
     const [sessionName, setSessionName] = useSessionName();
     const [videoDeviceID, setVideoDeviceID] = React.useState('');
-    const [sessionActive, setSessionActive] = React.useState(false);
     const canActivateSession = React.useMemo(() => {
         if (sessionName === '') return false;
         if (videoDeviceID === '') return false;
         return true;
     }, [sessionName, videoDeviceID]);
-    const onSessionActiveChange = React.useCallback((sessionActive: boolean) => {
-        setSessionActive(sessionActive);
-        if (sessionActive) return;
-        setVideoDeviceID('');
-    }, []);
+    const [session, setSession] = React.useState<Session | null>(null);
+    const startSession = React.useCallback(async () => {
+        const session = await sessions.start({
+            host_connection_id: connection.id,
+            session_name: sessionName,
+        });
+        setSession(session);
+    }, [connection.id, sessions, sessionName]);
+    const endSession = React.useCallback(async () => {
+        if (session === null) throw new Error("session is null");
+        await sessions.end({
+            session_id: session.id,
+        });
+        setSession(null);
+    }, [sessions, session]);
     if (permissionPromiseState.state === 'pending') return (
         <div>
             Requesting permission to access camera and microphone...
@@ -59,34 +69,29 @@ const Camera: React.FunctionComponent = () => {
                         value={sessionName}
                         onChange={setSessionName}
                         className="form-control"
-                        disabled={sessionActive}
+                        disabled={session !== null}
                     />
                 </div>
                 <div className="form-group col">
                     <SelectVideoDevice
                         value={videoDeviceID}
                         onChange={setVideoDeviceID}
-                        disabled={sessionActive}
+                        disabled={session !== null}
                     />
                 </div>
                 <div className="form-group col-lg-1 col-sm-2 col-3">
-                    <Checkbox
-                        id="input-session-active"
-                        value={sessionActive}
-                        onChange={onSessionActiveChange}
-                        className="btn-check"
+                    <SessionToggle
+                        session={session}
+                        startSession={startSession}
+                        endSession={endSession}
                         disabled={!canActivateSession}
                     />
-                    <label htmlFor="input-session-active" className={getCheckboxLabelClassName(sessionActive)}>
-                        {sessionActive ? 'Stop' : 'Start'}
-                    </label>
                 </div>
             </div>
             {videoDeviceID && (
                 <VideoStream
                     videoDeviceID={videoDeviceID}
-                    sessionName={sessionName}
-                    sessionActive={sessionActive}
+                    sessionActive={session !== null}
                     key={videoDeviceID}
                 />
             )}

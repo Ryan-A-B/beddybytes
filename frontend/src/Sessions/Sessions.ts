@@ -1,14 +1,22 @@
 import { List } from 'immutable';
 
-export interface Session {
+export interface SessionStartedEventDetail {
     id: string;
-    host_client_id: string;
+    host_connection_id: string;
     name: string
     started_at: string;
 }
 
+export interface Session extends SessionStartedEventDetail {
+
+};
+
+export interface SessionEndedEventDetail {
+    id: string;
+}
+
 export interface StartSessionInput {
-    client_id: string;
+    host_connection_id: string;
     session_name: string;
 }
 
@@ -16,18 +24,13 @@ export interface EndSessionInput {
     session_id: string;
 }
 
-export interface Sessions extends EventTarget {
-    list(): List<Session>;
+export interface SessionsReader extends EventTarget {
+    list(): Promise<List<Session>>;
+}
+
+export interface SessionsWriter {
     start(input: StartSessionInput): Promise<Session>;
     end(input: EndSessionInput): Promise<void>;
 }
 
 export const EventTypeSessionsChanged = 'sessions.changed';
-
-export class SessionsChangedEvent extends Event {
-    sessions: List<Session>;
-    constructor(sessions: List<Session>) {
-        super(EventTypeSessionsChanged);
-        this.sessions = sessions;
-    }
-}

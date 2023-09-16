@@ -1,15 +1,15 @@
 import React from 'react';
-import useSessions from './useSessions';
-import { Session, Sessions } from './Sessions';
+import useSessionList from './useSessionList';
+import { Session, SessionsReader } from './Sessions';
 
 interface Props {
-    sessions: Sessions;
+    sessions: SessionsReader;
     value: Session | null;
     onChange: (session: Session | null) => void;
 }
 
 const SessionsDropdown: React.FunctionComponent<Props> = ({ sessions, value, onChange }) => {
-    const sessionList = useSessions(sessions);
+    const sessionList = useSessionList(sessions);
     const handleChange = React.useCallback((event: React.ChangeEvent<HTMLSelectElement>) => {
         if (event.target.value === '') {
             onChange(null);
@@ -20,9 +20,9 @@ const SessionsDropdown: React.FunctionComponent<Props> = ({ sessions, value, onC
         onChange(session);
     }, [sessionList, onChange])
     if (sessionList.size === 0) return (
-        <div>
+        <React.Fragment>
             No sessions found
-        </div>
+        </React.Fragment>
     );
     return (
         <select value={value?.id ?? ''} onChange={handleChange} className="form-select">

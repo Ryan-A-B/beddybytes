@@ -1,16 +1,16 @@
 import React from "react";
-import * as DeviceRegistrar from '../DeviceRegistrar';
+import { Session } from "../Sessions/Sessions";
 import usePromise from "../hooks/usePromise";
 import Connections from "./Connections";
+import useConnection from "../Connection/useConnection";
 
 interface Props {
     videoDeviceID: string
-    sessionName: string
     sessionActive: boolean
 }
 
-const VideoStream: React.FunctionComponent<Props> = ({ videoDeviceID, sessionName, sessionActive }) => {
-    const client = DeviceRegistrar.useDevice();
+const VideoStream: React.FunctionComponent<Props> = ({ videoDeviceID, sessionActive }) => {
+    const connection = useConnection();
     const videoRef = React.useRef<HTMLVideoElement>(null);
     const getUserMedia = React.useMemo(() => {
         return navigator.mediaDevices.getUserMedia({
@@ -31,9 +31,9 @@ const VideoStream: React.FunctionComponent<Props> = ({ videoDeviceID, sessionNam
     React.useEffect(() => {
         if (!sessionActive) return;
         if (stream.state !== 'resolved') throw new Error('Stream is not resolved');
-        const connections = new Connections(client.id, sessionName, stream.value);
+        const connections = new Connections(connection, stream.value);
         return connections.close;
-    }, [client.id, stream, sessionName, sessionActive]);
+    }, [connection, stream]);
     if (stream.state === 'pending') return (<div>Getting stream...</div>)
     if (stream.state === 'rejected') return (<div>Failed to get stream: {stream.error.message}</div>)
     return (

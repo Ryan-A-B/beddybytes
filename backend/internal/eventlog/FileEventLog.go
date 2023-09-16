@@ -62,6 +62,9 @@ func (log *FileEventLog) Append(ctx context.Context, input *AppendInput) (event 
 }
 
 func (log *FileEventLog) GetEventIterator(ctx context.Context, input *GetEventIteratorInput) EventIterator {
+	if input.FromCursor < 0 {
+		return new(NullEventIterator)
+	}
 	filePath := filepath.Join(log.folderPath, EventsFileName)
 	file, err := os.Open(filePath)
 	fatal.OnError(err)

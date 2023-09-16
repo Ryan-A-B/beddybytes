@@ -1,95 +1,78 @@
 import { Map } from "immutable";
 import settings from "../settings";
-import authorization from "../authorization";
+import { Signaler } from "../Connection/Connection";
 
 class Connections {
-    private deviceID: string;
-    private sessionName: string;
+    private signaler: Signaler;
     private stream: MediaStream;
-    private websocket: WebSocket | null = null;
     private pcs: Map<string, RTCPeerConnection> = Map();
-    constructor(deviceID: string, sessionName: string, stream: MediaStream) {
-        this.deviceID = deviceID;
-        this.sessionName = sessionName;
+    constructor(signaler: Signaler, stream: MediaStream) {
+        this.signaler = signaler;
         this.stream = stream;
-        this.startWebSocket();
+        this.signaler.addEventListener("signal", this.onSignal);
     }
 
-    private startWebSocket = async () => {
-        const accessToken = await authorization.getAccessToken();
-        const query = new URLSearchParams({
-            client_type: "camera",
-            client_alias: this.sessionName,
-            access_token: accessToken,
-        });
-        const websocketURL = `wss://${settings.API.host}/clients/${this.deviceID}/websocket?${query.toString()}`;
-        this.websocket = new WebSocket(websocketURL);
-        this.websocket.onmessage = this.onMessage;
-    }
-
-    private onMessage = async (event: MessageEvent) => {
-        const frame = JSON.parse(event.data);
+    private onSignal = async (event: Event) => {
+        if (!(event instanceof CustomEvent)) return;
+        const frame = event.detail;
         const data = frame.data;
         if (data.description !== undefined) {
             if (data.description.type !== "offer")
-                throw new Error("data.description.type is not answer");
-            this.closeExistingPeerConnectionIfAny(frame.from_peer_id);
+                throw new Error("data.description.type is not offer");
+            this.closeExistingPeerConnectionIfAny(frame.from_connection_id);
             const pc = new RTCPeerConnection(settings.RTC);
-            pc.onicecandidate = this.onICECandidate(frame.from_peer_id);
-            this.pcs = this.pcs.set(frame.from_peer_id, pc);
+            pc.onicecandidate = this.onICECandidate(frame.from_connection_id);
+            this.pcs = this.pcs.set(frame.from_connection_id, pc);
             await pc.setRemoteDescription(data.description);
             this.stream.getTracks().forEach((track) => pc.addTrack(track, this.stream));
             const answer = await pc.createAnswer();
             await pc.setLocalDescription(answer);
-            if (this.websocket === null)
-                throw new Error("this.websocket is null");
-            this.websocket.send(JSON.stringify({
-                to_peer_id: frame.from_peer_id,
+            this.signaler.sendSignal({
+                to_connection_id: frame.from_connection_id,
                 data: { description: answer },
-            }));
+            });
             return
         }
         if (data.candidate !== undefined) {
-            const pc = this.pcs.get(frame.from_peer_id);
-            if (pc === undefined) throw new Error(`PeerConnection is not found: ${frame.from_peer_id}`);
+            const pc = this.pcs.get(frame.from_connection_id);
+            if (pc === undefined) throw new Error(`PeerConnection is not found: ${frame.from_connection_id}`);
             const candidate = new RTCIceCandidate(data.candidate);
             await pc.addIceCandidate(candidate);
             return
         }
+        if (data.close !== undefined) {
+            this.closeExistingPeerConnectionIfAny(frame.from_connection_id);
+            return
+        }
     }
 
-    private closeExistingPeerConnectionIfAny(peerID: string) {
-        const existing = this.pcs.get(peerID);
+    private closeExistingPeerConnectionIfAny(peerConnectionID: string) {
+        const existing = this.pcs.get(peerConnectionID);
         if (existing !== undefined) {
+            existing.onicecandidate = null;
             existing.close();
         }
     }
 
-    private onICECandidate = (peerID: string) => (event: RTCPeerConnectionIceEvent) => {
+    private onICECandidate = (peerConnectionID: string) => (event: RTCPeerConnectionIceEvent) => {
         if (event.candidate === null) return;
-        if (this.websocket === null)
-            throw new Error("this.websocket is null");
-        this.websocket.send(JSON.stringify({
-            to_peer_id: peerID,
+        this.signaler.sendSignal({
+            to_connection_id: peerConnectionID,
             data: { candidate: event.candidate },
-        }));
+        });
     }
 
     close = () => {
-        this.pcs.forEach((pc, deviceID) => {
+        this.pcs.forEach((pc, peerConnectionID) => {
             // TODO send this via RTCDataChannel
-            if (this.websocket === null)
-                throw new Error("this.websocket is null");
-            this.websocket.send(JSON.stringify({
-                to_peer_id: deviceID,
+            // a session ended event gets sent so this is not necessary
+            this.signaler.sendSignal({
+                to_connection_id: peerConnectionID,
                 data: { close: null },
-            }));
+            });
             pc.close()
         });
-        if (this.websocket === null)
-            throw new Error("this.websocket is null");
-        this.websocket.onmessage = null;
-        this.websocket.close();
+        this.signaler.removeEventListener("signal", this.onSignal);
     }
 }
 

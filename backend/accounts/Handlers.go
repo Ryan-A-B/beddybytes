@@ -49,19 +49,16 @@ type Handlers struct {
 }
 
 func (handlers *Handlers) AddRoutes(router *mux.Router) {
-	router.Use(internal.LoggingMiddleware)
-	router.Use(mux.CORSMethodMiddleware(router))
-	router.Use(internal.SkipOptionsMiddleware)
-	router.HandleFunc("/anonymous_token", handlers.AnonymousToken).Methods(http.MethodPost, http.MethodOptions).Name("AnonymousToken")
-	router.HandleFunc("/token", handlers.Token).Methods(http.MethodPost, http.MethodOptions).Name("Token")
-	router.HandleFunc("/accounts", handlers.CreateAccount).Methods(http.MethodPost, http.MethodOptions).Name("CreateAccount")
+	router.HandleFunc("/anonymous_token", handlers.AnonymousToken).Methods(http.MethodPost).Name("AnonymousToken")
+	router.HandleFunc("/token", handlers.Token).Methods(http.MethodPost).Name("Token")
+	router.HandleFunc("/accounts", handlers.CreateAccount).Methods(http.MethodPost).Name("CreateAccount")
 	router.HandleFunc("/square/webhook", handlers.HandleWebhook).Methods(http.MethodPost).Name("HandleWebhook")
 
 	authenticatedRouter := router.PathPrefix("/accounts/{account_id}").Subrouter()
 	authenticatedRouter.Use(internal.NewAuthorizationMiddleware(handlers.Key).Middleware)
-	authenticatedRouter.HandleFunc("", handlers.GetAccount).Methods(http.MethodGet, http.MethodOptions).Name("GetAccount")
-	authenticatedRouter.HandleFunc("", handlers.DeleteAccount).Methods(http.MethodDelete, http.MethodOptions).Name("DeleteAccount")
-	authenticatedRouter.HandleFunc("/payment_link_url", handlers.GetPaymentLinkURL).Methods(http.MethodGet, http.MethodOptions).Name("GetPaymentLinkURL")
+	authenticatedRouter.HandleFunc("", handlers.GetAccount).Methods(http.MethodGet).Name("GetAccount")
+	authenticatedRouter.HandleFunc("", handlers.DeleteAccount).Methods(http.MethodDelete).Name("DeleteAccount")
+	authenticatedRouter.HandleFunc("/payment_link_url", handlers.GetPaymentLinkURL).Methods(http.MethodGet).Name("GetPaymentLinkURL")
 }
 
 type UsedTokens struct {

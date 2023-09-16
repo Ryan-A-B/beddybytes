@@ -16,22 +16,17 @@ import (
 	"github.com/Ryan-A-B/baby-monitor/internal/fatal"
 )
 
-const EventTypeSessionStarted = "session.start"
-const EventTypeSessionEnded = "session.end"
+const EventTypeSessionStarted = "session.started"
+const EventTypeSessionEnded = "session.ended"
 
-type SessionStarted struct {
-	SessionID    string `json:"session_id"`
-	HostClientID string `json:"host_client_id"`
-}
-
-type StartSessionInput struct {
+type StartSessionEventData struct {
 	ID               string    `json:"id"`
 	Name             string    `json:"name"`
 	HostConnectionID string    `json:"host_connection_id"`
 	StartedAt        time.Time `json:"started_at"`
 }
 
-func (session *StartSessionInput) validate() error {
+func (session *StartSessionEventData) validate() error {
 	if session.ID == "" {
 		return merry.New("session id is empty").WithHTTPCode(http.StatusBadRequest)
 	}
@@ -77,7 +72,7 @@ func (handlers *Handlers) StartSession(responseWriter http.ResponseWriter, reque
 	ctx := request.Context()
 	vars := mux.Vars(request)
 	sessionID := vars["session_id"]
-	var session StartSessionInput
+	var session StartSessionEventData
 	err = json.NewDecoder(request.Body).Decode(&session)
 	if err != nil {
 		err = merry.WithHTTPCode(err, http.StatusBadRequest)
@@ -102,6 +97,10 @@ func (handlers *Handlers) StartSession(responseWriter http.ResponseWriter, reque
 	// TODO set header with logical clock of the start event
 }
 
+type EndSessionEventData struct {
+	ID string `json:"id"`
+}
+
 func (handlers *Handlers) EndSession(responseWriter http.ResponseWriter, request *http.Request) {
 	var err error
 	defer func() {
@@ -118,7 +117,7 @@ func (handlers *Handlers) EndSession(responseWriter http.ResponseWriter, request
 	_, err = handlers.EventLog.Append(ctx, &eventlog.AppendInput{
 		Type:      EventTypeSessionEnded,
 		AccountID: internal.GetAccountIDFromContext(ctx),
-		Data:      fatal.UnlessMarshalJSON(sessionID),
+		Data:      fatal.UnlessMarshalJSON(&EndSessionEventData{ID: sessionID}),
 	})
 	if err != nil {
 		return
@@ -141,7 +140,7 @@ func (projection *SessionProjection) ApplyEvent(ctx context.Context, event *even
 }
 
 func (projection *SessionProjection) ApplySessionStartedEvent(event *eventlog.Event) {
-	var session StartSessionInput
+	var session StartSessionEventData
 	fatal.UnlessUnmarshalJSON(event.Data, &session)
 	projection.SessionStore.Put(&Session{
 		AccountID:        event.AccountID,
@@ -153,7 +152,7 @@ func (projection *SessionProjection) ApplySessionStartedEvent(event *eventlog.Ev
 }
 
 func (projection *SessionProjection) ApplySessionEndedEvent(event *eventlog.Event) {
-	var sessionID string
-	fatal.UnlessUnmarshalJSON(event.Data, &sessionID)
-	projection.SessionStore.Remove(event.AccountID, sessionID)
+	var data EndSessionEventData
+	fatal.UnlessUnmarshalJSON(event.Data, &data)
+	projection.SessionStore.Remove(event.AccountID, data.ID)
 }

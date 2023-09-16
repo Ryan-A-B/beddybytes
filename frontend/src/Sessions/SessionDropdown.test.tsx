@@ -7,7 +7,7 @@ import { Session } from './Sessions';
 import { act } from 'react-dom/test-utils';
 
 describe('SessionsDropdown', () => {
-    it('should render correctly when there are no sessions', () => {
+    it('should render correctly when there are no sessions', async () => {
         const mock = new SessionsMock();
         let value: Session | null = null;
         const onChange = jest.fn((session: Session | null) => { value = session })
@@ -19,6 +19,8 @@ describe('SessionsDropdown', () => {
             />
         );
 
+        await act(async () => { });
+
         const body = component.baseElement;
         const div = body.querySelector(`div`);
         if (div === null) throw new Error(`div not found`);
@@ -27,12 +29,12 @@ describe('SessionsDropdown', () => {
         expect(value).toEqual(null);
     });
 
-    it('should render correctly when there are sessions', () => {
+    it('should render correctly when there are sessions', async () => {
         const mock = new SessionsMock();
         const clientID = uuid();
         const sessionName = uuid();
         mock.start({
-            client_id: clientID,
+            host_connection_id: clientID,
             session_name: sessionName,
         });
         let value: Session | null = null;
@@ -44,6 +46,8 @@ describe('SessionsDropdown', () => {
                 onChange={onChange}
             />
         );
+
+        await act(async () => { });
 
         const body = component.baseElement;
         const select = body.querySelector(`select`);
@@ -68,6 +72,8 @@ describe('SessionsDropdown', () => {
             />
         );
 
+        await act(async () => { });
+
         const body = component.baseElement;
         {
             const div = body.querySelector(`div`);
@@ -82,10 +88,11 @@ describe('SessionsDropdown', () => {
         let session: Session | null = null
         await act(async () => {
             session = await mock.start({
-                client_id: clientID,
+                host_connection_id: clientID,
                 session_name: sessionName,
             });
         });
+
         if (session === null) throw new Error(`session not found`);
         {
             const select = body.querySelector(`select`);
@@ -120,7 +127,7 @@ describe('SessionsDropdown', () => {
         const clientID = uuid();
         const sessionName = 'Session 1';
         const expectedSession = await mock.start({
-            client_id: clientID,
+            host_connection_id: clientID,
             session_name: sessionName,
         });
         let value: Session | null = null;
@@ -132,6 +139,8 @@ describe('SessionsDropdown', () => {
                 onChange={onChange}
             />
         );
+
+        await act(async () => { });
 
         const body = component.baseElement;
         const select = body.querySelector(`select`);

@@ -18,6 +18,7 @@ import (
 	"github.com/Ryan-A-B/baby-monitor/backend/internal"
 	"github.com/Ryan-A-B/baby-monitor/backend/internal/eventlog"
 	"github.com/Ryan-A-B/baby-monitor/backend/internal/store"
+	"github.com/Ryan-A-B/baby-monitor/backend/internal/store2"
 	"github.com/Ryan-A-B/baby-monitor/internal/square"
 )
 
@@ -53,6 +54,7 @@ type Client struct {
 type Handlers struct {
 	Upgrader          websocket.Upgrader
 	ClientStore       ClientStore
+	ConnectionFactory ConnectionFactory
 	SessionProjection SessionProjection
 	EventLog          eventlog.EventLog
 
@@ -146,20 +148,18 @@ func (handlers *Handlers) GetKey(token *jwt.Token) (interface{}, error) {
 }
 
 func (handlers *Handlers) AddRoutes(router *mux.Router) {
-	router.Use(internal.LoggingMiddleware)
-	router.Use(mux.CORSMethodMiddleware(router))
-	router.Use(internal.SkipOptionsMiddleware)
 	router.HandleFunc("/", handlers.Hello).Methods(http.MethodGet).Name("Hello")
 	clientRouter := router.PathPrefix("/clients").Subrouter()
 	clientRouter.Use(internal.NewAuthorizationMiddleware(handlers.Key).Middleware)
-	clientRouter.HandleFunc("", handlers.ListClients).Methods(http.MethodGet, http.MethodOptions).Name("ListClients")
-	clientRouter.HandleFunc("/{client_id}/websocket", handlers.HandleWebsocket).Methods(http.MethodGet, http.MethodOptions).Name("HandleWebsocket")
+	clientRouter.HandleFunc("", handlers.ListClients).Methods(http.MethodGet).Name("ListClients")
+	clientRouter.HandleFunc("/{client_id}/websocket", handlers.HandleWebsocket).Methods(http.MethodGet).Name("HandleWebsocket")
+	clientRouter.HandleFunc("/{client_id}/connections/{connection_id}", handlers.HandleConnection).Methods(http.MethodGet).Name("HandleConnection")
 
 	sessionRouter := router.PathPrefix("/sessions").Subrouter()
-	clientRouter.Use(internal.NewAuthorizationMiddleware(handlers.Key).Middleware)
-	sessionRouter.HandleFunc("", handlers.ListSessions).Methods(http.MethodGet, http.MethodOptions).Name("ListSessions")
-	sessionRouter.HandleFunc("/{session_id}", handlers.StartSession).Methods(http.MethodPut, http.MethodOptions).Name("StartSession")
-	sessionRouter.HandleFunc("/{session_id}", handlers.EndSession).Methods(http.MethodDelete, http.MethodOptions).Name("EndSession")
+	sessionRouter.Use(internal.NewAuthorizationMiddleware(handlers.Key).Middleware)
+	sessionRouter.HandleFunc("", handlers.ListSessions).Methods(http.MethodGet).Name("ListSessions")
+	sessionRouter.HandleFunc("/{session_id}", handlers.StartSession).Methods(http.MethodPut).Name("StartSession")
+	sessionRouter.HandleFunc("/{session_id}", handlers.EndSession).Methods(http.MethodDelete).Name("EndSession")
 }
 
 func main() {
@@ -205,6 +205,10 @@ func main() {
 				return true
 			},
 		},
+		ConnectionFactory: ConnectionFactory{
+			// TODO either not in memory or reproject from event log on startup
+			ConnectionStore: make(store2.StoreInMemory[ConnectionStoreKey, *Connection]),
+		},
 		ClientStore: &LoggingDecorator{
 			decorated: &LockingDecorator{
 				decorated: &ClientStoreInMemory{
@@ -226,6 +230,7 @@ func main() {
 		Apply:      handlers.SessionProjection.ApplyEvent,
 	})
 	router := mux.NewRouter()
+	router.Use(internal.LoggingMiddleware)
 	handlers.AddRoutes(router.NewRoute().Subrouter())
 	accountHandlers.AddRoutes(router.NewRoute().Subrouter())
 	addr := internal.EnvStringOrFatal("SERVER_ADDR")

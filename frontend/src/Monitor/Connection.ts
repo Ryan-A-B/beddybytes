@@ -1,51 +1,37 @@
+import { Signaler } from "../Connection/Connection";
+import { Session } from "../Sessions/Sessions";
 import settings from "../settings"
-import authorization from "../authorization";
 
 type OnClose = () => void;
 
 class Connection {
-    private deviceID: string;
-    private peerID: string;
-    private websocket: WebSocket | null = null;
+    private signaler: Signaler;
+    private session: Session;
     private pc: RTCPeerConnection;
     onclose: OnClose | null = null;
-    constructor(deviceID: string, peerID: string) {
-        this.deviceID = deviceID;
-        this.peerID = peerID;
-        this.startWebSocket();
+    constructor(signaler: Signaler, session: Session) {
+        this.signaler = signaler;
+        this.session = session;
         this.pc = new RTCPeerConnection(settings.RTC);
         this.pc.onicecandidate = this.onICECandidate;
+        this.sendDescription()
+        this.signaler.addEventListener("signal", this.onSignal);
     }
 
-    private startWebSocket = async () => {
-        const accessToken = await authorization.getAccessToken();
-        const query = new URLSearchParams({
-            client_type: "monitor",
-            client_alias: "monitor",
-            access_token: accessToken,
-        });
-        const websocketURL = `wss://${settings.API.host}/clients/${this.deviceID}/websocket?${query.toString()}`;
-        this.websocket = new WebSocket(websocketURL);
-        this.websocket.onopen = this.onWebSocketOpen;
-        this.websocket.onmessage = this.onWebSocketMessage;
-        this.websocket.onerror = this.onWebSocketError;
-    }
-
-    private onWebSocketOpen = async () => {
+    private sendDescription = async () => {
         this.pc.addTransceiver('video', { direction: 'recvonly' })
         this.pc.addTransceiver('audio', { direction: 'recvonly' })
         await this.pc.setLocalDescription();
-        if (this.websocket === null)
-            throw new Error("this.websocket is null")
-        this.websocket.send(JSON.stringify({
-            to_peer_id: this.peerID,
+        this.signaler.sendSignal({
+            to_connection_id: this.session.host_connection_id,
             data: { description: this.pc.localDescription },
-        }));
+        });
     }
 
-    private onWebSocketMessage = async (event: MessageEvent) => {
-        const frame = JSON.parse(event.data);
-        if (frame.from_peer_id !== this.peerID) return;
+    private onSignal = async (event: Event) => {
+        if (!(event instanceof CustomEvent)) return;
+        const frame = event.detail;
+        if (frame.from_connection_id !== this.session.host_connection_id) return;
         const data = frame.data;
         if (data.description !== undefined) {
             if (data.description.type !== "answer")
@@ -58,24 +44,19 @@ class Connection {
             return
         }
         if (data.close !== undefined) {
-            this.close();
+            // The host doesn't need to send this anymore, a session ended event is sent instead
+            this.close(true);
             return
         }
-    }
-
-    private onWebSocketError = (event: Event) => {
-        console.error(event);
     }
 
     private onICECandidate = (event: RTCPeerConnectionIceEvent) => {
         if (event.candidate === null)
             return;
-        if (this.websocket === null)
-            throw new Error("this.websocket is null");
-        this.websocket.send(JSON.stringify({
-            to_peer_id: this.peerID,
+        this.signaler.sendSignal({
+            to_connection_id: this.session.host_connection_id,
             data: { candidate: event.candidate },
-        }));
+        });
     }
 
     set onconnectionstatechange(connectionstatechange: (event: Event) => void) {
@@ -86,13 +67,13 @@ class Connection {
         this.pc.ontrack = ontrack;
     }
 
-    close() {
-        if (this.websocket !== null) {
-            this.websocket.onopen = null;
-            this.websocket.onmessage = null;
-            this.websocket.onerror = null;
-            this.websocket.close();
-        }
+    close(initiatedByHost: boolean) {
+        if (!initiatedByHost) return;
+        this.signaler.sendSignal({
+            to_connection_id: this.session.host_connection_id,
+            data: { close: null },
+        });
+        this.signaler.removeEventListener("signal", this.onSignal);
 
         this.pc.onicecandidate = null;
         this.pc.ontrack = null;
