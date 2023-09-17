@@ -3,9 +3,10 @@ import "./Monitor.scss";
 import Video from "./Video";
 import Connection from "./Connection";
 import SessionDropdown from "../Sessions/SessionDropdown";
-import { Session } from "../Sessions/Sessions";
+import { EventTypeSessionEnded, Session, SessionEndedEventDetail } from "../Sessions/Sessions";
 import SessionsReaderAPI from "../Sessions/SessionsReaderAPI";
 import useConnection from "../Connection/useConnection";
+import SessionDuration from "./SessionDuration";
 
 const isConnectionLost = (connectionState: RTCPeerConnectionState) => {
     if (connectionState === "disconnected") return true;
@@ -26,13 +27,31 @@ const Monitor: React.FunctionComponent = () => {
         return new SessionsReaderAPI(signaler);
     }, [signaler]);
 
+    React.useEffect(() => {
+        const handle = (event: Event) => {
+            if (session === null) return;
+            if (connection === null) return;
+            if (!(event instanceof CustomEvent)) throw new Error("event is not a CustomEvent");
+            const sessionEndedEventDetail = event.detail as SessionEndedEventDetail;
+            if (sessionEndedEventDetail.id !== session.id) return;
+            connection.close(true);
+            setSession(null);
+            setStream(null);
+            setConnection(null);
+            setSessionEnded(true)
+        }
+        signaler.addEventListener(EventTypeSessionEnded, handle);
+        return () => {
+            signaler.removeEventListener(EventTypeSessionEnded, handle);
+        };
+    }, [signaler, session, connection])
+
     const onSessionChange = React.useCallback((session: Session | null) => {
         setSession(session);
         setStream(null);
         setSessionEnded(false);
 
         if (connection !== null) {
-            connection.onclose = null;
             connection.close(false);
         }
         if (session === null) return;
@@ -46,11 +65,6 @@ const Monitor: React.FunctionComponent = () => {
             if (event.type !== "connectionstatechange") throw new Error("event.type is not connectionstatechange");
             const connection = event.target as RTCPeerConnection;
             setConnectionState(connection.connectionState);
-        }
-        newConnection.onclose = () => {
-            setSession(null);
-            setStream(null);
-            setSessionEnded(true);
         }
         setConnection(newConnection);
     }, [signaler, connection]);
@@ -68,6 +82,7 @@ const Monitor: React.FunctionComponent = () => {
                     Connection Lost
                 </div>
             )}
+            {session && <SessionDuration startedAt={session.started_at} />}
             {session && stream && (
                 <Video
                     stream={stream}

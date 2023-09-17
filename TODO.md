@@ -6,7 +6,6 @@
 - when changing camera stop current stream first
 
 ### Features
-- call duration
 - show camera battery level on monitor
 - picture in picture for all browsers
     - currently only firefox displays button

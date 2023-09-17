@@ -1,7 +1,7 @@
 import { List } from 'immutable';
 import settings from '../settings';
 import authorization from '../authorization';
-import { Session, SessionsReader, SessionStartedEventDetail as SessionStartedEventDetail, SessionEndedEventDetail, EventTypeSessionsChanged } from './Sessions';
+import { Session, SessionsReader, SessionStartedEventDetail as SessionStartedEventDetail, SessionEndedEventDetail, EventTypeSessionsChanged, EventTypeSessionStarted, EventTypeSessionEnded } from './Sessions';
 
 const sleep = (duration: number): Promise<void> => {
     return new Promise((resolve) => {
@@ -27,9 +27,6 @@ const getSessions = async (): Promise<List<Session>> => {
     await sleep(5000)
     return getSessions()
 }
-
-const EventTypeSessionStarted = 'session.started';
-const EventTypeSessionEnded = 'session.ended';
 
 const isCustomEvent = (event: Event): event is CustomEvent => {
     return event instanceof CustomEvent;

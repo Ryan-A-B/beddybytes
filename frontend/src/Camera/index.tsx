@@ -49,6 +49,7 @@ const Camera: React.FunctionComponent = () => {
         await sessions.end({
             session_id: session.id,
         });
+        setVideoDeviceID('');
         setSession(null);
     }, [sessions, session]);
     if (permissionPromiseState.state === 'pending') return (

@@ -1,5 +1,8 @@
 import { List } from 'immutable';
 
+export const EventTypeSessionStarted = 'session.started';
+export const EventTypeSessionEnded = 'session.ended';
+
 export interface SessionStartedEventDetail {
     id: string;
     host_connection_id: string;

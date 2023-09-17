@@ -38,7 +38,6 @@ class Connection {
     private signaler: Signaler;
     private session: Session;
     private pc: RTCPeerConnection;
-    onclose: OnClose | null = null;
     constructor(signaler: Signaler, session: Session) {
         this.signaler = signaler;
         this.session = session;
@@ -101,19 +100,18 @@ class Connection {
     }
 
     close(initiatedByHost: boolean) {
-        if (!initiatedByHost) return;
-        this.signaler.sendSignal({
-            to_connection_id: this.session.host_connection_id,
-            data: { close: null },
-        });
+        if (!initiatedByHost) {
+            this.signaler.sendSignal({
+                to_connection_id: this.session.host_connection_id,
+                data: { close: null },
+            });
+        }
         this.signaler.removeEventListener("signal", this.onSignal);
 
         this.pc.onicecandidate = null;
         this.pc.ontrack = null;
         this.pc.onconnectionstatechange = null;
         this.pc.close();
-
-        if (this.onclose !== null) this.onclose();
     }
 }
 
