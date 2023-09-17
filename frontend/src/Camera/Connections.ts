@@ -2,6 +2,48 @@ import { Map } from "immutable";
 import settings from "../settings";
 import { Signaler } from "../Connection/Connection";
 
+interface IncomingSignalDescription {
+    from_connection_id: string;
+    data: {
+        description: RTCSessionDescriptionInit;
+    }
+}
+
+interface IncomingSignalCandidate {
+    from_connection_id: string;
+    data: {
+        candidate: RTCIceCandidateInit;
+    }
+}
+
+interface IncomingSignalClose {
+    from_connection_id: string;
+    data: {
+        close: null;
+    }
+}
+
+interface IncomingSignal {
+    from_connection_id: string;
+    data: {
+        description?: RTCSessionDescriptionInit;
+        candidate?: RTCIceCandidateInit;
+        close?: null;
+    }
+}
+
+const isDescriptionSignal = (signal: IncomingSignal): signal is IncomingSignalDescription => {
+    return signal.data.description !== undefined;
+}
+
+const isCandidateSignal = (signal: IncomingSignal): signal is IncomingSignalCandidate => {
+    return signal.data.candidate !== undefined;
+}
+
+const isCloseSignal = (signal: IncomingSignal): signal is IncomingSignalClose => {
+    return signal.data.close !== undefined;
+}
+
 class Connections {
     private signaler: Signaler;
     private stream: MediaStream;
@@ -9,41 +51,55 @@ class Connections {
     constructor(signaler: Signaler, stream: MediaStream) {
         this.signaler = signaler;
         this.stream = stream;
+        console.log("add event listener")
         this.signaler.addEventListener("signal", this.onSignal);
     }
 
     private onSignal = async (event: Event) => {
-        if (!(event instanceof CustomEvent)) return;
-        const frame = event.detail;
-        const data = frame.data;
-        if (data.description !== undefined) {
-            if (data.description.type !== "offer")
-                throw new Error("data.description.type is not offer");
-            this.closeExistingPeerConnectionIfAny(frame.from_connection_id);
-            const pc = new RTCPeerConnection(settings.RTC);
-            pc.onicecandidate = this.onICECandidate(frame.from_connection_id);
-            this.pcs = this.pcs.set(frame.from_connection_id, pc);
-            await pc.setRemoteDescription(data.description);
-            this.stream.getTracks().forEach((track) => pc.addTrack(track, this.stream));
-            const answer = await pc.createAnswer();
-            await pc.setLocalDescription(answer);
-            this.signaler.sendSignal({
-                to_connection_id: frame.from_connection_id,
-                data: { description: answer },
-            });
+        if (!(event instanceof CustomEvent)) throw new Error("invalid event");
+        const signal = event.detail as IncomingSignal;
+        console.log(signal)
+        if (isDescriptionSignal(signal)) {
+            console.log("isDescriptionSignal")
+            await this.handleOffer(signal);
             return
         }
-        if (data.candidate !== undefined) {
-            const pc = this.pcs.get(frame.from_connection_id);
-            if (pc === undefined) throw new Error(`PeerConnection is not found: ${frame.from_connection_id}`);
-            const candidate = new RTCIceCandidate(data.candidate);
-            await pc.addIceCandidate(candidate);
+        if (isCandidateSignal(signal)) {
+            await this.handleCandidateSignal(signal);
             return
         }
-        if (data.close !== undefined) {
-            this.closeExistingPeerConnectionIfAny(frame.from_connection_id);
+        if (isCloseSignal(signal)) {
+            this.handleCloseSignal(signal);
             return
         }
+    }
+
+    private handleOffer = async (signal: IncomingSignalDescription) => {
+        if (signal.data.description.type !== "offer")
+            throw new Error("data.description.type is not offer");
+        this.closeExistingPeerConnectionIfAny(signal.from_connection_id);
+        const pc = new RTCPeerConnection(settings.RTC);
+        pc.onicecandidate = this.onICECandidate(signal.from_connection_id);
+        this.pcs = this.pcs.set(signal.from_connection_id, pc);
+        await pc.setRemoteDescription(signal.data.description);
+        this.stream.getTracks().forEach((track) => pc.addTrack(track, this.stream));
+        const answer = await pc.createAnswer();
+        await pc.setLocalDescription(answer);
+        this.signaler.sendSignal({
+            to_connection_id: signal.from_connection_id,
+            data: { description: answer },
+        });
+    }
+
+    private handleCandidateSignal = async (signal: IncomingSignalCandidate) => {
+        const pc = this.pcs.get(signal.from_connection_id);
+        if (pc === undefined) throw new Error(`PeerConnection is not found: ${signal.from_connection_id}`);
+        const candidate = new RTCIceCandidate(signal.data.candidate);
+        await pc.addIceCandidate(candidate);
+    }
+
+    private handleCloseSignal = (signal: IncomingSignalClose) => {
+        this.closeExistingPeerConnectionIfAny(signal.from_connection_id);
     }
 
     private closeExistingPeerConnectionIfAny(peerConnectionID: string) {
@@ -63,15 +119,11 @@ class Connections {
     }
 
     close = () => {
-        this.pcs.forEach((pc, peerConnectionID) => {
-            // TODO send this via RTCDataChannel
-            // a session ended event gets sent so this is not necessary
-            this.signaler.sendSignal({
-                to_connection_id: peerConnectionID,
-                data: { close: null },
-            });
+        console.log("close")
+        this.pcs.forEach((pc) => {
             pc.close()
         });
+        console.log("remove event listener")
         this.signaler.removeEventListener("signal", this.onSignal);
     }
 }

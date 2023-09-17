@@ -2,6 +2,36 @@ import { Signaler } from "../Connection/Connection";
 import { Session } from "../Sessions/Sessions";
 import settings from "../settings"
 
+interface IncomingSignalDescription {
+    from_connection_id: string;
+    data: {
+        description: RTCSessionDescriptionInit;
+    }
+}
+
+interface IncomingSignalCandidate {
+    from_connection_id: string;
+    data: {
+        candidate: RTCIceCandidateInit;
+    }
+}
+
+interface IncomingSignal {
+    from_connection_id: string;
+    data: {
+        description?: RTCSessionDescriptionInit;
+        candidate?: RTCIceCandidateInit;
+    }
+}
+
+const isDescriptionSignal = (signal: IncomingSignal): signal is IncomingSignalDescription => {
+    return signal.data.description !== undefined;
+}
+
+const isCandidateSignal = (signal: IncomingSignal): signal is IncomingSignalCandidate => {
+    return signal.data.candidate !== undefined;
+}
+
 type OnClose = () => void;
 
 class Connection {
@@ -29,25 +59,28 @@ class Connection {
     }
 
     private onSignal = async (event: Event) => {
-        if (!(event instanceof CustomEvent)) return;
-        const frame = event.detail;
-        if (frame.from_connection_id !== this.session.host_connection_id) return;
-        const data = frame.data;
-        if (data.description !== undefined) {
-            if (data.description.type !== "answer")
-                throw new Error("data.description.type is not answer");
-            await this.pc.setRemoteDescription(data.description);
-        }
-        if (data.candidate !== undefined) {
-            const candidate = new RTCIceCandidate(data.candidate);
-            await this.pc.addIceCandidate(candidate);
+        if (!(event instanceof CustomEvent)) throw new Error("invalid event");
+        const signal = event.detail as IncomingSignal;
+        if (signal.from_connection_id !== this.session.host_connection_id) return;
+        if (isDescriptionSignal(signal)) {
+            await this.handleAnswer(signal);
             return
         }
-        if (data.close !== undefined) {
-            // The host doesn't need to send this anymore, a session ended event is sent instead
-            this.close(true);
+        if (isCandidateSignal(signal)) {
+            await this.handleCandidateSignal(signal);
             return
         }
+    }
+
+    private handleAnswer = async (signal: IncomingSignalDescription) => {
+        if (signal.data.description.type !== "answer")
+            throw new Error("data.description.type is not answer");
+        await this.pc.setRemoteDescription(signal.data.description);
+    }
+
+    private handleCandidateSignal = async (signal: IncomingSignalCandidate) => {
+        const candidate = new RTCIceCandidate(signal.data.candidate);
+        await this.pc.addIceCandidate(candidate);
     }
 
     private onICECandidate = (event: RTCPeerConnectionIceEvent) => {

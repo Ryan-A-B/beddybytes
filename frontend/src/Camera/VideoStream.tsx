@@ -1,5 +1,4 @@
 import React from "react";
-import { Session } from "../Sessions/Sessions";
 import usePromise from "../hooks/usePromise";
 import Connections from "./Connections";
 import useConnection from "../Connection/useConnection";
@@ -33,7 +32,7 @@ const VideoStream: React.FunctionComponent<Props> = ({ videoDeviceID, sessionAct
         if (stream.state !== 'resolved') throw new Error('Stream is not resolved');
         const connections = new Connections(connection, stream.value);
         return connections.close;
-    }, [connection, stream]);
+    }, [connection, sessionActive, stream]);
     if (stream.state === 'pending') return (<div>Getting stream...</div>)
     if (stream.state === 'rejected') return (<div>Failed to get stream: {stream.error.message}</div>)
     return (

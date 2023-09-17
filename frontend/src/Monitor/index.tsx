@@ -53,7 +53,7 @@ const Monitor: React.FunctionComponent = () => {
             setSessionEnded(true);
         }
         setConnection(newConnection);
-    }, [signaler, session, connection]);
+    }, [signaler, connection]);
 
     return (
         <div className="monitor">

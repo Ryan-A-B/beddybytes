@@ -11,7 +11,7 @@ interface Props {
 const SessionToggle: React.FunctionComponent<Props> = ({ session, startSession, endSession, disabled }) => {
     if (session === null) {
         return (
-            <button onClick={startSession} className="btn btn-success" disabled={disabled}>
+            <button onClick={startSession} className="btn btn-primary" disabled={disabled}>
                 Start
             </button>
         )
