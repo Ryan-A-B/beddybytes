@@ -6,7 +6,7 @@ interface Props {
 
 const Video: React.FunctionComponent<Props> = ({ stream }) => {
     const videoRef = React.useRef<HTMLVideoElement>(null);
-    React.useEffect(() => {
+    React.useLayoutEffect(() => {
         if (videoRef.current === null)
             throw new Error("videoRef.current is null");
         const video = videoRef.current
