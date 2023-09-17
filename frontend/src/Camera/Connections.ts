@@ -1,6 +1,6 @@
 import { Map } from "immutable";
 import settings from "../settings";
-import { Signaler } from "../Connection/Connection";
+import { ClientDisconnectedEventDetail, Signaler } from "../Connection/Connection";
 
 interface IncomingSignalDescription {
     from_connection_id: string;

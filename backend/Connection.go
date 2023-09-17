@@ -24,8 +24,9 @@ type ClientConnectedEventData struct {
 }
 
 type ClientDisconnectedEventData struct {
-	ClientID     string `json:"client_id"`
-	ConnectionID string `json:"connection_id"`
+	ClientID           string `json:"client_id"`
+	ConnectionID       string `json:"connection_id"`
+	WebSocketCloseCode int    `json:"web_socket_close_code"`
 }
 
 type MessageType string
@@ -110,14 +111,18 @@ func (handlers *Handlers) HandleConnection(responseWriter http.ResponseWriter, r
 			ConnectionID: connectionID,
 		}),
 	})
-	defer handlers.EventLog.Append(ctx, &eventlog.AppendInput{
-		Type:      EventTypeClientDisconnected,
-		AccountID: accountID,
-		Data: fatal.UnlessMarshalJSON(&ClientDisconnectedEventData{
-			ClientID:     clientID,
-			ConnectionID: connectionID,
-		}),
-	})
+	webSocketCloseCode := websocket.CloseNoStatusReceived
+	defer func() {
+		handlers.EventLog.Append(ctx, &eventlog.AppendInput{
+			Type:      EventTypeClientDisconnected,
+			AccountID: accountID,
+			Data: fatal.UnlessMarshalJSON(&ClientDisconnectedEventData{
+				ClientID:           clientID,
+				ConnectionID:       connectionID,
+				WebSocketCloseCode: webSocketCloseCode,
+			}),
+		})
+	}()
 	connection := handlers.ConnectionFactory.CreateConnection(ctx, &CreateConnectionInput{
 		AccountID:    accountID,
 		ConnectionID: connectionID,
@@ -131,8 +136,11 @@ func (handlers *Handlers) HandleConnection(responseWriter http.ResponseWriter, r
 	for {
 		err = connection.handleNextMessage(ctx)
 		if err != nil {
-			if websocket.IsCloseError(err, websocket.CloseNormalClosure) {
-				return
+			if closeError, ok := err.(*websocket.CloseError); ok {
+				webSocketCloseCode = closeError.Code
+				if closeError.Code == websocket.CloseNormalClosure {
+					return
+				}
 			}
 			log.Println(err)
 			return
@@ -185,8 +193,7 @@ func (connection *Connection) handleNextMessage(ctx context.Context) (err error)
 	case MessageTypeSignal:
 		return connection.handleSignal(ctx, incomingMessage.Signal)
 	default:
-		log.Println("Warn: unhandled message type: ", incomingMessage.Type)
-		return
+		return errors.New("unhandled message type: " + string(incomingMessage.Type))
 	}
 }
 

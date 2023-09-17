@@ -14,3 +14,11 @@ interface Connection extends Signaler, EventTarget {
 }
 
 export default Connection;
+
+export const EventTypeClientDisconnected = 'client.disconnected';
+
+export interface ClientDisconnectedEventDetail {
+    client_id: string;
+    connection_id: string;
+    web_socket_close_code: number;
+}

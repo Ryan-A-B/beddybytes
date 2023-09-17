@@ -2,6 +2,7 @@ import { List } from 'immutable';
 import settings from '../settings';
 import authorization from '../authorization';
 import { Session, SessionsReader, SessionStartedEventDetail as SessionStartedEventDetail, SessionEndedEventDetail, EventTypeSessionsChanged, EventTypeSessionStarted, EventTypeSessionEnded } from './Sessions';
+import { ClientDisconnectedEventDetail, EventTypeClientDisconnected } from '../Connection/Connection';
 
 const sleep = (duration: number): Promise<void> => {
     return new Promise((resolve) => {
@@ -49,6 +50,12 @@ class SessionsReaderAPI extends EventTarget implements SessionsReader {
             this.sessionList = this.sessionList.filter((session) => session.id !== detail.id);
             this.dispatchSessionsChangedEvent();
         });
+        events.addEventListener(EventTypeClientDisconnected, (event: Event) => {
+            if (!isCustomEvent(event)) throw new Error('invalid event');
+            const detail = event.detail as ClientDisconnectedEventDetail;
+            this.sessionList = this.sessionList.filter((session) => session.host_connection_id !== detail.connection_id);
+            this.dispatchSessionsChangedEvent();
+        })
     }
 
     list = async (): Promise<List<Session>> => {

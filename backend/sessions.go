@@ -135,6 +135,8 @@ func (projection *SessionProjection) ApplyEvent(ctx context.Context, event *even
 		projection.ApplySessionStartedEvent(event)
 	case EventTypeSessionEnded:
 		projection.ApplySessionEndedEvent(event)
+	case EventTypeClientDisconnected:
+		projection.ApplyClientDisconnectedEvent(event)
 	}
 	projection.Head = event.LogicalClock
 }
@@ -155,4 +157,15 @@ func (projection *SessionProjection) ApplySessionEndedEvent(event *eventlog.Even
 	var data EndSessionEventData
 	fatal.UnlessUnmarshalJSON(event.Data, &data)
 	projection.SessionStore.Remove(event.AccountID, data.ID)
+}
+
+func (projection *SessionProjection) ApplyClientDisconnectedEvent(event *eventlog.Event) {
+	var data ClientDisconnectedEventData
+	fatal.UnlessUnmarshalJSON(event.Data, &data)
+	sessions := projection.SessionStore.List(event.AccountID)
+	for _, session := range sessions {
+		if session.HostConnectionID == data.ConnectionID {
+			projection.SessionStore.Remove(event.AccountID, session.ID)
+		}
+	}
 }

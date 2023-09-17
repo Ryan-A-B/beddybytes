@@ -3,6 +3,7 @@
 ### Bugs
 - reconnect websocket
 - reconnect WebRTC
+- improve logic for knowing when a session has ended
 - when changing camera stop current stream first
 
 ### Features
