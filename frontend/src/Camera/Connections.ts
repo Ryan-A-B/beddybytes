@@ -51,16 +51,13 @@ class Connections {
     constructor(signaler: Signaler, stream: MediaStream) {
         this.signaler = signaler;
         this.stream = stream;
-        console.log("add event listener")
         this.signaler.addEventListener("signal", this.onSignal);
     }
 
     private onSignal = async (event: Event) => {
         if (!(event instanceof CustomEvent)) throw new Error("invalid event");
         const signal = event.detail as IncomingSignal;
-        console.log(signal)
         if (isDescriptionSignal(signal)) {
-            console.log("isDescriptionSignal")
             await this.handleOffer(signal);
             return
         }
@@ -119,11 +116,9 @@ class Connections {
     }
 
     close = () => {
-        console.log("close")
         this.pcs.forEach((pc) => {
             pc.close()
         });
-        console.log("remove event listener")
         this.signaler.removeEventListener("signal", this.onSignal);
     }
 }
