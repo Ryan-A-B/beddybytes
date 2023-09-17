@@ -7,6 +7,7 @@ import { EventTypeSessionEnded, Session, SessionEndedEventDetail } from "../Sess
 import SessionsReaderAPI from "../Sessions/SessionsReaderAPI";
 import useConnection from "../Connection/useConnection";
 import SessionDuration from "./SessionDuration";
+import { ClientDisconnectedEventDetail, EventTypeClientDisconnected } from "../Connection/Connection";
 
 const isConnectionLost = (connectionState: RTCPeerConnectionState) => {
     if (connectionState === "disconnected") return true;
@@ -32,8 +33,8 @@ const Monitor: React.FunctionComponent = () => {
             if (session === null) return;
             if (connection === null) return;
             if (!(event instanceof CustomEvent)) throw new Error("event is not a CustomEvent");
-            const sessionEndedEventDetail = event.detail as SessionEndedEventDetail;
-            if (sessionEndedEventDetail.id !== session.id) return;
+            const detail = event.detail as SessionEndedEventDetail;
+            if (detail.id !== session.id) return;
             connection.close(true);
             setSession(null);
             setStream(null);
@@ -43,6 +44,25 @@ const Monitor: React.FunctionComponent = () => {
         signaler.addEventListener(EventTypeSessionEnded, handle);
         return () => {
             signaler.removeEventListener(EventTypeSessionEnded, handle);
+        };
+    }, [signaler, session, connection])
+
+    React.useEffect(() => {
+        const handle = (event: Event) => {
+            if (session === null) return;
+            if (connection === null) return;
+            if (!(event instanceof CustomEvent)) throw new Error("event is not a CustomEvent");
+            const detail = event.detail as ClientDisconnectedEventDetail;
+            if (detail.connection_id !== session.host_connection_id) return;
+            connection.close(true);
+            setSession(null);
+            setStream(null);
+            setConnection(null);
+            setSessionEnded(true)
+        }
+        signaler.addEventListener(EventTypeClientDisconnected, handle);
+        return () => {
+            signaler.removeEventListener(EventTypeClientDisconnected, handle);
         };
     }, [signaler, session, connection])
 
