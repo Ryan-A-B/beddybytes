@@ -26,13 +26,9 @@ services:
       - "traefik.http.middlewares.rate-limit-create-account.ratelimit.period=20s"
       - "traefik.http.middlewares.rate-limit-create-account.ratelimit.burst=1"
 
-      - "traefik.http.middlewares.rate-limit-options.ratelimit.average=1"
-      - "traefik.http.middlewares.rate-limit-options.ratelimit.period=1s"
-      - "traefik.http.middlewares.rate-limit-options.ratelimit.burst=4"
-
       - "traefik.http.middlewares.rate-limit-backend.ratelimit.average=1"
       - "traefik.http.middlewares.rate-limit-backend.ratelimit.period=1s"
-      - "traefik.http.middlewares.rate-limit-backend.ratelimit.burst=4"
+      - "traefik.http.middlewares.rate-limit-backend.ratelimit.burst=10"
   backend:
     image: baby-monitor-backend
     build:
