@@ -1,9 +1,9 @@
 # TODO
 ## Now
 ### Bugs
-- reconnect websocket
 - reconnect WebRTC
 - improve logic for knowing when a session has ended
+- server rebooted event to mark all clients as disconnected?
 - when changing camera stop current stream first
 
 ### Features
