@@ -1,20 +1,22 @@
 # TODO
 ## Now
 ### Bugs
+- backup eventlog to S3
 - reconnect WebRTC
 - improve logic for knowing when a session has ended
 - server rebooted event to mark all clients as disconnected?
 - when changing camera stop current stream first
 
 ### Features
+- indicate that the connection is being established
+- record monitor events
+
 - show camera battery level on monitor
 - picture in picture for all browsers
     - currently only firefox displays button
     - close if connection lost
 - add cloudfront content security policy and permissions policy to cloudformation
-- backup eventlog to S3
 - integration tests for API prod release
-- stats
 
 ## Next
 ### Bugs
