@@ -31,7 +31,7 @@ const LoginOrCreateAccount: React.FunctionComponent<Props> = ({ onSuccessfulLogi
     return (
         <div className="container">
             <h1 className="d-md-block d-none mx-auto text-center">
-                Welcome!
+                Transform your devices!
             </h1>
             <div className="row">
                 <div className="col-xl-4 col-lg-5 col-md-6 mt-5 mx-auto order-md-2">
