@@ -23,7 +23,6 @@
 - PaymentLinkMutex is expensive
 - mock square for testing
 - responive slightly broken on phone (S7)
-- replace react logo
 - server hardening
 - websocket to notify when a new camera comes online
 - S7 -> Latitude 7430 no video shows
