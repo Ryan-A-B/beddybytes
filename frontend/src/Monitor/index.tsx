@@ -54,6 +54,7 @@ const Monitor: React.FunctionComponent = () => {
             if (!(event instanceof CustomEvent)) throw new Error("event is not a CustomEvent");
             const detail = event.detail as ClientDisconnectedEventDetail;
             if (detail.connection_id !== session.host_connection_id) return;
+            if (detail.web_socket_close_code === 1006) return;
             connection.close(true);
             setSession(null);
             setStream(null);
