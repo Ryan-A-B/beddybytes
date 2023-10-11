@@ -6,11 +6,14 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	"strconv"
 
 	"github.com/Ryan-A-B/baby-monitor/backend/internal"
 	"github.com/Ryan-A-B/baby-monitor/backend/internal/eventlog"
 	"github.com/Ryan-A-B/baby-monitor/backend/internal/store2"
+	"github.com/Ryan-A-B/baby-monitor/backend/internal/xhttp"
 	"github.com/Ryan-A-B/baby-monitor/internal/fatal"
+	"github.com/ansel1/merry"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 )
@@ -82,8 +85,9 @@ type OutgoingSignal struct {
 }
 
 type Event struct {
-	Type string          `json:"type"`
-	Data json.RawMessage `json:"data"`
+	Type   string          `json:"type"`
+	Cursor int             `json:"cursor"`
+	Data   json.RawMessage `json:"data"`
 }
 
 type ConnectionStoreKey struct {
@@ -97,6 +101,12 @@ func (handlers *Handlers) HandleConnection(responseWriter http.ResponseWriter, r
 	vars := mux.Vars(request)
 	clientID := vars["client_id"]
 	connectionID := vars["connection_id"]
+	cursor, err := getCursor(request)
+	if err != nil {
+		log.Println(err)
+		xhttp.Error(responseWriter, err)
+		return
+	}
 	conn, err := handlers.Upgrader.Upgrade(responseWriter, request, nil)
 	if err != nil {
 		log.Println(err)
@@ -129,8 +139,7 @@ func (handlers *Handlers) HandleConnection(responseWriter http.ResponseWriter, r
 		conn:         conn,
 	})
 	iterator := handlers.EventLog.GetEventIterator(ctx, &eventlog.GetEventIteratorInput{
-		// TODO update input to allow caller to explicitly specify starting from current cursor
-		FromCursor: -1,
+		FromCursor: cursor,
 	})
 	go connection.sendEvents(ctx, iterator)
 	for {
@@ -146,6 +155,19 @@ func (handlers *Handlers) HandleConnection(responseWriter http.ResponseWriter, r
 			return
 		}
 	}
+}
+
+func getCursor(request *http.Request) (cursor int, err error) {
+	cursorString := request.FormValue("cursor")
+	if cursorString == "" {
+		return
+	}
+	cursor, err = strconv.Atoi(cursorString)
+	if err != nil {
+		err = merry.WithHTTPCode(err, http.StatusBadRequest)
+		return
+	}
+	return
 }
 
 type ConnectionFactory struct {
@@ -226,8 +248,9 @@ func (connection *Connection) sendEvents(ctx context.Context, iterator eventlog.
 		connection.conn.WriteJSON(OutgoingMessage{
 			Type: MessageTypeEvent,
 			Event: &Event{
-				Type: event.Type,
-				Data: event.Data,
+				Type:   event.Type,
+				Cursor: event.LogicalClock,
+				Data:   event.Data,
 			},
 		})
 	}
