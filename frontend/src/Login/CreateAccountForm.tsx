@@ -41,7 +41,7 @@ const CreateAccountForm: React.FunctionComponent<Props> = ({ email, setEmail, pa
     }, [authorizationServer, email, password, onSuccessfulLogin])
     return (
         <React.Fragment>
-            <form onSubmit={handleSubmit}>
+            <form onSubmit={handleSubmit} className="was-validated">
                 <div className="form-group mb-3">
                     <label>
                         Email:
@@ -69,6 +69,7 @@ const CreateAccountForm: React.FunctionComponent<Props> = ({ email, setEmail, pa
                         minLength={20}
                         required
                     />
+                    <div className="form-text">At least 20 characters required.</div>
                 </div>
                 <p>
                     Already have an account? <button type="button" className="btn btn-link p-0" onClick={switchToLogin}>Log in</button>.

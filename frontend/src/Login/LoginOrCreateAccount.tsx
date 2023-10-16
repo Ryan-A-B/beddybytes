@@ -87,6 +87,9 @@ const LoginOrCreateAccount: React.FunctionComponent<Props> = ({ onSuccessfulLogi
                     <p>
                         We use this baby monitor multiple times a day, we hope you find it as useful as we have. <b>Try us out with a 7 day free trial (no credit card required).</b>
                     </p>
+                    <a href="https://babymonitor.creativeilk.com" target="_blank" rel="noreferrer" className="btn btn-info">
+                        Click here to learn more
+                    </a>
                 </div>
             </div>
         </div>
