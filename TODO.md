@@ -43,7 +43,6 @@
 - monitor time taken to connect call
     - show spinner
 - edit device metadata
-- Progressive Web App
 - microphone from monitor (default muted)
 - record button on monitor (picture and video)
     - instruct camera to do the recording (better quality)

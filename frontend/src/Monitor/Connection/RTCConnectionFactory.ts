@@ -1,6 +1,7 @@
-import { Signaler } from "../Connection/Connection";
-import { Session } from "../Sessions/Sessions";
-import settings from "../settings"
+import { Connection, ConnectionFactory } from ".";
+import { Signaler } from "../../Connection/Connection";
+import { Session } from "../../Sessions/Sessions";
+import settings from "../../settings"
 
 interface IncomingSignalDescription {
     from_connection_id: string;
@@ -32,9 +33,7 @@ const isCandidateSignal = (signal: IncomingSignal): signal is IncomingSignalCand
     return signal.data.candidate !== undefined;
 }
 
-type OnClose = () => void;
-
-class Connection {
+class RTCConnection implements Connection {
     private signaler: Signaler;
     private session: Session;
     private pc: RTCPeerConnection;
@@ -115,4 +114,16 @@ class Connection {
     }
 }
 
-export default Connection;
+class RTCConnectionFactory implements ConnectionFactory {
+    private signaler: Signaler;
+
+    constructor(signaler: Signaler) {
+        this.signaler = signaler;
+    }
+
+    create(session: Session): Connection {
+        return new RTCConnection(this.signaler, session);
+    }
+}
+
+export default RTCConnectionFactory;

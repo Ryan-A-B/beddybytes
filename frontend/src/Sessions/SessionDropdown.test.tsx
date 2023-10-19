@@ -1,10 +1,10 @@
 import { render, fireEvent } from '@testing-library/react';
+import { act } from 'react-dom/test-utils';
 import { v4 as uuid } from 'uuid';
 
 import SessionsDropdown from './SessionDropdown';
 import SessionsMock from './SessionsMock';
 import { Session } from './Sessions';
-import { act } from 'react-dom/test-utils';
 
 describe('SessionsDropdown', () => {
     it('should render correctly when there are no sessions', async () => {

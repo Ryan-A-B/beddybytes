@@ -7,9 +7,22 @@ import Instructions from './Instructions';
 import Camera from './Camera';
 import Monitor from './Monitor';
 import Account from './Account';
+
+import useConnection from "./Connection/useConnection";
+import RTCConnectionFactory from './Monitor/Connection/RTCConnectionFactory';
+import SessionsReaderAPI from './Sessions/SessionsReaderAPI';
+
 import './App.scss';
 
 const App: React.FunctionComponent = () => {
+  const signaler = useConnection();
+  const [connectionFactory, sessions] = React.useMemo(() => {
+    return [
+      new RTCConnectionFactory(signaler),
+      new SessionsReaderAPI(signaler),
+    ];
+  }, [signaler]);
+
   return (
     <BrowserRouter>
       <Navbar />
@@ -19,7 +32,7 @@ const App: React.FunctionComponent = () => {
           <Routes>
             <Route path="/" element={<Instructions />} />
             <Route path="/camera" element={<Camera />} />
-            <Route path="/monitor" element={<Monitor />} />
+            <Route path="/monitor" element={<Monitor factory={connectionFactory} sessions={sessions} />} />
             <Route path="/account" element={<Account />} />
           </Routes>
         </div>

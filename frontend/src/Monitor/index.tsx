@@ -1,13 +1,12 @@
 import React from "react";
 import "./Monitor.scss";
 import Video from "./Video";
-import Connection from "./Connection";
 import SessionDropdown from "../Sessions/SessionDropdown";
-import { EventTypeSessionEnded, Session, SessionEndedEventDetail } from "../Sessions/Sessions";
-import SessionsReaderAPI from "../Sessions/SessionsReaderAPI";
+import { EventTypeSessionEnded, Session, SessionEndedEventDetail, SessionsReader } from "../Sessions/Sessions";
 import useConnection from "../Connection/useConnection";
 import SessionDuration from "./SessionDuration";
 import { ClientDisconnectedEventDetail, EventTypeClientDisconnected } from "../Connection/Connection";
+import { Connection, ConnectionFactory } from "./Connection";
 
 const isConnectionLost = (connectionState: RTCPeerConnectionState) => {
     if (connectionState === "disconnected") return true;
@@ -16,7 +15,12 @@ const isConnectionLost = (connectionState: RTCPeerConnectionState) => {
     return false;
 }
 
-const Monitor: React.FunctionComponent = () => {
+interface Props {
+    factory: ConnectionFactory;
+    sessions: SessionsReader;
+}
+
+const Monitor: React.FunctionComponent<Props> = ({ factory, sessions }) => {
     const [session, setSession] = React.useState<Session | null>(null);
     const [connection, setConnection] = React.useState<Connection | null>(null);
     const [stream, setStream] = React.useState<MediaStream | null>(null);
@@ -24,9 +28,6 @@ const Monitor: React.FunctionComponent = () => {
     const [connectionState, setConnectionState] = React.useState<RTCPeerConnectionState>("new");
 
     const signaler = useConnection();
-    const sessions = React.useMemo(() => {
-        return new SessionsReaderAPI(signaler);
-    }, [signaler]);
 
     React.useEffect(() => {
         const handle = (event: Event) => {
@@ -77,7 +78,7 @@ const Monitor: React.FunctionComponent = () => {
         }
         if (session === null) return;
 
-        const newConnection = new Connection(signaler, session);
+        const newConnection = factory.create(session);
         newConnection.ontrack = (event: RTCTrackEvent) => {
             const stream = event.streams[0];
             setStream(stream);
