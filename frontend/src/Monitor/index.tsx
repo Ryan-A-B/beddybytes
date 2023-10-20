@@ -7,12 +7,22 @@ import useConnection from "../Connection/useConnection";
 import SessionDuration from "./SessionDuration";
 import { ClientDisconnectedEventDetail, EventTypeClientDisconnected } from "../Connection/Connection";
 import { Connection, ConnectionFactory } from "./Connection";
+import getWakeLocker from "../WakeLock";
 
 const isConnectionLost = (connectionState: RTCPeerConnectionState) => {
     if (connectionState === "disconnected") return true;
     if (connectionState === "failed") return true;
     if (connectionState === "closed") return true;
     return false;
+}
+
+const useSessionWakeLock = (session: Session | null) => {
+    React.useEffect(() => {
+        if (session === null) return;
+        const wakeLocker = getWakeLocker();
+        wakeLocker.lock();
+        return wakeLocker.unlock;
+    }, [session]);
 }
 
 interface Props {
@@ -26,6 +36,8 @@ const Monitor: React.FunctionComponent<Props> = ({ factory, sessions }) => {
     const [stream, setStream] = React.useState<MediaStream | null>(null);
     const [sessionEnded, setSessionEnded] = React.useState(false);
     const [connectionState, setConnectionState] = React.useState<RTCPeerConnectionState>("new");
+
+    useSessionWakeLock(session);
 
     const signaler = useConnection();
 
@@ -89,7 +101,7 @@ const Monitor: React.FunctionComponent<Props> = ({ factory, sessions }) => {
             setConnectionState(connection.connectionState);
         }
         setConnection(newConnection);
-    }, [signaler, connection]);
+    }, [factory, connection]);
 
     return (
         <div className="monitor">
