@@ -23,7 +23,7 @@ func (iterator *CompositeEventIterator) Next() bool {
 		return iterator.Next()
 	}
 	event := firstIterator.Event()
-	if event.LogicalClock <= iterator.head {
+	if event.LogicalClock < iterator.head {
 		return iterator.Next()
 	}
 	iterator.event = event

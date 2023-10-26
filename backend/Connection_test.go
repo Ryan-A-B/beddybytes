@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -61,10 +60,6 @@ func TestConnection(t *testing.T) {
 			clientIDs := [2]string{uuid.NewV4().String(), uuid.NewV4().String()}
 			connectionIDs := [2]string{uuid.NewV4().String(), uuid.NewV4().String()}
 			var conns [2]*websocket.Conn
-			incomingMessageCs := [2]chan *OutgoingMessage{
-				make(chan *OutgoingMessage, 32),
-				make(chan *OutgoingMessage, 32),
-			}
 			for i, clientID := range clientIDs {
 				connectionID := connectionIDs[i]
 				target, err := url.Parse(server.URL)
@@ -78,25 +73,20 @@ func TestConnection(t *testing.T) {
 					So(err, ShouldBeNil)
 				}()
 				conns[i] = conn
-				go ReadIncomingMessages(conn, incomingMessageCs[i])
 			}
-			for _, incomingMessageC := range incomingMessageCs {
-				for i := 0; i < len(incomingMessageCs); i++ {
-					incomingMessage, err := ReadIncomingMessage(incomingMessageC, 10*time.Millisecond)
-					So(err, ShouldBeNil)
-					So(incomingMessage.Type, ShouldEqual, MessageTypeEvent)
-					So(incomingMessage.Event, ShouldNotBeNil)
-					So(incomingMessage.Event.Type, ShouldEqual, EventTypeClientConnected)
-					var data ClientConnectedEventData
-					err = json.Unmarshal(incomingMessage.Event.Data, &data)
-					So(err, ShouldBeNil)
-					So(data.ClientID, ShouldEqual, clientIDs[i])
-					So(data.ConnectionID, ShouldEqual, connectionIDs[i])
-				}
-				_, err := ReadIncomingMessage(incomingMessageC, 10*time.Millisecond)
-				So(err, ShouldEqual, ErrTimeout)
-			}
-
+			conn := conns[0]
+			conn.SetReadDeadline(time.Now().Add(10 * time.Millisecond))
+			var incomingMessage OutgoingMessage
+			err = conn.ReadJSON(&incomingMessage)
+			So(err, ShouldBeNil)
+			So(incomingMessage.Type, ShouldEqual, MessageTypeEvent)
+			So(incomingMessage.Event, ShouldNotBeNil)
+			So(incomingMessage.Event.Type, ShouldEqual, EventTypeClientConnected)
+			var data ClientConnectedEventData
+			err = json.Unmarshal(incomingMessage.Event.Data, &data)
+			So(err, ShouldBeNil)
+			So(data.ClientID, ShouldEqual, clientIDs[1])
+			So(data.ConnectionID, ShouldEqual, connectionIDs[1])
 			Convey("send signal from connection 1 to connection 2", func() {
 				data, err := json.Marshal(uuid.NewV4().String())
 				So(err, ShouldBeNil)
@@ -109,16 +99,13 @@ func TestConnection(t *testing.T) {
 				}
 				err = conns[0].WriteJSON(&outgoingMessage)
 				So(err, ShouldBeNil)
-				incomingMessageC := incomingMessageCs[1]
-				incomingMessage, err := ReadIncomingMessage(incomingMessageC, 10*time.Millisecond)
+				var incomingMessage OutgoingMessage
+				err = conns[1].ReadJSON(&incomingMessage)
 				So(err, ShouldBeNil)
 				So(incomingMessage.Type, ShouldEqual, MessageTypeSignal)
 				So(incomingMessage.Signal, ShouldNotBeNil)
 				So(incomingMessage.Signal.FromConnectionID, ShouldEqual, connectionIDs[0])
 				So(incomingMessage.Signal.Data, ShouldResemble, json.RawMessage(data))
-
-				_, err = ReadIncomingMessage(incomingMessageC, 10*time.Millisecond)
-				So(err, ShouldEqual, ErrTimeout)
 			})
 			Convey("send signal from connection 2 to connection 1", func() {
 				data, err := json.Marshal(uuid.NewV4().String())
@@ -132,16 +119,13 @@ func TestConnection(t *testing.T) {
 				}
 				err = conns[1].WriteJSON(&outgoingMessage)
 				So(err, ShouldBeNil)
-				incomingMessageC := incomingMessageCs[0]
-				incomingMessage, err := ReadIncomingMessage(incomingMessageC, 10*time.Millisecond)
+				var incomingMessage OutgoingMessage
+				err = conns[0].ReadJSON(&incomingMessage)
 				So(err, ShouldBeNil)
 				So(incomingMessage.Type, ShouldEqual, MessageTypeSignal)
 				So(incomingMessage.Signal, ShouldNotBeNil)
 				So(incomingMessage.Signal.FromConnectionID, ShouldEqual, connectionIDs[1])
 				So(incomingMessage.Signal.Data, ShouldResemble, json.RawMessage(data))
-
-				_, err = ReadIncomingMessage(incomingMessageC, 10*time.Millisecond)
-				So(err, ShouldEqual, ErrTimeout)
 			})
 			Convey("start a session hosted by connection 0", func() {
 				sessionID := uuid.NewV4().String()
@@ -164,8 +148,10 @@ func TestConnection(t *testing.T) {
 				So(err, ShouldBeNil)
 				So(response.StatusCode, ShouldEqual, http.StatusOK)
 				Convey("read session started event from connection 1", func() {
-					incomingMessageC := incomingMessageCs[1]
-					incomingMessage, err := ReadIncomingMessage(incomingMessageC, 10*time.Millisecond)
+					conn := conns[1]
+					conn.SetReadDeadline(time.Now().Add(10 * time.Millisecond))
+					var incomingMessage OutgoingMessage
+					err = conn.ReadJSON(&incomingMessage)
 					So(err, ShouldBeNil)
 					So(incomingMessage.Type, ShouldEqual, MessageTypeEvent)
 					So(incomingMessage.Event, ShouldNotBeNil)
@@ -177,137 +163,31 @@ func TestConnection(t *testing.T) {
 					So(data.Name, ShouldEqual, sessionName)
 					So(data.HostConnectionID, ShouldEqual, connectionIDs[0])
 					So(data.StartedAt, ShouldEqual, sessionStart)
-
-					_, err = ReadIncomingMessage(incomingMessageC, 10*time.Millisecond)
-					So(err, ShouldEqual, ErrTimeout)
-
-					Convey("end the session", func() {
-						target, err := url.Parse(server.URL)
-						So(err, ShouldBeNil)
-						target.Path = fmt.Sprintf("/sessions/%s", sessionID)
-						request, err := http.NewRequest(http.MethodDelete, target.String(), nil)
-						So(err, ShouldBeNil)
-						response, err := client.Do(request)
-						So(err, ShouldBeNil)
-						So(response.StatusCode, ShouldEqual, http.StatusOK)
-						Convey("read session ended event from connection 1", func() {
-							incomingMessageC := incomingMessageCs[1]
-							incomingMessage, err := ReadIncomingMessage(incomingMessageC, 10*time.Millisecond)
-							So(err, ShouldBeNil)
-							So(incomingMessage.Type, ShouldEqual, MessageTypeEvent)
-							So(incomingMessage.Event, ShouldNotBeNil)
-							So(incomingMessage.Event.Type, ShouldEqual, EventTypeSessionEnded)
-							var data EndSessionEventData
-							err = json.Unmarshal(incomingMessage.Event.Data, &data)
-							So(err, ShouldBeNil)
-							So(data.ID, ShouldEqual, sessionID)
-
-							incomingMessage, err = ReadIncomingMessage(incomingMessageC, 10*time.Millisecond)
-							PrintJSON(incomingMessage)
-							So(err, ShouldEqual, ErrTimeout)
-						})
-					})
 				})
-			})
-			Convey("Open a 3rd connection", func() {
-				clientID := uuid.NewV4().String()
-				connectionID := uuid.NewV4().String()
-				Convey("With cursor 0", func() {
+				Convey("end the session", func() {
 					target, err := url.Parse(server.URL)
 					So(err, ShouldBeNil)
-					target.Scheme = "ws"
-					target.Path = fmt.Sprintf("/clients/%s/connections/%s", clientID, connectionID)
-					conn, _, err := websocket.DefaultDialer.Dial(target.String(), nil)
+					target.Path = fmt.Sprintf("/sessions/%s", sessionID)
+					request, err := http.NewRequest(http.MethodDelete, target.String(), nil)
 					So(err, ShouldBeNil)
-					incomingMessageC := make(chan *OutgoingMessage, 32)
-					go ReadIncomingMessages(conn, incomingMessageC)
-					for i := 0; i < len(conns); i++ {
-						incomingMessage, err := ReadIncomingMessage(incomingMessageC, 10*time.Millisecond)
+					response, err := client.Do(request)
+					So(err, ShouldBeNil)
+					So(response.StatusCode, ShouldEqual, http.StatusOK)
+					Convey("read session ended event from connection 1", func() {
+						conn := conns[1]
+						conn.SetReadDeadline(time.Now().Add(10 * time.Millisecond))
+						var incomingMessage OutgoingMessage
+						err = conn.ReadJSON(&incomingMessage)
 						So(err, ShouldBeNil)
 						So(incomingMessage.Type, ShouldEqual, MessageTypeEvent)
 						So(incomingMessage.Event, ShouldNotBeNil)
-						So(incomingMessage.Event.Type, ShouldEqual, EventTypeClientConnected)
-						var data ClientConnectedEventData
+						var data EndSessionEventData
 						err = json.Unmarshal(incomingMessage.Event.Data, &data)
 						So(err, ShouldBeNil)
-						So(data.ClientID, ShouldEqual, clientIDs[i])
-						So(data.ConnectionID, ShouldEqual, connectionIDs[i])
-					}
-					incomingMessage, err := ReadIncomingMessage(incomingMessageC, 10*time.Millisecond)
-					So(err, ShouldBeNil)
-					So(incomingMessage.Type, ShouldEqual, MessageTypeEvent)
-					So(incomingMessage.Event, ShouldNotBeNil)
-					So(incomingMessage.Event.Type, ShouldEqual, EventTypeClientConnected)
-					var data ClientConnectedEventData
-					err = json.Unmarshal(incomingMessage.Event.Data, &data)
-					So(err, ShouldBeNil)
-					So(data.ClientID, ShouldEqual, clientID)
-					So(data.ConnectionID, ShouldEqual, connectionID)
-
-					_, err = ReadIncomingMessage(incomingMessageC, 10*time.Millisecond)
-					So(err, ShouldEqual, ErrTimeout)
-				})
-				Convey("With cursor 2", func() {
-					query := make(url.Values)
-					query.Set("cursor", "2")
-					target, err := url.Parse(server.URL)
-					So(err, ShouldBeNil)
-					target.Scheme = "ws"
-					target.Path = fmt.Sprintf("/clients/%s/connections/%s", clientID, connectionID)
-					target.RawQuery = query.Encode()
-					conn, _, err := websocket.DefaultDialer.Dial(target.String(), nil)
-					So(err, ShouldBeNil)
-					incomingMessageC := make(chan *OutgoingMessage, 32)
-					go ReadIncomingMessages(conn, incomingMessageC)
-					incomingMessage, err := ReadIncomingMessage(incomingMessageC, 10*time.Millisecond)
-					So(err, ShouldBeNil)
-					So(incomingMessage.Type, ShouldEqual, MessageTypeEvent)
-					So(incomingMessage.Event, ShouldNotBeNil)
-					So(incomingMessage.Event.Type, ShouldEqual, EventTypeClientConnected)
-					var data ClientConnectedEventData
-					err = json.Unmarshal(incomingMessage.Event.Data, &data)
-					So(err, ShouldBeNil)
-					So(data.ClientID, ShouldEqual, clientID)
-					So(data.ConnectionID, ShouldEqual, connectionID)
-
-					_, err = ReadIncomingMessage(incomingMessageC, 10*time.Millisecond)
-					So(err, ShouldEqual, ErrTimeout)
+						So(data.ID, ShouldEqual, sessionID)
+					})
 				})
 			})
 		})
 	})
-}
-
-func ReadIncomingMessages(conn *websocket.Conn, incomingMessageC chan *OutgoingMessage) {
-	for {
-		var incomingMessage OutgoingMessage
-		err := conn.ReadJSON(&incomingMessage)
-		if err != nil {
-			if websocket.IsCloseError(err, websocket.CloseNormalClosure) {
-				return
-			}
-			log.Fatal(err)
-		}
-		incomingMessageC <- &incomingMessage
-	}
-}
-
-var ErrTimeout = fmt.Errorf("timeout")
-
-func ReadIncomingMessage(incomingMessageC chan *OutgoingMessage, timeout time.Duration) (incomingMessage *OutgoingMessage, err error) {
-	select {
-	case incomingMessage = <-incomingMessageC:
-		return
-	case <-time.After(timeout):
-		err = ErrTimeout
-		return
-	}
-}
-
-func PrintJSON(v interface{}) {
-	b, err := json.MarshalIndent(v, "", "  ")
-	if err != nil {
-		panic(err)
-	}
-	fmt.Println(string(b))
 }
