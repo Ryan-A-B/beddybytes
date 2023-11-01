@@ -92,6 +92,9 @@ Resources:
     Type: AWS::CloudFront::Distribution
     Properties:
       DistributionConfig:
+        Enabled: true
+        Aliases:
+          - !Ref DomainName
         DefaultRootObject: index.html
         Origins:
           - DomainName: !GetAtt Bucket.DomainName
@@ -103,12 +106,12 @@ Resources:
           TargetOriginId: !Ref Bucket
           ViewerProtocolPolicy: redirect-to-https
           CachePolicyId: !Ref CachePolicy
-        Enabled: true
-        Aliases:
-          - !Ref DomainName
+          Compress: true
+        HttpVersion: http2and3
         ViewerCertificate:
           AcmCertificateArn: !Ref Certificate
           SslSupportMethod: sni-only
+          MinimumProtocolVersion: TLSv1.2_2021
         CustomErrorResponses:
           - ErrorCode: 404
             ResponseCode: 200

@@ -15,20 +15,36 @@ Parameters:
   HostedZoneName:
     Description: The name of the hosted zone where the DNS record will be created
     Type: String
-  DomainName:
-    Description: The domain name where the DNS record will be created
+  APIDomainName:
+    Description: The domain name of the backend API
+    Type: String
+  InfluxDomainName:
+    Description: The domain name of the influxDB
+    Type: String
+  MyIpAddress:
+    Description: The IP address of the client that will be allowed to SSH into the EC2 instance
     Type: String
 
 Resources:
-  DNSRecord:
+  APIDNSRecord:
     Type: AWS::Route53::RecordSet
     Properties:
       HostedZoneName: !Ref HostedZoneName
-      Name: !Ref DomainName
+      Name: !Ref APIDomainName
       Type: A
       TTL: '900'
       ResourceRecords:
         - !Ref ElasticIP
+
+  InfluxDNSRecord:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneName: !Ref HostedZoneName
+      Name: !Ref InfluxDomainName
+      Type: A
+      TTL: '900'
+      ResourceRecords:
+        - !GetAtt Ec2Instance.PublicIp
 
   Ec2Instance:
     Type: AWS::EC2::Instance
@@ -37,7 +53,8 @@ Resources:
       InstanceType: !Ref InstanceType
       KeyName: !Ref KeyPair
       SecurityGroupIds:
-        - !Ref ApiSecurityGroup
+        - !Ref APISecurityGroup
+        - !Ref SSHSecurityGroup
       SubnetId: !Ref SubnetId
       IamInstanceProfile: !Ref IAMInstanceProfile
 
@@ -76,7 +93,7 @@ Resources:
       Roles:
         - !Ref IAMRole
 
-  ApiSecurityGroup:
+  APISecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupDescription: Security group for the API server
@@ -90,6 +107,17 @@ Resources:
           FromPort: 443
           ToPort: 443
           CidrIp: 0.0.0.0/0
+
+  SSHSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for the SSH server
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: !Ref MyIpAddress
 
   KeyPair:
     Type: AWS::EC2::KeyPair
@@ -119,6 +147,3 @@ Outputs:
   ElasticIpAddress:
     Description: The Elastic IP address associated with the API server
     Value: !Ref ElasticIP
-  SecurityGroupId:
-    Description: The security group ID of the API server
-    Value: !Ref ApiSecurityGroup

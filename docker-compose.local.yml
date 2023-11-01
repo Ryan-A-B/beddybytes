@@ -67,6 +67,11 @@ services:
       - "8086:8086"
     volumes:
       - ./influxdb/data:/var/lib/influxdb2
+    labels:
+      - "traefik.http.routers.influx.rule=Host(`influx.babymonitor.local`)"
+      - "traefik.http.routers.influx.entrypoints=websecure"
+      - "traefik.http.routers.influx.tls=true"
+      - "traefik.http.routers.influx.middlewares=headers-cors@docker"
       
 secrets:
   ENCRYPTION_KEY:
