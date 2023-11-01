@@ -1,19 +1,18 @@
 import React from "react";
 import { Link } from "react-router-dom";
+import YoutubeVideo from "./YoutubeVideo";
+import thumbnail from "./thumbnail.webp";
 
 const Instructions: React.FunctionComponent = () => {
     return (
         <div className="row align-items-center">
             <div className="col-12 col-xl order-xl-2">
                 <div className="ratio ratio-16x9">
-                    <iframe
+                    <YoutubeVideo
                         src="https://www.youtube.com/embed/AuUb7thmu80?si=IEg92DaB-DnvrZof"
                         title="YouTube video player"
-                        frameBorder="0"
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                        allowFullScreen
-                        className="w-100 h-100"
-                    ></iframe>
+                        thumbnail={thumbnail}
+                    />
                 </div>
             </div>
             <div className="col order-xl-1">
