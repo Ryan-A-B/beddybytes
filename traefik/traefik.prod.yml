@@ -22,3 +22,10 @@ log:
 accessLog:
   filePath: /opt/logs/access.log
   bufferingSize: 128
+
+metrics:
+  influxDB2:
+    address: http://influxdb:8086
+    token: ${INFLUXDB_TOKEN}
+    org: creativeilk
+    bucket: traefik
