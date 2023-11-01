@@ -89,8 +89,8 @@ services:
       - "traefik.http.routers.influx.rule=Host(`influx.babymonitor.creativeilk.com`)"
       - "traefik.http.routers.influx.entrypoints=websecure"
       - "traefik.http.routers.influx.tls=true"
-      - "traefik.http.routers.square.tls.certresolver=letsencrypt"
-      - "traefik.http.routers.square.tls.domains[0].main=influx.babymonitor.creativeilk.com"
+      - "traefik.http.routers.influx.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.influx.tls.domains[0].main=influx.babymonitor.creativeilk.com"
       - "traefik.http.routers.influx.middlewares=headers-cors@docker"
 
 secrets:
