@@ -1,13 +1,13 @@
 import React from "react";
-import "./Monitor.scss";
-import Video from "./Video";
+import getWakeLocker from "../WakeLock";
 import SessionDropdown from "../Sessions/SessionDropdown";
 import { EventTypeSessionEnded, Session, SessionEndedEventDetail, SessionsReader } from "../Sessions/Sessions";
-import useConnection from "../Connection/useConnection";
-import SessionDuration from "./SessionDuration";
 import { ClientDisconnectedEventDetail, EventTypeClientDisconnected } from "../Connection/Connection";
 import { Connection, ConnectionFactory } from "./Connection";
-import getWakeLocker from "../WakeLock";
+import useConnection from "../Connection/useConnection";
+import SessionDuration from "./SessionDuration";
+import Stream from "./Stream";
+import "./Monitor.scss";
 
 const isConnectionLost = (connectionState: RTCPeerConnectionState) => {
     if (connectionState === "disconnected") return true;
@@ -118,7 +118,7 @@ const Monitor: React.FunctionComponent<Props> = ({ factory, sessions }) => {
             )}
             {session && <SessionDuration startedAt={session.started_at} />}
             {session && stream && (
-                <Video
+                <Stream
                     stream={stream}
                     key={session.id}
                 />

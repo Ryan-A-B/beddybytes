@@ -1,15 +1,23 @@
 import React from 'react';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faTag, faMicrophone, faVideo } from '@fortawesome/free-solid-svg-icons';
+
+import getWakeLocker from '../WakeLock';
 import Input from '../FormComponents/Input';
 import useConnection from '../Connection/useConnection';
 import { Session } from '../Sessions/Sessions';
 import SessionsWriterAPI from '../Sessions/SessionsWriterAPI';
 import SelectVideoDevice from './SelectVideoDevice';
-import VideoStream from './VideoStream';
+import SelectAudioDevice from './SelectAudioDevice';
+import MediaStream from './MediaStream';
 import useVideoAndAudioPermission from './useVideoAndAudioPermission';
 import SessionToggle from './SessionToggle';
 import './Camera.scss';
 
 const DefaultSessionName = 'Camera';
+
+const LocalStorageAudioDeviceIDKey = 'audio_device_id';
+const LocalStorageVideoDeviceIDKey = 'video_device_id';
 
 const useSessionName = () => {
     const [sessionName, setSessionName] = React.useState(() => {
@@ -24,19 +32,46 @@ const useSessionName = () => {
     return [sessionName, setAndStoreSessionName] as const;
 }
 
+const useSessionWakeLock = (session: Session | null) => {
+    React.useEffect(() => {
+        if (session === null) return;
+        const wakeLocker = getWakeLocker();
+        wakeLocker.lock();
+        return wakeLocker.unlock;
+    }, [session]);
+}
+
 const sessions = new SessionsWriterAPI();
 
 const Camera: React.FunctionComponent = () => {
     const connection = useConnection();
     const permissionPromiseState = useVideoAndAudioPermission();
     const [sessionName, setSessionName] = useSessionName();
-    const [videoDeviceID, setVideoDeviceID] = React.useState('');
+    const [audioDeviceID, setAudioDeviceID] = React.useState(() => {
+        const audioDeviceID = localStorage.getItem(LocalStorageAudioDeviceIDKey);
+        if (audioDeviceID === null) return '';
+        return audioDeviceID;
+    });
+    const [videoDeviceID, setVideoDeviceID] = React.useState(() => {
+        const videoDeviceID = localStorage.getItem(LocalStorageVideoDeviceIDKey);
+        if (videoDeviceID === null) return '';
+        return videoDeviceID;
+    });
     const canActivateSession = React.useMemo(() => {
         if (sessionName === '') return false;
-        if (videoDeviceID === '') return false;
+        if (audioDeviceID === '') return false;
         return true;
     }, [sessionName, videoDeviceID]);
     const [session, setSession] = React.useState<Session | null>(null);
+    useSessionWakeLock(session);
+    const setAudioDeviceIDAndStore = React.useCallback((audioDeviceID: string) => {
+        localStorage.setItem(LocalStorageAudioDeviceIDKey, audioDeviceID);
+        setAudioDeviceID(audioDeviceID);
+    }, []);
+    const setVideoDeviceIDAndStore = React.useCallback((videoDeviceID: string) => {
+        localStorage.setItem(LocalStorageVideoDeviceIDKey, videoDeviceID);
+        setVideoDeviceID(videoDeviceID);
+    }, []);
     const startSession = React.useCallback(async () => {
         const session = await sessions.start({
             host_connection_id: connection.id,
@@ -49,7 +84,6 @@ const Camera: React.FunctionComponent = () => {
         await sessions.end({
             session_id: session.id,
         });
-        setVideoDeviceID('');
         setSession(null);
     }, [sessions, session]);
     if (permissionPromiseState.state === 'pending') return (
@@ -64,23 +98,45 @@ const Camera: React.FunctionComponent = () => {
     );
     return (
         <main className="camera">
-            <div className="row align-items-center g-2">
-                <div className="form-group col-sm">
-                    <Input
-                        value={sessionName}
-                        onChange={setSessionName}
-                        className="form-control"
-                        disabled={session !== null}
-                    />
+            <div className="row justify-content-center g-2">
+                <div className="form-group col-sm-auto col-lg">
+                    <div className="input-group">
+                        <span className="input-group-text">
+                            <FontAwesomeIcon icon={faTag} />
+                        </span>
+                        <Input
+                            value={sessionName}
+                            onChange={setSessionName}
+                            className="form-control"
+                            disabled={session !== null}
+                        />
+                    </div>
                 </div>
-                <div className="form-group col">
-                    <SelectVideoDevice
-                        value={videoDeviceID}
-                        onChange={setVideoDeviceID}
-                        disabled={session !== null}
-                    />
+                <div className="form-group col-sm-auto col-lg">
+                    <div className="input-group">
+                        <span className="input-group-text">
+                            <FontAwesomeIcon icon={faMicrophone} />
+                        </span>
+                        <SelectAudioDevice
+                            value={audioDeviceID}
+                            onChange={setAudioDeviceIDAndStore}
+                            disabled={session !== null}
+                        />
+                    </div>
                 </div>
-                <div className="form-group col-lg-1 col-sm-2 col-3">
+                <div className="form-group col-sm-auto col-lg">
+                    <div className="input-group">
+                        <span className="input-group-text">
+                            <FontAwesomeIcon icon={faVideo} />
+                        </span>
+                        <SelectVideoDevice
+                            value={videoDeviceID}
+                            onChange={setVideoDeviceIDAndStore}
+                            disabled={session !== null}
+                        />
+                    </div>
+                </div>
+                <div className="form-group col col-md-auto">
                     <SessionToggle
                         session={session}
                         startSession={startSession}
@@ -89,13 +145,12 @@ const Camera: React.FunctionComponent = () => {
                     />
                 </div>
             </div>
-            {videoDeviceID && (
-                <VideoStream
-                    videoDeviceID={videoDeviceID}
-                    sessionActive={session !== null}
-                    key={videoDeviceID}
-                />
-            )}
+            <MediaStream
+                audioDeviceID={audioDeviceID}
+                videoDeviceID={videoDeviceID}
+                sessionActive={session !== null}
+                key={videoDeviceID}
+            />
         </main >
     )
 };

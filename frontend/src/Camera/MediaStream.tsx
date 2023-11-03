@@ -4,19 +4,30 @@ import Connections from "./Connections";
 import useConnection from "../Connection/useConnection";
 
 interface Props {
+    audioDeviceID: string
     videoDeviceID: string
     sessionActive: boolean
 }
 
-const VideoStream: React.FunctionComponent<Props> = ({ videoDeviceID, sessionActive }) => {
+const getAudioConstraint = (audioDeviceID: string): MediaStreamConstraints["audio"] => {
+    if (audioDeviceID === '') return true;
+    return { deviceId: audioDeviceID };
+}
+
+const getVideoConstraint = (videoDeviceID: string): MediaStreamConstraints["video"] => {
+    if (videoDeviceID === '') return false;
+    return { deviceId: videoDeviceID };
+}
+
+const MediaStream: React.FunctionComponent<Props> = ({ audioDeviceID, videoDeviceID, sessionActive }) => {
     const connection = useConnection();
     const videoRef = React.useRef<HTMLVideoElement>(null);
     const getUserMedia = React.useMemo(() => {
         return navigator.mediaDevices.getUserMedia({
-            video: { deviceId: videoDeviceID },
-            audio: true,
+            audio: getAudioConstraint(audioDeviceID),
+            video: getVideoConstraint(videoDeviceID),
         });
-    }, [videoDeviceID]);
+    }, [audioDeviceID, videoDeviceID]);
     const stream = usePromise(getUserMedia);
     React.useEffect(() => {
         if (stream.state !== 'resolved') return;
@@ -35,9 +46,21 @@ const VideoStream: React.FunctionComponent<Props> = ({ videoDeviceID, sessionAct
     }, [connection, sessionActive, stream]);
     if (stream.state === 'pending') return (<div>Getting stream...</div>)
     if (stream.state === 'rejected') return (<div>Failed to get stream: {stream.error.message}</div>)
+    // TODO render a basic audio visualizer
+    if (videoDeviceID === '') return (
+        <div>
+            Audio only
+        </div>
+    )
     return (
-        <video ref={videoRef} autoPlay playsInline muted className="video my-3" />
+        <video
+            ref={videoRef}
+            autoPlay
+            playsInline
+            muted
+            className={`video my-3 ${sessionActive && 'active'}`}
+        />
     )
 };
 
-export default VideoStream;
+export default MediaStream;

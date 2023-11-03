@@ -18,19 +18,19 @@ const getUniqueDevices = (devices: MediaDeviceInfo[]): MediaDeviceInfo[] => {
 
 const SelectVideoDevice: React.FunctionComponent<Props> = ({ value, onChange, disabled }) => {
     const devices = useMediaDeviceEnumeration();
-    const videoDevices = React.useMemo(() => {
-        const videoDevices = devices.filter((device) => device.kind === 'videoinput');
-        return getUniqueDevices(videoDevices);
+    const audioDevices = React.useMemo(() => {
+        const audioDevices = devices.filter((device) => device.kind === 'audioinput');
+        return getUniqueDevices(audioDevices);
     }, [devices]);
     const handleChange = React.useCallback((event: React.ChangeEvent<HTMLSelectElement>) => {
         onChange(event.target.value);
     }, [onChange]);
     return (
         <select value={value} onChange={handleChange} className="form-select" disabled={disabled}>
-            <option value="">No camera</option>
-            {videoDevices.map((device, i) => (
+            <option value="">Default microphone</option>
+            {audioDevices.map((device, i) => (
                 <option key={device.deviceId} value={device.deviceId}>
-                    {device.label || `Camera ${i + 1}`}
+                    {device.label || `Microphone ${i + 1}`}
                 </option>
             ))}
         </select>

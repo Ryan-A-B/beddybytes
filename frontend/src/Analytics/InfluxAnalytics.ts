@@ -22,7 +22,6 @@ class InfluxAnalytics implements Analytics {
     private writer: WriteApi;
 
     constructor(client_id: string) {
-        console.log('Initializing Influx analytics');
         const org = getOrg();
         const bucket = 'app';
         this.writer = getClient().getWriteApi(org, bucket, 'ms');
@@ -32,7 +31,6 @@ class InfluxAnalytics implements Analytics {
     }
 
     public recordPageView = (page: string) => {
-        console.log(`Recording page view for ${page}`)
         const point = new Point('page_views')
             .tag('page', page)
             .intField('count', 1);
@@ -40,7 +38,6 @@ class InfluxAnalytics implements Analytics {
     }
 
     public recordPageViewDuration = (page: string, duration: Duration) => {
-        console.log(`Recording page view duration for ${page}`)
         const point = new Point('page_view_durations')
             .tag('page', page)
             .uintField('duration', duration.asMilliseconds());

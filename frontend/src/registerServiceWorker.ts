@@ -3,8 +3,7 @@ const registerServiceWorker = async () => {
     const serviceWorkerAvailable = 'serviceWorker' in navigator
     if (!serviceWorkerAvailable) return;
     try {
-        const registration = await navigator.serviceWorker.register(`/service-worker.js`, { scope: '/' });
-        console.log('ServiceWorker registration successful:', registration);
+        await navigator.serviceWorker.register(`/service-worker.js`, { scope: '/' });
     } catch (err) {
         console.error('ServiceWorker registration failed:', err);
     }
