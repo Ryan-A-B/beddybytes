@@ -58,10 +58,8 @@ const Camera: React.FunctionComponent = () => {
         return videoDeviceID;
     });
     const canActivateSession = React.useMemo(() => {
-        if (sessionName === '') return false;
-        if (audioDeviceID === '') return false;
-        return true;
-    }, [sessionName, videoDeviceID]);
+        return sessionName !== '';
+    }, [sessionName]);
     const [session, setSession] = React.useState<Session | null>(null);
     useSessionWakeLock(session);
     const setAudioDeviceIDAndStore = React.useCallback((audioDeviceID: string) => {
