@@ -1,46 +1,44 @@
 import React from 'react';
-import { Route, Routes, useLocation } from 'react-router-dom';
-import Login from './Login';
-import Navbar from './Navbar';
-import Payments from './Payments';
-import Instructions from './Instructions';
-import Camera from './Camera';
-import Monitor from './Monitor';
-import Account from './Account';
+import { Route, Routes } from 'react-router-dom';
+import Navbar from './components/Navbar';
+import Login from './pages/Login';
+import Instructions from './pages/Instructions';
+import Camera from './pages/Camera';
+import Monitor from './pages/Monitor';
+import Account from './pages/Account';
 
-import useConnection from "./Connection/useConnection";
-import RTCConnectionFactory from './Monitor/Connection/RTCConnectionFactory';
-import SessionsReaderAPI from './Sessions/SessionsReaderAPI';
-import PageViewTracker from './Analytics/PageViewTracker';
-import analytics from './Analytics';
+import useConnectionStatus from './hooks/useConnectionStatus';
+import useSessionList from './hooks/useSessionList';
+
+import { ConnectionFactory } from './pages/Monitor/Connection';
+import MockConnectionFactory from './pages/Monitor/Connection/MockConnectionFactory';
+import RTCConnectionFactory from './pages/Monitor/Connection/RTCConnectionFactory';
 
 import './App.scss';
 
 const App: React.FunctionComponent = () => {
-  const location = useLocation();
-  const signaler = useConnection();
-  const [connectionFactory, sessions] = React.useMemo(() => {
-    return [
-      new RTCConnectionFactory(signaler),
-      new SessionsReaderAPI(signaler),
-    ];
-  }, [signaler]);
+  const connection_status = useConnectionStatus();
+  const session_list = useSessionList();
+
+  const connectionFactory = React.useMemo<ConnectionFactory>(() => {
+    if (connection_status.status === "not_connected") return new MockConnectionFactory();
+    const signaler = connection_status.connection;
+    return new RTCConnectionFactory(signaler);
+  }, [connection_status]);
 
   return (
     <React.Fragment>
       <Navbar />
-      <Login>
-        <div className="container">
-          <Payments />
-          <PageViewTracker analytics={analytics} page={location.pathname} />
+      <div className="container">
+        <Login>
           <Routes>
             <Route path="/" element={<Instructions />} />
             <Route path="/camera" element={<Camera />} />
-            <Route path="/monitor" element={<Monitor factory={connectionFactory} sessions={sessions} />} />
+            <Route path="/monitor" element={<Monitor factory={connectionFactory} session_list={session_list} />} />
             <Route path="/account" element={<Account />} />
           </Routes>
-        </div>
-      </Login>
+        </Login>
+      </div>
     </React.Fragment>
   );
 }

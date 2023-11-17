@@ -82,8 +82,11 @@ type OutgoingSignal struct {
 }
 
 type Event struct {
-	Type string          `json:"type"`
-	Data json.RawMessage `json:"data"`
+	ID            string          `json:"id"`
+	Type          string          `json:"type"`
+	LogicalClock  int             `json:"logical_clock"`
+	UnixTimestamp int64           `json:"unix_timestamp"`
+	Data          json.RawMessage `json:"data"`
 }
 
 type ConnectionStoreKey struct {
@@ -226,8 +229,11 @@ func (connection *Connection) sendEvents(ctx context.Context, iterator eventlog.
 		connection.conn.WriteJSON(OutgoingMessage{
 			Type: MessageTypeEvent,
 			Event: &Event{
-				Type: event.Type,
-				Data: event.Data,
+				ID:            event.ID,
+				Type:          event.Type,
+				LogicalClock:  event.LogicalClock,
+				UnixTimestamp: event.UnixTimestamp,
+				Data:          event.Data,
 			},
 		})
 	}

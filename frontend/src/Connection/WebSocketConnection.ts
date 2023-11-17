@@ -2,22 +2,21 @@ import { v4 as uuid } from 'uuid';
 import settings from '../settings';
 import authorization from '../authorization';
 import Connection, { Signal } from './Connection';
+import AuthorizationService from '../services/AuthorizationService';
+import eventstore from '../eventstore';
 
 const sleep =  (duration: number) => new Promise((resolve) => setTimeout(resolve, duration));
 
+export const EventTypeRemoteEvent = 'remote_event';
+
 interface IncomingMessageEvent {
     type: 'event';
-    event: IncomingEvent;
+    event: eventstore.Event<unknown>;
 }
 
 interface IncomingMessageSignal {
     type: 'signal';
     signal: IncomingSignal;
-}
-
-interface IncomingEvent {
-    type: string;
-    data: any;
 }
 
 interface IncomingSignal {
@@ -27,13 +26,17 @@ interface IncomingSignal {
 
 type IncomingMessage = IncomingMessageEvent | IncomingMessageSignal;
 
+interface CreateWebSocketConnectionInput {
+    authorization_service: AuthorizationService;
+}
+
 class WebSocketConnection extends EventTarget implements Connection {
-    private static MAX_RECONNECT_DELAY = 30000;
-    private static INITIAL_RECONNECT_DELAY = 1000;
+    private static InitialReconnectDelay = 1000;
+    private static MaxReconnectDelay = 30000;
     readonly id: string;
     private ws: WebSocket;
     private reconnecting = false;
-    private reconnectDelay = WebSocketConnection.INITIAL_RECONNECT_DELAY;
+    private reconnectDelay = WebSocketConnection.InitialReconnectDelay;
     private constructor(connectionID: string, ws: WebSocket) {
         super();
         this.id = connectionID;
@@ -44,7 +47,7 @@ class WebSocketConnection extends EventTarget implements Connection {
     }
 
     private onOpen = (event: Event) => {
-        this.reconnectDelay = WebSocketConnection.INITIAL_RECONNECT_DELAY;
+        this.reconnectDelay = WebSocketConnection.InitialReconnectDelay;
     }
 
     private onMessage = (event: MessageEvent) => {
@@ -67,7 +70,8 @@ class WebSocketConnection extends EventTarget implements Connection {
         this.reconnect();
     }
 
-    private onEvent = (event: IncomingEvent) => {
+    private onEvent = (event: eventstore.Event<unknown>) => {
+        this.dispatchEvent(new CustomEvent(EventTypeRemoteEvent, { detail: event }));
         this.dispatchEvent(new CustomEvent(event.type, { detail: event.data }));
     }
 
@@ -87,8 +91,8 @@ class WebSocketConnection extends EventTarget implements Connection {
         this.reconnecting = true;
         await sleep(this.reconnectDelay);
         this.reconnectDelay *= 2;
-        if (this.reconnectDelay > WebSocketConnection.MAX_RECONNECT_DELAY)
-            this.reconnectDelay = WebSocketConnection.MAX_RECONNECT_DELAY;
+        if (this.reconnectDelay > WebSocketConnection.MaxReconnectDelay)
+            this.reconnectDelay = WebSocketConnection.MaxReconnectDelay;
         this.reconnecting = false;
         this.ws = await WebSocketConnection.connect(this.id);
         this.ws.onopen = this.onOpen;
@@ -97,7 +101,7 @@ class WebSocketConnection extends EventTarget implements Connection {
         this.ws.onclose = this.onClose;
     }
 
-    static async create(): Promise<Connection> {
+    static async create(input: CreateWebSocketConnectionInput): Promise<Connection> {
         const connectionID = uuid();
         const ws = await WebSocketConnection.connect(connectionID);
         return new WebSocketConnection(connectionID, ws);
@@ -105,7 +109,9 @@ class WebSocketConnection extends EventTarget implements Connection {
 
     private static async connect(connectionID: string): Promise<WebSocket> {
         const accessToken = await authorization.getAccessToken();
-        return new WebSocket(`wss://${settings.API.host}/clients/${settings.API.clientID}/connections/${connectionID}?access_token=${accessToken}`);
+        const query_parameters = new URLSearchParams();
+        query_parameters.set('access_token', accessToken);
+        return new WebSocket(`wss://${settings.API.host}/clients/${settings.API.clientID}/connections/${connectionID}?${query_parameters.toString()}`);
     }
 }
 
