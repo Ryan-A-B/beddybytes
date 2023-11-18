@@ -160,6 +160,10 @@ func (handlers *Handlers) AddRoutes(router *mux.Router) {
 	sessionRouter.HandleFunc("", handlers.ListSessions).Methods(http.MethodGet).Name("ListSessions")
 	sessionRouter.HandleFunc("/{session_id}", handlers.StartSession).Methods(http.MethodPut).Name("StartSession")
 	sessionRouter.HandleFunc("/{session_id}", handlers.EndSession).Methods(http.MethodDelete).Name("EndSession")
+
+	eventsRouter := router.PathPrefix("/events").Subrouter()
+	eventsRouter.Use(internal.NewAuthorizationMiddleware(handlers.Key).Middleware)
+	eventsRouter.HandleFunc("", handlers.GetEvents).Methods(http.MethodGet).Name("GetEvents")
 }
 
 func main() {

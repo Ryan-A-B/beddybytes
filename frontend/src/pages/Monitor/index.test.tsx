@@ -7,10 +7,9 @@ import moment from 'moment';
 import Monitor from '.';
 import MockConnectionFactory from './Connection/MockConnectionFactory';
 import { Session } from '../../services/SessionListService';
+import eventstore from '../../eventstore';
 
 export default MockConnectionFactory;
-
-const RFC3339 = 'YYYY-MM-DDTHH:mm:ssZ';
 
 describe('Monitor', () => {
     describe('should render correctly', () => {
@@ -38,8 +37,11 @@ describe('Monitor', () => {
                 id: uuid(),
                 name: uuid(),
                 host_connection_id: uuid(),
-                started_at: moment().format(RFC3339),
-                connected: true,
+                started_at: moment(),
+                host_connection_state: {
+                    state: 'connected',
+                    since: moment(),
+                },
             }
             const session_list = List<Session>([session])
             const component = render(

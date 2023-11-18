@@ -1,4 +1,4 @@
-import { Session } from "../../../Sessions/Sessions";
+import { Session } from "../../../services/SessionListService";
 
 type OnTrack = (event: RTCTrackEvent) => void;
 type OnConnectionStateChange = (event: Event) => void;

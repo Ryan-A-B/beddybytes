@@ -28,7 +28,7 @@ const SessionsDropdown: React.FunctionComponent<Props> = ({ session_list, value,
             <option value="">Select a session</option>
             {session_list.map((session) => (
                 <option value={session.id} key={session.id}>
-                    {session.name}
+                    {session.name} {session.host_connection_state.state === 'connected' ? '🟢' : '🔴'}
                 </option>
             ))}
         </select>

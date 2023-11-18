@@ -1,5 +1,5 @@
 import { Connection, ConnectionFactory } from ".";
-import { Session } from "../../../Sessions/Sessions";
+import { Session } from "../../../services/SessionListService";
 
 class MockConnection implements Connection {
     session: Session;

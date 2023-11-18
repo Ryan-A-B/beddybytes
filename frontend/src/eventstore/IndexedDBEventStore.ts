@@ -1,7 +1,7 @@
 import eventstore from ".";
 
 interface CursorWithEvent extends IDBCursorWithValue {
-    value: eventstore.Event<unknown>
+    value: eventstore.Event
 }
 
 class IndexedDBEventStore implements eventstore.EventStore {
@@ -11,13 +11,12 @@ class IndexedDBEventStore implements eventstore.EventStore {
         this.db = db;
     }
 
-    put(event: eventstore.Event<unknown>): Promise<void> {
+    put(event: eventstore.Event): Promise<void> {
         return new Promise((resolve, reject) => {
             const transaction = this.db.transaction("events", "readwrite");
             const object_store = transaction.objectStore("events");
-            const key = event.logical_clock;
-            const request = object_store.put(event, key);
-            request.onsuccess = (event) => {
+            const request = object_store.put(event);
+            request.onsuccess = (event: Event) => {
                 resolve();
             };
             request.onerror = reject;
@@ -40,14 +39,34 @@ class IndexedDBEventStore implements eventstore.EventStore {
         }
     }
 
+    async get_last_event(): Promise<eventstore.Event | null> {
+        const transaction = this.db.transaction("events", "readonly");
+        const object_store = transaction.objectStore("events");
+        const request = object_store.openCursor(null, "prev");
+        const cursor = await new Promise<CursorWithEvent | null>((resolve, reject) => {
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = reject;
+        });
+        if (cursor === null) return null;
+        return cursor.value;
+    }
+
     static create(name: string): Promise<IndexedDBEventStore> {
         return new Promise((resolve, reject) => {
             const request = window.indexedDB.open(name, 1);
-            request.onsuccess = (event) => {
-                resolve(new IndexedDBEventStore(request.result));
+            request.onsuccess = (event: Event) => {
+                const db = request.result;
+                resolve(new IndexedDBEventStore(db));
             };
             request.onerror = reject;
-            // TODO handle onupgradeneeded
+            request.onupgradeneeded = (event: IDBVersionChangeEvent) => {
+                const db = request.result;
+                const object_store = db.createObjectStore("events", {
+                    keyPath: "logical_clock",
+                    autoIncrement: false,
+                });
+                object_store.createIndex("logical_clock", "logical_clock", { unique: true });
+            };
         });
     }
 }

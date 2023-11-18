@@ -2,9 +2,9 @@ import { List } from "immutable";
 import eventstore from ".";
 
 class InMemoryEventStore implements eventstore.EventStore {
-    private events: List<eventstore.Event<unknown>> = List();
+    private events: List<eventstore.Event> = List();
 
-    async put(event: eventstore.Event<unknown>): Promise<void> {
+    async put(event: eventstore.Event): Promise<void> {
         this.events = this.events.push(event);
     }
 
@@ -15,6 +15,10 @@ class InMemoryEventStore implements eventstore.EventStore {
         for await (const event of events.values()) {
             yield event;
         }
+    }
+
+    async get_last_event(): Promise<eventstore.Event | null> {
+        return this.events.last(null);
     }
 }
 

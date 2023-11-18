@@ -3,7 +3,6 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faTag, faMicrophone, faVideo } from '@fortawesome/free-solid-svg-icons';
 
 import Input from '../../components/Input';
-import { Session } from '../../Sessions/Sessions';
 import SessionsWriterAPI from '../../Sessions/SessionsWriterAPI';
 import SelectVideoDevice from './SelectVideoDevice';
 import SelectAudioDevice from './SelectAudioDevice';
@@ -12,7 +11,8 @@ import useVideoAndAudioPermission from '../../hooks/useVideoAndAudioPermission';
 import SessionToggle from './SessionToggle';
 import './Camera.scss';
 import useConnectionStatus from '../../hooks/useConnectionStatus';
-import useSessionWakeLock from '../../hooks/useSessionWakeLock';
+import useWakeLock from '../../hooks/useWakeLock';
+import { Session } from '../../Sessions/Sessions';
 
 const DefaultSessionName = 'Camera';
 
@@ -53,7 +53,7 @@ const Camera: React.FunctionComponent = () => {
         return true;
     }, [sessionName]);
     const [session, setSession] = React.useState<Session | null>(null);
-    useSessionWakeLock(session);
+    useWakeLock(session !== null);
     const setAudioDeviceIDAndStore = React.useCallback((audioDeviceID: string) => {
         localStorage.setItem(LocalStorageAudioDeviceIDKey, audioDeviceID);
         setAudioDeviceID(audioDeviceID);

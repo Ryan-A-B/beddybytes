@@ -9,7 +9,7 @@ class FollowingDecorator implements eventstore.EventStore {
         this.decorated = decorated;
     }
 
-    async put(event: eventstore.Event<unknown>): Promise<void> {
+    async put(event: eventstore.Event): Promise<void> {
         await this.decorated.put(event);
         this.followers.forEach(follower => follower.push(event));
     }
@@ -24,10 +24,14 @@ class FollowingDecorator implements eventstore.EventStore {
             yield event;
         }
     }
+
+    async get_last_event(): Promise<eventstore.Event | null> {
+        return this.decorated.get_last_event();
+    }
 }
 
 class Follower {
-    private queue: eventstore.Event<unknown>[] = [];
+    private queue: eventstore.Event[] = [];
     private promise: Promise<void>;
     private resolve: () => void = () => {
         throw new Error("resolve called before promise was created");
@@ -39,7 +43,7 @@ class Follower {
         });
     }
 
-    push(event: eventstore.Event<unknown>) {
+    push(event: eventstore.Event) {
         this.queue.push(event);
         this.resolve();
         this.promise = new Promise(resolve => {

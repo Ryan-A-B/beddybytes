@@ -1,5 +1,7 @@
 namespace eventstore {
-    export interface Event<T> {
+    export const MomentFormat = 'X';
+
+    export interface Event<T = unknown> {
         id: string,
         type: string,
         logical_clock: number,
@@ -12,11 +14,12 @@ namespace eventstore {
     }
 
     export interface EventStore {
-        put(event: Event<unknown>): Promise<void>,
+        put(event: Event): Promise<void>,
         get_events(input: GetEventIteratorInput): AsyncEventIterator,
+        get_last_event(): Promise<Event | null>,
     }
 
-    export type AsyncEventIterator = AsyncIterableIterator<Event<unknown>>
+    export type AsyncEventIterator = AsyncIterableIterator<Event>
 }
 
 export default eventstore;

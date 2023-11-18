@@ -3,8 +3,7 @@ import { v4 as uuid } from 'uuid';
 import settings from '../settings';
 import authorization from '../authorization';
 import { EndSessionInput, Session, SessionsWriter, StartSessionInput } from './Sessions';
-
-const RFC3339 = 'YYYY-MM-DDTHH:mm:ssZ';
+import eventstore from '../eventstore';
 
 const isClientError = (code: number): boolean => (code >= 400 && code < 500);
 
@@ -52,7 +51,7 @@ class SessionsWriterAPI implements SessionsWriter {
             id: uuid(),
             name: input.session_name,
             host_connection_id: input.host_connection_id,
-            started_at: now.format(RFC3339),
+            started_at: now.format(eventstore.MomentFormat),
         };
         await startSession(session)
         return session;

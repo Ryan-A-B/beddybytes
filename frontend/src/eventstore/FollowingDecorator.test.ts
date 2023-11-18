@@ -13,7 +13,7 @@ describe('FollowingDecorator', () => {
         it('should follow one event', async () => {
             const eventstore = new FollowingDecorator(new NullEventStore());
             const iterator = eventstore.get_events({ from_cursor: 0 });
-            const event: eventstore.Event<unknown> = {
+            const event: eventstore.Event = {
                 id: uuid(),
                 type: uuid(),
                 logical_clock: 1,
@@ -30,7 +30,7 @@ describe('FollowingDecorator', () => {
         it('should follow two events', async () => {
             const eventstore = new FollowingDecorator(new NullEventStore());
             const iterator = eventstore.get_events({ from_cursor: 0 });
-            const events: eventstore.Event<unknown>[] = [
+            const events: eventstore.Event[] = [
                 {
                     id: uuid(),
                     type: uuid(),
@@ -63,7 +63,7 @@ describe('FollowingDecorator', () => {
             const iterator = eventstore.get_events({ from_cursor: 0 });
             const n_iterations = getRandomInt(1, 10);
             for (let i = 0; i < n_iterations; i++) {
-                const events: eventstore.Event<unknown>[] = []
+                const events: eventstore.Event[] = []
                 const n_events = getRandomInt(1, 30);
                 for (let j = 0; j < n_events; j++) {
                     events.push({
@@ -87,7 +87,7 @@ describe('FollowingDecorator', () => {
         it('should follow one event', async () => {
             const eventstore = new FollowingDecorator(new InMemoryEventStore());
             const n_existing_events = getRandomInt(1, 30);
-            const existing_events: eventstore.Event<unknown>[] = []
+            const existing_events: eventstore.Event[] = []
             for (let i = 0; i < n_existing_events; i++) {
                 existing_events.push({
                     id: uuid(),
@@ -99,7 +99,7 @@ describe('FollowingDecorator', () => {
                 eventstore.put(existing_events[i]);
             }
             const iterator = eventstore.get_events({ from_cursor: 0 });
-            const event: eventstore.Event<unknown> = {
+            const event: eventstore.Event = {
                 id: uuid(),
                 type: uuid(),
                 logical_clock: n_existing_events + 1,
@@ -121,7 +121,7 @@ describe('FollowingDecorator', () => {
         it('should follow two events', async () => {
             const eventstore = new FollowingDecorator(new InMemoryEventStore());
             const n_existing_events = getRandomInt(1, 30);
-            const existing_events: eventstore.Event<unknown>[] = []
+            const existing_events: eventstore.Event[] = []
             for (let i = 0; i < n_existing_events; i++) {
                 existing_events.push({
                     id: uuid(),
@@ -133,7 +133,7 @@ describe('FollowingDecorator', () => {
                 eventstore.put(existing_events[i]);
             }
             const iterator = eventstore.get_events({ from_cursor: 0 });
-            const events: eventstore.Event<unknown>[] = [
+            const events: eventstore.Event[] = [
                 {
                     id: uuid(),
                     type: uuid(),
@@ -169,7 +169,7 @@ describe('FollowingDecorator', () => {
         it('should follow n events', async () => {
             const eventstore = new FollowingDecorator(new InMemoryEventStore());
             const n_existing_events = getRandomInt(1, 30);
-            const existing_events: eventstore.Event<unknown>[] = []
+            const existing_events: eventstore.Event[] = []
             for (let i = 0; i < n_existing_events; i++) {
                 existing_events.push({
                     id: uuid(),
@@ -182,10 +182,10 @@ describe('FollowingDecorator', () => {
             }
             const iterator = eventstore.get_events({ from_cursor: 0 });
             const n_iterations = getRandomInt(1, 10);
-            const allEvents: eventstore.Event<unknown>[][] = []
+            const allEvents: eventstore.Event[][] = []
             for (let i = 0; i < n_iterations; i++) {
                 const n_events = getRandomInt(1, 30);
-                const events: eventstore.Event<unknown>[] = []
+                const events: eventstore.Event[] = []
                 for (let j = 0; j < n_events; j++) {
                     events.push({
                         id: uuid(),

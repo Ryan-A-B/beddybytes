@@ -1,8 +1,8 @@
 import EventService from "../services/EventService";
-import connection_service from "./connection_service";
+import authorization_service from "./authorization_service";
 
 const event_service = new EventService({
-    connection_service,
+    authorization_service,
 });
 
 export default event_service;

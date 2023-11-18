@@ -1,4 +1,5 @@
 import { Map, List } from "immutable";
+import moment from "moment";
 import EventService, { EventTypeEventServiceStatusChanged } from "./EventService";
 import eventstore from "../eventstore";
 
@@ -48,9 +49,21 @@ export interface Session {
     id: string;
     name: string
     host_connection_id: string;
-    started_at: string;
-    connected: boolean;
+    started_at: moment.Moment;
+    host_connection_state: HostConnectionState;
 }
+
+interface HostConnectionStateConnected {
+    state: 'connected';
+    since: moment.Moment;
+}
+
+interface HostConnectionStateDisconnected {
+    state: 'disconnected';
+    since: moment.Moment;
+}
+
+export type HostConnectionState = HostConnectionStateConnected | HostConnectionStateDisconnected;
 
 interface NewSessionServiceInput {
     event_service: EventService;
@@ -95,7 +108,7 @@ class SessionListService extends EventTarget {
         }
     }
 
-    private apply_event(event: eventstore.Event<unknown>) {
+    private apply_event(event: eventstore.Event) {
         switch (event.type) {
             case 'session.started':
                 return this.apply_session_started_event(event as SessionStartedEvent);
@@ -121,12 +134,15 @@ class SessionListService extends EventTarget {
     }
 
     private apply_session_started_event(event: SessionStartedEvent) {
-        const session = {
+        const session: Session = {
             id: event.data.id,
             name: event.data.name,
             host_connection_id: event.data.host_connection_id,
-            started_at: event.data.started_at,
-            connected: true, // TODO keep track of connections?
+            started_at: moment(event.data.started_at, eventstore.MomentFormat),
+            host_connection_state: {
+                state: 'connected',
+                since: moment(event.unix_timestamp, eventstore.MomentFormat), // TODO this is the session started timestamp, not the host connected timestamp
+            },
         };
         const existing_session = this.sessionByConnectionID.get(session.host_connection_id);
         if (existing_session !== undefined)
@@ -143,10 +159,12 @@ class SessionListService extends EventTarget {
     private apply_client_connected_event(event: ClientConnectedEvent) {
         const session = this.sessionByConnectionID.get(event.data.connection_id);
         if (session === undefined) return;
-        if (session.connected) return;
-        const updated_session = {
+        const updated_session: Session = {
             ...session,
-            connected: true,
+            host_connection_state: {
+                state: 'connected',
+                since: moment(event.unix_timestamp, eventstore.MomentFormat),
+            },
         };
         this.set_session(updated_session);
     }
@@ -156,10 +174,12 @@ class SessionListService extends EventTarget {
         if (session === undefined) return;
         const abnormal_closure = event.data.web_socket_close_code === WebSocketCloseCodeAbnormalClosure;
         if (abnormal_closure) {
-            if (!session.connected) return;
-            const updated_session = {
+            const updated_session: Session = {
                 ...session,
-                connected: false,
+                host_connection_state: {
+                    state: 'disconnected',
+                    since: moment(event.unix_timestamp, eventstore.MomentFormat),
+                },
             };
             this.set_session(updated_session);
             return;

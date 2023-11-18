@@ -81,14 +81,6 @@ type OutgoingSignal struct {
 	Data             json.RawMessage `json:"data"`
 }
 
-type Event struct {
-	ID            string          `json:"id"`
-	Type          string          `json:"type"`
-	LogicalClock  int             `json:"logical_clock"`
-	UnixTimestamp int64           `json:"unix_timestamp"`
-	Data          json.RawMessage `json:"data"`
-}
-
 type ConnectionStoreKey struct {
 	AccountID    string
 	ConnectionID string

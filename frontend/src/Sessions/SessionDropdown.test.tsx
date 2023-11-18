@@ -7,8 +7,6 @@ import moment from 'moment';
 import SessionsDropdown from './SessionDropdown';
 import { Session } from '../services/SessionListService';
 
-const RFC3339 = 'YYYY-MM-DDTHH:mm:ssZ';
-
 describe('SessionsDropdown', () => {
     it('should render correctly when there are no sessions', async () => {
         const session_list = List<Session>()
@@ -37,8 +35,11 @@ describe('SessionsDropdown', () => {
             id: uuid(),
             name: uuid(),
             host_connection_id: uuid(),
-            started_at: moment().format(RFC3339),
-            connected: true,
+            started_at: moment(),
+            host_connection_state: {
+                state: 'connected',
+                since: moment(),
+            },
         }
         const session_list = List<Session>([session])
         let value: Session | null = null;
@@ -69,8 +70,11 @@ describe('SessionsDropdown', () => {
             id: uuid(),
             name: uuid(),
             host_connection_id: uuid(),
-            started_at: moment().format(RFC3339),
-            connected: true,
+            started_at: moment(),
+            host_connection_state: {
+                state: 'connected',
+                since: moment(),
+            },
         }
         const session_list = List<Session>([session])
         let value: Session | null = null;

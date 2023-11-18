@@ -1,14 +1,13 @@
 import React from 'react';
-import { Session } from '../Sessions/Sessions';
 import getWakeLocker from '../WakeLock';
 
-const useSessionWakeLock = (session: Session | null) => {
+const useWakeLock = (locked: boolean) => {
     React.useEffect(() => {
-        if (session === null) return;
+        if (!locked) return;
         const wakeLocker = getWakeLocker();
         wakeLocker.lock();
         return wakeLocker.unlock;
-    }, [session]);
+    }, [locked]);
 }
 
-export default useSessionWakeLock;
+export default useWakeLock;

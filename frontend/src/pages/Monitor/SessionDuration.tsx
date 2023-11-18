@@ -3,14 +3,11 @@ import moment from 'moment';
 import useDuration from '../../hooks/useDuration';
 
 interface Props {
-    startedAt: string
+    startedAt: moment.Moment;
 }
 
 const SessionDuration: React.FunctionComponent<Props> = ({ startedAt }) => {
-    const t0 = React.useMemo(() => {
-        return moment(startedAt);
-    }, [startedAt]);
-    const duration = useDuration(t0);
+    const duration = useDuration(startedAt);
     const message = React.useMemo(() => {
         const absoluteDuration = duration.abs();
         const hours = absoluteDuration.hours();

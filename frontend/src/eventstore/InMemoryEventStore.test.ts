@@ -19,7 +19,7 @@ describe('InMemoryEventStore', () => {
         })
         describe('with one event', () => {
             const eventstore = new InMemoryEventStore();
-            const event: eventstore.Event<unknown> = {
+            const event: eventstore.Event = {
                 id: uuid(),
                 type: uuid(),
                 logical_clock: 1,
@@ -38,7 +38,7 @@ describe('InMemoryEventStore', () => {
         })
         describe('with two events', () => {
             const eventstore = new InMemoryEventStore();
-            const events: eventstore.Event<unknown>[] = [
+            const events: eventstore.Event[] = [
                 {
                     id: uuid(),
                     type: uuid(),
@@ -72,9 +72,9 @@ describe('InMemoryEventStore', () => {
         describe('with n events', () => {
             const eventstore = new InMemoryEventStore();
             const n_iterations = getRandomInt(5, 100);
-            const events: eventstore.Event<unknown>[] = []
+            const events: eventstore.Event[] = []
             for (let i = 0; i < n_iterations; i++) {
-                const event: eventstore.Event<unknown> = {
+                const event: eventstore.Event = {
                     id: uuid(),
                     type: uuid(),
                     logical_clock: i + 1,
@@ -107,7 +107,7 @@ describe('InMemoryEventStore', () => {
         })
         describe('with one event', () => {
             const eventstore = new InMemoryEventStore();
-            const event: eventstore.Event<unknown> = {
+            const event: eventstore.Event = {
                 id: uuid(),
                 type: uuid(),
                 logical_clock: 1,
@@ -125,7 +125,7 @@ describe('InMemoryEventStore', () => {
         })
         describe('with two events', () => {
             const eventstore = new InMemoryEventStore();
-            const events: eventstore.Event<unknown>[] = [
+            const events: eventstore.Event[] = [
                 {
                     id: uuid(),
                     type: uuid(),
@@ -154,9 +154,9 @@ describe('InMemoryEventStore', () => {
         describe('with n events', () => {
             const eventstore = new InMemoryEventStore();
             const n_iterations = getRandomInt(5, 100);
-            const events: eventstore.Event<unknown>[] = []
+            const events: eventstore.Event[] = []
             for (let i = 0; i < n_iterations; i++) {
-                const event: eventstore.Event<unknown> = {
+                const event: eventstore.Event = {
                     id: uuid(),
                     type: uuid(),
                     logical_clock: i + 1,

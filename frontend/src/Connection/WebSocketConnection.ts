@@ -11,7 +11,7 @@ export const EventTypeRemoteEvent = 'remote_event';
 
 interface IncomingMessageEvent {
     type: 'event';
-    event: eventstore.Event<unknown>;
+    event: eventstore.Event;
 }
 
 interface IncomingMessageSignal {
@@ -70,7 +70,7 @@ class WebSocketConnection extends EventTarget implements Connection {
         this.reconnect();
     }
 
-    private onEvent = (event: eventstore.Event<unknown>) => {
+    private onEvent = (event: eventstore.Event) => {
         this.dispatchEvent(new CustomEvent(EventTypeRemoteEvent, { detail: event }));
         this.dispatchEvent(new CustomEvent(event.type, { detail: event.data }));
     }

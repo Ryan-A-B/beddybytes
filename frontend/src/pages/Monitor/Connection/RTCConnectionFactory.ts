@@ -1,6 +1,6 @@
 import { Connection, ConnectionFactory } from ".";
 import { Signaler } from "../../../Connection/Connection";
-import { Session } from "../../../Sessions/Sessions";
+import { Session } from "../../../services/SessionListService";
 import settings from "../../../settings";
 
 interface IncomingSignalDescription {

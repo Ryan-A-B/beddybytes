@@ -2,14 +2,14 @@ import React from "react";
 import { List } from "immutable";
 import { Session } from "../../services/SessionListService";
 import SessionDropdown from "../../Sessions/SessionDropdown";
-import { EventTypeSessionEnded, SessionEndedEventDetail } from "../../Sessions/Sessions";
 import { ClientDisconnectedEventDetail, EventTypeClientDisconnected } from "../../Connection/Connection";
 import { Connection, ConnectionFactory } from "./Connection";
 import SessionDuration from "./SessionDuration";
 import Stream from "./Stream";
 import "./Monitor.scss";
 import useConnectionStatus from "../../hooks/useConnectionStatus";
-import useSessionWakeLock from "../../hooks/useSessionWakeLock";
+import useWakeLock from "../../hooks/useWakeLock";
+import { EventTypeSessionEnded, SessionEndedEventDetail } from "../../Sessions/Sessions";
 
 const isConnectionLost = (connectionState: RTCPeerConnectionState) => {
     if (connectionState === "disconnected") return true;
@@ -31,7 +31,7 @@ const Monitor: React.FunctionComponent<Props> = ({ factory, session_list }) => {
     const [sessionEnded, setSessionEnded] = React.useState(false);
     const [connectionState, setConnectionState] = React.useState<RTCPeerConnectionState>("new");
 
-    useSessionWakeLock(session);
+    useWakeLock(session !== null);
 
     React.useEffect(() => {
         if (connection_status.status === "not_connected") return;
