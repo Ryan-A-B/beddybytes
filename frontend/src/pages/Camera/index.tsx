@@ -49,8 +49,7 @@ const Camera: React.FunctionComponent = () => {
         return videoDeviceID;
     });
     const canActivateSession = React.useMemo(() => {
-        if (sessionName === '') return false;
-        return true;
+        return sessionName !== '';
     }, [sessionName]);
     const [session, setSession] = React.useState<Session | null>(null);
     useWakeLock(session !== null);
