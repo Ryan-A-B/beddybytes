@@ -1,8 +1,8 @@
 import React from 'react'
 import moment from 'moment';
 import settings from '../../settings'
-import authorization from '../../authorization'
 import usePromise from '../../hooks/usePromise';
+import authorization_service from '../../instances/authorization_service';
 
 interface Account {
     id: string
@@ -80,12 +80,12 @@ const getPaymentLinkURL = (accessToken: string): Promise<string | null> => {
 }
 
 const getAccountAndPaymentLinkURL = async (): Promise<AccountAndPaymentLinkURL> => {
-    const accessToken = await authorization.getAccessToken()
-    const account = await getAccount(accessToken)
+    const accessToken = await authorization_service.get_access_token();
+    const account = await getAccount(accessToken);
     if (account.subscription.state === "active")
-        return { account, paymentLinkURL: null }
-    const paymentLinkURL = await getPaymentLinkURL(accessToken)
-    return { account, paymentLinkURL }
+        return { account, paymentLinkURL: null };
+    const paymentLinkURL = await getPaymentLinkURL(accessToken);
+    return { account, paymentLinkURL };
 }
 
 const useAccountAndPaymentLinkURL = () => {

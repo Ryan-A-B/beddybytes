@@ -4,8 +4,8 @@ import { List } from 'immutable';
 import { v4 as uuid } from 'uuid';
 import moment from 'moment';
 
-import SessionsDropdown from './SessionDropdown';
-import { Session } from '../services/SessionListService';
+import SessionsDropdown from '.';
+import { Session } from '../../services/SessionListService';
 
 describe('SessionsDropdown', () => {
     it('should render correctly when there are no sessions', async () => {

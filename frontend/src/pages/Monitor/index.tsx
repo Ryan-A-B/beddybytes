@@ -1,7 +1,7 @@
 import React from "react";
 import { List } from "immutable";
 import { Session } from "../../services/SessionListService";
-import SessionDropdown from "../../Sessions/SessionDropdown";
+import SessionDropdown from "../../components/SessionDropdown";
 import { ClientDisconnectedEventDetail, EventTypeClientDisconnected } from "../../Connection/Connection";
 import { Connection, ConnectionFactory } from "./Connection";
 import SessionDuration from "./SessionDuration";

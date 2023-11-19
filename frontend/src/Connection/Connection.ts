@@ -15,6 +15,7 @@ interface Connection extends Signaler, EventTarget {
 
 export default Connection;
 
+export const EventTypeConnectionLost = 'connection_lost';
 export const EventTypeClientDisconnected = 'client.disconnected';
 
 export interface ClientDisconnectedEventDetail {

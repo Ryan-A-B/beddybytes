@@ -1,9 +1,10 @@
 import moment from 'moment';
 import { v4 as uuid } from 'uuid';
 import settings from '../settings';
-import authorization from '../authorization';
 import { EndSessionInput, Session, SessionsWriter, StartSessionInput } from './Sessions';
-import eventstore from '../eventstore';
+import authorization_service from '../instances/authorization_service';
+
+const RFC3339 = 'YYYY-MM-DDTHH:mm:ssZ';
 
 const isClientError = (code: number): boolean => (code >= 400 && code < 500);
 
@@ -14,10 +15,10 @@ const sleep = (duration: number): Promise<void> => {
 }
 
 const startSession = async (session: Session): Promise<void> => {
-    const accessToken = await authorization.getAccessToken()
+    const access_token = await authorization_service.get_access_token();
     const response = await fetch(`https://${settings.API.host}/sessions/${session.id}`, {
         method: 'PUT',
-        headers: { Authorization: `Bearer ${accessToken}` },
+        headers: { Authorization: `Bearer ${access_token}` },
         body: JSON.stringify(session),
     })
     if (response.ok) return;
@@ -30,10 +31,10 @@ const startSession = async (session: Session): Promise<void> => {
 }
 
 const endSession = async (sessionID: string): Promise<void> => {
-    const accessToken = await authorization.getAccessToken()
+    const access_token = await authorization_service.get_access_token();
     const response = await fetch(`https://${settings.API.host}/sessions/${sessionID}`, {
         method: 'DELETE',
-        headers: { Authorization: `Bearer ${accessToken}` },
+        headers: { Authorization: `Bearer ${access_token}` },
     })
     if (response.ok) return;
     const payload = await response.text()
@@ -51,7 +52,7 @@ class SessionsWriterAPI implements SessionsWriter {
             id: uuid(),
             name: input.session_name,
             host_connection_id: input.host_connection_id,
-            started_at: now.format(eventstore.MomentFormat),
+            started_at: now.format(RFC3339),
         };
         await startSession(session)
         return session;

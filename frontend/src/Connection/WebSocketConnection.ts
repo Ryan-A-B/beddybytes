@@ -1,9 +1,9 @@
 import { v4 as uuid } from 'uuid';
 import settings from '../settings';
-import authorization from '../authorization';
-import Connection, { Signal } from './Connection';
+import Connection, { EventTypeConnectionLost, Signal } from './Connection';
 import AuthorizationService from '../services/AuthorizationService';
 import eventstore from '../eventstore';
+import authorization_service from '../instances/authorization_service';
 
 const sleep =  (duration: number) => new Promise((resolve) => setTimeout(resolve, duration));
 
@@ -67,6 +67,7 @@ class WebSocketConnection extends EventTarget implements Connection {
     private onClose = (event: CloseEvent) => {
         if (event.wasClean === true) return;
         console.error(`WebSocket closed with code ${event.code}, reconnecting...`);
+        this.dispatchEvent(new Event(EventTypeConnectionLost))
         this.reconnect();
     }
 
@@ -108,9 +109,9 @@ class WebSocketConnection extends EventTarget implements Connection {
     }
 
     private static async connect(connectionID: string): Promise<WebSocket> {
-        const accessToken = await authorization.getAccessToken();
+        const access_token = await authorization_service.get_access_token();
         const query_parameters = new URLSearchParams();
-        query_parameters.set('access_token', accessToken);
+        query_parameters.set('access_token', access_token);
         return new WebSocket(`wss://${settings.API.host}/clients/${settings.API.clientID}/connections/${connectionID}?${query_parameters.toString()}`);
     }
 }

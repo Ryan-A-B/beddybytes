@@ -46,15 +46,16 @@ class EventService extends EventTarget {
         };
         this.dispatchEvent(new Event(EventTypeEventServiceStatusChanged));
 
-        // TODO add reconnect logic
+        // TODO add reconnect logic - EventSource will automatically try to reconnect, but eventually the access token will expire and the from_cursor will change
+        // consider using a fetch and managing the EventSource ourselves
         const access_token = await this.authorization_service.get_access_token();
         const query_parameters = new URLSearchParams();
-        query_parameters.set('access_token', access_token);
         const last_event = await event_store.get_last_event();
         if (last_event !== null)
             query_parameters.set('from_cursor', last_event.logical_clock.toString());
+        query_parameters.set('access_token', access_token);
         const event_source = new EventSource(`https://${settings.API.host}/events?${query_parameters.toString()}`);
-        event_source.addEventListener('error', (error) => {
+        event_source.addEventListener('error', (error: Event) => {
             console.error('EventSource error', error);
         });
         event_source.addEventListener('message', (message: MessageEvent<string>) => {

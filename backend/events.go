@@ -15,6 +15,8 @@ import (
 	"github.com/Ryan-A-B/baby-monitor/internal/fatal"
 )
 
+const EventTypeServerStarted = "server.started"
+
 type Event struct {
 	ID            string          `json:"id"`
 	Type          string          `json:"type"`
@@ -43,12 +45,20 @@ func (handlers *Handlers) GetEvents(responseWriter http.ResponseWriter, request 
 	})
 	for events.Next() {
 		event := events.Event()
-		if event.AccountID != accountID {
+		if ShouldSkipEvent(accountID, event) {
 			continue
 		}
 		WriteEvent(responseWriter, event)
 	}
 	fatal.OnError(events.Err())
+	// TODO keep alive?
+}
+
+func ShouldSkipEvent(accountID string, event *eventlog.Event) bool {
+	if event.Type == EventTypeServerStarted {
+		return false
+	}
+	return event.AccountID != accountID
 }
 
 func WriteEvent(responseWriter http.ResponseWriter, event *eventlog.Event) {
@@ -63,6 +73,9 @@ func WriteEvent(responseWriter http.ResponseWriter, event *eventlog.Event) {
 	// Send generic event to allow javascript to handle all events with a single handler, is there a better way?
 	message := fmt.Sprintf("data: %s\n\n", data)
 	io.WriteString(responseWriter, message)
+	if flusher, ok := responseWriter.(http.Flusher); ok {
+		flusher.Flush()
+	}
 }
 
 func IntFormValue(request *http.Request, key string, defaultValue int) (value int, err error) {

@@ -19,6 +19,7 @@ import (
 	"github.com/Ryan-A-B/baby-monitor/backend/internal/eventlog"
 	"github.com/Ryan-A-B/baby-monitor/backend/internal/store"
 	"github.com/Ryan-A-B/baby-monitor/backend/internal/store2"
+	"github.com/Ryan-A-B/baby-monitor/internal/fatal"
 	"github.com/Ryan-A-B/baby-monitor/internal/square"
 )
 
@@ -170,7 +171,7 @@ func main() {
 	ctx := context.Background()
 	key := []byte(internal.EnvStringOrFatal("ENCRYPTION_KEY"))
 	cookieDomain := internal.EnvStringOrFatal("COOKIE_DOMAIN")
-	eventLog := newEventLog()
+	eventLog := newEventLog(ctx)
 	accountHandlers := accounts.Handlers{
 		CookieDomain: cookieDomain,
 		EventLog:     eventLog,
@@ -242,11 +243,12 @@ func main() {
 		Addr:    addr,
 		Handler: router,
 	}
+	appendServerStartedEvent(ctx, eventLog)
 	fmt.Printf("Listening on %s\n", addr)
 	log.Fatal(server.ListenAndServe())
 }
 
-func newEventLog() eventlog.EventLog {
+func newEventLog(ctx context.Context) eventlog.EventLog {
 	return eventlog.NewThreadSafeDecorator(&eventlog.NewThreadSafeDecoratorInput{
 		Decorated: eventlog.NewFollowingDecorator(&eventlog.NewFollowingDecoratorInput{
 			Decorated: eventlog.NewFileEventLog(&eventlog.NewFileEventLogInput{
@@ -255,6 +257,14 @@ func newEventLog() eventlog.EventLog {
 			BufferSize: 32,
 		}),
 	})
+}
+
+func appendServerStartedEvent(ctx context.Context, eventLog eventlog.EventLog) {
+	_, err := eventLog.Append(ctx, &eventlog.AppendInput{
+		Type: EventTypeServerStarted,
+		Data: fatal.UnlessMarshalJSON(nil),
+	})
+	fatal.OnError(err)
 }
 
 func newSquareClient() *square.Client {

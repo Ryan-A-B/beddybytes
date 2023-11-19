@@ -1,7 +1,7 @@
 import AuthorizationService from "./AuthorizationService";
 import AccountService, { EventTypeAccountStatusChanged } from "./AccountService";
 import WebSocketConnection from "../Connection/WebSocketConnection";
-import Connection, { EventTypeClientDisconnected } from "../Connection/Connection";
+import Connection, { EventTypeConnectionLost } from "../Connection/Connection";
 
 export const EventTypeConnectionStatusChanged = 'connection_status_changed';
 
@@ -60,7 +60,7 @@ class ConnectionService extends EventTarget {
             connection,
         }
         this.dispatchEvent(new Event(EventTypeConnectionStatusChanged));
-        connection.addEventListener(EventTypeClientDisconnected, this.handle_client_disconnected);
+        connection.addEventListener(EventTypeConnectionLost, this.handle_client_disconnected);
     }
 
     private disconnect = async () => {

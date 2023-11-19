@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"sort"
 	"sync"
 )
@@ -18,7 +17,6 @@ type SessionStoreInMemory struct {
 
 func (store *SessionStoreInMemory) Put(session *Session) {
 	index := store.search(session.AccountID, session.ID)
-	fmt.Println(index, len(store.sessions))
 	if index == len(store.sessions) {
 		store.sessions = append(store.sessions, session)
 		return
@@ -52,7 +50,6 @@ func (store *SessionStoreInMemory) List(accountID string) (sessions []*Session) 
 
 func (store *SessionStoreInMemory) Remove(accountID string, sessionID string) {
 	index := store.search(accountID, sessionID)
-	fmt.Println(index, len(store.sessions))
 	if index == len(store.sessions) {
 		return
 	}

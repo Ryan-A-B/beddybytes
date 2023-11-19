@@ -1,5 +1,6 @@
 namespace eventstore {
-    export const MomentFormat = 'X';
+    export const MomentFormatUnixTimestamp = 'X';
+    export const MomentFormatRFC3339 = 'YYYY-MM-DDTHH:mm:ssZ';
 
     export interface Event<T = unknown> {
         id: string,

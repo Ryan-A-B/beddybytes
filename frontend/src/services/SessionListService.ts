@@ -2,6 +2,7 @@ import { Map, List } from "immutable";
 import moment from "moment";
 import EventService, { EventTypeEventServiceStatusChanged } from "./EventService";
 import eventstore from "../eventstore";
+import debounce from "../utils/debounce";
 
 const WebSocketCloseCodeAbnormalClosure = 1006;
 
@@ -43,6 +44,9 @@ interface ClientDisconnectedEventData {
 
 interface ClientDisconnectedEvent extends eventstore.Event<ClientDisconnectedEventData> {
     type: 'client.disconnected';
+}
+
+interface ServerStartedEvent extends eventstore.Event<null> {
 }
 
 export interface Session {
@@ -118,30 +122,38 @@ class SessionListService extends EventTarget {
                 return this.apply_client_connected_event(event as ClientConnectedEvent);
             case 'client.disconnected':
                 return this.apply_client_disconnected_event(event as ClientDisconnectedEvent);
+            case 'server.started':
+                return this.apply_server_started_event(event as ServerStartedEvent);
         }
     }
 
     private set_session = (session: Session) => {
         this.sessionByID = this.sessionByID.set(session.id, session);
         this.sessionByConnectionID = this.sessionByConnectionID.set(session.host_connection_id, session);
-        this.dispatchEvent(new Event(EventTypeSessionListChanged));
+        this.debounced_dispatch_session_list_changed();
     }
 
     private delete_session = (session: Session) => {
         this.sessionByID = this.sessionByID.delete(session.id);
         this.sessionByConnectionID = this.sessionByConnectionID.delete(session.host_connection_id);
+        this.debounced_dispatch_session_list_changed();
+    }
+
+    private dispatch_session_list_changed = () => {
         this.dispatchEvent(new Event(EventTypeSessionListChanged));
     }
+
+    private debounced_dispatch_session_list_changed = debounce(this.dispatch_session_list_changed, 50);
 
     private apply_session_started_event(event: SessionStartedEvent) {
         const session: Session = {
             id: event.data.id,
             name: event.data.name,
             host_connection_id: event.data.host_connection_id,
-            started_at: moment(event.data.started_at, eventstore.MomentFormat),
+            started_at: moment(event.data.started_at, eventstore.MomentFormatRFC3339),
             host_connection_state: {
                 state: 'connected',
-                since: moment(event.unix_timestamp, eventstore.MomentFormat), // TODO this is the session started timestamp, not the host connected timestamp
+                since: moment(event.unix_timestamp, eventstore.MomentFormatUnixTimestamp), // TODO this is the session started timestamp, not the host connected timestamp
             },
         };
         const existing_session = this.sessionByConnectionID.get(session.host_connection_id);
@@ -163,7 +175,7 @@ class SessionListService extends EventTarget {
             ...session,
             host_connection_state: {
                 state: 'connected',
-                since: moment(event.unix_timestamp, eventstore.MomentFormat),
+                since: moment(event.unix_timestamp, eventstore.MomentFormatUnixTimestamp),
             },
         };
         this.set_session(updated_session);
@@ -178,13 +190,28 @@ class SessionListService extends EventTarget {
                 ...session,
                 host_connection_state: {
                     state: 'disconnected',
-                    since: moment(event.unix_timestamp, eventstore.MomentFormat),
+                    since: moment(event.unix_timestamp, eventstore.MomentFormatUnixTimestamp),
                 },
             };
             this.set_session(updated_session);
             return;
         }
         this.delete_session(session);
+    }
+
+    private apply_server_started_event(event: ServerStartedEvent) {
+        const since = moment(event.unix_timestamp, eventstore.MomentFormatUnixTimestamp);
+        this.sessionByConnectionID.forEach((session) => {
+            if (session.host_connection_state.state === 'disconnected') return;
+            const updated_session: Session = {
+                ...session,
+                host_connection_state: {
+                    state: 'disconnected',
+                    since: since,
+                },
+            };
+            this.set_session(updated_session);
+        });
     }
 }
 
