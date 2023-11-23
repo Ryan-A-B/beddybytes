@@ -4,6 +4,7 @@ import IndexedDBEventStore from "../eventstore/IndexedDBEventStore";
 import FollowingDecorator from "../eventstore/FollowingDecorator";
 import settings from "../settings";
 import AuthorizationService from "./AuthorizationService";
+import sleep from "../utils/sleep";
 
 export const EventTypeEventServiceStatusChanged = 'event_service_status_changed';
 
@@ -23,8 +24,11 @@ interface NewEventServiceInput {
 }
 
 class EventService extends EventTarget {
+    private static MaxReconnectDelay = 5 * 60 * 1000;
+    private static InitialReconnectDelay = 1000;
     private authorization_service: AuthorizationService;
     private status: EventServiceStatus = { status: 'loading' };
+    private reconnect_delay = EventService.InitialReconnectDelay;
 
     constructor(input: NewEventServiceInput) {
         super();
@@ -45,9 +49,10 @@ class EventService extends EventTarget {
             event_store,
         };
         this.dispatchEvent(new Event(EventTypeEventServiceStatusChanged));
+        this.connect(event_store);
+    }
 
-        // TODO add reconnect logic - EventSource will automatically try to reconnect, but eventually the access token will expire and the from_cursor will change
-        // consider using a fetch and managing the EventSource ourselves
+    private connect = async (event_store: eventstore.EventStore): Promise<void> => {
         const access_token = await this.authorization_service.get_access_token();
         const query_parameters = new URLSearchParams();
         const last_event = await event_store.get_last_event();
@@ -55,13 +60,32 @@ class EventService extends EventTarget {
             query_parameters.set('from_cursor', last_event.logical_clock.toString());
         query_parameters.set('access_token', access_token);
         const event_source = new EventSource(`https://${settings.API.host}/events?${query_parameters.toString()}`);
-        event_source.addEventListener('error', (error: Event) => {
-            console.error('EventSource error', error);
-        });
-        event_source.addEventListener('message', (message: MessageEvent<string>) => {
-            const event = JSON.parse(message.data) as eventstore.Event;
-            event_store.put(event).catch(console.error);
-        });
+        event_source.addEventListener('open', this.handle_open);
+        event_source.addEventListener('error', this.handle_error(event_store));
+        event_source.addEventListener('message', this.handle_message(event_store));
+    }
+
+    private handle_open = (): void => {
+        this.reconnect_delay = EventService.InitialReconnectDelay;
+    }
+
+    private handle_message = (event_store: eventstore.EventStore) => async (message: MessageEvent<string>): Promise<void> => {
+        const event = JSON.parse(message.data) as eventstore.Event;
+        await event_store.put(event);
+    }
+
+    private handle_error = (event_store: eventstore.EventStore) => (error: Event): void => {
+        const event_source = error.target as EventSource;
+        event_source.close()
+
+        console.error('Failed to connect to event source', error, `reconnecting in ${this.reconnect_delay}ms`);
+        this.reconnect(event_store);
+    }
+
+    private reconnect = async (event_store: eventstore.EventStore): Promise<void> => {
+        await sleep(this.reconnect_delay)
+        this.reconnect_delay = Math.min(this.reconnect_delay * 2, EventService.MaxReconnectDelay);
+        this.connect(event_store);
     }
 }
 

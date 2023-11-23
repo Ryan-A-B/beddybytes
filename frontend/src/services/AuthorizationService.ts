@@ -1,5 +1,7 @@
 import moment from 'moment';
 import settings from '../settings';
+import sleep from '../utils/sleep';
+import isClientError from '../utils/isClientError';
 
 export const EventTypeLogin = 'login';
 export const EventTypeTokenRefreshUnauthorized = 'token_refresh_unauthorized';
@@ -15,12 +17,6 @@ export interface AccessTokenOutput {
     expires_in: number
 }
 
-const sleep = (duration: number) => new Promise((resolve) => setTimeout(resolve, duration));
-
-const is_client_error = (response_status: number): boolean => {
-    return response_status >= 400 && response_status < 500;
-}
-
 const refresh_access_token = async (retry_delay: number): Promise<AccessTokenOutput> => {
     const response = await fetch(`https://${settings.API.host}/token`, {
         method: 'POST',
@@ -31,7 +27,7 @@ const refresh_access_token = async (retry_delay: number): Promise<AccessTokenOut
         }),
         credentials: 'include',
     })
-    if (is_client_error(response.status))
+    if (isClientError(response.status))
         throw new Error(`Failed to refresh token: ${response.status} ${response.statusText}`);
     if (!response.ok) {
         await sleep(retry_delay);
@@ -84,7 +80,7 @@ class AuthorizationService extends EventTarget {
             }),
             credentials: 'include',
         })
-        if (is_client_error(response.status))
+        if (isClientError(response.status))
             throw new Error(`Failed to login: ${response.status} ${response.statusText}`);
         if (!response.ok) {
             const payload = await response.text()

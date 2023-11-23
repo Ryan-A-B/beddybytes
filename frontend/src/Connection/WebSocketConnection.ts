@@ -4,8 +4,7 @@ import Connection, { EventTypeConnectionLost, Signal } from './Connection';
 import AuthorizationService from '../services/AuthorizationService';
 import eventstore from '../eventstore';
 import authorization_service from '../instances/authorization_service';
-
-const sleep =  (duration: number) => new Promise((resolve) => setTimeout(resolve, duration));
+import sleep from '../utils/sleep';
 
 export const EventTypeRemoteEvent = 'remote_event';
 
