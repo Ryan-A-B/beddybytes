@@ -130,20 +130,18 @@ class SessionListService extends EventTarget {
     private set_session = (session: Session) => {
         this.sessionByID = this.sessionByID.set(session.id, session);
         this.sessionByConnectionID = this.sessionByConnectionID.set(session.host_connection_id, session);
-        this.debounced_dispatch_session_list_changed();
+        this.dispatch_session_list_changed();
     }
 
     private delete_session = (session: Session) => {
         this.sessionByID = this.sessionByID.delete(session.id);
         this.sessionByConnectionID = this.sessionByConnectionID.delete(session.host_connection_id);
-        this.debounced_dispatch_session_list_changed();
+        this.dispatch_session_list_changed();
     }
 
     private dispatch_session_list_changed = () => {
         this.dispatchEvent(new Event(EventTypeSessionListChanged));
     }
-
-    private debounced_dispatch_session_list_changed = debounce(this.dispatch_session_list_changed, 50);
 
     private apply_session_started_event(event: SessionStartedEvent) {
         const session: Session = {

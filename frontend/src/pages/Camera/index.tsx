@@ -3,7 +3,6 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faTag, faMicrophone, faVideo } from '@fortawesome/free-solid-svg-icons';
 
 import Input from '../../components/Input';
-import SessionsWriterAPI from '../../Sessions/SessionsWriterAPI';
 import SelectVideoDevice from './SelectVideoDevice';
 import SelectAudioDevice from './SelectAudioDevice';
 import MediaStream from './MediaStream';
@@ -12,7 +11,8 @@ import SessionToggle from './SessionToggle';
 import './Camera.scss';
 import useConnectionStatus from '../../hooks/useConnectionStatus';
 import useWakeLock from '../../hooks/useWakeLock';
-import { Session } from '../../Sessions/Sessions';
+import host_session_service from '../../instances/host_session_service';
+import useHostSessionStatus from '../../hooks/useHostSessionStatus';
 
 const DefaultSessionName = 'Camera';
 
@@ -32,10 +32,9 @@ const useSessionName = () => {
     return [sessionName, setAndStoreSessionName] as const;
 }
 
-const sessions = new SessionsWriterAPI();
-
 const Camera: React.FunctionComponent = () => {
     const connection_status = useConnectionStatus();
+    const host_session_status = useHostSessionStatus();
     const permissionPromiseState = useVideoAndAudioPermission();
     const [sessionName, setSessionName] = useSessionName();
     const [audioDeviceID, setAudioDeviceID] = React.useState(() => {
@@ -51,8 +50,7 @@ const Camera: React.FunctionComponent = () => {
     const canActivateSession = React.useMemo(() => {
         return sessionName !== '';
     }, [sessionName]);
-    const [session, setSession] = React.useState<Session | null>(null);
-    useWakeLock(session !== null);
+    useWakeLock(host_session_status.status !== 'no_session_running');
     const setAudioDeviceIDAndStore = React.useCallback((audioDeviceID: string) => {
         localStorage.setItem(LocalStorageAudioDeviceIDKey, audioDeviceID);
         setAudioDeviceID(audioDeviceID);
@@ -64,19 +62,11 @@ const Camera: React.FunctionComponent = () => {
     const startSession = React.useCallback(async () => {
         if (connection_status.status === 'not_connected') throw new Error("connection is not connected");
         const connection = connection_status.connection;
-        const session = await sessions.start({
-            host_connection_id: connection.id,
-            session_name: sessionName,
+        await host_session_service.start_session({
+            connection_id: connection.id,
+            name: sessionName,
         });
-        setSession(session);
     }, [connection_status, sessionName]);
-    const endSession = React.useCallback(async () => {
-        if (session === null) throw new Error("session is null");
-        await sessions.end({
-            session_id: session.id,
-        });
-        setSession(null);
-    }, [session]);
     if (permissionPromiseState.state === 'pending') return (
         <div>
             Requesting permission to access camera and microphone...
@@ -99,7 +89,7 @@ const Camera: React.FunctionComponent = () => {
                             value={sessionName}
                             onChange={setSessionName}
                             className="form-control"
-                            disabled={session !== null}
+                            disabled={host_session_status.status !== 'no_session_running'}
                         />
                     </div>
                 </div>
@@ -111,7 +101,7 @@ const Camera: React.FunctionComponent = () => {
                         <SelectAudioDevice
                             value={audioDeviceID}
                             onChange={setAudioDeviceIDAndStore}
-                            disabled={session !== null}
+                            disabled={host_session_status.status !== 'no_session_running'}
                         />
                     </div>
                 </div>
@@ -123,15 +113,15 @@ const Camera: React.FunctionComponent = () => {
                         <SelectVideoDevice
                             value={videoDeviceID}
                             onChange={setVideoDeviceIDAndStore}
-                            disabled={session !== null}
+                            disabled={host_session_status.status !== 'no_session_running'}
                         />
                     </div>
                 </div>
                 <div className="form-group col col-md-auto">
                     <SessionToggle
-                        session={session}
+                        host_session_status={host_session_status}
                         startSession={startSession}
-                        endSession={endSession}
+                        endSession={host_session_service.end_session}
                         disabled={!canActivateSession}
                     />
                 </div>
@@ -139,7 +129,7 @@ const Camera: React.FunctionComponent = () => {
             <MediaStream
                 audioDeviceID={audioDeviceID}
                 videoDeviceID={videoDeviceID}
-                sessionActive={session !== null}
+                sessionActive={host_session_status.status === 'session_running'}
                 key={videoDeviceID}
             />
         </main >
