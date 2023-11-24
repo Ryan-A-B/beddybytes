@@ -2,6 +2,8 @@ import React from "react";
 import usePromise from "../../hooks/usePromise";
 import Connections from "./Connections";
 import useConnectionStatus from "../../hooks/useConnectionStatus";
+import { EventTypeMediaStreamStatusChanged, MediaStreamStatus } from "../../services/MediaStreamService";
+import media_stream_service from "../../instances/media_stream_service";
 
 interface Props {
     audioDeviceID: string
@@ -9,45 +11,57 @@ interface Props {
     sessionActive: boolean
 }
 
-const getAudioConstraint = (audioDeviceID: string): MediaStreamConstraints["audio"] => {
-    if (audioDeviceID === '') return true;
-    return { deviceId: audioDeviceID };
+const useMediaStreamStatus = (): MediaStreamStatus => {
+    const [mediaStreamStatus, setMediaStreamStatus] = React.useState<MediaStreamStatus>(media_stream_service.get_media_stream_status);
+    React.useEffect(() => {
+        const handle_media_stream_status_change = () => {
+            setMediaStreamStatus(media_stream_service.get_media_stream_status);
+        }
+        media_stream_service.addEventListener(EventTypeMediaStreamStatusChanged, handle_media_stream_status_change);
+        return () => {
+            media_stream_service.removeEventListener(EventTypeMediaStreamStatusChanged, handle_media_stream_status_change);
+        }
+    }, []);
+    return mediaStreamStatus;
 }
 
-const getVideoConstraint = (videoDeviceID: string): MediaStreamConstraints["video"] => {
-    if (videoDeviceID === '') return false;
-    return { deviceId: videoDeviceID };
+const useMediaStream = (audioDeviceID: string, videoDeviceID: string): MediaStreamStatus => {
+    const mediaStreamStatus = useMediaStreamStatus();
+    React.useEffect(() => {
+        media_stream_service.start_media_stream({
+            audio_device_id: audioDeviceID,
+            video_device_id: videoDeviceID,
+        });
+        return () => {
+            media_stream_service.stop_media_stream();
+        }
+    }, [audioDeviceID, videoDeviceID]);
+    return mediaStreamStatus;
 }
 
 const MediaStream: React.FunctionComponent<Props> = ({ audioDeviceID, videoDeviceID, sessionActive }) => {
     const connection_status = useConnectionStatus();
     const videoRef = React.useRef<HTMLVideoElement>(null);
-    const getUserMedia = React.useMemo(() => {
-        return navigator.mediaDevices.getUserMedia({
-            audio: getAudioConstraint(audioDeviceID),
-            video: getVideoConstraint(videoDeviceID),
-        });
-    }, [audioDeviceID, videoDeviceID]);
-    const stream = usePromise(getUserMedia);
-    React.useEffect(() => {
-        if (stream.state !== 'resolved') return;
+    const mediaStreamStatus = useMediaStream(audioDeviceID, videoDeviceID);
+    React.useLayoutEffect(() => {
+        if (mediaStreamStatus.status !== 'running') return;
         if (videoRef.current === null) return;
         const video = videoRef.current;
-        video.srcObject = stream.value;
+        video.srcObject = mediaStreamStatus.media_stream;
         return () => {
             video.srcObject = null;
         }
-    }, [stream]);
+    }, [mediaStreamStatus]);
     React.useEffect(() => {
         if (!sessionActive) return;
-        if (stream.state !== 'resolved') throw new Error('Stream is not resolved');
+        if (mediaStreamStatus.status !== 'running') throw new Error('Stream is not resolved');
         if (connection_status.status === 'not_connected') throw new Error('Connection is not connected');
         const connection = connection_status.connection;
-        const connections = new Connections(connection, stream.value);
+        const connections = new Connections(connection, mediaStreamStatus.media_stream);
         return connections.close;
-    }, [connection_status, sessionActive, stream]);
-    if (stream.state === 'pending') return (<div>Getting stream...</div>)
-    if (stream.state === 'rejected') return (<div>Failed to get stream: {stream.error.message}</div>)
+    }, [connection_status, sessionActive, mediaStreamStatus]);
+    if (mediaStreamStatus.status === 'starting') return (<div>Getting stream...</div>)
+    if (mediaStreamStatus.status === 'rejected') return (<div>Failed to get stream.</div>)
     // TODO render a basic audio visualizer
     if (videoDeviceID === '') return (
         <div>

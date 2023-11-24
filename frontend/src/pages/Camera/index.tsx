@@ -6,7 +6,7 @@ import Input from '../../components/Input';
 import SelectVideoDevice from './SelectVideoDevice';
 import SelectAudioDevice from './SelectAudioDevice';
 import MediaStream from './MediaStream';
-import useVideoAndAudioPermission from '../../hooks/useVideoAndAudioPermission';
+import useMediaDevicesPermissionStatus from '../../hooks/useMediaDevicesPermissionStatus';
 import SessionToggle from './SessionToggle';
 import './Camera.scss';
 import useConnectionStatus from '../../hooks/useConnectionStatus';
@@ -35,7 +35,7 @@ const useSessionName = () => {
 const Camera: React.FunctionComponent = () => {
     const connection_status = useConnectionStatus();
     const host_session_status = useHostSessionStatus();
-    const permissionPromiseState = useVideoAndAudioPermission();
+    const media_devices_permission_status = useMediaDevicesPermissionStatus();
     const [sessionName, setSessionName] = useSessionName();
     const [audioDeviceID, setAudioDeviceID] = React.useState(() => {
         const audioDeviceID = localStorage.getItem(LocalStorageAudioDeviceIDKey);
@@ -67,12 +67,12 @@ const Camera: React.FunctionComponent = () => {
             name: sessionName,
         });
     }, [connection_status, sessionName]);
-    if (permissionPromiseState.state === 'pending') return (
+    if (media_devices_permission_status.status === 'requested') return (
         <div>
             Requesting permission to access camera and microphone...
         </div>
     );
-    if (permissionPromiseState.state === 'rejected') return (
+    if (media_devices_permission_status.status === 'denied') return (
         <div>
             Permission to access camera and microphone denied. To use this device as a camera, please allow access to the camera and microphone.
         </div>
@@ -126,12 +126,14 @@ const Camera: React.FunctionComponent = () => {
                     />
                 </div>
             </div>
-            <MediaStream
-                audioDeviceID={audioDeviceID}
-                videoDeviceID={videoDeviceID}
-                sessionActive={host_session_status.status === 'session_running'}
-                key={videoDeviceID}
-            />
+            {media_devices_permission_status.status === 'granted' && (
+                <MediaStream
+                    audioDeviceID={audioDeviceID}
+                    videoDeviceID={videoDeviceID}
+                    sessionActive={host_session_status.status === 'session_running'}
+                    key={videoDeviceID}
+                />
+            )}
         </main >
     )
 };

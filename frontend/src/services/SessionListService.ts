@@ -2,7 +2,6 @@ import { Map, List } from "immutable";
 import moment from "moment";
 import EventService, { EventTypeEventServiceStatusChanged } from "./EventService";
 import eventstore from "../eventstore";
-import debounce from "../utils/debounce";
 
 const WebSocketCloseCodeAbnormalClosure = 1006;
 
