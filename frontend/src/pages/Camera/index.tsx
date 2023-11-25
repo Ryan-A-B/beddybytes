@@ -6,13 +6,14 @@ import Input from '../../components/Input';
 import SelectVideoDevice from './SelectVideoDevice';
 import SelectAudioDevice from './SelectAudioDevice';
 import MediaStream from './MediaStream';
-import useMediaDevicesPermissionStatus from '../../hooks/useMediaDevicesPermissionStatus';
+import useMediaDevicesPermissionStatus from '../../hooks/useMediaDevicePermissionStatus';
 import SessionToggle from './SessionToggle';
 import './Camera.scss';
 import useConnectionStatus from '../../hooks/useConnectionStatus';
 import useWakeLock from '../../hooks/useWakeLock';
 import host_session_service from '../../instances/host_session_service';
 import useHostSessionStatus from '../../hooks/useHostSessionStatus';
+import media_device_permission_service from '../../instances/media_device_permission_service';
 
 const DefaultSessionName = 'Camera';
 
@@ -67,6 +68,9 @@ const Camera: React.FunctionComponent = () => {
             name: sessionName,
         });
     }, [connection_status, sessionName]);
+    React.useEffect(() => {
+        media_device_permission_service.requestVideoAndAudioPermission();
+    }, []);
     if (media_devices_permission_status.status === 'requested') return (
         <div>
             Requesting permission to access camera and microphone...

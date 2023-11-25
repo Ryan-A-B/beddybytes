@@ -1,6 +1,7 @@
 import React from 'react';
 import moment from 'moment';
 import useDuration from '../../hooks/useDuration';
+import useClientSessionStatus from '../../hooks/useClientSessionStatus';
 
 interface Props {
     startedAt: moment.Moment;

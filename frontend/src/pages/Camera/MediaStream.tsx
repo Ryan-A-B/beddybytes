@@ -1,42 +1,12 @@
 import React from "react";
-import usePromise from "../../hooks/usePromise";
 import Connections from "./Connections";
 import useConnectionStatus from "../../hooks/useConnectionStatus";
-import { EventTypeMediaStreamStatusChanged, MediaStreamStatus } from "../../services/MediaStreamService";
-import media_stream_service from "../../instances/media_stream_service";
+import useMediaStream from "../../hooks/useMediaStream";
 
 interface Props {
     audioDeviceID: string
     videoDeviceID: string
     sessionActive: boolean
-}
-
-const useMediaStreamStatus = (): MediaStreamStatus => {
-    const [mediaStreamStatus, setMediaStreamStatus] = React.useState<MediaStreamStatus>(media_stream_service.get_media_stream_status);
-    React.useEffect(() => {
-        const handle_media_stream_status_change = () => {
-            setMediaStreamStatus(media_stream_service.get_media_stream_status);
-        }
-        media_stream_service.addEventListener(EventTypeMediaStreamStatusChanged, handle_media_stream_status_change);
-        return () => {
-            media_stream_service.removeEventListener(EventTypeMediaStreamStatusChanged, handle_media_stream_status_change);
-        }
-    }, []);
-    return mediaStreamStatus;
-}
-
-const useMediaStream = (audioDeviceID: string, videoDeviceID: string): MediaStreamStatus => {
-    const mediaStreamStatus = useMediaStreamStatus();
-    React.useEffect(() => {
-        media_stream_service.start_media_stream({
-            audio_device_id: audioDeviceID,
-            video_device_id: videoDeviceID,
-        });
-        return () => {
-            media_stream_service.stop_media_stream();
-        }
-    }, [audioDeviceID, videoDeviceID]);
-    return mediaStreamStatus;
 }
 
 const MediaStream: React.FunctionComponent<Props> = ({ audioDeviceID, videoDeviceID, sessionActive }) => {

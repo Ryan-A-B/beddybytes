@@ -1,15 +1,27 @@
 import React from "react";
 import { List } from "immutable";
 import { Session } from "../../services/SessionListService";
+import { ClientSessionStatus } from "../../services/ClientSessionService";
 import SessionDropdown from "../../components/SessionDropdown";
-import { ClientDisconnectedEventDetail, EventTypeClientDisconnected } from "../../Connection/Connection";
-import { Connection, ConnectionFactory } from "./Connection";
 import SessionDuration from "./SessionDuration";
 import Stream from "./Stream";
 import "./Monitor.scss";
-import useConnectionStatus from "../../hooks/useConnectionStatus";
 import useWakeLock from "../../hooks/useWakeLock";
-import { EventTypeSessionEnded, SessionEndedEventDetail } from "../../Sessions/Sessions";
+import client_session_service from "../../instances/client_session_service";
+import useClientSessionStatus from "../../hooks/useClientSessionStatus";
+import useClientRTCConnectionState from "../../hooks/useClientRTCConnectionState";
+
+const getSessionIfActive = (client_session_status: ClientSessionStatus): Session | null => {
+    if (client_session_status.status === "joining") return client_session_status.session;
+    if (client_session_status.status === "joined") return client_session_status.session;
+    return null;
+}
+
+const isClientSessionActive = (client_session_status: ClientSessionStatus["status"]) => {
+    if (client_session_status === "joining") return false;
+    if (client_session_status === "joined") return true;
+    return false;
+}
 
 const isConnectionLost = (connectionState: RTCPeerConnectionState) => {
     if (connectionState === "disconnected") return true;
@@ -19,99 +31,36 @@ const isConnectionLost = (connectionState: RTCPeerConnectionState) => {
 }
 
 interface Props {
-    factory: ConnectionFactory;
     session_list: List<Session>;
 }
 
-const Monitor: React.FunctionComponent<Props> = ({ factory, session_list }) => {
-    const connection_status = useConnectionStatus();
-    const [session, setSession] = React.useState<Session | null>(null);
-    const [connection, setConnection] = React.useState<Connection | null>(null);
-    const [stream, setStream] = React.useState<MediaStream | null>(null);
-    const [sessionEnded, setSessionEnded] = React.useState(false);
-    const [connectionState, setConnectionState] = React.useState<RTCPeerConnectionState>("new");
+const Monitor: React.FunctionComponent<Props> = ({ session_list }) => {
+    const client_session_status = useClientSessionStatus();
+    const connectionState = useClientRTCConnectionState(client_session_status);
 
-    useWakeLock(session !== null);
-
-    React.useEffect(() => {
-        if (connection_status.status === "not_connected") return;
-        const handle_session_ended = (event: Event) => {
-            if (session === null) return;
-            if (connection === null) return;
-            if (!(event instanceof CustomEvent)) throw new Error("event is not a CustomEvent");
-            const detail = event.detail as SessionEndedEventDetail;
-            if (detail.id !== session.id) return;
-            connection.close(true);
-            setSession(null);
-            setStream(null);
-            setConnection(null);
-            setSessionEnded(true)
-        }
-        const handle_client_disconnected = (event: Event) => {
-            if (session === null) return;
-            if (connection === null) return;
-            if (!(event instanceof CustomEvent)) throw new Error("event is not a CustomEvent");
-            const detail = event.detail as ClientDisconnectedEventDetail;
-            if (detail.connection_id !== session.host_connection_id) return;
-            if (detail.web_socket_close_code === 1006) return;
-            connection.close(true);
-            setSession(null);
-            setStream(null);
-            setConnection(null);
-            setSessionEnded(true)
-        }
-        const signaler = connection_status.connection;
-        signaler.addEventListener(EventTypeSessionEnded, handle_session_ended);
-        signaler.addEventListener(EventTypeClientDisconnected, handle_client_disconnected);
-        return () => {
-            signaler.removeEventListener(EventTypeSessionEnded, handle_session_ended);
-            signaler.removeEventListener(EventTypeClientDisconnected, handle_client_disconnected);
-        };
-    }, [connection_status, session, connection])
+    useWakeLock(isClientSessionActive(client_session_status.status));
 
     const onSessionChange = React.useCallback((session: Session | null) => {
-        setSession(session);
-        setStream(null);
-        setSessionEnded(false);
-
-        if (connection !== null) {
-            connection.close(false);
-        }
+        client_session_service.leave_session();
         if (session === null) return;
-
-        const newConnection = factory.create(session);
-        newConnection.ontrack = (event: RTCTrackEvent) => {
-            const stream = event.streams[0];
-            setStream(stream);
-        }
-        newConnection.onconnectionstatechange = (event: Event) => {
-            if (event.type !== "connectionstatechange") throw new Error("event.type is not connectionstatechange");
-            const connection = event.target as RTCPeerConnection;
-            setConnectionState(connection.connectionState);
-        }
-        setConnection(newConnection);
-    }, [factory, connection]);
+        client_session_service.join_session(session);
+    }, []);
 
     return (
         <div className="monitor">
-            <SessionDropdown session_list={session_list} value={session} onChange={onSessionChange} />
-            {sessionEnded && (
+            <SessionDropdown session_list={session_list} value={getSessionIfActive(client_session_status)} onChange={onSessionChange} />
+            {client_session_status.status === 'session_ended' && (
                 <div className="alert alert-danger" role="alert">
                     Session Ended
                 </div>
             )}
-            {!sessionEnded && isConnectionLost(connectionState) && (
+            {client_session_status.status === 'joined' && isConnectionLost(connectionState) && (
                 <div className="alert alert-danger" role="alert">
                     Connection Lost
                 </div>
             )}
-            {session && <SessionDuration startedAt={session.started_at} />}
-            {session && stream && (
-                <Stream
-                    stream={stream}
-                    key={session.id}
-                />
-            )}
+            {client_session_status.status === 'joined' && <SessionDuration startedAt={client_session_status.session.started_at} />}
+            {client_session_status.status === 'joined' && <Stream />}
         </div>
     );
 };
