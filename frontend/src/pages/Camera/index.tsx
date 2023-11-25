@@ -2,18 +2,19 @@ import React from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faTag, faMicrophone, faVideo } from '@fortawesome/free-solid-svg-icons';
 
+import HostSessionService from '../../services/HostSessionService';
+import media_device_permission_service from '../../instances/media_device_permission_service';
+import host_session_service from '../../instances/host_session_service';
+import useMediaDevicesPermissionStatus from '../../hooks/useMediaDevicePermissionStatus';
+import useConnectionStatus from '../../hooks/useConnectionStatus';
+import useWakeLock from '../../hooks/useWakeLock';
+import useHostSessionStatus from '../../hooks/useHostSessionStatus';
 import Input from '../../components/Input';
 import SelectVideoDevice from './SelectVideoDevice';
 import SelectAudioDevice from './SelectAudioDevice';
 import MediaStream from './MediaStream';
-import useMediaDevicesPermissionStatus from '../../hooks/useMediaDevicePermissionStatus';
 import SessionToggle from './SessionToggle';
 import './Camera.scss';
-import useConnectionStatus from '../../hooks/useConnectionStatus';
-import useWakeLock from '../../hooks/useWakeLock';
-import host_session_service from '../../instances/host_session_service';
-import useHostSessionStatus from '../../hooks/useHostSessionStatus';
-import media_device_permission_service from '../../instances/media_device_permission_service';
 
 const DefaultSessionName = 'Camera';
 
@@ -31,6 +32,16 @@ const useSessionName = () => {
         setSessionName(sessionName);
     }, []);
     return [sessionName, setAndStoreSessionName] as const;
+}
+
+const useEndSessionOnUnmount = (host_session_service: HostSessionService) => {
+    React.useEffect(() => {
+        return () => {
+            const host_session_status = host_session_service.get_status();
+            if (host_session_status.status === 'session_running')
+                host_session_service.end_session();
+        }
+    }, [host_session_service]);
 }
 
 const Camera: React.FunctionComponent = () => {
@@ -68,6 +79,7 @@ const Camera: React.FunctionComponent = () => {
             name: sessionName,
         });
     }, [connection_status, sessionName]);
+    useEndSessionOnUnmount(host_session_service);
     React.useEffect(() => {
         media_device_permission_service.requestVideoAndAudioPermission();
     }, []);

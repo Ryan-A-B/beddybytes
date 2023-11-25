@@ -1,4 +1,13 @@
 import { precacheAndRoute } from 'workbox-precaching';
 
-// eslint-disable-next-line no-restricted-globals
 precacheAndRoute(self.__WB_MANIFEST);
+
+addEventListener('activate', (event) => {
+    event.waitUntil(clients.claim());
+});
+
+addEventListener('message', (event) => {
+    if (event.data && event.data.type === 'SKIP_WAITING') {
+        skipWaiting();
+    }
+});

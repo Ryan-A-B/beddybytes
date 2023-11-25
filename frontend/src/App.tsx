@@ -1,25 +1,24 @@
 import React from 'react';
 import { Route, Routes } from 'react-router-dom';
+import useSessionList from './hooks/useSessionList';
 import Navbar from './components/Navbar';
+import UpdateAvailable from './components/UpdateAvailable';
 import Login from './pages/Login';
 import Instructions from './pages/Instructions';
 import Camera from './pages/Camera';
 import Monitor from './pages/Monitor';
 import Account from './pages/Account';
 
-import useConnectionStatus from './hooks/useConnectionStatus';
-import useSessionList from './hooks/useSessionList';
-
 import './App.scss';
 
 const App: React.FunctionComponent = () => {
-  const connection_status = useConnectionStatus();
   const session_list = useSessionList();
 
   return (
     <React.Fragment>
       <Navbar />
       <div className="container">
+        <UpdateAvailable />
         <Login>
           <Routes>
             <Route path="/" element={<Instructions />} />

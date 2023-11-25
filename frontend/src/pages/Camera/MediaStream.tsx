@@ -1,5 +1,6 @@
 import React from "react";
 import Connections from "./Connections";
+import media_stream_service from "../../instances/media_stream_service";
 import useConnectionStatus from "../../hooks/useConnectionStatus";
 import useMediaStream from "../../hooks/useMediaStream";
 
@@ -13,6 +14,12 @@ const MediaStream: React.FunctionComponent<Props> = ({ audioDeviceID, videoDevic
     const connection_status = useConnectionStatus();
     const videoRef = React.useRef<HTMLVideoElement>(null);
     const mediaStreamStatus = useMediaStream(audioDeviceID, videoDeviceID);
+    const start_media_stream = React.useCallback(async () => {
+        await media_stream_service.start_media_stream({
+            audio_device_id: audioDeviceID,
+            video_device_id: videoDeviceID,
+        });
+    }, [audioDeviceID, videoDeviceID]);
     React.useLayoutEffect(() => {
         if (mediaStreamStatus.status !== 'running') return;
         if (videoRef.current === null) return;
@@ -31,7 +38,14 @@ const MediaStream: React.FunctionComponent<Props> = ({ audioDeviceID, videoDevic
         return connections.close;
     }, [connection_status, sessionActive, mediaStreamStatus]);
     if (mediaStreamStatus.status === 'starting') return (<div>Getting stream...</div>)
-    if (mediaStreamStatus.status === 'rejected') return (<div>Failed to get stream.</div>)
+    if (mediaStreamStatus.status === 'rejected') return (
+        <div className="mt-3">
+            <p>Failed to get stream.</p>
+            <button className="btn btn-primary" onClick={start_media_stream}>
+                Retry
+            </button>
+        </div>
+    )
     // TODO render a basic audio visualizer
     if (videoDeviceID === '') return (
         <div>
