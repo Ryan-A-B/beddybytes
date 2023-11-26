@@ -57,6 +57,22 @@ class ServiceWorkerService extends EventTarget {
             this.set_status({ status: 'failed', error });
         }
     }
+
+    public skip_waiting = async (): Promise<void> => {
+        if (this.status.status !== 'registered')
+            throw new Error("service worker not registered");
+        const registration = this.status.registration;
+        const waiting = registration.waiting;
+        if (waiting === null)
+            throw new Error('Service worker is not waiting');
+        waiting.addEventListener('statechange', (event) => {
+            const state = (event.target as ServiceWorker).state;
+            if (state === 'activated') {
+                window.location.reload();
+            }
+        });
+        waiting.postMessage({ type: 'SKIP_WAITING' });
+    }
 }
 
 export default ServiceWorkerService;

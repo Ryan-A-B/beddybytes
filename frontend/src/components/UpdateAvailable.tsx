@@ -18,31 +18,22 @@ const useServiceWorkerRegistrationStatus = (service_worker_service: ServiceWorke
 
 const UpdateAvailable: React.FunctionComponent = () => {
     const service_worker_registration_status = useServiceWorkerRegistrationStatus(service_worker_service);
-    const update = React.useCallback(() => {
-        if (service_worker_registration_status.status !== 'registered')
-            throw new Error('Service worker is not registered');
-        const registration = service_worker_registration_status.registration;
-        const waiting = registration.waiting;
-        if (waiting === null)
-            throw new Error('Service worker is not waiting');
-        waiting.addEventListener('statechange', (event) => {
-            const state = (event.target as ServiceWorker).state;
-            if (state === 'activated') {
-                window.location.reload();
-            }
-        });
-        waiting.postMessage({ type: 'SKIP_WAITING' });
-    }, [service_worker_registration_status]);
     if (service_worker_registration_status.status !== 'registered') return null;
     const registration = service_worker_registration_status.registration;
     const waiting = registration.waiting;
     if (waiting === null) return null;
     return (
         <div className="alert alert-primary" role="alert">
-            <p>Update available</p>
-            <button className="btn btn-primary" onClick={update}>
-                Update
-            </button>
+            <div className="row align-items-center">
+                <div className="col">
+                    Update available
+                </div>
+                <div className="col-auto">
+                    <button className="btn btn-primary btn-sm" onClick={service_worker_service.skip_waiting}>
+                        Update
+                    </button>
+                </div>
+            </div>
         </div>
     )
 }
