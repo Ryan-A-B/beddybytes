@@ -10,3 +10,13 @@ $secondary: $blue;
 $danger: $red;
 
 @import "bootstrap";
+
+.debug-message {
+    display: none;
+}
+
+.debug {
+    .debug-message {
+        display: block;
+    }
+}

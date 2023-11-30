@@ -16,7 +16,7 @@ const useServiceWorkerRegistrationStatus = (service_worker_service: ServiceWorke
     return status;
 }
 
-const UpdateAvailable: React.FunctionComponent = () => {
+const UpdateAvailableAlert: React.FunctionComponent = () => {
     const service_worker_registration_status = useServiceWorkerRegistrationStatus(service_worker_service);
     if (service_worker_registration_status.status !== 'registered') return null;
     const registration = service_worker_registration_status.registration;
@@ -38,4 +38,4 @@ const UpdateAvailable: React.FunctionComponent = () => {
     )
 }
 
-export default UpdateAvailable
+export default UpdateAvailableAlert

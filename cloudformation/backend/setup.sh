@@ -2,7 +2,6 @@
 set -ex
 
 # Clone the baby-monitor repo
-sudo yum install git -y
 git clone https://github.com/Ryan-A-B/baby-monitor.git
 
 # Install Docker
@@ -26,5 +25,6 @@ sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin 
 sudo groupadd docker
 sudo usermod -aG docker $USER
 
-# update docker-compose.prod.yml with environment variables
+# create .env with environment variables
 # update traefik/traefik.prod.yml with email for letsencrypt
+# copy eventlog from backup

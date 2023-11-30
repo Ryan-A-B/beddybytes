@@ -49,23 +49,28 @@ const isCandidateSignal = (signal: IncomingSignal): signal is IncomingSignalCand
 class RTCConnection extends EventTarget {
     private signaler: Signaler;
     private session: Session;
-    private pc: RTCPeerConnection;
+    private peer_connection: RTCPeerConnection;
     private stream_status: RTCConnectionStreamStatus = { status: 'not_available' };
 
     constructor(signaler: Signaler, session: Session) {
         super();
         this.signaler = signaler;
         this.session = session;
-        this.pc = new RTCPeerConnection(settings.RTC);
-        this.pc.onicecandidate = this.onICECandidate;
-        this.pc.ontrack = this.onTrack;
-        this.pc.onconnectionstatechange = this.onConnectionStateChange;
+        this.peer_connection = this.create_peer_connection();
         this.sendDescription()
         this.signaler.addEventListener("signal", this.onSignal);
     }
 
+    private create_peer_connection = (): RTCPeerConnection => {
+        const peer_connection = new RTCPeerConnection(settings.RTC);
+        peer_connection.onicecandidate = this.onICECandidate;
+        peer_connection.ontrack = this.onTrack;
+        peer_connection.onconnectionstatechange = this.onConnectionStateChange;
+        return peer_connection;
+    }
+
     public get_connection_status = (): RTCPeerConnectionState => {
-        return this.pc.connectionState;
+        return this.peer_connection.connectionState;
     }
 
     public get_stream_status = (): RTCConnectionStreamStatus => {
@@ -78,12 +83,12 @@ class RTCConnection extends EventTarget {
     }
 
     private sendDescription = async () => {
-        this.pc.addTransceiver('video', { direction: 'recvonly' })
-        this.pc.addTransceiver('audio', { direction: 'recvonly' })
-        await this.pc.setLocalDescription();
+        this.peer_connection.addTransceiver('video', { direction: 'recvonly' })
+        this.peer_connection.addTransceiver('audio', { direction: 'recvonly' })
+        await this.peer_connection.setLocalDescription();
         this.signaler.sendSignal({
             to_connection_id: this.session.host_connection_id,
-            data: { description: this.pc.localDescription },
+            data: { description: this.peer_connection.localDescription },
         });
     }
 
@@ -104,12 +109,12 @@ class RTCConnection extends EventTarget {
     private handleAnswer = async (signal: IncomingSignalDescription) => {
         if (signal.data.description.type !== "answer")
             throw new Error("data.description.type is not answer");
-        await this.pc.setRemoteDescription(signal.data.description);
+        await this.peer_connection.setRemoteDescription(signal.data.description);
     }
 
     private handleCandidateSignal = async (signal: IncomingSignalCandidate) => {
         const candidate = new RTCIceCandidate(signal.data.candidate);
-        await this.pc.addIceCandidate(candidate);
+        await this.peer_connection.addIceCandidate(candidate);
     }
 
     private onICECandidate = (event: RTCPeerConnectionIceEvent) => {
@@ -128,13 +133,17 @@ class RTCConnection extends EventTarget {
 
     private onConnectionStateChange = (event: Event) => {
         if (event.type !== "connectionstatechange") throw new Error("event.type is not connectionstatechange");
-        if (this.pc.connectionState === "disconnected") {
-            this.set_stream_status({ status: 'not_available' });
-        }
         this.dispatchEvent(new Event(EventTypeRTCConnectionStateChanged));
     }
 
-    close(initiatedByHost: boolean) {
+    public reconnect = () => {
+        this.close_peer_connection();
+        this.peer_connection = this.create_peer_connection();
+        this.sendDescription();
+        this.dispatchEvent(new Event(EventTypeRTCConnectionStateChanged));
+    }
+
+    public close(initiatedByHost: boolean) {
         if (!initiatedByHost) {
             this.signaler.sendSignal({
                 to_connection_id: this.session.host_connection_id,
@@ -142,11 +151,14 @@ class RTCConnection extends EventTarget {
             });
         }
         this.signaler.removeEventListener("signal", this.onSignal);
+        this.close_peer_connection();
+    }
 
-        this.pc.onicecandidate = null;
-        this.pc.ontrack = null;
-        this.pc.onconnectionstatechange = null;
-        this.pc.close();
+    private close_peer_connection = () => {
+        this.peer_connection.onicecandidate = null;
+        this.peer_connection.ontrack = null;
+        this.peer_connection.onconnectionstatechange = null;
+        this.peer_connection.close();
     }
 }
 

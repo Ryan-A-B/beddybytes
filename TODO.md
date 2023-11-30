@@ -3,9 +3,8 @@
 ### Bugs
 - backup eventlog to S3
 - reconnect WebRTC
+- when app has failed to refresh token it doesn't retry
 - improve logic for knowing when a session has ended
-- server rebooted event to mark all clients as disconnected?
-- when changing camera stop current stream first
 
 ### Features
 - indicate that the connection is being established

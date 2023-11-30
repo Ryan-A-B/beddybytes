@@ -9,6 +9,7 @@ import "./Monitor.scss";
 import useWakeLock from "../../hooks/useWakeLock";
 import client_session_service from "../../instances/client_session_service";
 import useClientSessionStatus from "../../hooks/useClientSessionStatus";
+import ConnectionFailed from "../../components/ConnectionFailedAlert";
 import useClientRTCConnectionState from "../../hooks/useClientRTCConnectionState";
 
 const getSessionIfActive = (client_session_status: ClientSessionStatus): Session | null => {
@@ -23,11 +24,8 @@ const isClientSessionActive = (client_session_status: ClientSessionStatus["statu
     return false;
 }
 
-const isConnectionLost = (connectionState: RTCPeerConnectionState) => {
-    if (connectionState === "disconnected") return true;
-    if (connectionState === "failed") return true;
-    if (connectionState === "closed") return true;
-    return false;
+const isBadRTCPeerConnectionState = (connection_state: RTCPeerConnectionState): boolean => {
+    return connection_state === "failed" || connection_state === "disconnected" || connection_state === "closed";
 }
 
 interface Props {
@@ -36,7 +34,8 @@ interface Props {
 
 const Monitor: React.FunctionComponent<Props> = ({ session_list }) => {
     const client_session_status = useClientSessionStatus();
-    const connectionState = useClientRTCConnectionState(client_session_status);
+    const connection_state = useClientRTCConnectionState(client_session_status);
+    const should_show_stream = client_session_status.status === "joined" && !isBadRTCPeerConnectionState(connection_state);
 
     useWakeLock(isClientSessionActive(client_session_status.status));
 
@@ -54,13 +53,9 @@ const Monitor: React.FunctionComponent<Props> = ({ session_list }) => {
                     Session Ended
                 </div>
             )}
-            {client_session_status.status === 'joined' && isConnectionLost(connectionState) && (
-                <div className="alert alert-danger" role="alert">
-                    Connection Lost
-                </div>
-            )}
+            <ConnectionFailed />
             {client_session_status.status === 'joined' && <SessionDuration startedAt={client_session_status.session.started_at} />}
-            {client_session_status.status === 'joined' && <Stream />}
+            {should_show_stream && <Stream />}
         </div>
     );
 };

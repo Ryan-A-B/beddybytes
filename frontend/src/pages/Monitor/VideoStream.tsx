@@ -13,6 +13,10 @@ const VideoStream: React.FunctionComponent<Props> = ({ stream }) => {
         htmlVideoElement.srcObject = stream;
         htmlVideoElement.play();
         return () => {
+            if (document.fullscreenEnabled && document.fullscreenElement !== null)
+                document.exitFullscreen();
+            if (document.pictureInPictureEnabled && document.pictureInPictureElement !== null)
+                document.exitPictureInPicture();
             htmlVideoElement.srcObject = null;
         }
     }, [stream])

@@ -2,7 +2,7 @@ import React from 'react';
 import { Route, Routes } from 'react-router-dom';
 import useSessionList from './hooks/useSessionList';
 import Navbar from './components/Navbar';
-import UpdateAvailable from './components/UpdateAvailable';
+import UpdateAvailableAlert from './components/UpdateAvailableAlert';
 import Login from './pages/Login';
 import Instructions from './pages/Instructions';
 import Camera from './pages/Camera';
@@ -18,7 +18,7 @@ const App: React.FunctionComponent = () => {
     <React.Fragment>
       <Navbar />
       <div className="container">
-        <UpdateAvailable />
+        <UpdateAvailableAlert />
         <Login>
           <Routes>
             <Route path="/" element={<Instructions />} />
