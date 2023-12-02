@@ -1,8 +1,10 @@
 import React from "react";
 import Connections from "./Connections";
 import media_stream_service from "../../instances/media_stream_service";
+import host_video_transform_service from "../../instances/host_video_transform_service";
 import useConnectionStatus from "../../hooks/useConnectionStatus";
 import useMediaStream from "../../hooks/useMediaStream";
+import useHostVideoTransformStatus from "../../hooks/useHostVideoTransformStatus";
 
 interface Props {
     audioDeviceID: string
@@ -13,7 +15,8 @@ interface Props {
 const MediaStream: React.FunctionComponent<Props> = ({ audioDeviceID, videoDeviceID, sessionActive }) => {
     const connection_status = useConnectionStatus();
     const videoRef = React.useRef<HTMLVideoElement>(null);
-    const mediaStreamStatus = useMediaStream(audioDeviceID, videoDeviceID);
+    const media_stream_status = useMediaStream(audioDeviceID, videoDeviceID);
+    const host_video_transform_status = useHostVideoTransformStatus(host_video_transform_service);
     const start_media_stream = React.useCallback(async () => {
         await media_stream_service.start_media_stream({
             audio_device_id: audioDeviceID,
@@ -21,24 +24,28 @@ const MediaStream: React.FunctionComponent<Props> = ({ audioDeviceID, videoDevic
         });
     }, [audioDeviceID, videoDeviceID]);
     React.useLayoutEffect(() => {
-        if (mediaStreamStatus.status !== 'running') return;
+        if (media_stream_status.status !== 'running') return;
         if (videoRef.current === null) return;
         const video = videoRef.current;
-        video.srcObject = mediaStreamStatus.media_stream;
+        if (host_video_transform_status.status === 'running') {
+            video.srcObject = host_video_transform_status.transformed_media_stream;
+        } else {
+            video.srcObject = media_stream_status.media_stream;
+        }
         return () => {
             video.srcObject = null;
         }
-    }, [mediaStreamStatus]);
+    }, [media_stream_status, host_video_transform_status]);
     React.useEffect(() => {
-        if (!sessionActive) return;
-        if (mediaStreamStatus.status !== 'running') throw new Error('Stream is not resolved');
+        if (host_video_transform_status.status !== 'running') return;
+        const media_stream = host_video_transform_status.transformed_media_stream;
         if (connection_status.status === 'not_connected') throw new Error('Connection is not connected');
         const connection = connection_status.connection;
-        const connections = new Connections(connection, mediaStreamStatus.media_stream);
+        const connections = new Connections(connection, media_stream);
         return connections.close;
-    }, [connection_status, sessionActive, mediaStreamStatus]);
-    if (mediaStreamStatus.status === 'starting') return (<div>Getting stream...</div>)
-    if (mediaStreamStatus.status === 'rejected') return (
+    }, [connection_status, host_video_transform_status]);
+    if (media_stream_status.status === 'starting') return (<div>Getting stream...</div>)
+    if (media_stream_status.status === 'rejected') return (
         <div className="mt-3">
             <p>Failed to get stream.</p>
             <button className="btn btn-primary" onClick={start_media_stream}>
@@ -56,7 +63,6 @@ const MediaStream: React.FunctionComponent<Props> = ({ audioDeviceID, videoDevic
         <video
             ref={videoRef}
             autoPlay
-            playsInline
             muted
             className={`video my-3 ${sessionActive && 'active'}`}
         />

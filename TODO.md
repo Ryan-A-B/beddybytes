@@ -4,22 +4,22 @@
 - backup eventlog to S3
 - reconnect WebRTC
 - when app has failed to refresh token it doesn't retry
-- improve logic for knowing when a session has ended
+    - not quite true, it will retry indefinitely, which makes it difficult for start/stop session
+    - perhaps allow the reject to come through and let the next layer do the retry
+- when monitor has a session selected, then session ends and another starts, can't select new session
 
 ### Features
-- indicate that the connection is being established
 - record monitor events
-
 - show camera battery level on monitor
 - picture in picture for all browsers
     - currently only firefox displays button
-    - close if connection lost
 - add cloudfront content security policy and permissions policy to cloudformation
 - integration tests for API prod release
 
 ## Next
 ### Bugs
 - PaymentLinkMutex is expensive
+- use gp3 rather than gp2 for EC2 volume, it is cheaper
 - mock square for testing
 - responive slightly broken on phone (S7)
 - server hardening
@@ -28,8 +28,6 @@
     - incompatible encodings?
     - chrome works
 - S7 switching cameras fails
-    - S22 works with chrome
-        - but not brave
 - delay payment until end of trial period
     - or end of active subscription
 
@@ -38,7 +36,6 @@
 - connection lost
     - attempt reconnect
     - Picture in Picture doesn't support custom elements
-        - disable picture in picture when connection is lost
 - monitor time taken to connect call
     - show spinner
 - edit device metadata
@@ -51,6 +48,7 @@
 - continuous integration
 - noise when connection lost
 - battery usage analytics
+- CI pipeline
 
 ## Later
 ### Bugs

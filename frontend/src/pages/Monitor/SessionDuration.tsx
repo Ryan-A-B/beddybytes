@@ -1,7 +1,7 @@
 import React from 'react';
 import moment from 'moment';
 import useDuration from '../../hooks/useDuration';
-import useClientSessionStatus from '../../hooks/useClientSessionStatus';
+import format_duration from '../../utils/formatDuration';
 
 interface Props {
     startedAt: moment.Moment;
@@ -9,15 +9,10 @@ interface Props {
 
 const SessionDuration: React.FunctionComponent<Props> = ({ startedAt }) => {
     const duration = useDuration(startedAt);
-    const message = React.useMemo(() => {
-        const absoluteDuration = duration.abs();
-        const hours = absoluteDuration.hours();
-        const minutes = absoluteDuration.minutes();
-        const seconds = absoluteDuration.seconds();
-        const formattedMinutes = minutes < 10 ? `0${minutes}` : minutes;
-        const formattedSeconds = seconds < 10 ? `0${seconds}` : seconds;
-        return `${hours}:${formattedMinutes}:${formattedSeconds}`;
-    }, [duration]);
+    const message = React.useMemo(
+        () => format_duration(duration),
+        [duration]
+    );
     return (
         <h3 className="text-center">
             {message}

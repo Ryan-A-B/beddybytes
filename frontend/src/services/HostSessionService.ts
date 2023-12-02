@@ -19,6 +19,7 @@ interface HostSessionStatusSessionStarting {
 interface HostSessionStatusSessionRunning {
     status: 'session_running';
     session_id: string;
+    session_start: moment.Moment;
 }
 
 interface HostSessionStatusSessionEnding {
@@ -68,6 +69,7 @@ class HostSessionService extends EventTarget {
             status: 'session_starting',
             session_id: session_id,
         })
+        const session_start = moment();
         const response = await fetch(`https://${settings.API.host}/sessions/${session_id}`, {
             method: 'PUT',
             headers: {
@@ -77,7 +79,7 @@ class HostSessionService extends EventTarget {
                 id: session_id,
                 name: input.name,
                 host_connection_id: input.connection_id,
-                started_at: moment().format(HostSessionService.RFC3339),
+                started_at: session_start.format(HostSessionService.RFC3339),
             }),
         })
         if (!response.ok) {
@@ -90,7 +92,8 @@ class HostSessionService extends EventTarget {
         }
         this.set_status({
             status: 'session_running',
-            session_id: session_id,
+            session_id,
+            session_start,
         })
     }
 

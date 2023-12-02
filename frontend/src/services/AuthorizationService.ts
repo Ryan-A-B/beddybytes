@@ -2,6 +2,7 @@ import moment from 'moment';
 import settings from '../settings';
 import sleep from '../utils/sleep';
 import isClientError from '../utils/isClientError';
+import awaitConnectionChange from '../utils/awaitNetworkChange';
 
 export const EventTypeLogin = 'login';
 export const EventTypeTokenRefreshUnauthorized = 'token_refresh_unauthorized';
@@ -30,7 +31,7 @@ const refresh_access_token = async (retry_delay: number): Promise<AccessTokenOut
     if (isClientError(response.status))
         throw new Error(`Failed to refresh token: ${response.status} ${response.statusText}`);
     if (!response.ok) {
-        await sleep(retry_delay);
+        await Promise.race([awaitConnectionChange(), sleep(retry_delay)]);
         let next_retry_delay = retry_delay * 2;
         if (next_retry_delay > MaxRetryDelay)
             next_retry_delay = MaxRetryDelay;
