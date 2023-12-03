@@ -31,7 +31,7 @@ const refresh_access_token = async (retry_delay: number): Promise<AccessTokenOut
     if (isClientError(response.status))
         throw new Error(`Failed to refresh token: ${response.status} ${response.statusText}`);
     if (!response.ok) {
-        await Promise.race([awaitConnectionChange(), sleep(retry_delay)]);
+        await sleep(retry_delay);
         let next_retry_delay = retry_delay * 2;
         if (next_retry_delay > MaxRetryDelay)
             next_retry_delay = MaxRetryDelay;
