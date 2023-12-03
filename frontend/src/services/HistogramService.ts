@@ -19,13 +19,13 @@ const get_log_frequency_bins = (num_bins: number, min_frequency: number, max_fre
 class HistogramService {
     private static MinFrequency = 10;
     private static MaxFrequency = 1000;
-    private static NumBins = 128;
+    private static NumBins = 64;
     private static LogFrequencyBins = get_log_frequency_bins(
         HistogramService.NumBins,
         HistogramService.MinFrequency,
         HistogramService.MaxFrequency,
     );
-    private static FourierFastTransformSize = 512;
+    private static FourierFastTransformSize = 256;
     private static Canvas = {
         Width: 640,
         Height: 480,
