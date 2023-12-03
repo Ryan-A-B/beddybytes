@@ -51,8 +51,6 @@ class HistogramService {
         const bar_width = canvas.width / HistogramService.NumBins;
 
         const render_frame = (): void => {
-            if (media_stream.active === false) return;
-
             canvas_ctx.fillStyle = BootstrapGrayDark;
             canvas_ctx.fillRect(0, 0, canvas.width, canvas.height);
 
