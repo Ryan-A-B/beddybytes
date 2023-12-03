@@ -1,3 +1,4 @@
+import HistogramService from "./HistogramService";
 import MediaDevicePermissionService from "./MediaDevicePermissionService";
 
 export const EventTypeMediaStreamStatusChanged = 'media_stream_status_changed';
@@ -56,11 +57,17 @@ class MediaStreamService extends EventTarget {
             throw new Error('Media stream already running');
         this.set_status({ status: 'starting' });
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({
+            const video_constraint = MediaStreamService.get_video_constraint(input.video_device_id);
+            const media_stream = await navigator.mediaDevices.getUserMedia({
                 audio: MediaStreamService.get_audio_constraint(input.audio_device_id),
-                video: MediaStreamService.get_video_constraint(input.video_device_id),
+                video: video_constraint,
             });
-            this.set_status({ status: 'running', media_stream: stream });
+            if (video_constraint === false) {
+                const transformed_media_stream = HistogramService.transform_media_stream(media_stream);
+                this.set_status({ status: 'running', media_stream: transformed_media_stream });
+                return;
+            }
+            this.set_status({ status: 'running', media_stream });
         } catch (error) {
             this.set_status({ status: 'rejected', error });
         }

@@ -3,7 +3,6 @@ import { List } from "immutable";
 import { Session } from "../../services/SessionListService";
 import { ClientSessionStatus } from "../../services/ClientSessionService";
 import SessionDropdown from "../../components/SessionDropdown";
-import SessionDuration from "./SessionDuration";
 import Stream from "./Stream";
 import "./Monitor.scss";
 import useWakeLock from "../../hooks/useWakeLock";
@@ -54,7 +53,6 @@ const Monitor: React.FunctionComponent<Props> = ({ session_list }) => {
                 </div>
             )}
             <ConnectionFailed />
-            {client_session_status.status === 'joined' && <SessionDuration startedAt={client_session_status.session.started_at} />}
             {should_show_stream && <Stream />}
         </div>
     );

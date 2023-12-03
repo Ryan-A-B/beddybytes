@@ -1,7 +1,7 @@
 import React from 'react';
 import moment from 'moment';
-import useDuration from '../../hooks/useDuration';
-import format_duration from '../../utils/formatDuration';
+import useDuration from '../hooks/useDuration';
+import format_duration from '../utils/formatDuration';
 
 interface Props {
     startedAt: moment.Moment;

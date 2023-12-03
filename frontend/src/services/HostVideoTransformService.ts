@@ -2,6 +2,8 @@ import moment from "moment";
 import HostSessionService, { EventTypeHostSessionStatusChanged } from "./HostSessionService";
 import MediaStreamService, { EventTypeMediaStreamStatusChanged } from "./MediaStreamService";
 import format_duration from "../utils/formatDuration";
+import get_video_track from "../utils/getVideoTrack";
+import get_audio_track from "../utils/getAudioTrack";
 
 export const EventTypeHostVideoTransformStatusChanged = 'host_video_transform_status_changed'
 
@@ -70,10 +72,7 @@ class HostVideoTransformService extends EventTarget {
         if (this.status.status === 'running') return media_stream;
 
         const video_track = get_video_track(media_stream);
-        if (video_track === null) {
-            // TODO audio only
-            return;
-        }
+        if (video_track === null) return;
         const video_settings = video_track.getSettings();
 
         const video = document.createElement('video');
@@ -92,11 +91,11 @@ class HostVideoTransformService extends EventTarget {
         const transformed_media_stream = canvas.captureStream();
         const audio_track = get_audio_track(media_stream);
         if (audio_track === null) throw new Error('Could not get audio track');
-        transformed_media_stream.addTrack(audio_track);
+        transformed_media_stream.addTrack(audio_track.clone());
 
         this.set_status({
             status: 'running',
-            transformed_media_stream: transformed_media_stream,
+            transformed_media_stream,
             video,
             canvas,
         });
@@ -130,15 +129,3 @@ class HostVideoTransformService extends EventTarget {
 }
 
 export default HostVideoTransformService;
-
-const get_video_track = (media_stream: MediaStream): MediaStreamTrack | null => {
-    const video_tracks = media_stream.getVideoTracks();
-    if (video_tracks.length !== 1) return null;
-    return video_tracks[0];
-}
-
-const get_audio_track = (media_stream: MediaStream): MediaStreamTrack | null => {
-    const audio_tracks = media_stream.getAudioTracks();
-    if (audio_tracks.length !== 1) return null;
-    return audio_tracks[0];
-}

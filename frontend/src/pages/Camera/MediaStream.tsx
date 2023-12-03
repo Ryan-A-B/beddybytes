@@ -53,12 +53,6 @@ const MediaStream: React.FunctionComponent<Props> = ({ audioDeviceID, videoDevic
             </button>
         </div>
     )
-    // TODO render a basic audio visualizer
-    if (videoDeviceID === '') return (
-        <div>
-            Audio only
-        </div>
-    )
     return (
         <video
             ref={videoRef}
