@@ -1,4 +1,5 @@
 import AuthorizationService from "./AuthorizationService";
+import LoggingService from "./LoggingService";
 import AccountService, { EventTypeAccountStatusChanged } from "./AccountService";
 import WebSocketConnection from "../Connection/WebSocketConnection";
 import Connection, { EventTypeConnectionLost } from "../Connection/Connection";
@@ -22,17 +23,20 @@ interface ConnectionStatusDisconnected {
 export type ConnectionStatus = ConnectionStatusNotConnected | ConnectionStatusConnected | ConnectionStatusDisconnected;
 
 interface NewConnectionServiceInput {
+    logging_service: LoggingService;
     authorization_service: AuthorizationService;
     account_service: AccountService;
 }
 
 class ConnectionService extends EventTarget {
+    private logging_service: LoggingService;
     private authorization_service: AuthorizationService;
     private account_service: AccountService;
     private status: ConnectionStatus;
 
     constructor(input: NewConnectionServiceInput) {
         super();
+        this.logging_service = input.logging_service;
         this.authorization_service = input.authorization_service;
         this.account_service = input.account_service;
         this.status = { status: 'not_connected' };
@@ -54,6 +58,7 @@ class ConnectionService extends EventTarget {
             throw new Error(`Expected status to be not_connected, but was ${this.status.status}`);
         const connection = await WebSocketConnection.create({
             authorization_service: this.authorization_service,
+            logging_service: this.logging_service,
         })
         this.status = {
             status: 'connected',

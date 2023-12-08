@@ -1,32 +1,21 @@
-import { InfluxDB, Point, HttpError, WriteApi } from '@influxdata/influxdb-client'
+import { InfluxDB, Point, WriteApi } from '@influxdata/influxdb-client'
 import Analytics from './Analytics';
 import { Duration } from 'moment';
 
-const getOrg = (): string => {
-    if (process.env.NODE_ENV !== 'production') return 'f30489c658c321d7'
-    return 'creativeilk'
-}
-
-const getClient = (): InfluxDB => {
-    if (process.env.NODE_ENV !== 'production') return new InfluxDB({
-        url: 'https://influx.babymonitor.local:8443',
-        token: '1iA4Zsc1XAAw9vZprfHAnojjkPLE_9Ghm9mWH0yTEqgUbRBM3jc--JxIz0_3y-brA-fha3cJ2YqTa0maVRaSeQ==',
-    })
-    return new InfluxDB({
-        url: 'https://influx.babymonitor.creativeilk.com',
-        token: 'QLO7fgbno91AETkt_pUTui4y_IA7vMx8Fd8O0D4y5w1RLhTZ58sb0wRXDw_Q4jjkJiBngoFvIWszM3UdbLu_Yw==',
-    })
+type NewInfluxAnalyticsInput = {
+    client: InfluxDB,
+    org: string,
+    bucket: string,
+    client_id: string,
 }
 
 class InfluxAnalytics implements Analytics {
     private writer: WriteApi;
 
-    constructor(client_id: string) {
-        const org = getOrg();
-        const bucket = 'app';
-        this.writer = getClient().getWriteApi(org, bucket, 'ms');
+    constructor(input: NewInfluxAnalyticsInput) {
+        this.writer = input.client.getWriteApi(input.org, input.bucket, 'ms');
         this.writer.useDefaultTags({
-            client_id,
+            client_id: input.client_id,
         })
     }
 

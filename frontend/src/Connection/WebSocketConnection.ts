@@ -3,8 +3,9 @@ import settings from '../settings';
 import Connection, { EventTypeConnectionLost, Signal } from './Connection';
 import AuthorizationService from '../services/AuthorizationService';
 import eventstore from '../eventstore';
-import authorization_service from '../instances/authorization_service';
 import sleep from '../utils/sleep';
+import LoggingService from '../services/LoggingService';
+import { Severity } from '../services/LoggingService/models';
 
 export const EventTypeRemoteEvent = 'remote_event';
 
@@ -26,20 +27,32 @@ interface IncomingSignal {
 type IncomingMessage = IncomingMessageEvent | IncomingMessageSignal;
 
 interface CreateWebSocketConnectionInput {
+    logging_service: LoggingService;
     authorization_service: AuthorizationService;
+}
+
+type NewWebSocketConnectionInput = {
+    logging_service: LoggingService;
+    authorization_service: AuthorizationService;
+    connectionID: string;
+    ws: WebSocket;
 }
 
 class WebSocketConnection extends EventTarget implements Connection {
     private static InitialReconnectDelay = 1000;
     private static MaxReconnectDelay = 30000;
+    private logging_service: LoggingService;
+    private authorization_service: AuthorizationService;
     readonly id: string;
     private ws: WebSocket;
     private reconnecting = false;
     private reconnectDelay = WebSocketConnection.InitialReconnectDelay;
-    private constructor(connectionID: string, ws: WebSocket) {
+    private constructor(input: NewWebSocketConnectionInput) {
         super();
-        this.id = connectionID;
-        this.ws = ws;
+        this.logging_service = input.logging_service;
+        this.authorization_service = input.authorization_service;
+        this.id = input.connectionID;
+        this.ws = input.ws;
         this.ws.onmessage = this.onMessage;
         this.ws.onerror = this.onError;
         this.ws.onclose = this.onClose;
@@ -60,12 +73,18 @@ class WebSocketConnection extends EventTarget implements Connection {
     }
 
     private onError = (event: Event) => {
-        console.error(event);
+        this.logging_service.log({
+            severity: Severity.Error,
+            message: `WebSocket error: ${event}`,
+        });
     }
 
     private onClose = (event: CloseEvent) => {
         if (event.wasClean === true) return;
-        console.error(`WebSocket closed with code ${event.code}, reconnecting...`);
+        this.logging_service.log({
+            severity: Severity.Error,
+            message: `WebSocket closed with code ${event.code}, reconnecting...`,
+        });
         this.dispatchEvent(new Event(EventTypeConnectionLost))
         this.reconnect();
     }
@@ -94,7 +113,7 @@ class WebSocketConnection extends EventTarget implements Connection {
         if (this.reconnectDelay > WebSocketConnection.MaxReconnectDelay)
             this.reconnectDelay = WebSocketConnection.MaxReconnectDelay;
         this.reconnecting = false;
-        this.ws = await WebSocketConnection.connect(this.id);
+        this.ws = await WebSocketConnection.connect(this.authorization_service, this.id);
         this.ws.onopen = this.onOpen;
         this.ws.onmessage = this.onMessage;
         this.ws.onerror = this.onError;
@@ -103,11 +122,16 @@ class WebSocketConnection extends EventTarget implements Connection {
 
     static async create(input: CreateWebSocketConnectionInput): Promise<Connection> {
         const connectionID = uuid();
-        const ws = await WebSocketConnection.connect(connectionID);
-        return new WebSocketConnection(connectionID, ws);
+        const ws = await WebSocketConnection.connect(input.authorization_service, connectionID);
+        return new WebSocketConnection({
+            logging_service: input.logging_service,
+            authorization_service: input.authorization_service,
+            connectionID,
+            ws,
+        });
     }
 
-    private static async connect(connectionID: string): Promise<WebSocket> {
+    private static async connect(authorization_service: AuthorizationService, connectionID: string): Promise<WebSocket> {
         const access_token = await authorization_service.get_access_token();
         const query_parameters = new URLSearchParams();
         query_parameters.set('access_token', access_token);

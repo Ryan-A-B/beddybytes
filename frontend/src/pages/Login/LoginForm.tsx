@@ -1,6 +1,8 @@
 import React from "react";
 import Input from "../../components/Input";
 import AuthorizationService from "../../services/AuthorizationService";
+import logging_service from "../../instances/logging_service";
+import { Severity } from "../../services/LoggingService/models";
 
 interface Props {
     email: string;
@@ -17,6 +19,10 @@ const LoginForm: React.FunctionComponent<Props> = ({ email, setEmail, password, 
         event.preventDefault()
         authorization_service.login(email, password)
             .catch((error) => {
+                logging_service.log({
+                    severity: Severity.Error,
+                    message: error.message,
+                })
                 setError(error.message)
             })
     }, [authorization_service, email, password])

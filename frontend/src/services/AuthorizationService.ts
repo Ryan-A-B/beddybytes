@@ -2,6 +2,8 @@ import moment from 'moment';
 import settings from '../settings';
 import sleep from '../utils/sleep';
 import isClientError from '../utils/isClientError';
+import logging_service from '../instances/logging_service';
+import { Severity } from './LoggingService/models';
 
 export const EventTypeLogin = 'login';
 export const EventTypeTokenRefreshUnauthorized = 'token_refresh_unauthorized';
@@ -30,6 +32,10 @@ const refresh_access_token = async (retry_delay: number): Promise<AccessTokenOut
     if (isClientError(response.status))
         throw new Error(`Failed to refresh token: ${response.status} ${response.statusText}`);
     if (!response.ok) {
+        logging_service.log({
+            severity: Severity.Warning,
+            message: `Failed to refresh token: ${response.status} ${response.statusText}, retrying in ${retry_delay}ms`
+        })
         await sleep(retry_delay);
         let next_retry_delay = retry_delay * 2;
         if (next_retry_delay > MaxRetryDelay)
@@ -98,15 +104,31 @@ class AuthorizationService extends EventTarget {
     public get_access_token = async (): Promise<string> => {
         switch (this.state.state) {
             case "not_fetched":
+                logging_service.log({
+                    severity: Severity.Informational,
+                    message: `Token not fetched, fetching`
+                })
                 return this.refresh_access_token();
             case "fetching":
+                logging_service.log({
+                    severity: Severity.Informational,
+                    message: `Token being fetched, waiting`
+                })
                 return this.state.promise.then((output) => output.access_token);
             case "fetched": {
+                logging_service.log({
+                    severity: Severity.Informational,
+                    message: `Token fetched, checking expiry`
+                })
                 if (moment().isAfter(this.state.expiry))
                     return this.refresh_access_token();
                 return this.state.access_token;
             }
             case "failed":
+                logging_service.log({
+                    severity: Severity.Informational,
+                    message: `Token fetch failed, throwing`
+                })
                 throw this.state.error;
         }
     }
@@ -123,6 +145,10 @@ class AuthorizationService extends EventTarget {
     }
 
     private on_fetch_access_token_success = (output: AccessTokenOutput) => {
+        logging_service.log({
+            severity: Severity.Informational,
+            message: `Successfully refreshed token`
+        })
         const ttl = moment.duration(output.expires_in, 'seconds');
         this.state = {
             state: "fetched",
@@ -132,6 +158,10 @@ class AuthorizationService extends EventTarget {
     }
 
     private on_fetch_access_token_failure = (error: Error) => {
+        logging_service.log({
+            severity: Severity.Error,
+            message: `Failed to refresh token: ${error.message}`
+        })
         // TODO if error is 401, dispatch token_refresh_unauthorized event
         this.state = {
             state: "failed",
