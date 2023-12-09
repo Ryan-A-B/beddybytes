@@ -92,6 +92,24 @@ services:
       - "traefik.http.routers.influx.tls.certresolver=letsencrypt"
       - "traefik.http.routers.influx.tls.domains[0].main=influx.babymonitor.creativeilk.com"
       - "traefik.http.routers.influx.middlewares=headers-cors@docker"
+  grafana:
+    image: grafana/grafana-oss:10.2.2
+    restart: always
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana_storage:/var/lib/grafana
+    labels:
+      - "traefik.http.routers.grafana.rule=Host(`grafana.babymonitor.creativeilk.com`)"
+      - "traefik.http.routers.grafana.entrypoints=websecure"
+      - "traefik.http.routers.grafana.tls=true"
+      - "traefik.http.routers.grafana.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.grafana.tls.domains[0].main=grafana.babymonitor.creativeilk.com"
+      - "traefik.http.routers.grafana.middlewares=headers-cors@docker"
+
+volumes:
+  grafana_storage:
+
 
 secrets:
   ENCRYPTION_KEY:

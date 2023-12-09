@@ -72,7 +72,24 @@ services:
       - "traefik.http.routers.influx.entrypoints=websecure"
       - "traefik.http.routers.influx.tls=true"
       - "traefik.http.routers.influx.middlewares=headers-cors@docker"
-      
+  grafana:
+    image: grafana/grafana-oss:10.2.2
+    restart: always
+    ports:
+      - "3001:3000"
+    volumes:
+      - grafana_storage:/var/lib/grafana
+    labels:
+      - "traefik.http.routers.grafana.rule=Host(`grafana.babymonitor.local`)"
+      - "traefik.http.routers.grafana.entrypoints=websecure"
+      - "traefik.http.routers.grafana.tls=true"
+      - "traefik.http.routers.grafana.middlewares=headers-cors@docker"
+
+volumes:
+  # TODO influx_storage + set up script
+  grafana_storage:
+
+
 secrets:
   ENCRYPTION_KEY:
     external: true

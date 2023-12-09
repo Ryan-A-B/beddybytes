@@ -6,7 +6,8 @@ type NewInfluxLoggingServiceInput = {
     client: InfluxDB
     org: string
     bucket: string
-    process_id: string
+    client_id: string
+    instance_id: string
 }
 
 class InfluxLoggingService {
@@ -39,7 +40,7 @@ class InfluxLoggingService {
             host: InfluxLoggingService.HostName,
             hostname: InfluxLoggingService.HostName,
         });
-        this.process_id = input.process_id;
+        this.process_id = `${input.client_id}:${input.instance_id}`;
     }
 
     public log = (input: LogInput) => {

@@ -3,6 +3,7 @@ import LoggingService from "./LoggingService";
 import AccountService, { EventTypeAccountStatusChanged } from "./AccountService";
 import WebSocketConnection from "../Connection/WebSocketConnection";
 import Connection, { EventTypeConnectionLost } from "../Connection/Connection";
+import { Severity } from "./LoggingService/models";
 
 export const EventTypeConnectionStatusChanged = 'connection_status_changed';
 
@@ -53,6 +54,15 @@ class ConnectionService extends EventTarget {
         return this.status;
     }
 
+    private set_status = (status: ConnectionStatus) => {
+        this.logging_service.log({
+            severity: Severity.Debug,
+            message: `Connection status changed from ${this.status.status} to ${status.status}`,
+        });
+        this.status = status;
+        this.dispatchEvent(new Event(EventTypeConnectionStatusChanged));
+    }
+
     private connect = async () => {
         if (this.status.status !== 'not_connected')
             throw new Error(`Expected status to be not_connected, but was ${this.status.status}`);
@@ -60,18 +70,16 @@ class ConnectionService extends EventTarget {
             authorization_service: this.authorization_service,
             logging_service: this.logging_service,
         })
-        this.status = {
+        this.set_status({
             status: 'connected',
             connection,
-        }
-        this.dispatchEvent(new Event(EventTypeConnectionStatusChanged));
+        })
         connection.addEventListener(EventTypeConnectionLost, this.handle_client_disconnected);
     }
 
     private disconnect = async () => {
         // TODO
-        this.status = { status: 'not_connected' };
-        this.dispatchEvent(new Event(EventTypeConnectionStatusChanged));
+        this.set_status({ status: 'not_connected' });
     }
 
     private handle_account_status_changed = async () => {
@@ -84,11 +92,10 @@ class ConnectionService extends EventTarget {
     private handle_client_disconnected = async () => {
         if (this.status.status !== 'connected')
             throw new Error(`Expected status to be connected, but was ${this.status.status}`);
-        this.status = {
+        this.set_status({
             status: 'disconnected',
             connection: this.status.connection,
-        }
-        this.dispatchEvent(new Event(EventTypeConnectionStatusChanged));
+        });
     }
 }
 

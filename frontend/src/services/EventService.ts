@@ -3,6 +3,8 @@ import eventstore from "../eventstore";
 import IndexedDBEventStore from "../eventstore/IndexedDBEventStore";
 import FollowingDecorator from "../eventstore/FollowingDecorator";
 import settings from "../settings";
+import LoggingService from "./LoggingService";
+import { Severity } from "./LoggingService/models";
 import AuthorizationService from "./AuthorizationService";
 import sleep from "../utils/sleep";
 
@@ -20,18 +22,21 @@ interface EventServiceStatusReady {
 export type EventServiceStatus = EventServiceStatusLoading | EventServiceStatusReady;
 
 interface NewEventServiceInput {
+    logging_service: LoggingService;
     authorization_service: AuthorizationService;
 }
 
 class EventService extends EventTarget {
     private static MaxReconnectDelay = 5 * 60 * 1000;
     private static InitialReconnectDelay = 1000;
+    private logging_service: LoggingService;
     private authorization_service: AuthorizationService;
     private status: EventServiceStatus = { status: 'loading' };
     private reconnect_delay = EventService.InitialReconnectDelay;
 
     constructor(input: NewEventServiceInput) {
         super();
+        this.logging_service = input.logging_service;
         this.authorization_service = input.authorization_service;
         this.create_event_store();
     }
@@ -40,15 +45,23 @@ class EventService extends EventTarget {
         return this.status;
     }
 
+    private set_status = (status: EventServiceStatus) => {
+        this.logging_service.log({
+            severity: Severity.Debug,
+            message: `Event service status changed from ${this.status.status} to ${status.status}`,
+        });
+        this.status = status;
+        this.dispatchEvent(new Event(EventTypeEventServiceStatusChanged));
+    }
+
     private create_event_store = async (): Promise<void> => {
         const DatabaseName = 'event_store';
         const event_store_indexeddb = await IndexedDBEventStore.create(DatabaseName);
         const event_store = new FollowingDecorator(event_store_indexeddb);
-        this.status = {
+        this.set_status({
             status: 'ready',
             event_store,
-        };
-        this.dispatchEvent(new Event(EventTypeEventServiceStatusChanged));
+        });
         this.connect(event_store);
     }
 
@@ -66,6 +79,10 @@ class EventService extends EventTarget {
     }
 
     private handle_open = (): void => {
+        this.logging_service.log({
+            severity: Severity.Informational,
+            message: `Connected to event source`,
+        });
         this.reconnect_delay = EventService.InitialReconnectDelay;
     }
 
@@ -78,7 +95,10 @@ class EventService extends EventTarget {
         const event_source = error.target as EventSource;
         event_source.close()
 
-        console.error('Failed to connect to event source', error, `reconnecting in ${this.reconnect_delay}ms`);
+        this.logging_service.log({
+            severity: Severity.Error,
+            message: `Failed to connect to event source, reconnecting in ${this.reconnect_delay}ms`,
+        });
         this.reconnect(event_store);
     }
 

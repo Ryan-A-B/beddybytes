@@ -1,3 +1,5 @@
+import LoggingService from "./LoggingService";
+import { Severity } from "./LoggingService/models";
 import MediaDevicePermissionService from "./MediaDevicePermissionService";
 
 export const EventTypeMediaStreamStatusChanged = 'media_stream_status_changed';
@@ -28,15 +30,18 @@ interface StartMediaStreamInput {
 }
 
 interface NewMediaStreamServiceInput {
+    logging_service: LoggingService;
     media_device_permission_service: MediaDevicePermissionService;
 }
 
 class MediaStreamService extends EventTarget {
+    private logging_service: LoggingService;
     private media_device_permission_service: MediaDevicePermissionService;
     private status: MediaStreamStatus = { status: 'not_running' };
 
     constructor(input: NewMediaStreamServiceInput) {
         super();
+        this.logging_service = input.logging_service;
         this.media_device_permission_service = input.media_device_permission_service;
     }
 
@@ -45,6 +50,10 @@ class MediaStreamService extends EventTarget {
     }
 
     private set_status = (media_stream_status: MediaStreamStatus): void => {
+        this.logging_service.log({
+            severity: Severity.Debug,
+            message: `Media stream status changed from ${this.status.status} to ${media_stream_status.status}`,
+        });
         this.status = media_stream_status;
         this.dispatchEvent(new Event(EventTypeMediaStreamStatusChanged));
     }

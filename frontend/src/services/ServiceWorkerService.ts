@@ -1,3 +1,6 @@
+import LoggingService from "./LoggingService";
+import { Severity } from "./LoggingService/models";
+
 export const EventTypeServiceWorkerRegistrationStatusChanged = 'service_worker_registration_status_changed';
 
 interface ServiceWorkerRegistrationStatusNotAvailable {
@@ -24,12 +27,18 @@ export type ServiceWorkerRegistrationStatus =
     ServiceWorkerRegistrationStatusRegistered |
     ServiceWorkerRegistrationStatusFailed;
 
+type NewServiceWorkerServiceInput = {
+    logging_service: LoggingService;
+}
+
 class ServiceWorkerService extends EventTarget {
     private static should_skip_registration = process.env.NODE_ENV === 'development';
+    private logging_service: LoggingService;
     private status: ServiceWorkerRegistrationStatus;
 
-    constructor() {
+    constructor(input: NewServiceWorkerServiceInput) {
         super();
+        this.logging_service = input.logging_service;
         const service_worker_available = 'serviceWorker' in navigator;
         if (!service_worker_available) {
             this.status = { status: 'not_available' };
@@ -43,6 +52,10 @@ class ServiceWorkerService extends EventTarget {
     }
 
     private set_status = (status: ServiceWorkerRegistrationStatus): void => {
+        this.logging_service.log({
+            severity: Severity.Debug,
+            message: `Service worker registration status changed from ${this.status.status} to ${status.status}`,
+        });
         this.status = status;
         this.dispatchEvent(new Event(EventTypeServiceWorkerRegistrationStatusChanged));
     }

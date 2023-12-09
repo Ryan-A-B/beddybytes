@@ -1,5 +1,7 @@
 import moment from 'moment';
 import { v4 as uuid } from 'uuid';
+import LoggingService from './LoggingService';
+import { Severity } from './LoggingService/models';
 import AuthorizationService from "./AuthorizationService";
 import settings from "../settings";
 import isClientError from '../utils/isClientError';
@@ -34,6 +36,7 @@ export type HostSessionStatus =
 
 
 interface NewHostSessionServiceInput {
+    logging_service: LoggingService;
     authorization_service: AuthorizationService;
 }
 
@@ -44,11 +47,13 @@ interface StartSessionInput {
 
 class HostSessionService extends EventTarget {
     private static RFC3339 = 'YYYY-MM-DDTHH:mm:ssZ';
+    private logging_service: LoggingService;
     private authorization_service: AuthorizationService;
     private status: HostSessionStatus = { status: 'no_session_running' };
 
     constructor(input: NewHostSessionServiceInput) {
         super();
+        this.logging_service = input.logging_service;
         this.authorization_service = input.authorization_service;
     }
 
@@ -57,6 +62,10 @@ class HostSessionService extends EventTarget {
     }
 
     private set_status = (status: HostSessionStatus): void => {
+        this.logging_service.log({
+            severity: Severity.Debug,
+            message: `Host session status changed from ${this.status.status} to ${status.status}`,
+        });
         this.status = status;
         this.dispatchEvent(new Event(EventTypeHostSessionStatusChanged));
     }
@@ -84,7 +93,10 @@ class HostSessionService extends EventTarget {
             const payload = await response.text()
             if (isClientError(response.status))
                 throw new Error(`Failed to start session: ${payload}`);
-            console.error(`Failed to start session: ${payload}`)
+            this.logging_service.log({
+                severity: Severity.Error,
+                message: `Failed to start session: ${payload}`,
+            });
             await sleep(5000)
             return this.start_session(input)
         }
@@ -113,7 +125,10 @@ class HostSessionService extends EventTarget {
             const payload = await response.text()
             if (isClientError(response.status))
                 throw new Error(`Failed to end session: ${payload}`);
-            console.error(`Failed to end session: ${payload}`)
+            this.logging_service.log({
+                severity: Severity.Error,
+                message: `Failed to end session: ${payload}`,
+            });
             await sleep(5000)
             return this.end_session()
         }
