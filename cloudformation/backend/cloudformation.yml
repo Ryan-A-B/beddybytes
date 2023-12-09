@@ -21,6 +21,9 @@ Parameters:
   InfluxDomainName:
     Description: The domain name of the influxDB
     Type: String
+  GrafanaDomainName:
+    Description: The domain name of the Grafana
+    Type: String
   MyIpAddress:
     Description: The IP address of the client that will be allowed to SSH into the EC2 instance
     Type: String
@@ -44,7 +47,17 @@ Resources:
       Type: A
       TTL: '900'
       ResourceRecords:
-        - !GetAtt Ec2Instance.PublicIp
+        - !Ref ElasticIP
+
+  GrafanaDNSRecord:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneName: !Ref HostedZoneName
+      Name: !Ref GrafanaDomainName
+      Type: A
+      TTL: '900'
+      ResourceRecords:
+        - !Ref ElasticIP
 
   Ec2Instance:
     Type: AWS::EC2::Instance
