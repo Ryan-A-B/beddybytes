@@ -5,6 +5,8 @@
 - reconnect WebRTC
 - when app has failed to refresh token it doesn't retry
 - improve logic for knowing when a session has ended
+- refresh token already used results in bricked app
+    - from too fast refreshes
 
 ### Features
 - indicate that the connection is being established

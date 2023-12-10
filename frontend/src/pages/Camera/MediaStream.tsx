@@ -1,8 +1,8 @@
 import React from "react";
 import Connections from "./Connections";
 import media_stream_service from "../../instances/media_stream_service";
-import useConnectionStatus from "../../hooks/useConnectionStatus";
 import useMediaStream from "../../hooks/useMediaStream";
+import useSignalService from "../../hooks/useSignalService";
 
 interface Props {
     audioDeviceID: string
@@ -11,7 +11,7 @@ interface Props {
 }
 
 const MediaStream: React.FunctionComponent<Props> = ({ audioDeviceID, videoDeviceID, sessionActive }) => {
-    const connection_status = useConnectionStatus();
+    const signal_service = useSignalService();
     const videoRef = React.useRef<HTMLVideoElement>(null);
     const mediaStreamStatus = useMediaStream(audioDeviceID, videoDeviceID);
     const start_media_stream = React.useCallback(async () => {
@@ -32,11 +32,9 @@ const MediaStream: React.FunctionComponent<Props> = ({ audioDeviceID, videoDevic
     React.useEffect(() => {
         if (!sessionActive) return;
         if (mediaStreamStatus.status !== 'running') throw new Error('Stream is not resolved');
-        if (connection_status.status === 'not_connected') throw new Error('Connection is not connected');
-        const connection = connection_status.connection;
-        const connections = new Connections(connection, mediaStreamStatus.media_stream);
+        const connections = new Connections(signal_service, mediaStreamStatus.media_stream);
         return connections.close;
-    }, [connection_status, sessionActive, mediaStreamStatus]);
+    }, [signal_service, sessionActive, mediaStreamStatus]);
     if (mediaStreamStatus.status === 'starting') return (<div>Getting stream...</div>)
     if (mediaStreamStatus.status === 'rejected') return (
         <div className="mt-3">

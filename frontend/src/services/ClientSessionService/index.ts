@@ -1,4 +1,4 @@
-import ConnectionService from "../ConnectionService";
+import LoggingService from "../LoggingService";
 import SessionListService, { EventTypeSessionListChanged, Session } from "../SessionListService";
 import RTCConnection from "./RTCConnection";
 
@@ -35,18 +35,21 @@ export type ClientSessionStatus =
     ClientSessionStatusSessionEnded;
 
 interface NewClientSessionServiceInput {
-    connection_service: ConnectionService;
+    logging_service: LoggingService;
+    signal_service: SignalService;
     session_list_service: SessionListService;
 }
 
 class ClientSessionService extends EventTarget {
-    private connection_service: ConnectionService;
+    private logging_service: LoggingService;
+    private signal_service: SignalService;
     private session_list_service: SessionListService;
     private status: ClientSessionStatus = { status: 'not_joined' };
 
     constructor(input: NewClientSessionServiceInput) {
         super();
-        this.connection_service = input.connection_service;
+        this.logging_service = input.logging_service;
+        this.signal_service = input.signal_service;
         this.session_list_service = input.session_list_service;
         this.session_list_service.addEventListener(EventTypeSessionListChanged, this.handle_session_list_changed);
     }
@@ -63,16 +66,17 @@ class ClientSessionService extends EventTarget {
     public join_session(session: Session) {
         if (this.status.status === 'joining') throw new Error('Already joining');
         if (this.status.status === 'joined') throw new Error('Already joined');
-        const connection_service_status = this.connection_service.get_status();
-        if (connection_service_status.status !== 'connected')
-            return;
-        this.set_status({ status: 'joining', session });
-        const connection = connection_service_status.connection;
-        const rtc_connection = new RTCConnection(connection, session);
+        this.signal_service.stop();
+        const rtc_connection = new RTCConnection({
+            logging_service: this.logging_service,
+            signal_service: this.signal_service,
+            session,
+        });
         this.set_status({ status: 'joined', session, rtc_connection });
     }
 
     public leave_session() {
+        this.signal_service.stop();
         this.leave_session_with_status({ status: 'left' });
     }
 

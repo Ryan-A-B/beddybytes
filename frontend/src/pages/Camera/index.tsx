@@ -6,7 +6,6 @@ import HostSessionService from '../../services/HostSessionService';
 import media_device_permission_service from '../../instances/media_device_permission_service';
 import host_session_service from '../../instances/host_session_service';
 import useMediaDevicesPermissionStatus from '../../hooks/useMediaDevicePermissionStatus';
-import useConnectionStatus from '../../hooks/useConnectionStatus';
 import useWakeLock from '../../hooks/useWakeLock';
 import useHostSessionStatus from '../../hooks/useHostSessionStatus';
 import Input from '../../components/Input';
@@ -15,6 +14,7 @@ import SelectAudioDevice from './SelectAudioDevice';
 import MediaStream from './MediaStream';
 import SessionToggle from './SessionToggle';
 import './Camera.scss';
+import useSignalService from '../../hooks/useSignalService';
 
 const DefaultSessionName = 'Camera';
 
@@ -45,7 +45,7 @@ const useEndSessionOnUnmount = (host_session_service: HostSessionService) => {
 }
 
 const Camera: React.FunctionComponent = () => {
-    const connection_status = useConnectionStatus();
+    const signal_service = useSignalService();
     const host_session_status = useHostSessionStatus();
     const media_devices_permission_status = useMediaDevicesPermissionStatus();
     const [sessionName, setSessionName] = useSessionName();
@@ -72,13 +72,11 @@ const Camera: React.FunctionComponent = () => {
         setVideoDeviceID(videoDeviceID);
     }, []);
     const startSession = React.useCallback(async () => {
-        if (connection_status.status === 'not_connected') throw new Error("connection is not connected");
-        const connection = connection_status.connection;
         await host_session_service.start_session({
-            connection_id: connection.id,
+            connection_id: signal_service.connection_id,
             name: sessionName,
         });
-    }, [connection_status, sessionName]);
+    }, [signal_service, sessionName]);
     useEndSessionOnUnmount(host_session_service);
     React.useEffect(() => {
         media_device_permission_service.requestVideoAndAudioPermission();

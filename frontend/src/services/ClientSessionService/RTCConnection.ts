@@ -1,6 +1,6 @@
-import { Signaler } from "../../Connection/Connection";
 import { Session } from "../SessionListService";
 import settings from "../../settings";
+import LoggingService from "../LoggingService";
 
 export const EventTypeRTCConnectionStateChanged = 'rtc_connection_state_changed';
 export const EventTypeRTCConnectionStreamStatusChanged = 'rtc_connection_stream_status_changed';
@@ -46,19 +46,27 @@ const isCandidateSignal = (signal: IncomingSignal): signal is IncomingSignalCand
     return signal.data.candidate !== undefined;
 }
 
+interface NewRTCConnectionInput {
+    logging_service: LoggingService;
+    signal_service: SignalService;
+    session: Session;
+}
+
 class RTCConnection extends EventTarget {
-    private signaler: Signaler;
+    private logging_service: LoggingService;
+    private signal_service: SignalService;
     private session: Session;
     private peer_connection: RTCPeerConnection;
     private stream_status: RTCConnectionStreamStatus = { status: 'not_available' };
 
-    constructor(signaler: Signaler, session: Session) {
+    constructor(input: NewRTCConnectionInput) {
         super();
-        this.signaler = signaler;
-        this.session = session;
+        this.logging_service = input.logging_service;
+        this.signal_service = input.signal_service;
+        this.session = input.session;
         this.peer_connection = this.create_peer_connection();
         this.sendDescription()
-        this.signaler.addEventListener("signal", this.onSignal);
+        this.signal_service.addEventListener("signal", this.onSignal);
     }
 
     private create_peer_connection = (): RTCPeerConnection => {
@@ -86,7 +94,7 @@ class RTCConnection extends EventTarget {
         this.peer_connection.addTransceiver('video', { direction: 'recvonly' })
         this.peer_connection.addTransceiver('audio', { direction: 'recvonly' })
         await this.peer_connection.setLocalDescription();
-        this.signaler.sendSignal({
+        this.signal_service.send_signal({
             to_connection_id: this.session.host_connection_id,
             data: { description: this.peer_connection.localDescription },
         });
@@ -120,7 +128,7 @@ class RTCConnection extends EventTarget {
     private onICECandidate = (event: RTCPeerConnectionIceEvent) => {
         if (event.candidate === null)
             return;
-        this.signaler.sendSignal({
+        this.signal_service.send_signal({
             to_connection_id: this.session.host_connection_id,
             data: { candidate: event.candidate },
         });
@@ -145,12 +153,12 @@ class RTCConnection extends EventTarget {
 
     public close(initiatedByHost: boolean) {
         if (!initiatedByHost) {
-            this.signaler.sendSignal({
+            this.signal_service.send_signal({
                 to_connection_id: this.session.host_connection_id,
                 data: { close: null },
             });
         }
-        this.signaler.removeEventListener("signal", this.onSignal);
+        this.signal_service.removeEventListener("signal", this.onSignal);
         this.close_peer_connection();
     }
 

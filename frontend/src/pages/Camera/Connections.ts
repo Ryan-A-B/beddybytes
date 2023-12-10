@@ -1,6 +1,5 @@
 import { Map } from "immutable";
 import settings from "../../settings";
-import { Signaler } from "../../Connection/Connection";
 
 interface IncomingSignalDescription {
     from_connection_id: string;
@@ -45,13 +44,14 @@ const isCloseSignal = (signal: IncomingSignal): signal is IncomingSignalClose =>
 }
 
 class Connections {
-    private signaler: Signaler;
+    private signal_service: SignalService;
     private stream: MediaStream;
     private pcs: Map<string, RTCPeerConnection> = Map();
-    constructor(signaler: Signaler, stream: MediaStream) {
-        this.signaler = signaler;
+    constructor(signal_service:SignalService, stream: MediaStream) {
+        this.signal_service = signal_service;
         this.stream = stream;
-        this.signaler.addEventListener("signal", this.onSignal);
+        this.signal_service.start();
+        this.signal_service.addEventListener("signal", this.onSignal);
     }
 
     private onSignal = async (event: Event) => {
@@ -82,7 +82,7 @@ class Connections {
         this.stream.getTracks().forEach((track) => pc.addTrack(track, this.stream));
         const answer = await pc.createAnswer();
         await pc.setLocalDescription(answer);
-        this.signaler.sendSignal({
+        this.signal_service.send_signal({
             to_connection_id: signal.from_connection_id,
             data: { description: answer },
         });
@@ -109,7 +109,7 @@ class Connections {
 
     private onICECandidate = (peerConnectionID: string) => (event: RTCPeerConnectionIceEvent) => {
         if (event.candidate === null) return;
-        this.signaler.sendSignal({
+        this.signal_service.send_signal({
             to_connection_id: peerConnectionID,
             data: { candidate: event.candidate },
         });
@@ -119,7 +119,8 @@ class Connections {
         this.pcs.forEach((pc) => {
             pc.close()
         });
-        this.signaler.removeEventListener("signal", this.onSignal);
+        this.signal_service.stop();
+        this.signal_service.removeEventListener("signal", this.onSignal);
     }
 }
 

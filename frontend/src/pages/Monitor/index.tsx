@@ -11,6 +11,7 @@ import client_session_service from "../../instances/client_session_service";
 import useClientSessionStatus from "../../hooks/useClientSessionStatus";
 import ConnectionFailed from "../../components/ConnectionFailedAlert";
 import useClientRTCConnectionState from "../../hooks/useClientRTCConnectionState";
+import useSignalService from "../../hooks/useSignalService";
 
 const getSessionIfActive = (client_session_status: ClientSessionStatus): Session | null => {
     if (client_session_status.status === "joining") return client_session_status.session;
