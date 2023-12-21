@@ -1,6 +1,5 @@
 import { Session } from "../SessionListService";
 import settings from "../../settings";
-import LoggingService from "../LoggingService";
 
 export const EventTypeRTCConnectionStateChanged = 'rtc_connection_state_changed';
 export const EventTypeRTCConnectionStreamStatusChanged = 'rtc_connection_stream_status_changed';

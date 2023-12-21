@@ -1,9 +1,9 @@
 import { v4 as uuid } from 'uuid';
 import settings from "../../settings";
 import AuthorizationService from "../AuthorizationService";
-import LoggingService from "../LoggingService";
-import { Severity } from '../LoggingService/models';
 import sleep from '../../utils/sleep';
+import Severity from '../LoggingService/Severity';
+import { EventTypeSignalStateChange } from '.';
 
 interface WebSocketSignalStateConnectPending extends SignalStateConnecting {
     step: 'pending';
@@ -126,7 +126,10 @@ class WebSocketSignalService extends EventTarget implements SignalService {
         if (this.state.state !== 'connected') return;
         const message = JSON.parse(event.data);
         if (message.type !== 'signal') return;
-        this.dispatchEvent(new CustomEvent('signal', { detail: message.signal }));
+        this.dispatchEvent(new CustomEvent('signal', {
+            detail: message.signal,
+            bubbles: true
+        }));
     }
 
     public send_signal = (input: SendSignalInput) => {
@@ -145,7 +148,7 @@ class WebSocketSignalService extends EventTarget implements SignalService {
     private on_error = (event: Event) => {
         this.logging_service.log({
             severity: Severity.Error,
-            message: `WebSocket error: ${event}`
+            message: `WebSocket error: ${event.type}`
         });
     }
 
@@ -216,10 +219,11 @@ class WebSocketSignalService extends EventTarget implements SignalService {
             this.set_state(WebSocketSignalService.InitialState);
             return;
         }
+        const ws = this.state.ws;
         this.set_state({
             state: 'disconnecting',
         });
-        this.state.ws.close();
+        ws.close();
     }
 }
 

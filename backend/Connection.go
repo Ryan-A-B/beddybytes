@@ -6,6 +6,7 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	"sync"
 
 	"github.com/Ryan-A-B/baby-monitor/backend/internal"
 	"github.com/Ryan-A-B/baby-monitor/backend/internal/eventlog"
@@ -123,11 +124,6 @@ func (handlers *Handlers) HandleConnection(responseWriter http.ResponseWriter, r
 		ConnectionID: connectionID,
 		conn:         conn,
 	})
-	iterator := handlers.EventLog.GetEventIterator(ctx, &eventlog.GetEventIteratorInput{
-		// TODO update input to allow caller to explicitly specify starting from current cursor
-		FromCursor: -1,
-	})
-	go connection.sendEvents(ctx, iterator)
 	for {
 		err = connection.handleNextMessage(ctx)
 		if err != nil {
@@ -171,6 +167,7 @@ type Connection struct {
 	connectionStore store2.Store[ConnectionStoreKey, *Connection]
 	AccountID       string
 	ID              string
+	mutex           sync.Mutex
 	conn            *websocket.Conn
 }
 
@@ -198,9 +195,12 @@ func (connection *Connection) handleSignal(ctx context.Context, signal *Incoming
 		ConnectionID: signal.ToConnectionID,
 	})
 	if err != nil {
+		// TODO return error in the 4000-4999 range
 		log.Println(err)
 		return
 	}
+	other.mutex.Lock()
+	defer other.mutex.Unlock()
 	other.conn.WriteJSON(OutgoingMessage{
 		Type: MessageTypeSignal,
 		Signal: &OutgoingSignal{
@@ -209,25 +209,4 @@ func (connection *Connection) handleSignal(ctx context.Context, signal *Incoming
 		},
 	})
 	return
-}
-
-func (connection *Connection) sendEvents(ctx context.Context, iterator eventlog.EventIterator) {
-	accountID := internal.GetAccountIDFromContext(ctx)
-	for iterator.Next() {
-		event := iterator.Event()
-		if event.AccountID != accountID {
-			continue
-		}
-		connection.conn.WriteJSON(OutgoingMessage{
-			Type: MessageTypeEvent,
-			Event: &Event{
-				ID:            event.ID,
-				Type:          event.Type,
-				LogicalClock:  event.LogicalClock,
-				UnixTimestamp: event.UnixTimestamp,
-				Data:          event.Data,
-			},
-		})
-	}
-	fatal.OnError(iterator.Err())
 }

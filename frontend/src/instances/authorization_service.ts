@@ -1,8 +1,8 @@
 import AuthorizationService from '../services/AuthorizationService';
-import logging_service from './logging_service';
+import influx_logging_service from './logging_service';
 
 const authorization_service = new AuthorizationService({
-    logging_service,
+    logging_service: influx_logging_service,
 });
 
 export default authorization_service;

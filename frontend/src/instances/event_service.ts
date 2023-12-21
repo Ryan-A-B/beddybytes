@@ -1,9 +1,9 @@
 import EventService from "../services/EventService";
-import logging_service from "./logging_service";
+import influx_logging_service from "./logging_service";
 import authorization_service from "./authorization_service";
 
 const event_service = new EventService({
-    logging_service,
+    logging_service: influx_logging_service,
     authorization_service,
 });
 

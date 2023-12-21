@@ -1,5 +1,4 @@
-import LoggingService from "./LoggingService";
-import { Severity } from "./LoggingService/models";
+import Severity from "./LoggingService/Severity";
 
 export const EventTypeServiceWorkerRegistrationStatusChanged = 'service_worker_registration_status_changed';
 

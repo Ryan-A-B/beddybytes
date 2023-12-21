@@ -1,8 +1,7 @@
 import settings from '../settings';
-import LoggingService from './LoggingService';
-import { Severity } from './LoggingService/models';
 import AuthorizationService, { EventTypeLogin, EventTypeTokenRefreshUnauthorized } from "./AuthorizationService";
 import { Account } from './Account';
+import Severity from './LoggingService/Severity';
 
 export const EventTypeAccountStatusChanged = 'account_status_changed';
 

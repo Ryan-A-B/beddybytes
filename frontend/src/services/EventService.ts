@@ -3,10 +3,9 @@ import eventstore from "../eventstore";
 import IndexedDBEventStore from "../eventstore/IndexedDBEventStore";
 import FollowingDecorator from "../eventstore/FollowingDecorator";
 import settings from "../settings";
-import LoggingService from "./LoggingService";
-import { Severity } from "./LoggingService/models";
 import AuthorizationService from "./AuthorizationService";
 import sleep from "../utils/sleep";
+import Severity from "./LoggingService/Severity";
 
 export const EventTypeEventServiceStatusChanged = 'event_service_status_changed';
 

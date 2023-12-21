@@ -1,4 +1,3 @@
-import LoggingService from "../LoggingService";
 import SessionListService, { EventTypeSessionListChanged, Session } from "../SessionListService";
 import RTCConnection from "./RTCConnection";
 
@@ -66,7 +65,6 @@ class ClientSessionService extends EventTarget {
     public join_session(session: Session) {
         if (this.status.status === 'joining') throw new Error('Already joining');
         if (this.status.status === 'joined') throw new Error('Already joined');
-        this.signal_service.stop();
         const rtc_connection = new RTCConnection({
             logging_service: this.logging_service,
             signal_service: this.signal_service,
@@ -76,7 +74,6 @@ class ClientSessionService extends EventTarget {
     }
 
     public leave_session() {
-        this.signal_service.stop();
         this.leave_session_with_status({ status: 'left' });
     }
 
@@ -93,8 +90,8 @@ class ClientSessionService extends EventTarget {
             return;
         const session = this.status.session;
         const session_list = this.session_list_service.get_session_list();
-        const session_in_list = session_list.find((s) => s.id === session.id);
-        if (session_in_list === undefined)
+        const session_gone = session_list.find((s) => s.id === session.id) === undefined;
+        if (session_gone)
             return this.leave_session_with_status({ status: 'session_ended' });
     }
 }

@@ -1,9 +1,8 @@
 import moment from 'moment';
 import settings from '../settings';
-import LoggingService from './LoggingService';
-import { Severity } from './LoggingService/models';
 import sleep from '../utils/sleep';
 import isClientError from '../utils/isClientError';
+import Severity from './LoggingService/Severity';
 
 export const EventTypeLogin = 'login';
 export const EventTypeTokenRefreshUnauthorized = 'token_refresh_unauthorized';

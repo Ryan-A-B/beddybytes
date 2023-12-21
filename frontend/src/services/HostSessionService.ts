@@ -1,11 +1,10 @@
 import moment from 'moment';
 import { v4 as uuid } from 'uuid';
-import LoggingService from './LoggingService';
-import { Severity } from './LoggingService/models';
 import AuthorizationService from "./AuthorizationService";
 import settings from "../settings";
 import isClientError from '../utils/isClientError';
 import sleep from '../utils/sleep';
+import Severity from './LoggingService/Severity';
 
 export const EventTypeHostSessionStatusChanged = 'host_session_status_changed';
 

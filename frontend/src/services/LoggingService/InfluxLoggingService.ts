@@ -1,6 +1,6 @@
 import { InfluxDB, WriteApi, WritePrecisionType, Point } from "@influxdata/influxdb-client";
 import { Map } from "immutable";
-import { LogInput, Severity } from "./models";
+import Severity from "./Severity";
 
 type NewInfluxLoggingServiceInput = {
     client: InfluxDB
@@ -10,7 +10,7 @@ type NewInfluxLoggingServiceInput = {
     instance_id: string
 }
 
-class InfluxLoggingService {
+class InfluxLoggingService implements LoggingService {
     private static WritePrecision: WritePrecisionType = 'ms';
     private static Facility = 'console';
     private static FacilityCode = 14;

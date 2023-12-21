@@ -120,7 +120,7 @@ class Connections {
             pc.close()
         });
         this.signal_service.stop();
-        this.signal_service.removeEventListener("signal", this.onSignal);
+        // this.signal_service.removeEventListener("signal", this.onSignal);
     }
 }
 

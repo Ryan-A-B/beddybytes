@@ -1,6 +1,3 @@
-
-const EventTypeSignalStateChange = 'signal_state_change';
-
 interface SignalStateNotConnected {
     state: 'not_connected';
 }

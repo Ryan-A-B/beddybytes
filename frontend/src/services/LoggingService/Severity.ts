@@ -1,4 +1,4 @@
-export enum Severity {
+enum Severity {
     Emergency = 0,
     Alert = 1,
     Critical = 2,
@@ -9,7 +9,4 @@ export enum Severity {
     Debug = 7,
 }
 
-export interface LogInput {
-    severity: Severity,
-    message: string,
-}
+export default Severity;
