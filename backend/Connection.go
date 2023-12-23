@@ -14,6 +14,7 @@ import (
 	"github.com/Ryan-A-B/baby-monitor/internal/fatal"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
+	uuid "github.com/satori/go.uuid"
 )
 
 const EventTypeClientConnected = "client.connected"
@@ -22,11 +23,13 @@ const EventTypeClientDisconnected = "client.disconnected"
 type ClientConnectedEventData struct {
 	ClientID     string `json:"client_id"`
 	ConnectionID string `json:"connection_id"`
+	RequestID    string `json:"request_id"`
 }
 
 type ClientDisconnectedEventData struct {
 	ClientID           string `json:"client_id"`
 	ConnectionID       string `json:"connection_id"`
+	RequestID          string `json:"request_id"`
 	WebSocketCloseCode int    `json:"web_socket_close_code"`
 }
 
@@ -99,12 +102,14 @@ func (handlers *Handlers) HandleConnection(responseWriter http.ResponseWriter, r
 		return
 	}
 	defer conn.Close()
+	requestID := uuid.NewV4().String()
 	handlers.EventLog.Append(ctx, &eventlog.AppendInput{
 		Type:      EventTypeClientConnected,
 		AccountID: accountID,
 		Data: fatal.UnlessMarshalJSON(&ClientConnectedEventData{
 			ClientID:     clientID,
 			ConnectionID: connectionID,
+			RequestID:    requestID,
 		}),
 	})
 	webSocketCloseCode := websocket.CloseNoStatusReceived
@@ -115,6 +120,7 @@ func (handlers *Handlers) HandleConnection(responseWriter http.ResponseWriter, r
 			Data: fatal.UnlessMarshalJSON(&ClientDisconnectedEventData{
 				ClientID:           clientID,
 				ConnectionID:       connectionID,
+				RequestID:          requestID,
 				WebSocketCloseCode: webSocketCloseCode,
 			}),
 		})
