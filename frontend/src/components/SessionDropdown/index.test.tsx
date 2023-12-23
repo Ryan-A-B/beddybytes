@@ -38,6 +38,7 @@ describe('SessionsDropdown', () => {
             started_at: moment(),
             host_connection_state: {
                 state: 'connected',
+                request_id: uuid(),
                 since: moment(),
             },
         }
@@ -73,6 +74,7 @@ describe('SessionsDropdown', () => {
             started_at: moment(),
             host_connection_state: {
                 state: 'connected',
+                request_id: uuid(),
                 since: moment(),
             },
         }

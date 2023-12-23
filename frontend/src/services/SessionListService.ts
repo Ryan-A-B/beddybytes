@@ -29,6 +29,7 @@ interface SessionEndedEvent extends eventstore.Event<SessionEndedEventData> {
 interface ClientConnectedEventData {
     client_id: string;
     connection_id: string;
+    request_id: string;
 }
 
 interface ClientConnectedEvent extends eventstore.Event<ClientConnectedEventData> {
@@ -38,6 +39,7 @@ interface ClientConnectedEvent extends eventstore.Event<ClientConnectedEventData
 interface ClientDisconnectedEventData {
     client_id: string;
     connection_id: string;
+    request_id: string;
     web_socket_close_code: number;
 }
 
@@ -58,6 +60,7 @@ export interface Session {
 
 interface HostConnectionStateConnected {
     state: 'connected';
+    request_id: string;
     since: moment.Moment;
 }
 
@@ -150,6 +153,7 @@ class SessionListService extends EventTarget {
             started_at: moment(event.data.started_at, eventstore.MomentFormatRFC3339),
             host_connection_state: {
                 state: 'connected',
+                request_id: 'TODO', // TODO
                 since: moment(event.unix_timestamp, eventstore.MomentFormatUnixTimestamp), // TODO this is the session started timestamp, not the host connected timestamp
             },
         };
@@ -172,6 +176,7 @@ class SessionListService extends EventTarget {
             ...session,
             host_connection_state: {
                 state: 'connected',
+                request_id: event.data.request_id,
                 since: moment(event.unix_timestamp, eventstore.MomentFormatUnixTimestamp),
             },
         };
@@ -181,6 +186,8 @@ class SessionListService extends EventTarget {
     private apply_client_disconnected_event(event: ClientDisconnectedEvent) {
         const session = this.sessionByConnectionID.get(event.data.connection_id);
         if (session === undefined) return;
+        if (session.host_connection_state.state !== 'connected') return;
+        if (session.host_connection_state.request_id !== event.data.request_id) return;
         const abnormal_closure = event.data.web_socket_close_code === WebSocketCloseCodeAbnormalClosure;
         if (abnormal_closure) {
             const updated_session: Session = {

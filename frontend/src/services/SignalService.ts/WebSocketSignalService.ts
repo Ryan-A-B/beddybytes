@@ -58,7 +58,7 @@ class WebSocketSignalService extends EventTarget implements SignalService {
         super();
         this.logging_service = input.logging_service;
         this.authorization_service = input.authorization_service;
-        this.connection_id = uuid();
+        this.connection_id = uuid(); // TODO this is more of a session id now
     }
 
     public get_state = (): WebSocketSignalState => {
