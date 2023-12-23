@@ -1,9 +1,9 @@
-import settings from '../settings';
-import InfluxLoggingService from '../services/LoggingService/InfluxLoggingService'
+import settings from '../../settings';
+import InfluxLoggingService from '../LoggingService/InfluxLoggingService'
+import CompositeLoggingService from '../LoggingService/CompositeLoggingService';
+import ConsoleLoggingService from '../LoggingService/ConsoleLoggingService';
 import { client, org, bucket } from './influx';
 import instance_id from './instance_id';
-import CompositeLoggingService from '../services/LoggingService/CompositeLoggingService';
-import ConsoleLoggingService from '../services/LoggingService/ConsoleLoggingService';
 
 const influx_logging_service = new InfluxLoggingService({
     client,

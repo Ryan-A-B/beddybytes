@@ -1,6 +1,6 @@
 import settings from '../settings';
 import InfluxAnalytics from './InfluxAnalytics';
-import { bucket, client, org } from '../instances/influx';
+import { bucket, client, org } from '../services/instances/influx';
 
 const analytics = new InfluxAnalytics({
     client,

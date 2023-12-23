@@ -1,4 +1,4 @@
-import AccountService from '../services/AccountService';
+import AccountService from '../AccountService';
 import influx_logging_service from './logging_service';
 import authorization_service from './authorization_service';
 

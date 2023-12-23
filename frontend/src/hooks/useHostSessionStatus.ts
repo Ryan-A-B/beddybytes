@@ -1,8 +1,9 @@
 import React from "react";
 import { EventTypeHostSessionStatusChanged, HostSessionStatus } from "../services/HostSessionService";
-import host_session_service from "../instances/host_session_service";
+import { useHostSessionService } from "../services";
 
 const useHostSessionStatus = () => {
+    const host_session_service = useHostSessionService();
     const [hostSessionStatus, setHostSessionStatus] = React.useState<HostSessionStatus>(() => {
         return host_session_service.get_status();
     });
@@ -14,7 +15,7 @@ const useHostSessionStatus = () => {
         return () => {
             host_session_service.removeEventListener(EventTypeHostSessionStatusChanged, handle_host_session_status_changed);
         }
-    }, []);
+    }, [host_session_service]);
     return hostSessionStatus;
 }
 

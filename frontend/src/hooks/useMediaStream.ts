@@ -1,9 +1,10 @@
 import React from "react";
 import { MediaStreamStatus } from "../services/MediaStreamService";
-import media_stream_service from "../instances/media_stream_service";
 import useMediaStreamStatus from "./useMediaStreamStatus";
+import { useMediaStreamService } from "../services";
 
 const useMediaStream = (audioDeviceID: string, videoDeviceID: string): MediaStreamStatus => {
+    const media_stream_service = useMediaStreamService();
     const mediaStreamStatus = useMediaStreamStatus();
     React.useEffect(() => {
         media_stream_service.start_media_stream({
@@ -13,7 +14,7 @@ const useMediaStream = (audioDeviceID: string, videoDeviceID: string): MediaStre
         return () => {
             media_stream_service.stop_media_stream();
         }
-    }, [audioDeviceID, videoDeviceID]);
+    }, [media_stream_service, audioDeviceID, videoDeviceID]);
     return mediaStreamStatus;
 }
 

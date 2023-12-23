@@ -1,8 +1,7 @@
 import React from "react";
 import Connections from "./Connections";
-import media_stream_service from "../../instances/media_stream_service";
 import useMediaStream from "../../hooks/useMediaStream";
-import useSignalService from "../../hooks/useSignalService";
+import { useMediaStreamService, useSignalService } from "../../services";
 
 interface Props {
     audioDeviceID: string
@@ -11,6 +10,7 @@ interface Props {
 }
 
 const MediaStream: React.FunctionComponent<Props> = ({ audioDeviceID, videoDeviceID, sessionActive }) => {
+    const media_stream_service = useMediaStreamService();
     const signal_service = useSignalService();
     const videoRef = React.useRef<HTMLVideoElement>(null);
     const mediaStreamStatus = useMediaStream(audioDeviceID, videoDeviceID);
@@ -19,7 +19,7 @@ const MediaStream: React.FunctionComponent<Props> = ({ audioDeviceID, videoDevic
             audio_device_id: audioDeviceID,
             video_device_id: videoDeviceID,
         });
-    }, [audioDeviceID, videoDeviceID]);
+    }, [media_stream_service, audioDeviceID, videoDeviceID]);
     React.useLayoutEffect(() => {
         if (mediaStreamStatus.status !== 'running') return;
         if (videoRef.current === null) return;

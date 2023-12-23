@@ -2,8 +2,6 @@ import React from "react";
 import { Tab, TabCreateAccount, TabLogin } from "./tab"
 import CreateAccountForm from "./CreateAccountForm";
 import LoginForm from "./LoginForm";
-import authorization_service from "../../instances/authorization_service";
-import account_service from "../../instances/account_service";
 
 interface Props {
     
@@ -57,7 +55,6 @@ const LoginOrCreateAccount: React.FunctionComponent<Props> = () => {
                                     setEmail={setEmail}
                                     password={password}
                                     setPassword={setPassword}
-                                    authorization_service={authorization_service}
                                     switchToCreateAccount={switchToCreateAccount}
                                 />
                             )}
@@ -67,7 +64,6 @@ const LoginOrCreateAccount: React.FunctionComponent<Props> = () => {
                                     setEmail={setEmail}
                                     password={password}
                                     setPassword={setPassword}
-                                    account_service={account_service}
                                     switchToLogin={switchToLogin}
                                 />
                             )}

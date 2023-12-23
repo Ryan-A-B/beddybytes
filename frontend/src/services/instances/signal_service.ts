@@ -1,7 +1,7 @@
-import WebSocketSignalService from "../services/SignalService.ts/WebSocketSignalService";
+import WebSocketSignalService from "../SignalService/WebSocketSignalService";
+import QueueingDecorator from "../SignalService/QueueingDecorator";
 import influx_logging_service from "./logging_service";
 import authorization_service from "./authorization_service";
-import QueueingDecorator from "../services/SignalService.ts/QueueingDecorator";
 
 const websocket_signal_service = new WebSocketSignalService({
     logging_service: influx_logging_service,

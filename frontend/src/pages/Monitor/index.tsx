@@ -1,18 +1,17 @@
 import React from "react";
-import { List } from "immutable";
 import { Session } from "../../services/SessionListService";
 import ClientSessionService, { ClientSessionStatus, EventTypeClientSessionStatusChanged } from "../../services/ClientSessionService";
 import SessionDuration from "./SessionDuration";
-import client_session_service from "../../instances/client_session_service";
-import signal_service from "../../instances/signal_service";
 import useWakeLock from "../../hooks/useWakeLock";
 import useClientSessionStatus from "../../hooks/useClientSessionStatus";
+import useSessionList from "../../hooks/useSessionList";
 import useClientRTCConnectionState from "../../hooks/useClientRTCConnectionState";
 import ConnectionFailed from "../../components/ConnectionFailedAlert";
 import SessionDropdown from "../../components/SessionDropdown";
 import Stream from "./Stream";
 
 import "./Monitor.scss";
+import { useClientSessionService, useSignalService } from "../../services";
 
 const getSessionIfActive = (client_session_status: ClientSessionStatus): Session | null => {
     if (client_session_status.status === "joining") return client_session_status.session;
@@ -49,15 +48,14 @@ const useClientSignalServiceStopper = ({ client_session_service, signal_service 
             client_session_service.leave_session();
             signal_service.stop();
         }
-    }, [client_session_service]);
+    }, [signal_service, client_session_service]);
 }
 
-interface Props {
-    session_list: List<Session>;
-}
-
-const Monitor: React.FunctionComponent<Props> = ({ session_list }) => {
+const Monitor: React.FunctionComponent = () => {
+    const client_session_service = useClientSessionService();
+    const signal_service = useSignalService();
     const client_session_status = useClientSessionStatus();
+    const session_list = useSessionList();
     const connection_state = useClientRTCConnectionState(client_session_status);
     const should_show_stream = client_session_status.status === "joined" && !isBadRTCPeerConnectionState(connection_state);
 
@@ -71,7 +69,7 @@ const Monitor: React.FunctionComponent<Props> = ({ session_list }) => {
         }
         signal_service.start();
         client_session_service.join_session(session);
-    }, []);
+    }, [signal_service, client_session_service]);
 
     useClientSignalServiceStopper({
         client_session_service,

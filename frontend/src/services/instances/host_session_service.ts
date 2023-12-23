@@ -1,4 +1,4 @@
-import HostSessionService from "../services/HostSessionService";
+import HostSessionService from "../HostSessionService";
 import influx_logging_service from "./logging_service";
 import authorization_service from "./authorization_service";
 

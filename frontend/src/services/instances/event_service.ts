@@ -1,4 +1,4 @@
-import EventService from "../services/EventService";
+import EventService from "../EventService";
 import influx_logging_service from "./logging_service";
 import authorization_service from "./authorization_service";
 

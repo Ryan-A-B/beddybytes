@@ -5,6 +5,8 @@ import sleep from '../../utils/sleep';
 import Severity from '../LoggingService/Severity';
 import { EventTypeSignalStateChange } from '.';
 
+const WebSocketCloseCodeNormalClosure = 1000;
+
 interface WebSocketSignalStateConnectPending extends SignalStateConnecting {
     step: 'pending';
 }
@@ -153,6 +155,7 @@ class WebSocketSignalService extends EventTarget implements SignalService {
     }
 
     private on_close = (event: CloseEvent) => {
+        // TODO conditional logging: not all close events are errors
         this.logging_service.log({
             severity: Severity.Error,
             message: `WebSocket closed with code ${event.code}, reconnecting...`,
@@ -223,7 +226,7 @@ class WebSocketSignalService extends EventTarget implements SignalService {
         this.set_state({
             state: 'disconnecting',
         });
-        ws.close();
+        ws.close(WebSocketCloseCodeNormalClosure);
     }
 }
 

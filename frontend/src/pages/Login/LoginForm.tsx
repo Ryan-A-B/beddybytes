@@ -1,31 +1,31 @@
 import React from "react";
 import Input from "../../components/Input";
-import AuthorizationService from "../../services/AuthorizationService";
-import influx_logging_service from "../../instances/logging_service";
 import Severity from "../../services/LoggingService/Severity";
+import { useAuthorizationService, useLoggingService } from "../../services";
 
 interface Props {
     email: string;
     setEmail: React.Dispatch<React.SetStateAction<string>>;
     password: string;
     setPassword: React.Dispatch<React.SetStateAction<string>>;
-    authorization_service: AuthorizationService;
     switchToCreateAccount: () => void;
 }
 
-const LoginForm: React.FunctionComponent<Props> = ({ email, setEmail, password, setPassword, authorization_service, switchToCreateAccount }) => {
+const LoginForm: React.FunctionComponent<Props> = ({ email, setEmail, password, setPassword, switchToCreateAccount }) => {
+    const authorization_service = useAuthorizationService();
+    const logging_service = useLoggingService();
     const [error, setError] = React.useState<string | null>(null)
     const handleSubmit = React.useCallback((event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault()
         authorization_service.login(email, password)
             .catch((error) => {
-                influx_logging_service.log({
+                logging_service.log({
                     severity: Severity.Error,
                     message: error.message,
                 })
                 setError(error.message)
             })
-    }, [authorization_service, email, password])
+    }, [logging_service, authorization_service, email, password])
     return (
         <React.Fragment>
             <form onSubmit={handleSubmit}>

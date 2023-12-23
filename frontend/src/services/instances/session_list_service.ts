@@ -1,4 +1,4 @@
-import SessionListService from "../services/SessionListService";
+import SessionListService from "../SessionListService";
 import event_service from "./event_service";
 
 const session_list_service = new SessionListService({

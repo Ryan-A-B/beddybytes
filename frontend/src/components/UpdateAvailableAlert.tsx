@@ -1,6 +1,6 @@
 import React from "react"
 import ServiceWorkerService, { ServiceWorkerRegistrationStatus, EventTypeServiceWorkerRegistrationStatusChanged } from "../services/ServiceWorkerService"
-import service_worker_service from "../instances/service_worker_service"
+import { useServiceWorkerService } from "../services";
 
 const useServiceWorkerRegistrationStatus = (service_worker_service: ServiceWorkerService): ServiceWorkerRegistrationStatus => {
     const [status, setStatus] = React.useState<ServiceWorkerRegistrationStatus>(service_worker_service.get_status);
@@ -17,6 +17,7 @@ const useServiceWorkerRegistrationStatus = (service_worker_service: ServiceWorke
 }
 
 const UpdateAvailableAlert: React.FunctionComponent = () => {
+    const service_worker_service = useServiceWorkerService();
     const service_worker_registration_status = useServiceWorkerRegistrationStatus(service_worker_service);
     if (service_worker_registration_status.status !== 'registered') return null;
     const registration = service_worker_registration_status.registration;

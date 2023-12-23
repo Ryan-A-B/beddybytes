@@ -3,8 +3,6 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faTag, faMicrophone, faVideo } from '@fortawesome/free-solid-svg-icons';
 
 import HostSessionService from '../../services/HostSessionService';
-import media_device_permission_service from '../../instances/media_device_permission_service';
-import host_session_service from '../../instances/host_session_service';
 import useMediaDevicesPermissionStatus from '../../hooks/useMediaDevicePermissionStatus';
 import useWakeLock from '../../hooks/useWakeLock';
 import useHostSessionStatus from '../../hooks/useHostSessionStatus';
@@ -14,7 +12,7 @@ import SelectAudioDevice from './SelectAudioDevice';
 import MediaStream from './MediaStream';
 import SessionToggle from './SessionToggle';
 import './Camera.scss';
-import useSignalService from '../../hooks/useSignalService';
+import { useHostSessionService, useMediaDevicePermissionService, useSignalService } from '../../services';
 
 const DefaultSessionName = 'Camera';
 
@@ -46,7 +44,10 @@ const useEndSessionOnUnmount = (host_session_service: HostSessionService) => {
 
 const Camera: React.FunctionComponent = () => {
     const signal_service = useSignalService();
+    const host_session_service = useHostSessionService();
+    const media_device_permission_service = useMediaDevicePermissionService();
     const host_session_status = useHostSessionStatus();
+
     const media_devices_permission_status = useMediaDevicesPermissionStatus();
     const [sessionName, setSessionName] = useSessionName();
     const [audioDeviceID, setAudioDeviceID] = React.useState(() => {
@@ -76,11 +77,11 @@ const Camera: React.FunctionComponent = () => {
             connection_id: signal_service.connection_id,
             name: sessionName,
         });
-    }, [signal_service, sessionName]);
+    }, [host_session_service, signal_service, sessionName]);
     useEndSessionOnUnmount(host_session_service);
     React.useEffect(() => {
         media_device_permission_service.requestVideoAndAudioPermission();
-    }, []);
+    }, [media_device_permission_service]);
     if (media_devices_permission_status.status === 'requested') return (
         <div>
             Requesting permission to access camera and microphone...

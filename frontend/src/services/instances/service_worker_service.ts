@@ -1,4 +1,4 @@
-import ServiceWorkerService from "../services/ServiceWorkerService";
+import ServiceWorkerService from "../ServiceWorkerService";
 import influx_logging_service from "./logging_service";
 
 const service_worker_service = new ServiceWorkerService({

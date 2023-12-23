@@ -1,4 +1,4 @@
-import AuthorizationService from '../services/AuthorizationService';
+import AuthorizationService from '../AuthorizationService';
 import influx_logging_service from './logging_service';
 
 const authorization_service = new AuthorizationService({

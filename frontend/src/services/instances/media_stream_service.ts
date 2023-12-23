@@ -1,4 +1,4 @@
-import MediaStreamService from "../services/MediaStreamService";
+import MediaStreamService from "../MediaStreamService";
 import influx_logging_service from "./logging_service";
 import media_device_permission_service from "./media_device_permission_service";
 

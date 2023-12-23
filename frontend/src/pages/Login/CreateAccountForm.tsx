@@ -1,17 +1,17 @@
 import React from "react";
 import Input from "../../components/Input";
-import AccountService from "../../services/AccountService";
+import { useAccountService } from "../../services";
 
 interface Props {
     email: string;
     setEmail: React.Dispatch<React.SetStateAction<string>>;
     password: string;
     setPassword: React.Dispatch<React.SetStateAction<string>>;
-    account_service: AccountService;
     switchToLogin: () => void;
 }
 
-const CreateAccountForm: React.FunctionComponent<Props> = ({ email, setEmail, password, setPassword, account_service, switchToLogin }) => {
+const CreateAccountForm: React.FunctionComponent<Props> = ({ email, setEmail, password, setPassword, switchToLogin }) => {
+    const account_service = useAccountService()
     const [error, setError] = React.useState<string | null>(null)
     const handleSubmit = React.useCallback((event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault()

@@ -1,10 +1,11 @@
 import React from "react";
 import { List } from "immutable";
 import { Session, EventTypeSessionListChanged } from "../services/SessionListService";
-import session_list_service from "../instances/session_list_service";
 import debounce from "../utils/debounce";
+import { useSessionListService } from "../services";
 
 const useSessionList = () => {
+    const session_list_service = useSessionListService();
     const [sessionList, setSessionList] = React.useState<List<Session>>(() => {
         return session_list_service.get_session_list();
     });
@@ -16,7 +17,7 @@ const useSessionList = () => {
         return () => {
             session_list_service.removeEventListener(EventTypeSessionListChanged, handle_sessions_changed);
         }
-    }, []);
+    }, [session_list_service]);
     return sessionList;
 }
 
