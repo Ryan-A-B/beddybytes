@@ -50,32 +50,11 @@ interface ClientDisconnectedEvent extends eventstore.Event<ClientDisconnectedEve
 interface ServerStartedEvent extends eventstore.Event<null> {
 }
 
-export interface Session {
-    id: string;
-    name: string
-    host_connection_id: string;
-    started_at: moment.Moment;
-    host_connection_state: HostConnectionState;
-}
-
-interface HostConnectionStateConnected {
-    state: 'connected';
-    request_id: string;
-    since: moment.Moment;
-}
-
-interface HostConnectionStateDisconnected {
-    state: 'disconnected';
-    since: moment.Moment;
-}
-
-export type HostConnectionState = HostConnectionStateConnected | HostConnectionStateDisconnected;
-
 interface NewSessionServiceInput {
     event_service: EventService;
 }
 
-class SessionListService extends EventTarget {
+class ProjectedSessionList extends EventTarget implements SessionListService {
     private event_service: EventService;
     private sessionByID: Map<string, Session> = Map();
     private sessionByConnectionID: Map<string, Session> = Map();
@@ -219,4 +198,4 @@ class SessionListService extends EventTarget {
     }
 }
 
-export default SessionListService;
+export default ProjectedSessionList;

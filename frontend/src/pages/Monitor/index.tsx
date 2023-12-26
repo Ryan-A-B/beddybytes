@@ -1,6 +1,5 @@
 import React from "react";
-import { Session } from "../../services/SessionListService";
-import ClientSessionService, { ClientSessionStatus, EventTypeClientSessionStatusChanged } from "../../services/ClientSessionService";
+import { EventTypeClientSessionStateChanged } from "../../services/ClientSessionService";
 import SessionDuration from "./SessionDuration";
 import useWakeLock from "../../hooks/useWakeLock";
 import useClientSessionStatus from "../../hooks/useClientSessionStatus";
@@ -13,13 +12,13 @@ import Stream from "./Stream";
 import "./Monitor.scss";
 import { useClientSessionService, useSignalService } from "../../services";
 
-const getSessionIfActive = (client_session_status: ClientSessionStatus): Session | null => {
-    if (client_session_status.status === "joining") return client_session_status.session;
-    if (client_session_status.status === "joined") return client_session_status.session;
+const getSessionIfActive = (client_session_status: ClientSessionState): Session | null => {
+    if (client_session_status.state === "joining") return client_session_status.session;
+    if (client_session_status.state === "joined") return client_session_status.session;
     return null;
 }
 
-const isClientSessionActive = (client_session_status: ClientSessionStatus["status"]) => {
+const isClientSessionActive = (client_session_status: ClientSessionState["state"]) => {
     if (client_session_status === "joining") return false;
     if (client_session_status === "joined") return true;
     return false;
@@ -37,12 +36,12 @@ type UseClientSignalServiceStopperInput = {
 const useClientSignalServiceStopper = ({ client_session_service, signal_service }: UseClientSignalServiceStopperInput) => {
     React.useEffect(() => {
         const handleClientSessionStatusChanged = () => {
-            const status = client_session_service.get_status();
-            if (status.status === "session_ended")
+            const status = client_session_service.get_state();
+            if (status.state === "session_ended")
                 signal_service.stop();
         }
 
-        client_session_service.addEventListener(EventTypeClientSessionStatusChanged, handleClientSessionStatusChanged);
+        client_session_service.addEventListener(EventTypeClientSessionStateChanged, handleClientSessionStatusChanged);
 
         return () => {
             client_session_service.leave_session();

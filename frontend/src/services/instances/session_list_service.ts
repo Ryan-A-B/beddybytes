@@ -1,7 +1,7 @@
-import SessionListService from "../SessionListService";
+import ProjectedSessionList from "../SessionListService";
 import event_service from "./event_service";
 
-const session_list_service = new SessionListService({
+const session_list_service = new ProjectedSessionList({
     event_service,
 });
 

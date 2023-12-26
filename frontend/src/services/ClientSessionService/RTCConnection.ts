@@ -1,20 +1,9 @@
-import { Session } from "../SessionListService";
 import settings from "../../settings";
 import Severity from "../LoggingService/Severity";
+import { InitiatedBy } from "./InitiatedBy";
 
 export const EventTypeRTCConnectionStateChanged = 'rtc_connection_state_changed';
 export const EventTypeRTCConnectionStreamStatusChanged = 'rtc_connection_stream_status_changed';
-
-interface RTCConnectionStreamStatusNotAvailable {
-    status: 'not_available';
-}
-
-interface RTCConnectionStreamStatusAvailable {
-    status: 'available';
-    stream: MediaStream;
-}
-
-export type RTCConnectionStreamStatus = RTCConnectionStreamStatusNotAvailable | RTCConnectionStreamStatusAvailable;
 
 interface IncomingSignalDescription {
     from_connection_id: string;
@@ -52,12 +41,12 @@ interface NewRTCConnectionInput {
     session: Session;
 }
 
-class RTCConnection extends EventTarget {
+class RTCConnection extends EventTarget implements ClientConnection {
     private logging_service: LoggingService;
     private signal_service: SignalService;
     private session: Session;
     private peer_connection: RTCPeerConnection;
-    private stream_status: RTCConnectionStreamStatus = { status: 'not_available' };
+    private connection_stream_state: ConnectionStreamState = { state: 'not_available' };
 
     constructor(input: NewRTCConnectionInput) {
         super();
@@ -65,15 +54,15 @@ class RTCConnection extends EventTarget {
         this.signal_service = input.signal_service;
         this.session = input.session;
         this.peer_connection = this.create_peer_connection();
-        this.sendDescription()
-        this.signal_service.addEventListener("signal", this.onSignal);
+        this.send_description()
+        this.signal_service.addEventListener("signal", this.handle_signal);
     }
 
     private create_peer_connection = (): RTCPeerConnection => {
         const peer_connection = new RTCPeerConnection(settings.RTC);
-        peer_connection.onicecandidate = this.onICECandidate;
-        peer_connection.ontrack = this.onTrack;
-        peer_connection.onconnectionstatechange = this.onConnectionStateChange;
+        peer_connection.onicecandidate = this.handle_ice_candidate;
+        peer_connection.ontrack = this.handle_track;
+        peer_connection.onconnectionstatechange = this.handle_connection_state_change;
         return peer_connection;
     }
 
@@ -81,20 +70,20 @@ class RTCConnection extends EventTarget {
         return this.peer_connection.connectionState;
     }
 
-    public get_stream_status = (): RTCConnectionStreamStatus => {
-        return this.stream_status;
+    public get_connection_stream_state = (): ConnectionStreamState => {
+        return this.connection_stream_state;
     }
 
-    private set_stream_status = (stream_status: RTCConnectionStreamStatus): void => {
+    private set_connection_stream_state = (connection_stream_state: ConnectionStreamState): void => {
         this.logging_service.log({
             severity: Severity.Informational,
-            message: `stream status changed from ${this.stream_status.status} to ${stream_status.status}`,
+            message: `RTC stream state changed to ${connection_stream_state.state}`,
         })
-        this.stream_status = stream_status;
+        this.connection_stream_state = connection_stream_state;
         this.dispatchEvent(new Event(EventTypeRTCConnectionStreamStatusChanged));
     }
 
-    private sendDescription = async () => {
+    private send_description = async () => {
         this.peer_connection.addTransceiver('video', { direction: 'recvonly' })
         this.peer_connection.addTransceiver('audio', { direction: 'recvonly' })
         await this.peer_connection.setLocalDescription();
@@ -104,32 +93,32 @@ class RTCConnection extends EventTarget {
         });
     }
 
-    private onSignal = async (event: Event) => {
+    private handle_signal = async (event: Event) => {
         if (!(event instanceof CustomEvent)) throw new Error("invalid event");
         const signal = event.detail as IncomingSignal;
         if (signal.from_connection_id !== this.session.host_connection_id) return;
         if (isDescriptionSignal(signal)) {
-            await this.handleAnswer(signal);
+            await this.handle_answer(signal);
             return
         }
         if (isCandidateSignal(signal)) {
-            await this.handleCandidateSignal(signal);
+            await this.handle_candidate_signal(signal);
             return
         }
     }
 
-    private handleAnswer = async (signal: IncomingSignalDescription) => {
+    private handle_answer = async (signal: IncomingSignalDescription) => {
         if (signal.data.description.type !== "answer")
             throw new Error("data.description.type is not answer");
         await this.peer_connection.setRemoteDescription(signal.data.description);
     }
 
-    private handleCandidateSignal = async (signal: IncomingSignalCandidate) => {
+    private handle_candidate_signal = async (signal: IncomingSignalCandidate) => {
         const candidate = new RTCIceCandidate(signal.data.candidate);
         await this.peer_connection.addIceCandidate(candidate);
     }
 
-    private onICECandidate = (event: RTCPeerConnectionIceEvent) => {
+    private handle_ice_candidate = (event: RTCPeerConnectionIceEvent) => {
         if (event.candidate === null)
             return;
         this.signal_service.send_signal({
@@ -138,17 +127,17 @@ class RTCConnection extends EventTarget {
         });
     }
 
-    private onTrack = (event: RTCTrackEvent) => {
+    private handle_track = (event: RTCTrackEvent) => {
         const stream = event.streams[0];
-        this.set_stream_status({ status: 'available', stream });
+        this.set_connection_stream_state({ state: 'available', stream });
     }
 
-    private onConnectionStateChange = (event: Event) => {
+    private handle_connection_state_change = (event: Event) => {
         if (event.type !== "connectionstatechange")
             throw new Error("event.type is not connectionstatechange");
         this.logging_service.log({
             severity: Severity.Informational,
-            message: `connection state changed to ${this.peer_connection.connectionState}`,
+            message: `RTC connection state changed to ${this.peer_connection.connectionState}`,
         })
         this.dispatchEvent(new Event(EventTypeRTCConnectionStateChanged));
     }
@@ -156,18 +145,18 @@ class RTCConnection extends EventTarget {
     public reconnect = () => {
         this.close_peer_connection();
         this.peer_connection = this.create_peer_connection();
-        this.sendDescription();
+        this.send_description();
         this.dispatchEvent(new Event(EventTypeRTCConnectionStateChanged));
     }
 
-    public close(initiatedByHost: boolean) {
-        if (!initiatedByHost) {
+    public close(initiatedBy: InitiatedBy) {
+        if (initiatedBy === InitiatedBy.Me) {
             this.signal_service.send_signal({
                 to_connection_id: this.session.host_connection_id,
                 data: { close: null },
             });
         }
-        this.signal_service.removeEventListener("signal", this.onSignal);
+        this.signal_service.removeEventListener("signal", this.handle_signal);
         this.close_peer_connection();
     }
 

@@ -1,50 +1,20 @@
 import Severity from "../LoggingService/Severity";
-import SessionListService, { EventTypeSessionListChanged, Session } from "../SessionListService";
+import ProjectedSessionList, { EventTypeSessionListChanged } from "../SessionListService";
 import RTCConnection from "./RTCConnection";
 
-export const EventTypeClientSessionStatusChanged = 'client_session_status_changed';
-
-interface ClientSessionStatusNotJoined {
-    status: 'not_joined';
-}
-
-interface ClientSessionStatusJoining {
-    status: 'joining';
-    session: Session;
-}
-
-interface ClientSessionStatusJoined {
-    status: 'joined';
-    session: Session;
-    rtc_connection: RTCConnection;
-}
-
-interface ClientSessionStatusLeft {
-    status: 'left';
-}
-
-interface ClientSessionStatusSessionEnded {
-    status: 'session_ended';
-}
-
-export type ClientSessionStatus =
-    ClientSessionStatusNotJoined |
-    ClientSessionStatusJoining |
-    ClientSessionStatusJoined |
-    ClientSessionStatusLeft |
-    ClientSessionStatusSessionEnded;
+export const EventTypeClientSessionStateChanged = 'client_session_status_changed';
 
 interface NewClientSessionServiceInput {
     logging_service: LoggingService;
     signal_service: SignalService;
-    session_list_service: SessionListService;
+    session_list_service: ProjectedSessionList;
 }
 
 class ClientSessionService extends EventTarget {
     private logging_service: LoggingService;
     private signal_service: SignalService;
-    private session_list_service: SessionListService;
-    private status: ClientSessionStatus = { status: 'not_joined' };
+    private session_list_service: ProjectedSessionList;
+    private state: ClientSessionState = { state: 'not_joined' };
 
     constructor(input: NewClientSessionServiceInput) {
         super();
@@ -54,50 +24,50 @@ class ClientSessionService extends EventTarget {
         this.session_list_service.addEventListener(EventTypeSessionListChanged, this.handle_session_list_changed);
     }
 
-    public get_status = (): ClientSessionStatus => {
-        return this.status;
+    public get_status = (): ClientSessionState => {
+        return this.state;
     }
 
-    private set_status = (client_session_status: ClientSessionStatus): void => {
+    private set_status = (client_session_state: ClientSessionState): void => {
         this.logging_service.log({
             severity: Severity.Informational,
-            message: `client session status changed from ${this.status.status} to ${client_session_status.status}`,
+            message: `client session status changed from ${this.state.state} to ${client_session_state.state}`,
         })
-        this.status = client_session_status;
-        this.dispatchEvent(new Event(EventTypeClientSessionStatusChanged));
+        this.state = client_session_state;
+        this.dispatchEvent(new Event(EventTypeClientSessionStateChanged));
     }
 
     public join_session(session: Session) {
-        if (this.status.status === 'joining') throw new Error('Already joining');
-        if (this.status.status === 'joined') throw new Error('Already joined');
+        if (this.state.state === 'joining') throw new Error('Already joining');
+        if (this.state.state === 'joined') throw new Error('Already joined');
         const rtc_connection = new RTCConnection({
             logging_service: this.logging_service,
             signal_service: this.signal_service,
             session,
         });
-        this.set_status({ status: 'joined', session, rtc_connection });
+        this.set_status({ state: 'joined', session, client_connection: rtc_connection });
     }
 
     public leave_session() {
-        this.leave_session_with_status({ status: 'left' });
+        this.leave_session_with_state({ state: 'left' });
     }
 
-    private leave_session_with_status = (status: ClientSessionStatus) => {
-        if (this.status.status !== 'joined')
+    private leave_session_with_state = (state: ClientSessionState) => {
+        if (this.state.state !== 'joined')
             return;
-        const rtc_connection = this.status.rtc_connection;
+        const rtc_connection = this.state.client_connection;
         rtc_connection.close(false);
-        this.set_status(status);
+        this.set_status(state);
     }
 
     private handle_session_list_changed = () => {
-        if (this.status.status !== 'joined')
+        if (this.state.state !== 'joined')
             return;
-        const session = this.status.session;
+        const session = this.state.session;
         const session_list = this.session_list_service.get_session_list();
         const session_gone = session_list.find((s) => s.id === session.id) === undefined;
         if (session_gone)
-            return this.leave_session_with_status({ status: 'session_ended' });
+            return this.leave_session_with_state({ state: 'session_ended' });
     }
 }
 

@@ -5,7 +5,6 @@ import { v4 as uuid } from 'uuid';
 import moment from 'moment';
 
 import SessionsDropdown from '.';
-import { Session } from '../../services/SessionListService';
 
 describe('SessionsDropdown', () => {
     it('should render correctly when there are no sessions', async () => {
@@ -61,7 +60,7 @@ describe('SessionsDropdown', () => {
         const options = select.querySelectorAll(`option`);
         expect(options.length).toEqual(2);
         expect(options[0].textContent).toEqual('Select a session');
-        expect(options[1].textContent).toEqual(session.name);
+        expect(options[1].textContent).toEqual(session.name + ' 🟢');
         expect(onChange).toHaveBeenCalledTimes(0);
         expect(value).toEqual(null);
     });

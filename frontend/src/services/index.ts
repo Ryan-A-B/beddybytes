@@ -2,12 +2,10 @@ import React from "react"
 
 import AccountService from "./AccountService"
 import AuthorizationService from "./AuthorizationService"
-import ClientSessionService from "./ClientSessionService"
 import EventService from "./EventService"
 import MediaDevicePermissionService from "./MediaDevicePermissionService"
 import MediaStreamService from "./MediaStreamService"
 import HostSessionService from "./HostSessionService"
-import SessionListService from "./SessionListService"
 import ServiceWorkerService from "./ServiceWorkerService"
 
 export type Services = {
