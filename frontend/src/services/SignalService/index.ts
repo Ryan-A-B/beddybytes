@@ -1,1 +1,0 @@
-export const EventTypeSignalStateChange = 'signal_state_change';

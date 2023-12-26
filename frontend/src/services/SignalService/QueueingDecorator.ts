@@ -1,5 +1,5 @@
 import { List } from "immutable";
-import { EventTypeSignalStateChange } from ".";
+import { EventTypeSignalStateChange, SendSignalInput, SignalService, SignalState } from "./types";
 
 class QueueingDecorator extends EventTarget implements SignalService {
     public readonly connection_id: string;

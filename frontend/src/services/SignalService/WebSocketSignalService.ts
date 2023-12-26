@@ -3,7 +3,7 @@ import settings from "../../settings";
 import AuthorizationService from "../AuthorizationService";
 import sleep from '../../utils/sleep';
 import Severity from '../LoggingService/Severity';
-import { EventTypeSignalStateChange } from '.';
+import { EventTypeSignalStateChange, SendSignalInput, SignalService, SignalStateConnected, SignalStateConnecting, SignalStateDisconnecting, SignalStateNotConnected, SignalStateReconnecting } from './types';
 
 const WebSocketCloseCodeNormalClosure = 1000;
 

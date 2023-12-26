@@ -1,5 +1,6 @@
 import { Map } from "immutable";
 import settings from "../../settings";
+import { SignalService } from "../../services/SignalService/types";
 
 interface IncomingSignalDescription {
     from_connection_id: string;
@@ -47,7 +48,7 @@ class Connections {
     private signal_service: SignalService;
     private stream: MediaStream;
     private pcs: Map<string, RTCPeerConnection> = Map();
-    constructor(signal_service:SignalService, stream: MediaStream) {
+    constructor(signal_service: SignalService, stream: MediaStream) {
         this.signal_service = signal_service;
         this.stream = stream;
         this.signal_service.start();

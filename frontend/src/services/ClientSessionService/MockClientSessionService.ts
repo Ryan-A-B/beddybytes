@@ -1,3 +1,6 @@
+import { Session } from "../SessionListService/types";
+import ClientConnection, { MediaStreamState } from "./ClientConnection";
+import ClientSessionService, { ClientSessionState } from "./ClientSessionService";
 import { InitiatedBy } from "./InitiatedBy";
 
 export const EventTypeClientSessionStatusChanged = 'client_session_status_changed';
@@ -35,8 +38,12 @@ class MockClientSessionService extends EventTarget implements ClientSessionServi
 class MockClientConnection extends EventTarget implements ClientConnection {
     private media_stream: MediaStream = new MediaStream();
 
-    public get_connection_stream_state = (): ConnectionStreamState => {
-        return { state: 'available', stream: this.media_stream };
+    public get_rtc_peer_connection_state = (): RTCPeerConnectionState => {
+        return 'connected';
+    }
+
+    public get_media_stream_state = (): MediaStreamState => {
+        return { state: 'available', media_stream: this.media_stream };
     }
 
     reconnect() {

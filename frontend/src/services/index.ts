@@ -7,6 +7,9 @@ import MediaDevicePermissionService from "./MediaDevicePermissionService"
 import MediaStreamService from "./MediaStreamService"
 import HostSessionService from "./HostSessionService"
 import ServiceWorkerService from "./ServiceWorkerService"
+import ClientSessionService from "./ClientSessionService"
+import SessionListService from "./SessionListService/types"
+import { SignalService } from "./SignalService/types"
 
 export type Services = {
     logging_service: LoggingService,

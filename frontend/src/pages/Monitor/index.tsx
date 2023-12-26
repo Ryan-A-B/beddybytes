@@ -1,16 +1,19 @@
 import React from "react";
-import { EventTypeClientSessionStateChanged } from "../../services/ClientSessionService";
+import ClientSessionService, { EventTypeClientSessionStateChanged } from "../../services/ClientSessionService";
 import SessionDuration from "./SessionDuration";
 import useWakeLock from "../../hooks/useWakeLock";
-import useClientSessionStatus from "../../hooks/useClientSessionStatus";
+import useClientSessionState from "../../hooks/useClientSessionStatus";
 import useSessionList from "../../hooks/useSessionList";
 import useClientRTCConnectionState from "../../hooks/useClientRTCConnectionState";
 import ConnectionFailed from "../../components/ConnectionFailedAlert";
 import SessionDropdown from "../../components/SessionDropdown";
+import { Session } from "../../services/SessionListService/types";
+import { ClientSessionState } from "../../services/ClientSessionService/ClientSessionService";
+import { useClientSessionService, useSignalService } from "../../services";
 import Stream from "./Stream";
 
 import "./Monitor.scss";
-import { useClientSessionService, useSignalService } from "../../services";
+import { SignalService } from "../../services/SignalService/types";
 
 const getSessionIfActive = (client_session_status: ClientSessionState): Session | null => {
     if (client_session_status.state === "joining") return client_session_status.session;
@@ -33,7 +36,8 @@ type UseClientSignalServiceStopperInput = {
     signal_service: SignalService;
 }
 
-const useClientSignalServiceStopper = ({ client_session_service, signal_service }: UseClientSignalServiceStopperInput) => {
+const useStopper = (input: UseClientSignalServiceStopperInput) => {
+    const { client_session_service, signal_service } = input;
     React.useEffect(() => {
         const handleClientSessionStatusChanged = () => {
             const status = client_session_service.get_state();
@@ -53,12 +57,12 @@ const useClientSignalServiceStopper = ({ client_session_service, signal_service 
 const Monitor: React.FunctionComponent = () => {
     const client_session_service = useClientSessionService();
     const signal_service = useSignalService();
-    const client_session_status = useClientSessionStatus();
+    const client_session_state = useClientSessionState();
     const session_list = useSessionList();
-    const connection_state = useClientRTCConnectionState(client_session_status);
-    const should_show_stream = client_session_status.status === "joined" && !isBadRTCPeerConnectionState(connection_state);
+    const rtc_peer_connection_state = useClientRTCConnectionState(client_session_state);
+    const should_show_stream = client_session_state.state === "joined" && !isBadRTCPeerConnectionState(rtc_peer_connection_state);
 
-    useWakeLock(isClientSessionActive(client_session_status.status));
+    useWakeLock(isClientSessionActive(client_session_state.state));
 
     const onSessionChange = React.useCallback((session: Session | null) => {
         client_session_service.leave_session();
@@ -70,21 +74,21 @@ const Monitor: React.FunctionComponent = () => {
         client_session_service.join_session(session);
     }, [signal_service, client_session_service]);
 
-    useClientSignalServiceStopper({
+    useStopper({
         client_session_service,
         signal_service
     });
 
     return (
         <div className="monitor">
-            <SessionDropdown session_list={session_list} value={getSessionIfActive(client_session_status)} onChange={onSessionChange} />
-            {client_session_status.status === 'session_ended' && (
+            <SessionDropdown session_list={session_list} value={getSessionIfActive(client_session_state)} onChange={onSessionChange} />
+            {client_session_state.state === 'session_ended' && (
                 <div className="alert alert-danger" role="alert">
                     Session Ended
                 </div>
             )}
             <ConnectionFailed />
-            {client_session_status.status === 'joined' && <SessionDuration startedAt={client_session_status.session.started_at} />}
+            {client_session_state.state === 'joined' && <SessionDuration startedAt={client_session_state.session.started_at} />}
             {should_show_stream && <Stream />}
         </div>
     );

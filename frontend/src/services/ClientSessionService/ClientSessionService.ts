@@ -1,3 +1,6 @@
+import { Session } from "../SessionListService/types";
+import ClientConnection from "./ClientConnection";
+
 interface ClientSessionStateNotJoined {
     state: 'not_joined';
 }
@@ -21,7 +24,7 @@ interface ClientSessionStateSessionEnded {
     state: 'session_ended';
 }
 
-type ClientSessionState =
+export type ClientSessionState =
     ClientSessionStateNotJoined |
     ClientSessionStateJoining |
     ClientSessionStateJoined |
@@ -33,3 +36,5 @@ interface ClientSessionService extends EventTarget {
     join_session(session: Session): void;
     leave_session(): void;
 }
+
+export default ClientSessionService;

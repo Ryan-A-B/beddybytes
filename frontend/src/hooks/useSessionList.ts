@@ -1,8 +1,9 @@
 import React from "react";
 import { List } from "immutable";
-import { Session, EventTypeSessionListChanged } from "../services/SessionListService";
+import { EventTypeSessionListChanged } from "../services/SessionListService/ProjectedListService";
 import debounce from "../utils/debounce";
 import { useSessionListService } from "../services";
+import { Session } from "../services/SessionListService/types";
 
 const useSessionList = () => {
     const session_list_service = useSessionListService();

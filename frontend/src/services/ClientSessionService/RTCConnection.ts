@@ -1,5 +1,8 @@
 import settings from "../../settings";
 import Severity from "../LoggingService/Severity";
+import { Session } from "../SessionListService/types";
+import { SignalService } from "../SignalService/types";
+import ClientConnection, { MediaStreamState } from "./ClientConnection";
 import { InitiatedBy } from "./InitiatedBy";
 
 export const EventTypeRTCConnectionStateChanged = 'rtc_connection_state_changed';
@@ -46,7 +49,7 @@ class RTCConnection extends EventTarget implements ClientConnection {
     private signal_service: SignalService;
     private session: Session;
     private peer_connection: RTCPeerConnection;
-    private connection_stream_state: ConnectionStreamState = { state: 'not_available' };
+    private connection_stream_state: MediaStreamState = { state: 'not_available' };
 
     constructor(input: NewRTCConnectionInput) {
         super();
@@ -66,15 +69,15 @@ class RTCConnection extends EventTarget implements ClientConnection {
         return peer_connection;
     }
 
-    public get_connection_status = (): RTCPeerConnectionState => {
+    public get_rtc_peer_connection_state = (): RTCPeerConnectionState => {
         return this.peer_connection.connectionState;
     }
 
-    public get_connection_stream_state = (): ConnectionStreamState => {
+    public get_media_stream_state = (): MediaStreamState => {
         return this.connection_stream_state;
     }
 
-    private set_connection_stream_state = (connection_stream_state: ConnectionStreamState): void => {
+    private set_connection_stream_state = (connection_stream_state: MediaStreamState): void => {
         this.logging_service.log({
             severity: Severity.Informational,
             message: `RTC stream state changed to ${connection_stream_state.state}`,
@@ -129,7 +132,7 @@ class RTCConnection extends EventTarget implements ClientConnection {
 
     private handle_track = (event: RTCTrackEvent) => {
         const stream = event.streams[0];
-        this.set_connection_stream_state({ state: 'available', stream });
+        this.set_connection_stream_state({ state: 'available', media_stream: stream });
     }
 
     private handle_connection_state_change = (event: Event) => {
@@ -150,7 +153,7 @@ class RTCConnection extends EventTarget implements ClientConnection {
     }
 
     public close(initiatedBy: InitiatedBy) {
-        if (initiatedBy === InitiatedBy.Me) {
+        if (initiatedBy === InitiatedBy.Client) {
             this.signal_service.send_signal({
                 to_connection_id: this.session.host_connection_id,
                 data: { close: null },

@@ -1,36 +1,38 @@
-interface SignalStateNotConnected {
+export const EventTypeSignalStateChange = 'signal_state_change';
+
+export interface SignalStateNotConnected {
     state: 'not_connected';
 }
 
-interface SignalStateConnecting {
+export interface SignalStateConnecting {
     state: 'connecting';
 }
 
-interface SignalStateConnected {
+export interface SignalStateConnected {
     state: 'connected';
 }
 
-interface SignalStateReconnecting {
+export interface SignalStateReconnecting {
     state: 'reconnecting';
 }
 
-interface SignalStateDisconnecting {
+export interface SignalStateDisconnecting {
     state: 'disconnecting';
 }
 
-type SignalState =
+export type SignalState =
     SignalStateNotConnected |
     SignalStateConnecting |
     SignalStateConnected |
     SignalStateReconnecting |
     SignalStateDisconnecting;
 
-interface SendSignalInput {
+export interface SendSignalInput {
     to_connection_id: string;
     data: any;
 }
 
-interface SignalService extends EventTarget {
+export interface SignalService extends EventTarget {
     readonly connection_id: string;
     start(): void;
     get_state(): SignalState;

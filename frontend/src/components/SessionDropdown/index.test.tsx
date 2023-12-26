@@ -3,6 +3,7 @@ import { act } from 'react-dom/test-utils';
 import { List } from 'immutable';
 import { v4 as uuid } from 'uuid';
 import moment from 'moment';
+import { Session } from '../../services/SessionListService/types';
 
 import SessionsDropdown from '.';
 

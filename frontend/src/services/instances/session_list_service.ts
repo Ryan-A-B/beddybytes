@@ -1,4 +1,4 @@
-import ProjectedSessionList from "../SessionListService";
+import ProjectedSessionList from "../SessionListService/ProjectedListService";
 import event_service from "./event_service";
 
 const session_list_service = new ProjectedSessionList({

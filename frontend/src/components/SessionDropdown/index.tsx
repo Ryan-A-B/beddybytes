@@ -1,7 +1,7 @@
 import React from 'react';
 import { List } from 'immutable';
 import moment from 'moment';
-import { Session } from '../../services/SessionListService';
+import { Session } from '../../services/SessionListService/types';
 
 interface Props {
     session_list: List<Session>;
