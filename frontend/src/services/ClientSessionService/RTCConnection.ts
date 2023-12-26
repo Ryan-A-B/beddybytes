@@ -1,5 +1,6 @@
 import { Session } from "../SessionListService";
 import settings from "../../settings";
+import Severity from "../LoggingService/Severity";
 
 export const EventTypeRTCConnectionStateChanged = 'rtc_connection_state_changed';
 export const EventTypeRTCConnectionStreamStatusChanged = 'rtc_connection_stream_status_changed';
@@ -85,6 +86,10 @@ class RTCConnection extends EventTarget {
     }
 
     private set_stream_status = (stream_status: RTCConnectionStreamStatus): void => {
+        this.logging_service.log({
+            severity: Severity.Informational,
+            message: `stream status changed from ${this.stream_status.status} to ${stream_status.status}`,
+        })
         this.stream_status = stream_status;
         this.dispatchEvent(new Event(EventTypeRTCConnectionStreamStatusChanged));
     }
@@ -139,7 +144,12 @@ class RTCConnection extends EventTarget {
     }
 
     private onConnectionStateChange = (event: Event) => {
-        if (event.type !== "connectionstatechange") throw new Error("event.type is not connectionstatechange");
+        if (event.type !== "connectionstatechange")
+            throw new Error("event.type is not connectionstatechange");
+        this.logging_service.log({
+            severity: Severity.Informational,
+            message: `connection state changed to ${this.peer_connection.connectionState}`,
+        })
         this.dispatchEvent(new Event(EventTypeRTCConnectionStateChanged));
     }
 

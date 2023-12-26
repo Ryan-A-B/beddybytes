@@ -1,3 +1,4 @@
+import Severity from "../LoggingService/Severity";
 import SessionListService, { EventTypeSessionListChanged, Session } from "../SessionListService";
 import RTCConnection from "./RTCConnection";
 
@@ -58,6 +59,10 @@ class ClientSessionService extends EventTarget {
     }
 
     private set_status = (client_session_status: ClientSessionStatus): void => {
+        this.logging_service.log({
+            severity: Severity.Informational,
+            message: `client session status changed from ${this.status.status} to ${client_session_status.status}`,
+        })
         this.status = client_session_status;
         this.dispatchEvent(new Event(EventTypeClientSessionStatusChanged));
     }
