@@ -2,11 +2,9 @@ import { Map, List } from "immutable";
 import moment from "moment";
 import EventService, { EventTypeEventServiceStatusChanged } from "../EventService";
 import eventstore from "../../eventstore";
-import SessionListService, { Session } from "./types";
+import SessionListService, { EventTypeSessionListChanged, Session } from "./types";
 
 const WebSocketCloseCodeAbnormalClosure = 1006;
-
-export const EventTypeSessionListChanged = 'sessions_changed';
 
 interface SessionStartedEventData {
     id: string;

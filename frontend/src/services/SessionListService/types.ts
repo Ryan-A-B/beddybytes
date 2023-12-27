@@ -1,5 +1,7 @@
 import { List } from 'immutable';
 
+export const EventTypeSessionListChanged = 'sessions_changed';
+
 interface HostConnectionStateConnected {
     state: 'connected';
     request_id: string;

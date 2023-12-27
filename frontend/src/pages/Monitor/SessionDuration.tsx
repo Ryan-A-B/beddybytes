@@ -18,7 +18,7 @@ const SessionDuration: React.FunctionComponent<Props> = ({ startedAt }) => {
         return `${hours}:${formattedMinutes}:${formattedSeconds}`;
     }, [duration]);
     return (
-        <h3 className="text-center">
+        <h3 className="session-duration text-center">
             {message}
         </h3>
     );

@@ -1,3 +1,4 @@
+import { v4 as uuid } from 'uuid';
 import { Session } from "../SessionListService/types";
 import ClientConnection, { MediaStreamState } from "./ClientConnection";
 import ClientSessionService, { ClientSessionState } from "./ClientSessionService";
@@ -36,7 +37,7 @@ class MockClientSessionService extends EventTarget implements ClientSessionServi
 }
 
 class MockClientConnection extends EventTarget implements ClientConnection {
-    private media_stream: MediaStream = new MediaStream();
+    private media_stream: MediaStream = new MockMediaStream(uuid());
 
     public get_rtc_peer_connection_state = (): RTCPeerConnectionState => {
         return 'connected';
@@ -59,3 +60,39 @@ class MockClientConnection extends EventTarget implements ClientConnection {
 }
 
 export default MockClientSessionService;
+
+
+
+class MockMediaStream extends EventTarget implements MediaStream {
+    active: boolean;
+    id: string;
+    constructor(id: string) {
+        super();
+        this.active = true;
+        this.id = id;
+    }
+
+    onaddtrack: ((this: MediaStream, ev: MediaStreamTrackEvent) => any) | null = null;
+    onremovetrack: ((this: MediaStream, ev: MediaStreamTrackEvent) => any) | null = null;
+    addTrack(track: MediaStreamTrack): void {
+
+    }
+    clone = () => {
+        return new MockMediaStream(uuid());
+    }
+    getAudioTracks(): MediaStreamTrack[] {
+        return [];
+    }
+    getTrackById(trackId: string): MediaStreamTrack | null {
+        return null;
+    }
+    getTracks(): MediaStreamTrack[] {
+        return [];
+    }
+    getVideoTracks(): MediaStreamTrack[] {
+        return [];
+    }
+    removeTrack(track: MediaStreamTrack): void {
+
+    }
+}
