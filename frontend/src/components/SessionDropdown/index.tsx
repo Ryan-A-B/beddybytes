@@ -32,7 +32,7 @@ const SessionsDropdown: React.FunctionComponent<Props> = ({ session_list, value,
         </React.Fragment>
     );
     return (
-        <select value={value?.id ?? ''} onChange={handleChange} className="form-select">
+        <select id="session-dropdown" value={value?.id ?? ''} onChange={handleChange} className="form-select">
             <option value="">Select a session</option>
             {filtered_session_list.map((session) => (
                 <option value={session.id} key={session.id}>

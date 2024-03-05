@@ -5,7 +5,7 @@ import thumbnail from "./thumbnail.webp";
 
 const Instructions: React.FunctionComponent = () => {
     return (
-        <div className="row align-items-center">
+        <div id="page-index" className="row align-items-center">
             <div className="col-12 col-xl order-xl-2">
                 <div className="ratio ratio-16x9">
                     <YoutubeVideo

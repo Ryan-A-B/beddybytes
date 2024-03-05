@@ -1,6 +1,5 @@
 import { v4 as uuid } from 'uuid';
 import settings from "../../settings";
-import AuthorizationService from "../AuthorizationService";
 import sleep from '../../utils/sleep';
 import Severity from '../LoggingService/Severity';
 import { EventTypeSignalStateChange, SendSignalInput, SignalService, SignalStateConnected, SignalStateConnecting, SignalStateDisconnecting, SignalStateNotConnected, SignalStateReconnecting } from './types';
@@ -155,23 +154,30 @@ class WebSocketSignalService extends EventTarget implements SignalService {
     }
 
     private on_close = (event: CloseEvent) => {
-        // TODO conditional logging: not all close events are errors
-        this.logging_service.log({
-            severity: Severity.Error,
-            message: `WebSocket closed with code ${event.code}, reconnecting...`,
-        });
         switch (this.state.state) {
             case 'not_connected':
                 return;
             case 'connecting':
                 if (this.state.step === 'pending') return;
+                this.logging_service.log({
+                    severity: Severity.Error,
+                    message: `WebSocket closed with code ${event.code}, reconnecting...`,
+                });
                 this.reconnect(WebSocketSignalService.InitialRetryDelay);
                 return;
             case 'connected':
+                this.logging_service.log({
+                    severity: Severity.Error,
+                    message: `WebSocket closed with code ${event.code}, reconnecting...`,
+                });
                 this.reconnect(WebSocketSignalService.InitialRetryDelay);
                 return;
             case 'reconnecting':
                 if (this.state.step === 'pending') return;
+                this.logging_service.log({
+                    severity: Severity.Error,
+                    message: `WebSocket closed with code ${event.code}, reconnecting...`,
+                });
                 this.reconnect(this.state.retry_delay);
                 return;
             case 'disconnecting':

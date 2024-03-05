@@ -1,7 +1,5 @@
 import React from "react"
 
-import AccountService from "./AccountService"
-import AuthorizationService from "./AuthorizationService"
 import EventService from "./EventService"
 import MediaDevicePermissionService from "./MediaDevicePermissionService"
 import MediaStreamService from "./MediaStreamService"
@@ -13,7 +11,6 @@ import { SignalService } from "./SignalService/types"
 
 export type Services = {
     logging_service: LoggingService,
-    account_service: AccountService,
     authorization_service: AuthorizationService,
     client_session_service: ClientSessionService,
     event_service: EventService,
@@ -39,7 +36,6 @@ function makeUseService<K extends keyof Services>(key: K): UseService<K> {
 }
 
 export const useLoggingService = makeUseService('logging_service');
-export const useAccountService = makeUseService('account_service');
 export const useAuthorizationService = makeUseService('authorization_service');
 export const useClientSessionService = makeUseService('client_session_service');
 export const useEventService = makeUseService('event_service');

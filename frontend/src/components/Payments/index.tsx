@@ -2,7 +2,6 @@ import React from 'react'
 import moment from 'moment';
 import settings from '../../settings'
 import usePromise from '../../hooks/usePromise';
-import AuthorizationService from '../../services/AuthorizationService';
 import { useAuthorizationService } from '../../services';
 
 interface Account {

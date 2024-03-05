@@ -37,12 +37,12 @@ const LoginOrCreateAccount: React.FunctionComponent<Props> = () => {
                         <div className="card-header">
                             <ul className="nav nav-tabs card-header-tabs nav-fill">
                                 <li className="nav-item">
-                                    <button className={getNavLinkClassName(TabLogin, tab)} onClick={switchToLogin}>
+                                    <button id="nav-button-login" className={getNavLinkClassName(TabLogin, tab)} onClick={switchToLogin}>
                                         Log In
                                     </button>
                                 </li>
                                 <li className="nav-item">
-                                    <button className={getNavLinkClassName(TabCreateAccount, tab)} onClick={switchToCreateAccount}>
+                                    <button id="nav-button-create-account" className={getNavLinkClassName(TabCreateAccount, tab)} onClick={switchToCreateAccount}>
                                         Create Account
                                     </button>
                                 </li>

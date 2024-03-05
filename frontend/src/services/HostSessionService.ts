@@ -1,6 +1,5 @@
 import moment from 'moment';
 import { v4 as uuid } from 'uuid';
-import AuthorizationService from "./AuthorizationService";
 import settings from "../settings";
 import isClientError from '../utils/isClientError';
 import sleep from '../utils/sleep';

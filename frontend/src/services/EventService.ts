@@ -3,9 +3,9 @@ import eventstore from "../eventstore";
 import IndexedDBEventStore from "../eventstore/IndexedDBEventStore";
 import FollowingDecorator from "../eventstore/FollowingDecorator";
 import settings from "../settings";
-import AuthorizationService from "./AuthorizationService";
 import sleep from "../utils/sleep";
 import Severity from "./LoggingService/Severity";
+import get_access_token_asap from "./AuthorizationService/get_access_token_asap";
 
 export const EventTypeEventServiceStatusChanged = 'event_service_status_changed';
 
@@ -65,7 +65,7 @@ class EventService extends EventTarget {
     }
 
     private connect = async (event_store: eventstore.EventStore): Promise<void> => {
-        const access_token = await this.authorization_service.get_access_token();
+        const access_token = await get_access_token_asap(this.authorization_service);
         const query_parameters = new URLSearchParams();
         const last_event = await event_store.get_last_event();
         if (last_event !== null)
@@ -79,7 +79,7 @@ class EventService extends EventTarget {
 
     private handle_open = (): void => {
         this.logging_service.log({
-            severity: Severity.Informational,
+            severity: Severity.Debug,
             message: `Connected to event source`,
         });
         this.reconnect_delay = EventService.InitialReconnectDelay;

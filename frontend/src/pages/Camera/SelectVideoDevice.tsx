@@ -26,7 +26,7 @@ const SelectVideoDevice: React.FunctionComponent<Props> = ({ value, onChange, di
         onChange(event.target.value);
     }, [onChange]);
     return (
-        <select value={value} onChange={handleChange} className="form-select" disabled={disabled}>
+        <select id="select-video-device" value={value} onChange={handleChange} className="form-select" disabled={disabled}>
             <option value="">No camera</option>
             {videoDevices.map((device, i) => (
                 <option key={device.deviceId} value={device.deviceId}>

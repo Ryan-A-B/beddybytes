@@ -1,4 +1,5 @@
 import React from 'react';
+import ConnectionState from './ConnectionState';
 
 interface Props {
     stream: MediaStream
@@ -11,7 +12,6 @@ const VideoStream: React.FunctionComponent<Props> = ({ stream }) => {
             throw new Error("videoRef.current is null");
         const htmlVideoElement = htmlVideoElementRef.current
         htmlVideoElement.srcObject = stream;
-        htmlVideoElement.play();
         return () => {
             if (document.fullscreenEnabled && document.fullscreenElement !== null)
                 document.exitFullscreen();
@@ -20,8 +20,12 @@ const VideoStream: React.FunctionComponent<Props> = ({ stream }) => {
             htmlVideoElement.srcObject = null;
         }
     }, [stream])
+    // TODO what's playsInline?
     return (
-        <video ref={htmlVideoElementRef} playsInline className="video" />
+        <React.Fragment>
+            <ConnectionState stream={stream} />
+            <video id="video-parent" ref={htmlVideoElementRef} autoPlay playsInline className="video" />
+        </React.Fragment>
     )
 }
 

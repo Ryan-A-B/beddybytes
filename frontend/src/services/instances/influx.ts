@@ -2,7 +2,7 @@ import { InfluxDB } from '@influxdata/influxdb-client'
 
 const getClient = (): InfluxDB => {
     if (process.env.NODE_ENV !== 'production') return new InfluxDB({
-        url: 'https://influx.babymonitor.local:8443',
+        url: 'https://influx.babymonitor.local',
         token: '1iA4Zsc1XAAw9vZprfHAnojjkPLE_9Ghm9mWH0yTEqgUbRBM3jc--JxIz0_3y-brA-fha3cJ2YqTa0maVRaSeQ==',
     })
     return new InfluxDB({

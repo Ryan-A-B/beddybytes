@@ -7,6 +7,7 @@ COPY internal ./internal
 RUN go build -o backend ./backend
 
 FROM alpine:latest
+RUN mkdir -p /opt/eventlog && touch /opt/eventlog/events.jsonl
 WORKDIR /opt
 COPY --from=builder /app/backend/backend backend
 CMD [ "./backend" ]

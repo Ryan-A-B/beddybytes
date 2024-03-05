@@ -28,12 +28,13 @@ const LoginForm: React.FunctionComponent<Props> = ({ email, setEmail, password, 
     }, [logging_service, authorization_service, email, password])
     return (
         <React.Fragment>
-            <form onSubmit={handleSubmit}>
+            <form id="form-login" onSubmit={handleSubmit}>
                 <div className="form-group mb-3">
                     <label>
                         Email:
                     </label>
                     <Input
+                        id="input-login-email"
                         type="email"
                         name="email"
                         value={email}
@@ -48,6 +49,7 @@ const LoginForm: React.FunctionComponent<Props> = ({ email, setEmail, password, 
                         Password:
                     </label>
                     <Input
+                        id="input-login-password"
                         type="password"
                         name="password"
                         value={password}
@@ -60,7 +62,7 @@ const LoginForm: React.FunctionComponent<Props> = ({ email, setEmail, password, 
                     Don't have an account? <button type="button" className="btn btn-link p-0" onClick={switchToCreateAccount}>Create one</button>.
                 </p>
                 {error && <div className="alert alert-danger">{error}</div>}
-                <button type="submit" className="btn btn-primary w-100">
+                <button id="submit-button-login" type="submit" className="btn btn-primary w-100">
                     Log In
                 </button>
             </form>

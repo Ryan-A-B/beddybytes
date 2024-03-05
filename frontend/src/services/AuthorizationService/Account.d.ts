@@ -1,11 +1,11 @@
-export interface TrialSubscription {
+interface TrialSubscription {
     state: "trial"
     trial: {
         expiry: string
     }
 }
 
-export interface ActiveSubscription {
+interface ActiveSubscription {
     state: "active"
     active: {
         management_url: string
@@ -13,23 +13,23 @@ export interface ActiveSubscription {
     }
 }
 
-export interface CanceledSubscription {
+interface CanceledSubscription {
     state: "canceled"
     canceled: {
         expiry: string
     }
 }
 
-export type Subscription = TrialSubscription | ActiveSubscription | CanceledSubscription
+type Subscription = TrialSubscription | ActiveSubscription | CanceledSubscription
 
-export interface User {
+interface User {
     id: string
     email: string
     password_salt: string
     password_hash: string
 }
 
-export interface Account {
+interface Account {
     id: string
     subscription: Subscription
     user: User

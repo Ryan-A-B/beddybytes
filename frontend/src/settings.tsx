@@ -10,7 +10,7 @@ export interface Settings {
 
 const getHost = () => {
     if (process.env.NODE_ENV === "development") {
-        return "api.babymonitor.local:8443"
+        return "api.babymonitor.local"
     }
     return "api.babymonitor.creativeilk.com"
 }

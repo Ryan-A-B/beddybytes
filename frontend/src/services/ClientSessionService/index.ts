@@ -1,6 +1,5 @@
 import Severity from "../LoggingService/Severity";
-import { EventTypeSessionListChanged } from "../SessionListService/ProjectedListService";
-import SessionListService, { Session } from "../SessionListService/types";
+import SessionListService, { EventTypeSessionListChanged, Session } from "../SessionListService/types";
 import { SignalService } from "../SignalService/types";
 import ClientSessionService, { ClientSessionState } from "./ClientSessionService";
 import { InitiatedBy } from "./InitiatedBy";
@@ -34,7 +33,7 @@ class MainClientSessionService extends EventTarget implements ClientSessionServi
 
     private set_state = (client_session_state: ClientSessionState): void => {
         this.logging_service.log({
-            severity: Severity.Informational,
+            severity: Severity.Debug,
             message: `client session status changed from ${this.state.state} to ${client_session_state.state}`,
         })
         this.state = client_session_state;

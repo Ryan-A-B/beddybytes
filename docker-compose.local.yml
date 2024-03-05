@@ -5,19 +5,26 @@ services:
     image: traefik:v2.10
     restart: always
     ports:
-      - "8080:80"
-      - "8443:443"
-      - "9000:8080"
+      - "80:80"
+      - "443:443"
+      - "8080:8080"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./traefik/traefik.local.yml:/etc/traefik/traefik.yml
       - ./traefik/dynamic_conf.local.yml:/etc/traefik/dynamic_conf.yml
       - ./traefik/certificates:/opt/certificates
     labels:
-      - "traefik.http.middlewares.headers-cors.headers.accesscontrolalloworiginlist=https://app.babymonitor.local:8443"
+      - "traefik.http.middlewares.headers-cors.headers.accesscontrolalloworiginlist=https://app.babymonitor.local"
       - "traefik.http.middlewares.headers-cors.headers.accesscontrolallowheaders=Content-Type,Authorization"
       - "traefik.http.middlewares.headers-cors.headers.accesscontrolallowcredentials=true"
       - "traefik.http.middlewares.headers-cors.headers.accessControlAllowMethods=GET,OPTIONS,POST,PUT,DELETE"
+    networks:
+      default:
+        aliases:
+          - app.babymonitor.local
+          - api.babymonitor.local
+          - influx.babymonitor.local
+          - grafana.babymonitor.local
   backend:
     image: baby-monitor-backend
     build:
@@ -26,8 +33,6 @@ services:
     restart: always
     ports:
       - "8000:8000"
-    volumes:
-      - ./eventlog:/opt/eventlog
     environment:
       - ENCRYPTION_KEY=${ENCRYPTION_KEY}
       - COOKIE_DOMAIN=.babymonitor.local
@@ -54,7 +59,7 @@ services:
       - ./frontend/:/opt/frontend
     environment:
       - WDS_SOCKET_HOST=app.babymonitor.local
-      - WDS_SOCKET_PORT=8443
+      - WDS_SOCKET_PORT=443
     working_dir: /opt/frontend
     labels:
       - "traefik.http.routers.frontend.rule=Host(`app.babymonitor.local`)"
@@ -84,11 +89,43 @@ services:
       - "traefik.http.routers.grafana.entrypoints=websecure"
       - "traefik.http.routers.grafana.tls=true"
       - "traefik.http.routers.grafana.middlewares=headers-cors@docker"
+  selenium_hub:
+    image: selenium/hub:4.11.0-20230801
+    restart: always
+    ports:
+      - "4442:4442"
+      - "4443:4443"
+      - "4444:4444"
+  # selenium_firefox_node:
+  #   image: selenium/node-firefox:4.11.0-20230801
+  #   restart: always
+  #   depends_on:
+  #     - selenium_hub
+  #   environment:
+  #     - SE_EVENT_BUS_HOST=selenium_hub
+  #     - SE_EVENT_BUS_PUBLISH_PORT=4442
+  #     - SE_EVENT_BUS_SUBSCRIBE_PORT=4443
+  selenium_chrome_node:
+    image: selenium/node-chrome:4.11.0-20230801
+    restart: always
+    depends_on:
+      - selenium_hub
+    environment:
+      - SE_EVENT_BUS_HOST=selenium_hub
+      - SE_EVENT_BUS_PUBLISH_PORT=4442
+      - SE_EVENT_BUS_SUBSCRIBE_PORT=4443
+    deploy:
+      replicas: 2
+  integration_tests:
+    build: integration_tests
+    volumes:
+      - ./integration_tests/src:/usr/src/integration_tests
+    working_dir: /usr/src/integration_tests
+    command: tail -f /dev/null
 
 volumes:
   # TODO influx_storage + set up script
   grafana_storage:
-
 
 secrets:
   ENCRYPTION_KEY:

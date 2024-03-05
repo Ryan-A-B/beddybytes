@@ -83,7 +83,7 @@ const Monitor: React.FunctionComponent = () => {
         <div className="monitor">
             <SessionDropdown session_list={session_list} value={getSessionIfActive(client_session_state)} onChange={onSessionChange} />
             {client_session_state.state === 'session_ended' && (
-                <div className="alert alert-danger" role="alert">
+                <div id="alert-session-ended" className="alert alert-danger" role="alert">
                     Session Ended
                 </div>
             )}

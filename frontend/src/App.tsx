@@ -2,7 +2,6 @@ import React from 'react';
 import { Route, Routes } from 'react-router-dom';
 
 import logging_service from "./services/instances/logging_service"
-import account_service from "./services/instances/account_service"
 import authorization_service from "./services/instances/authorization_service"
 import client_session_service from "./services/instances/client_session_service"
 import event_service from "./services/instances/event_service"
@@ -26,7 +25,6 @@ import './App.scss';
 
 export const services: Services = {
   logging_service,
-  account_service,
   authorization_service,
   client_session_service,
   event_service,

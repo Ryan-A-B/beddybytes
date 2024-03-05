@@ -1,7 +1,7 @@
 import React from "react";
 import Connections from "./Connections";
-import useMediaStream from "../../hooks/useMediaStream";
 import { useMediaStreamService, useSignalService } from "../../services";
+import useMediaStreamStatus from "../../hooks/useMediaStreamStatus";
 
 interface Props {
     audioDeviceID: string
@@ -13,7 +13,7 @@ const MediaStream: React.FunctionComponent<Props> = ({ audioDeviceID, videoDevic
     const media_stream_service = useMediaStreamService();
     const signal_service = useSignalService();
     const videoRef = React.useRef<HTMLVideoElement>(null);
-    const mediaStreamStatus = useMediaStream(audioDeviceID, videoDeviceID);
+    const mediaStreamStatus = useMediaStreamStatus();
     const start_media_stream = React.useCallback(async () => {
         await media_stream_service.start_media_stream({
             audio_device_id: audioDeviceID,
@@ -31,7 +31,7 @@ const MediaStream: React.FunctionComponent<Props> = ({ audioDeviceID, videoDevic
     }, [mediaStreamStatus]);
     React.useEffect(() => {
         if (!sessionActive) return;
-        if (mediaStreamStatus.status !== 'running') throw new Error('Stream is not resolved');
+        if (mediaStreamStatus.status !== 'running') return;
         const connections = new Connections(signal_service, mediaStreamStatus.media_stream);
         return connections.close;
     }, [signal_service, sessionActive, mediaStreamStatus]);

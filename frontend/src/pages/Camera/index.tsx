@@ -12,7 +12,7 @@ import SelectAudioDevice from './SelectAudioDevice';
 import MediaStream from './MediaStream';
 import SessionToggle from './SessionToggle';
 import './Camera.scss';
-import { useHostSessionService, useMediaDevicePermissionService, useSignalService } from '../../services';
+import { useHostSessionService, useMediaDevicePermissionService, useMediaStreamService, useSignalService } from '../../services';
 
 const DefaultSessionName = 'Camera';
 
@@ -46,6 +46,7 @@ const Camera: React.FunctionComponent = () => {
     const signal_service = useSignalService();
     const host_session_service = useHostSessionService();
     const media_device_permission_service = useMediaDevicePermissionService();
+    const media_stream_service = useMediaStreamService();
     const host_session_status = useHostSessionStatus();
 
     const media_devices_permission_status = useMediaDevicesPermissionStatus();
@@ -60,6 +61,17 @@ const Camera: React.FunctionComponent = () => {
         if (videoDeviceID === null) return '';
         return videoDeviceID;
     });
+    React.useEffect(() => {
+        if (media_devices_permission_status.status !== 'granted')
+            return;
+        media_stream_service.start_media_stream({
+            audio_device_id: audioDeviceID,
+            video_device_id: videoDeviceID,
+        });
+        return () => {
+            media_stream_service.stop_media_stream();
+        };
+    }, [media_stream_service, media_devices_permission_status, audioDeviceID, videoDeviceID])
     const canActivateSession = React.useMemo(() => {
         return sessionName !== '';
     }, [sessionName]);

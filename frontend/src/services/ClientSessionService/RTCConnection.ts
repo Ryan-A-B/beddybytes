@@ -79,7 +79,7 @@ class RTCConnection extends EventTarget implements ClientConnection {
 
     private set_connection_stream_state = (connection_stream_state: MediaStreamState): void => {
         this.logging_service.log({
-            severity: Severity.Informational,
+            severity: Severity.Debug,
             message: `RTC stream state changed to ${connection_stream_state.state}`,
         })
         this.connection_stream_state = connection_stream_state;
@@ -113,7 +113,8 @@ class RTCConnection extends EventTarget implements ClientConnection {
     private handle_answer = async (signal: IncomingSignalDescription) => {
         if (signal.data.description.type !== "answer")
             throw new Error("data.description.type is not answer");
-        await this.peer_connection.setRemoteDescription(signal.data.description);
+        const peer_connection = this.peer_connection;
+        await peer_connection.setRemoteDescription(signal.data.description);
     }
 
     private handle_candidate_signal = async (signal: IncomingSignalCandidate) => {
@@ -139,7 +140,7 @@ class RTCConnection extends EventTarget implements ClientConnection {
         if (event.type !== "connectionstatechange")
             throw new Error("event.type is not connectionstatechange");
         this.logging_service.log({
-            severity: Severity.Informational,
+            severity: Severity.Debug,
             message: `RTC connection state changed to ${this.peer_connection.connectionState}`,
         })
         this.dispatchEvent(new Event(EventTypeRTCConnectionStateChanged));

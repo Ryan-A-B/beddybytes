@@ -12,17 +12,17 @@ const Navbar: React.FunctionComponent = () => {
                 <div className="collapse navbar-collapse" id="navbarSupportedContent">
                     <ul className="navbar-nav me-auto mb-2 mb-lg-0">
                         <li className="nav-item">
-                            <NavLink to="/camera">
+                            <NavLink id="nav-link-baby" to="/camera">
                                 Camera
                             </NavLink>
                         </li>
                         <li className="nav-item">
-                            <NavLink to="/monitor">
+                            <NavLink id="nav-link-parent" to="/monitor">
                                 Monitor
                             </NavLink>
                         </li>
                         <li className="nav-item">
-                            <NavLink to="/account">
+                            <NavLink id="nav-link-account" to="/account">
                                 Account
                             </NavLink>
                         </li>

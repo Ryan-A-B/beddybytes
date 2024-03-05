@@ -1,19 +1,30 @@
 import React from "react";
-import { AccountStatus, EventTypeAccountStatusChanged } from "../services/AccountService";
-import { useAccountService } from "../services";
+import { useAuthorizationService } from "../services";
+
+const authorization_state_to_account_status = (authorization_state: AuthorizationState): AccountStatus => {
+    if (authorization_state.state === 'no_account') return { status: 'no_account' };
+    return {
+        status: 'have_account',
+        account: authorization_state.account,
+    };
+}
 
 const useAccountStatus = (): AccountStatus => {
-    const account_service = useAccountService();
-    const [status, set_status] = React.useState<AccountStatus>(account_service.get_status());
+    const authorization_service = useAuthorizationService();
+    const [status, set_status] = React.useState<AccountStatus>(() => {
+        const authorization_state = authorization_service.get_state();
+        return authorization_state_to_account_status(authorization_state);
+    });
     React.useEffect(() => {
         const handle_account_status_changed = () => {
-            set_status(account_service.get_status());
+            const authorization_state = authorization_service.get_state();
+            set_status(authorization_state_to_account_status(authorization_state));
         }
-        account_service.addEventListener(EventTypeAccountStatusChanged, handle_account_status_changed);
+        authorization_service.addEventListener('statechange', handle_account_status_changed);
         return () => {
-            account_service.removeEventListener(EventTypeAccountStatusChanged, handle_account_status_changed);
+            authorization_service.removeEventListener('statechange', handle_account_status_changed);
         }
-    }, [account_service]);
+    }, [authorization_service]);
 
     return status;
 }
