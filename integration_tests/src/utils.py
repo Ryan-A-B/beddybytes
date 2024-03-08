@@ -1,3 +1,4 @@
+import subprocess
 import string
 import secrets
 
@@ -52,3 +53,11 @@ def print_browser_logs(driver):
 def generate_random_string(length):
     alphabet = string.ascii_letters + string.digits
     return ''.join(secrets.choice(alphabet) for _ in range(length))
+
+backend_container_name = "baby-monitor-backend-1"
+
+def stop_backend_container():
+    subprocess.run(["docker", "stop", backend_container_name], stderr=subprocess.DEVNULL, stdout=subprocess.DEVNULL)
+
+def start_backend_container():
+    subprocess.run(["docker", "start", backend_container_name], stderr=subprocess.DEVNULL, stdout=subprocess.DEVNULL)

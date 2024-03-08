@@ -22,4 +22,4 @@ def wait_for_selenium_hub():
         return wait_for_selenium_hub()
 
 wait_for_selenium_hub()
-unittest.main()
+unittest.main(verbosity=2)

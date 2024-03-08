@@ -115,10 +115,11 @@ services:
       - SE_EVENT_BUS_PUBLISH_PORT=4442
       - SE_EVENT_BUS_SUBSCRIBE_PORT=4443
     deploy:
-      replicas: 2
+      replicas: 4
   integration_tests:
     build: integration_tests
     volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
       - ./integration_tests/src:/usr/src/integration_tests
     working_dir: /usr/src/integration_tests
     command: tail -f /dev/null
