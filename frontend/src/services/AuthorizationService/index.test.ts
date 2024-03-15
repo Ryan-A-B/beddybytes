@@ -226,6 +226,67 @@ describe('AuthorizationService', () => {
             }
         });
     });
+    describe('refresh_token', () => {
+        test('unauthorized', async () => {
+            const account_id = randomUUID();
+            const user_id = randomUUID();
+            const email = `${randomUUID()}@${randomUUID()}.com`;
+            const password = randomUUID();
+
+            const logging_service = new LoggingService();
+            const authorization_service = new AuthorizationService({
+                logging_service
+            });
+            // @ts-ignore
+            mockLoginImplementation({
+                account_id,
+                user_id,
+                email,
+                password,
+                access_token: randomUUID(),
+                expires_in: -1,
+            });
+            await authorization_service.login(email, password);
+            mockUnauthorizedRefreshTokenImplementation();
+            try {
+                await authorization_service.get_access_token();
+                throw new Error('unexpected');
+            } catch (error) {
+                const isError = error instanceof Error;
+                if (!isError) throw new Error('unexpected');
+                expect(error.message).toBe('Failed to refresh token: 401 Unauthorized');
+            }
+            const state = authorization_service.get_state();
+            expect(state.state).toBe('no_account');
+        });
+        test('backend unavailable', async () => {
+            const account_id = randomUUID();
+            const user_id = randomUUID();
+            const email = `${randomUUID()}@${randomUUID()}.com`;
+            const password = randomUUID();
+
+            const logging_service = new LoggingService();
+            const authorization_service = new AuthorizationService({
+                logging_service
+            });
+            // @ts-ignore
+            mockLoginImplementation({
+                account_id,
+                user_id,
+                email,
+                password,
+                access_token: randomUUID(),
+                expires_in: -1,
+            });
+            await authorization_service.login(email, password);
+            mockRefreshTokenImplementationBadNetwork();
+            const access_token = randomUUID();
+            mockRefreshTokenImplementation({ access_token });
+            await authorization_service.get_access_token();
+            const state = authorization_service.get_state();
+            expect(state.state).toBe('token_fetched');
+        });
+    });
 });
 
 type MockCreateAccountAndLoginImplementationInput = {
@@ -371,5 +432,26 @@ const mockRefreshTokenImplementation = (input: MockRefreshTokenImplementationInp
             access_token: input.access_token,
             expires_in: input.expires_in || 3600,
         }), { status: 200 })
+    });
+}
+
+const mockUnauthorizedRefreshTokenImplementation = () => {
+    // @ts-ignore
+    global.fetch.mockImplementationOnce(async (url: string, init: RequestInit) => {
+        if (url !== `https://${settings.API.host}/token`)
+            throw new Error(`unexpected url: ${url}`);
+        return new Response('Unauthorized', {
+            statusText: 'Unauthorized',
+            status: 401,
+        })
+    });
+}
+
+const mockRefreshTokenImplementationBadNetwork = () => {
+    // @ts-ignore
+    global.fetch.mockImplementationOnce(async (url: string, init: RequestInit) => {
+        if (url !== `https://${settings.API.host}/token`)
+            throw new Error(`unexpected url: ${url}`);
+        throw new Error('network error');
     });
 }

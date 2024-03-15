@@ -33,7 +33,7 @@ class AuthorizationService extends EventTarget implements AuthorizationService {
         return this.state;
     }
 
-    private set_state(state:AuthorizationState): void {
+    private set_state(state: AuthorizationState): void {
         this.state = state;
         this.dispatchEvent(new Event('statechange'))
     }
@@ -48,7 +48,7 @@ class AuthorizationService extends EventTarget implements AuthorizationService {
     }
 
     public create_account_and_login = async (email: string, password: string): Promise<void> => {
-        if (this.state.state !== 'no_account') 
+        if (this.state.state !== 'no_account')
             throw new Error('already have account');
         const access_token = await get_anonymous_token();
         const response = await fetch(`https://${settings.API.host}/accounts`, {
@@ -105,9 +105,9 @@ class AuthorizationService extends EventTarget implements AuthorizationService {
     private refresh_token = async (): Promise<TokenOutput> => {
         if (this.state.state !== 'token_not_fetched' && this.state.state !== 'token_fetched')
             throw new Error('invalid state');
-        const promise = refresh_token(this.logging_service, InitialRetryDelay);
-        this.set_state({ 
-            state: 'refreshing_token', 
+        const promise = refresh_token_with_retry(this.logging_service, InitialRetryDelay);
+        this.set_state({
+            state: 'refreshing_token',
             account: this.state.account,
             promise,
         });
@@ -192,7 +192,13 @@ const get_current_account = async (access_token: string): Promise<Account> => {
     return await response.json() as Account;
 }
 
-const refresh_token = async (logging_service: LoggingService, retry_delay: number): Promise<TokenOutput> => {
+class ClientError extends Error {
+    public constructor(status: number, statusText: string) {
+        super(`Failed to refresh token: ${status} ${statusText}`);
+    }
+}
+
+const refresh_token = async (logging_service: LoggingService): Promise<TokenOutput> => {
     logging_service.log({
         severity: Severity.Informational,
         message: `Refreshing token`
@@ -208,18 +214,29 @@ const refresh_token = async (logging_service: LoggingService, retry_delay: numbe
         credentials: 'include',
     });
     if (isClientError(response.status))
+        throw new ClientError(response.status, response.statusText);
+    if (!response.ok)
         throw new Error(`Failed to refresh token: ${response.status} ${response.statusText}`);
-    if (!response.ok) {
+    return response.json();
+}
+
+const refresh_token_with_retry = async (logging_service: LoggingService, retry_delay: number): Promise<TokenOutput> => {
+    try {
+        return await refresh_token(logging_service);
+    } catch (error) {
+        if (error instanceof ClientError)
+            throw error;
+        const isError = error instanceof Error;
+        if (!isError)
+            throw error;
         logging_service.log({
             severity: Severity.Warning,
-            message: `Failed to refresh token: ${response.status} ${response.statusText}, retrying in ${retry_delay}ms`
+            message: `Failed to refresh token: ${error.message}, retrying in ${retry_delay}ms`
         })
-        // TODO also trigger on network change
         await sleep(retry_delay);
         let next_retry_delay = retry_delay * 2;
         if (next_retry_delay > MaxRetryDelay)
             next_retry_delay = MaxRetryDelay;
-        return refresh_token(logging_service, next_retry_delay);
+        return refresh_token_with_retry(logging_service, next_retry_delay);
     }
-    return response.json()
 }
