@@ -47,6 +47,7 @@ services:
       - SQUARE_SUBSCRIPTION_PLAN_ID=${SQUARE_SUBSCRIPTION_PLAN_ID}
       - SQUARE_LOCATION_ID=${SQUARE_LOCATION_ID}
       - SQUARE_SIGNATURE_KEY=${SQUARE_SIGNATURE_KEY}
+      - FROM_EMAIL_ADDRESS=${FROM_EMAIL_ADDRESS}
       - SEND_EMAIL_STRATEGY=null
     labels:
       - "traefik.http.routers.backend.rule=Host(`api.babymonitor.local`)"

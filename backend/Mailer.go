@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"html/template"
 	"log"
 	"time"
@@ -24,6 +25,7 @@ type EarlyAccessEmailSentEventData struct {
 type Mailer struct {
 	earlyAccessTemplate   *template.Template
 	eventLog              eventlog.EventLog
+	fromEmailAddress      string
 	sendEmail             sendemail.SendEmailFunc
 	emailDeferralDuration time.Duration
 
@@ -34,6 +36,7 @@ type Mailer struct {
 
 type NewMailerInput struct {
 	EventLog              eventlog.EventLog
+	FromEmailAddress      string
 	SendEmail             sendemail.SendEmailFunc
 	EmailDeferralDuration time.Duration
 }
@@ -44,6 +47,7 @@ func NewMailer(input *NewMailerInput) *Mailer {
 	return &Mailer{
 		earlyAccessTemplate:   earlyAccessTemplate,
 		eventLog:              input.EventLog,
+		fromEmailAddress:      input.FromEmailAddress,
 		sendEmail:             input.SendEmail,
 		emailDeferralDuration: input.EmailDeferralDuration,
 
@@ -136,8 +140,11 @@ type SendEarlyAccessEmailInput struct {
 
 func (mailer *Mailer) sendEarlyAccessEmail(ctx context.Context, input SendEarlyAccessEmailInput) (messageID string) {
 	buffer := new(bytes.Buffer)
-	header := "MIME-version: 1.0;\nContent-Type: text/html; charset=\"UTF-8\";\nSubject: Baby Camera - Early Access\n\n"
-	buffer.WriteString(header)
+	buffer.WriteString(fmt.Sprintf("From: \"Baby Monitor by Creative Ilk\" <%s>\n", mailer.fromEmailAddress))
+	buffer.WriteString(fmt.Sprintf("To: %s\n", input.EmailAddress))
+	buffer.WriteString("Subject: Baby Camera - Early Access\n")
+	buffer.WriteString("Content-Type: text/html; charset=\"UTF-8\";\n")
+	buffer.WriteString("\n")
 	err := mailer.earlyAccessTemplate.Execute(buffer, input)
 	fatal.OnError(err)
 	return mailer.sendEmail(ctx, sendemail.SendEmailInput{

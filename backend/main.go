@@ -282,8 +282,10 @@ func newSquareClient() *square.Client {
 }
 
 func runMailer(ctx context.Context, eventLog eventlog.EventLog) {
+	fromEmailAddress := internal.EnvStringOrFatal("FROM_EMAIL_ADDRESS")
 	input := NewMailerInput{
 		EventLog:              eventLog,
+		FromEmailAddress:      fromEmailAddress,
 		EmailDeferralDuration: 10 * time.Second,
 	}
 	strategyName := internal.EnvStringOrFatal("SEND_EMAIL_STRATEGY")
@@ -298,7 +300,7 @@ func runMailer(ctx context.Context, eventLog eventlog.EventLog) {
 		fatal.OnError(err)
 		strategy := sendemail.NewSendEmailUsingSESStrategy(&sendemail.NewSendEmailUsingSESStrategyInput{
 			Client:                      sesv2.NewFromConfig(config),
-			FromEmailAddress:            internal.EnvStringOrFatal("SEND_EMAIL_USING_SES_FROM_EMAIL_ADDRESS"),
+			FromEmailAddress:            fromEmailAddress,
 			FromEmailAddressIdentityARN: internal.EnvStringOrFatal("SEND_EMAIL_USING_SES_FROM_EMAIL_ADDRESS_IDENTITY_ARN"),
 		})
 		input.SendEmail = strategy.SendEmail

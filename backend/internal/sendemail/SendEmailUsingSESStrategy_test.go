@@ -40,8 +40,11 @@ func TestSendEmailUsingSESStrategy(t *testing.T) {
 			Name: "Ryan",
 		}
 		var buffer bytes.Buffer
-		header := "MIME-version: 1.0;\nContent-Type: text/html; charset=\"UTF-8\";\nSubject: Baby Camera - Early Access\n\n"
-		buffer.WriteString(header)
+		buffer.WriteString(fmt.Sprintf("From: \"Baby Monitor by Creative Ilk\" <%s>\n", fromEmailAddress))
+		buffer.WriteString(fmt.Sprintf("To: %s\n", toEmailAddress))
+		buffer.WriteString("Subject: Baby Camera - Early Access\n")
+		buffer.WriteString("Content-Type: text/html; charset=\"UTF-8\";\n")
+		buffer.WriteString("\n")
 		err = emailTemplate.Execute(&buffer, emailData)
 		So(err, ShouldBeNil)
 		strategy.SendEmail(ctx, sendemail.SendEmailInput{
