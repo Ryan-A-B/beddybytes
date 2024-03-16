@@ -294,7 +294,7 @@ func runMailer(ctx context.Context, eventLog eventlog.EventLog) {
 			return
 		}
 	case "ses":
-		config, err := awsconfig.LoadDefaultConfig(ctx)
+		config, err := awsconfig.LoadDefaultConfig(ctx, awsconfig.WithRegion(internal.EnvStringOrFatal("AWS_REGION")))
 		fatal.OnError(err)
 		strategy := sendemail.NewSendEmailUsingSESStrategy(&sendemail.NewSendEmailUsingSESStrategyInput{
 			Client:                      sesv2.NewFromConfig(config),
