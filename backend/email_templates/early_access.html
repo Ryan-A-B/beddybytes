@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        .container {
+            width: 100%;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+        }
+        .header {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+        .content {
+            font-size: 16px;
+            line-height: 1.5;
+        }
+        .button {
+            display: inline-block;
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: #fff !important;
+            text-decoration: none;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            Thank You for Your Purchase!
+        </div>
+        <div class="content">
+            <p>Dear {{.Name}},</p>
+            <p>We sincerely thank you for purchasing early access to our Baby Camera App. Your support is greatly appreciated and plays a vital role in our development process.</p>
+            <p>To start using the app, please follow the link below to create your account:</p>
+            <a href="https://app.babymonitor.creativeilk.com" class="button">Create Your Account</a>
+            <p>If the button doesn't work, you can copy and paste the following link into your browser:</p>
+            <p>https://app.babymonitor.creativeilk.com</p>
+            <p>Warm regards,</p>
+            <p>Ryan</p>
+        </div>
+    </div>
+</body>
+</html>

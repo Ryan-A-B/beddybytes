@@ -105,6 +105,10 @@ Resources:
                 Action:
                   - s3:ListBucket
                 Resource: !GetAtt Bucket.Arn
+              - Effect: Allow
+                Action:
+                  - ses:SendRawEmail
+                Resource: !Ref AWS::SESIdentity
 
   IAMInstanceProfile:
     Type: AWS::IAM::InstanceProfile

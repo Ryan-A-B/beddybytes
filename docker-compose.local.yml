@@ -31,6 +31,8 @@ services:
       context: .
       dockerfile: Dockerfile
     restart: always
+    volumes:
+      - ./eventlog:/opt/eventlog
     ports:
       - "8000:8000"
     environment:
@@ -45,6 +47,7 @@ services:
       - SQUARE_SUBSCRIPTION_PLAN_ID=${SQUARE_SUBSCRIPTION_PLAN_ID}
       - SQUARE_LOCATION_ID=${SQUARE_LOCATION_ID}
       - SQUARE_SIGNATURE_KEY=${SQUARE_SIGNATURE_KEY}
+      - SEND_EMAIL_STRATEGY=null
     labels:
       - "traefik.http.routers.backend.rule=Host(`api.babymonitor.local`)"
       - "traefik.http.routers.backend.entrypoints=websecure"

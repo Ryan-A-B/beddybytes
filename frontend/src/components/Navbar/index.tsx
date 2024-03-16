@@ -7,7 +7,7 @@ const Navbar: React.FunctionComponent = () => {
         <nav className="navbar navbar-expand bg-body-tertiary mb-3">
             <div className="container">
                 <Link to="/" className="navbar-brand">
-                    Baby Monitor<sup>BETA</sup>
+                    Baby Monitor<sup>Early Access</sup>
                 </Link>
                 <div className="collapse navbar-collapse" id="navbarSupportedContent">
                     <ul className="navbar-nav me-auto mb-2 mb-lg-0">

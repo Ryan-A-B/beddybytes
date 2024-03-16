@@ -55,3 +55,19 @@ func Project(ctx context.Context, input *ProjectInput) {
 	}
 	fatal.OnError(iterator.Err())
 }
+
+type StreamToChannelInput struct {
+	EventLog   EventLog
+	FromCursor int
+	C          chan *Event
+}
+
+func StreamToChannel(ctx context.Context, input *StreamToChannelInput) {
+	iterator := input.EventLog.GetEventIterator(ctx, &GetEventIteratorInput{
+		FromCursor: input.FromCursor,
+	})
+	for iterator.Next() {
+		input.C <- iterator.Event()
+	}
+	fatal.OnError(iterator.Err())
+}

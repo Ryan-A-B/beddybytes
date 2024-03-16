@@ -1,2 +1,3 @@
 .env
 eventlog
+download_event_log.sh

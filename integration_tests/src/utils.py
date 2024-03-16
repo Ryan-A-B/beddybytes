@@ -1,6 +1,7 @@
 import subprocess
 import string
 import secrets
+import random
 
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.wait import WebDriverWait
@@ -61,3 +62,7 @@ def stop_backend_container():
 
 def start_backend_container():
     subprocess.run(["docker", "start", backend_container_name], stderr=subprocess.DEVNULL, stdout=subprocess.DEVNULL)
+
+def get_random_bool(probability_of_true):
+    """Return True with probability_of_true, False with 1 - probability_of_true."""
+    return random.random() < probability_of_true

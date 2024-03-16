@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"github.com/ansel1/merry"
+	awsconfig "github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/sesv2"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
@@ -17,6 +19,7 @@ import (
 	"github.com/Ryan-A-B/baby-monitor/backend/accounts"
 	"github.com/Ryan-A-B/baby-monitor/backend/internal"
 	"github.com/Ryan-A-B/baby-monitor/backend/internal/eventlog"
+	"github.com/Ryan-A-B/baby-monitor/backend/internal/sendemail"
 	"github.com/Ryan-A-B/baby-monitor/backend/internal/store"
 	"github.com/Ryan-A-B/baby-monitor/backend/internal/store2"
 	"github.com/Ryan-A-B/baby-monitor/internal/fatal"
@@ -172,6 +175,7 @@ func main() {
 	key := []byte(internal.EnvStringOrFatal("ENCRYPTION_KEY"))
 	cookieDomain := internal.EnvStringOrFatal("COOKIE_DOMAIN")
 	eventLog := newEventLog(ctx)
+	go runMailer(ctx, eventLog)
 	accountHandlers := accounts.Handlers{
 		CookieDomain: cookieDomain,
 		EventLog:     eventLog,
@@ -275,4 +279,33 @@ func newSquareClient() *square.Client {
 		ApplicationID: internal.EnvStringOrFatal("SQUARE_APPLICATION_ID"),
 		AccessToken:   internal.EnvStringOrFatal("SQUARE_ACCESS_TOKEN"),
 	})
+}
+
+func runMailer(ctx context.Context, eventLog eventlog.EventLog) {
+	input := NewMailerInput{
+		EventLog:              eventLog,
+		EmailDeferralDuration: 10 * time.Second,
+	}
+	strategyName := internal.EnvStringOrFatal("SEND_EMAIL_STRATEGY")
+	switch strategyName {
+	case "null":
+		input.SendEmail = func(ctx context.Context, input sendemail.SendEmailInput) (messageID string) {
+			log.Println("Would send email to " + input.EmailAddress)
+			return
+		}
+	case "ses":
+		config, err := awsconfig.LoadDefaultConfig(ctx)
+		fatal.OnError(err)
+		strategy := sendemail.NewSendEmailUsingSESStrategy(&sendemail.NewSendEmailUsingSESStrategyInput{
+			Client:                      sesv2.NewFromConfig(config),
+			FromEmailAddress:            internal.EnvStringOrFatal("SEND_EMAIL_USING_SES_FROM_EMAIL_ADDRESS"),
+			FromEmailAddressIdentityARN: internal.EnvStringOrFatal("SEND_EMAIL_USING_SES_FROM_EMAIL_ADDRESS_IDENTITY_ARN"),
+		})
+		input.SendEmail = strategy.SendEmail
+	default:
+		log.Fatal("invalid SEND_EMAIL_STRATEGY: ", strategyName)
+	}
+
+	mailer := NewMailer(&input)
+	mailer.Run(ctx)
 }

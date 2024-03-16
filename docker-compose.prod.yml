@@ -51,6 +51,9 @@ services:
       - SQUARE_SUBSCRIPTION_PLAN_ID=${SQUARE_SUBSCRIPTION_PLAN_ID}
       - SQUARE_LOCATION_ID=${SQUARE_LOCATION_ID}
       - SQUARE_SIGNATURE_KEY=${SQUARE_SIGNATURE_KEY}
+      - SEND_EMAIL_STRATEGY=ses
+      - SEND_EMAIL_USING_SES_FROM_ADDRESS=${SEND_EMAIL_USING_SES_FROM_ADDRESS}
+      - SEND_EMAIL_USING_SES_FROM_EMAIL_ADDRESS_IDENTITY_ARN=${SEND_EMAIL_USING_SES_FROM_EMAIL_ADDRESS_IDENTITY_ARN}
     labels:
       - "traefik.http.routers.anonymous-token.rule=Host(`api.babymonitor.creativeilk.com`) && Path(`/anonymous_token`) && Method(`POST`)"
       - "traefik.http.routers.anonymous-token.entrypoints=websecure"
@@ -123,4 +126,8 @@ secrets:
   SQUARE_LOCATION_ID:
     external: true
   SQUARE_SIGNATURE_KEY:
+    external: true
+  SEND_EMAIL_USING_SES_FROM_ADDRESS:
+    external: true
+  SEND_EMAIL_USING_SES_FROM_EMAIL_ADDRESS_IDENTITY_ARN:
     external: true
