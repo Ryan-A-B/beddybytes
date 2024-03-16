@@ -128,9 +128,9 @@ secrets:
     external: true
   SQUARE_SIGNATURE_KEY:
     external: true
-  AWS_REGION:
-    external: true
   FROM_EMAIL_ADDRESS:
+    external: true
+  AWS_REGION:
     external: true
   SEND_EMAIL_USING_SES_FROM_EMAIL_ADDRESS_IDENTITY_ARN:
     external: true
