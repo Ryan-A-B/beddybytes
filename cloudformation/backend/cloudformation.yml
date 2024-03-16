@@ -27,6 +27,9 @@ Parameters:
   MyIpAddress:
     Description: The IP address of the client that will be allowed to SSH into the EC2 instance
     Type: String
+  SESIdentity:
+    Description: The ARN of the SES identity that will be allowed to send emails
+    Type: String
 
 Resources:
   APIDNSRecord:
@@ -107,8 +110,9 @@ Resources:
                 Resource: !GetAtt Bucket.Arn
               - Effect: Allow
                 Action:
+                  - ses:SendEmail
                   - ses:SendRawEmail
-                Resource: !Ref AWS::SESIdentity
+                Resource: !Ref SESIdentity
 
   IAMInstanceProfile:
     Type: AWS::IAM::InstanceProfile
