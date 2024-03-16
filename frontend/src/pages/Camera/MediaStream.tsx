@@ -2,6 +2,7 @@ import React from "react";
 import Connections from "./Connections";
 import { useMediaStreamService, useSignalService } from "../../services";
 import useMediaStreamStatus from "../../hooks/useMediaStreamStatus";
+import add_audio_noise from "../../utils/add_audio_noise";
 
 interface Props {
     audioDeviceID: string
@@ -32,7 +33,8 @@ const MediaStream: React.FunctionComponent<Props> = ({ audioDeviceID, videoDevic
     React.useEffect(() => {
         if (!sessionActive) return;
         if (mediaStreamStatus.status !== 'running') return;
-        const connections = new Connections(signal_service, mediaStreamStatus.media_stream);
+        const media_stream = add_audio_noise(mediaStreamStatus.media_stream);
+        const connections = new Connections(signal_service, media_stream);
         return connections.close;
     }, [signal_service, sessionActive, mediaStreamStatus]);
     if (mediaStreamStatus.status === 'starting') return (<div>Getting stream...</div>)

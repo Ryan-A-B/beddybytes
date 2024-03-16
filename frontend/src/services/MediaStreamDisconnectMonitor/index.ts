@@ -7,7 +7,6 @@ class MediaStreamDisconnectMonitor extends EventTarget {
     readonly stream: MediaStream;
     private audioContext: AudioContext;
     private analyser: AnalyserNode;
-    private source: MediaStreamAudioSourceNode;
     private dataArray: Uint8Array;
     private state: MediaStreamConnectionState;
     private ticker: NodeJS.Timer;
@@ -18,8 +17,11 @@ class MediaStreamDisconnectMonitor extends EventTarget {
         this.audioContext = new AudioContext();
         this.analyser = this.audioContext.createAnalyser();
         this.analyser.fftSize = 256;
-        this.source = this.audioContext.createMediaStreamSource(stream);
-        this.source.connect(this.analyser);
+        const source = this.audioContext.createMediaStreamSource(stream);
+        const gain = this.audioContext.createGain();
+        gain.gain.value = 100;
+        source.connect(gain);
+        gain.connect(this.analyser);
         this.dataArray = new Uint8Array(this.analyser.frequencyBinCount);
 
         this.state = {
