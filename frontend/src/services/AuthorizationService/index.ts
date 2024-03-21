@@ -6,7 +6,7 @@ import Severity from '../LoggingService/Severity';
 import sleep from '../../utils/sleep';
 
 const InitialRetryDelay = 1000;
-const MaxRetryDelay = 5 * 60 * 1000;
+const MaxRetryDelay = 2 * 60 * 1000;
 
 const GracePeriod = moment.duration(5, 'minutes');
 

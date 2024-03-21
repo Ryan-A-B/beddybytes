@@ -175,7 +175,7 @@ func main() {
 	key := []byte(internal.EnvStringOrFatal("ENCRYPTION_KEY"))
 	cookieDomain := internal.EnvStringOrFatal("COOKIE_DOMAIN")
 	eventLog := newEventLog(ctx)
-	// go runMailer(ctx, eventLog)
+	go runMailer(ctx, eventLog)
 	accountHandlers := accounts.Handlers{
 		CookieDomain: cookieDomain,
 		EventLog:     eventLog,

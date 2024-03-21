@@ -47,7 +47,7 @@ interface NewWebSocketSignalServiceInput {
 class WebSocketSignalService extends EventTarget implements SignalService {
     private static InitialState: WebSocketSignalState = { state: 'not_connected' };
     private static InitialRetryDelay = 1000;
-    private static MaxRetryDelay = 30000;
+    private static MaxRetryDelay = 2 * 60 * 1000;
 
     private logging_service: LoggingService;
     private authorization_service: AuthorizationService;

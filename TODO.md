@@ -3,7 +3,6 @@
 ### Bugs
 - backup eventlog to S3
 - reconnect WebRTC
-- when app has failed to refresh token it doesn't retry
 - improve logic for knowing when a session has ended
 - refresh token already used results in bricked app
     - from too fast refreshes
@@ -11,7 +10,6 @@
 ### Features
 - indicate that the connection is being established
 - record monitor events
-
 - show camera battery level on monitor
 - picture in picture for all browsers
     - currently only firefox displays button

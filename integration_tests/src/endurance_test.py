@@ -13,6 +13,8 @@ from utils import create_account, login, stop_backend_container, start_backend_c
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
+# When backend disconnects for a while, baby station attempts to reconnect with an exponential backoff. If a parent station attempts to connect before the baby station has reconnected it will fail
+
 Command = Callable[[], List['Command']]
 CommandList = List[Command]
 
@@ -170,8 +172,8 @@ parent_station_1 = ParentStation({
     "name": "parent_station_1",
     "email": email,
     "password": password,
-    "probability_of_connecting": 1,
-    "probability_of_disconnecting": 0,
+    "probability_of_connecting": 1 / 20, # On average, connect once every twenty seconds
+    "probability_of_disconnecting": 1 / (2 * 60 * 60), # On average, disconnect once every 2 hours
 })
 parent_station_2 = ParentStation({
     "backend_disruptor": backend_disruptor,

@@ -10,7 +10,7 @@ const SessionDuration: React.FunctionComponent<Props> = ({ startedAt }) => {
     const duration = useDuration(startedAt);
     const message = React.useMemo(() => {
         const absoluteDuration = duration.abs();
-        const hours = absoluteDuration.hours();
+        const hours = Math.floor(absoluteDuration.asHours());
         const minutes = absoluteDuration.minutes();
         const seconds = absoluteDuration.seconds();
         const formattedMinutes = minutes < 10 ? `0${minutes}` : minutes;
