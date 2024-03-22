@@ -3,7 +3,7 @@ const add_audio_noise = (media_stream: MediaStream): MediaStream => {
     const source = audio_context.createMediaStreamSource(media_stream);
 
     const noise = audio_context.createGain();
-    noise.gain.value = 0.0001;
+    noise.gain.value = 0.0002;
 
     const noise_source = audio_context.createBufferSource();
     const buffer_size = audio_context.sampleRate * 2;

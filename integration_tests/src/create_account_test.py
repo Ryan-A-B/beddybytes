@@ -23,6 +23,10 @@ class CreateAccountTest(unittest.TestCase):
             driver.get(f"{app_base_url}")
 
             wait = WebDriverWait(driver, timeout=1)
+            nav_button_create_account = wait.until(lambda driver: driver.find_element(By.ID, "nav-button-create-account"))
+            self.assertTrue(nav_button_create_account.is_displayed())
+            nav_button_create_account.click()
+
             form_element = wait.until(lambda driver: driver.find_element(By.ID, "form-create-account"))
             self.assertTrue(form_element.is_displayed())
 
@@ -53,9 +57,6 @@ class CreateAccountTest(unittest.TestCase):
             driver.get(f"{app_base_url}")
 
             wait = WebDriverWait(driver, timeout=1)
-            nav_button_login = wait.until(lambda driver: driver.find_element(By.ID, "nav-button-login"))
-            self.assertTrue(nav_button_login.is_displayed())
-            nav_button_login.click()
 
             form_element = wait.until(lambda driver: driver.find_element(By.ID, "form-login"))
             self.assertTrue(form_element.is_displayed())

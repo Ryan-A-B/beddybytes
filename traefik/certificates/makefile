@@ -1,13 +1,13 @@
-all: babymonitor.local.key babymonitor.local.crt
+all: beddybytes.local.key beddybytes.local.crt
 
-babymonitor.local.key:
+beddybytes.local.key:
 	openssl genrsa -out $@ 2048
 
-babymonitor.local.csr: babymonitor.local.key
-	openssl req -new -sha256 -key $< -out $@ -subj "/C=AU/ST=Queensland/L=Brisbane/CN=*.babymonitor.local"
+beddybytes.local.csr: beddybytes.local.key
+	openssl req -new -sha256 -key $< -out $@ -subj "/C=AU/ST=Queensland/L=Brisbane/CN=*.beddybytes.local"
 
-babymonitor.local.crt: babymonitor.local.key babymonitor.local.csr
-	openssl x509 -req -days 365 -in babymonitor.local.csr -signkey $< -out $@
+beddybytes.local.crt: beddybytes.local.key beddybytes.local.csr
+	openssl x509 -req -days 365 -in beddybytes.local.csr -signkey $< -out $@
 
 clean:
 	rm -f *.key *.csr *.crt

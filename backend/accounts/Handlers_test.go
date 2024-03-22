@@ -15,11 +15,11 @@ import (
 	"github.com/gorilla/mux"
 	. "github.com/smartystreets/goconvey/convey"
 
-	"github.com/Ryan-A-B/baby-monitor/backend/accounts"
-	"github.com/Ryan-A-B/baby-monitor/backend/internal/eventlog"
-	"github.com/Ryan-A-B/baby-monitor/backend/internal/store"
-	"github.com/Ryan-A-B/baby-monitor/backend/internal/xhttp"
-	"github.com/Ryan-A-B/baby-monitor/internal/fatal"
+	"github.com/Ryan-A-B/beddybytes/backend/accounts"
+	"github.com/Ryan-A-B/beddybytes/backend/internal/eventlog"
+	"github.com/Ryan-A-B/beddybytes/backend/internal/store"
+	"github.com/Ryan-A-B/beddybytes/backend/internal/xhttp"
+	"github.com/Ryan-A-B/beddybytes/internal/fatal"
 )
 
 func TestHandlers(t *testing.T) {

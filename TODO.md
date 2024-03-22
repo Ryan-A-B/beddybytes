@@ -10,7 +10,7 @@
 ### Features
 - indicate that the connection is being established
 - record monitor events
-- show camera battery level on monitor
+- show baby station battery level on monitor
 - picture in picture for all browsers
     - currently only firefox displays button
     - close if connection lost
@@ -19,22 +19,12 @@
 
 ## Next
 ### Bugs
-- PaymentLinkMutex is expensive
 - mock square for testing
 - responive slightly broken on phone (S7)
 - server hardening
-- websocket to notify when a new camera comes online
-- S7 -> Latitude 7430 no video shows
-    - incompatible encodings?
-    - chrome works
-- S7 switching cameras fails
-    - S22 works with chrome
-        - but not brave
-- delay payment until end of trial period
-    - or end of active subscription
+- websocket to notify when a new session becomes available
 
 ### Features
-- pause subscription
 - connection lost
     - attempt reconnect
     - Picture in Picture doesn't support custom elements
@@ -44,9 +34,9 @@
 - edit device metadata
 - microphone from monitor (default muted)
 - record button on monitor (picture and video)
-    - instruct camera to do the recording (better quality)
+    - instruct baby station to do the recording (better quality)
     - record the stream coming over webrtc (more intuitive)
-    - both? record on camera then send over data stream to monitor?
+    - both? record on baby station then send over data stream to monitor?
 - show number of active connections
 - continuous integration
 - noise when connection lost
@@ -57,7 +47,7 @@
 - microphone didn't come through when also playing sound from different app?
 - scale
     - use AWS IoT as message broker on production
-        - when monitor comes on line it sends message asking what cameras are available
+        - when monitor comes on line it sends message asking what sessions are available
             - accounts/{account_id}
         - for WebRTC negotiation 
             - accounts/{account_id}/to_device/{device_id}/from_device/{device_id}

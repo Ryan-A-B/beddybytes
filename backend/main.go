@@ -16,14 +16,14 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 
-	"github.com/Ryan-A-B/baby-monitor/backend/accounts"
-	"github.com/Ryan-A-B/baby-monitor/backend/internal"
-	"github.com/Ryan-A-B/baby-monitor/backend/internal/eventlog"
-	"github.com/Ryan-A-B/baby-monitor/backend/internal/sendemail"
-	"github.com/Ryan-A-B/baby-monitor/backend/internal/store"
-	"github.com/Ryan-A-B/baby-monitor/backend/internal/store2"
-	"github.com/Ryan-A-B/baby-monitor/internal/fatal"
-	"github.com/Ryan-A-B/baby-monitor/internal/square"
+	"github.com/Ryan-A-B/beddybytes/backend/accounts"
+	"github.com/Ryan-A-B/beddybytes/backend/internal"
+	"github.com/Ryan-A-B/beddybytes/backend/internal/eventlog"
+	"github.com/Ryan-A-B/beddybytes/backend/internal/sendemail"
+	"github.com/Ryan-A-B/beddybytes/backend/internal/store"
+	"github.com/Ryan-A-B/beddybytes/backend/internal/store2"
+	"github.com/Ryan-A-B/beddybytes/internal/fatal"
+	"github.com/Ryan-A-B/beddybytes/internal/square"
 )
 
 type IncomingMessageFrame struct {
@@ -191,15 +191,8 @@ func main() {
 
 		SignatureKey: []byte(internal.EnvStringOrFatal("SQUARE_SIGNATURE_KEY")),
 
-		Client:                 newSquareClient(),
-		SubscriptionPlanID:     internal.EnvStringOrFatal("SQUARE_SUBSCRIPTION_PLAN_ID"),
-		LocationID:             internal.EnvStringOrFatal("SQUARE_LOCATION_ID"),
-		PaymentLinkByAccountID: make(map[string]*square.PaymentLink),
-
-		AppliedInvoiceIDs:         make(map[string]struct{}),
-		AccountIDByOrderID:        make(map[string]string),
-		AccountIDBySubscriptionID: make(map[string]string),
-		SquareSubscriptionByID:    make(map[string]*square.Subscription),
+		Client:     newSquareClient(),
+		LocationID: internal.EnvStringOrFatal("SQUARE_LOCATION_ID"),
 	}
 	go eventlog.Project(ctx, &eventlog.ProjectInput{
 		EventLog:   accountHandlers.EventLog,

@@ -11,7 +11,7 @@ import (
 
 	uuid "github.com/satori/go.uuid"
 
-	"github.com/Ryan-A-B/baby-monitor/internal/fatal"
+	"github.com/Ryan-A-B/beddybytes/internal/fatal"
 )
 
 const MetadataFileName = "metadata.json"

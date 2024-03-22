@@ -12,9 +12,9 @@ import (
 
 	"github.com/ansel1/merry"
 
-	"github.com/Ryan-A-B/baby-monitor/backend/internal/eventlog"
-	"github.com/Ryan-A-B/baby-monitor/internal/fatal"
-	"github.com/Ryan-A-B/baby-monitor/internal/square"
+	"github.com/Ryan-A-B/beddybytes/backend/internal/eventlog"
+	"github.com/Ryan-A-B/beddybytes/internal/fatal"
+	"github.com/Ryan-A-B/beddybytes/internal/square"
 )
 
 func (handlers *Handlers) HandleWebhook(responseWriter http.ResponseWriter, request *http.Request) {

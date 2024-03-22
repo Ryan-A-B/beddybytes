@@ -27,5 +27,5 @@ metrics:
   influxDB2:
     address: http://influxdb:8086
     token: ${INFLUXDB_TOKEN}
-    org: creativeilk
+    org: beddybytes
     bucket: traefik

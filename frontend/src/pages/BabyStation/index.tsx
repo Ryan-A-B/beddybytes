@@ -11,10 +11,10 @@ import SelectVideoDevice from './SelectVideoDevice';
 import SelectAudioDevice from './SelectAudioDevice';
 import MediaStream from './MediaStream';
 import SessionToggle from './SessionToggle';
-import './Camera.scss';
+import './style.scss';
 import { useHostSessionService, useMediaDevicePermissionService, useMediaStreamService, useSignalService } from '../../services';
 
-const DefaultSessionName = 'Camera';
+const DefaultSessionName = 'Baby Station';
 
 const LocalStorageAudioDeviceIDKey = 'audio_device_id';
 const LocalStorageVideoDeviceIDKey = 'video_device_id';
@@ -42,7 +42,7 @@ const useEndSessionOnUnmount = (host_session_service: HostSessionService) => {
     }, [host_session_service]);
 }
 
-const Camera: React.FunctionComponent = () => {
+const BabyStation: React.FunctionComponent = () => {
     const signal_service = useSignalService();
     const host_session_service = useHostSessionService();
     const media_device_permission_service = useMediaDevicePermissionService();
@@ -105,7 +105,7 @@ const Camera: React.FunctionComponent = () => {
         </div>
     );
     return (
-        <main className="camera">
+        <main className="baby-station">
             <div className="row justify-content-center g-2">
                 <div className="form-group col-sm-auto col-lg">
                     <div className="input-group">
@@ -165,4 +165,4 @@ const Camera: React.FunctionComponent = () => {
     )
 };
 
-export default Camera;
+export default BabyStation;

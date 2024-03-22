@@ -9,7 +9,7 @@ import MockClientSessionService from '../../services/ClientSessionService/MockCl
 import MockSessionListService from '../../services/SessionListService/MockSessionListService';
 import MockSignalService from '../../services/SignalService/MockSignalService';
 import { Session } from '../../services/SessionListService/types';
-import Monitor from '.';
+import ParentStation from '.';
 import sleep from '../../utils/sleep';
 
 describe('Monitor', () => {
@@ -27,7 +27,7 @@ describe('Monitor', () => {
             }
             const component = render(
                 <ServicesContext.Provider value={services as Services}>
-                    <Monitor />
+                    <ParentStation />
                 </ServicesContext.Provider>
             );
             const body = component.baseElement;
@@ -51,7 +51,7 @@ describe('Monitor', () => {
                 }
                 const component = render(
                     <ServicesContext.Provider value={services as Services}>
-                        <Monitor />
+                        <ParentStation />
                     </ServicesContext.Provider>
                 );
                 const body = component.baseElement;
@@ -93,7 +93,7 @@ describe('Monitor', () => {
             }
             const component = render(
                 <ServicesContext.Provider value={services as Services}>
-                    <Monitor />
+                    <ParentStation />
                 </ServicesContext.Provider>
             );
             const body = component.baseElement;

@@ -6,10 +6,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Ryan-A-B/baby-monitor/backend/internal/eventlog"
-	"github.com/Ryan-A-B/baby-monitor/backend/internal/sendemail"
-	"github.com/Ryan-A-B/baby-monitor/internal/fatal"
-	"github.com/Ryan-A-B/baby-monitor/internal/square"
+	"github.com/Ryan-A-B/beddybytes/backend/internal/eventlog"
+	"github.com/Ryan-A-B/beddybytes/backend/internal/sendemail"
+	"github.com/Ryan-A-B/beddybytes/internal/fatal"
+	"github.com/Ryan-A-B/beddybytes/internal/square"
 	uuid "github.com/satori/go.uuid"
 	. "github.com/smartystreets/goconvey/convey"
 )

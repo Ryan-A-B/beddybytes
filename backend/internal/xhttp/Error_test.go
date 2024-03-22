@@ -10,7 +10,7 @@ import (
 	uuid "github.com/satori/go.uuid"
 	. "github.com/smartystreets/goconvey/convey"
 
-	"github.com/Ryan-A-B/baby-monitor/backend/internal/xhttp"
+	"github.com/Ryan-A-B/beddybytes/backend/internal/xhttp"
 )
 
 func TestError(t *testing.T) {

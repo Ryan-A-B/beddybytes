@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/Ryan-A-B/baby-monitor/backend/internal/store2"
+	"github.com/Ryan-A-B/beddybytes/backend/internal/store2"
 	. "github.com/smartystreets/goconvey/convey"
 )
 

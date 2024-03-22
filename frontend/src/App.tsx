@@ -16,9 +16,8 @@ import Navbar from './components/Navbar';
 import UpdateAvailableAlert from './components/UpdateAvailableAlert';
 import Login from './pages/Login';
 import Instructions from './pages/Instructions';
-import Camera from './pages/Camera';
-import Monitor from './pages/Monitor';
-import Account from './pages/Account';
+import BabyStation from './pages/BabyStation';
+import ParentStation from './pages/ParentStation';
 import { Services, context as ServicesContext } from './services';
 
 import './App.scss';
@@ -45,9 +44,8 @@ const App: React.FunctionComponent = () => {
         <Login>
           <Routes>
             <Route path="/" element={<Instructions />} />
-            <Route path="/camera" element={<Camera />} />
-            <Route path="/monitor" element={<Monitor />} />
-            <Route path="/account" element={<Account />} />
+            <Route path="/baby" element={<BabyStation />} />
+            <Route path="/parent" element={<ParentStation />} />
           </Routes>
         </Login>
       </div>

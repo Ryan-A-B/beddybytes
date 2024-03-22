@@ -13,7 +13,7 @@ services:
       - ./traefik/letsencrypt:/letsencrypt
       - ./traefik/logs:/opt/logs
     labels:
-      - "traefik.http.middlewares.headers-cors.headers.accesscontrolalloworiginlist=https://app.babymonitor.creativeilk.com"
+      - "traefik.http.middlewares.headers-cors.headers.accesscontrolalloworiginlist=https://app.beddybytes.com"
       - "traefik.http.middlewares.headers-cors.headers.accesscontrolallowheaders=Content-Type,Authorization"
       - "traefik.http.middlewares.headers-cors.headers.accesscontrolallowcredentials=true"
       - "traefik.http.middlewares.headers-cors.headers.accessControlAllowMethods=GET,OPTIONS,POST,PUT,DELETE"
@@ -30,7 +30,7 @@ services:
       - "traefik.http.middlewares.rate-limit-backend.ratelimit.period=1s"
       - "traefik.http.middlewares.rate-limit-backend.ratelimit.burst=10"
   backend:
-    image: baby-monitor-backend
+    image: beddybytes-backend
     build:
       context: .
       dockerfile: Dockerfile
@@ -41,14 +41,13 @@ services:
       - ./eventlog:/opt/eventlog
     environment:
       - ENCRYPTION_KEY=${ENCRYPTION_KEY}
-      - COOKIE_DOMAIN=.babymonitor.creativeilk.com
+      - COOKIE_DOMAIN=.beddybytes.com
       - SERVER_ADDR=:8000
       - FILE_EVENT_LOG_FOLDER_PATH=/opt/eventlog
       - SQUARE_SCHEME=https
       - SQUARE_HOST=connect.squareup.com
       - SQUARE_APPLICATION_ID=${SQUARE_APPLICATION_ID}
       - SQUARE_ACCESS_TOKEN=${SQUARE_ACCESS_TOKEN}
-      - SQUARE_SUBSCRIPTION_PLAN_ID=${SQUARE_SUBSCRIPTION_PLAN_ID}
       - SQUARE_LOCATION_ID=${SQUARE_LOCATION_ID}
       - SQUARE_SIGNATURE_KEY=${SQUARE_SIGNATURE_KEY}
       - AWS_REGION=${AWS_REGION}
@@ -56,31 +55,31 @@ services:
       - SEND_EMAIL_STRATEGY=ses
       - SEND_EMAIL_USING_SES_FROM_EMAIL_ADDRESS_IDENTITY_ARN=${SEND_EMAIL_USING_SES_FROM_EMAIL_ADDRESS_IDENTITY_ARN}
     labels:
-      - "traefik.http.routers.anonymous-token.rule=Host(`api.babymonitor.creativeilk.com`) && Path(`/anonymous_token`) && Method(`POST`)"
+      - "traefik.http.routers.anonymous-token.rule=Host(`api.beddybytes.com`) && Path(`/anonymous_token`) && Method(`POST`)"
       - "traefik.http.routers.anonymous-token.entrypoints=websecure"
       - "traefik.http.routers.anonymous-token.tls=true"
       - "traefik.http.routers.anonymous-token.tls.certresolver=letsencrypt"
-      - "traefik.http.routers.anonymous-token.tls.domains[0].main=api.babymonitor.creativeilk.com"
+      - "traefik.http.routers.anonymous-token.tls.domains[0].main=api.beddybytes.com"
       - "traefik.http.routers.anonymous-token.middlewares=headers-cors@docker,rate-limit-anonymous-token@docker"
 
-      - "traefik.http.routers.create-account.rule=Host(`api.babymonitor.creativeilk.com`) && Path(`/accounts`) && Method(`POST`)"
+      - "traefik.http.routers.create-account.rule=Host(`api.beddybytes.com`) && Path(`/accounts`) && Method(`POST`)"
       - "traefik.http.routers.create-account.entrypoints=websecure"
       - "traefik.http.routers.create-account.tls=true"
       - "traefik.http.routers.create-account.tls.certresolver=letsencrypt"
-      - "traefik.http.routers.create-account.tls.domains[0].main=api.babymonitor.creativeilk.com"
+      - "traefik.http.routers.create-account.tls.domains[0].main=api.beddybytes.com"
       - "traefik.http.routers.create-account.middlewares=headers-cors@docker,rate-limit-create-account@docker"
 
-      - "traefik.http.routers.square.rule=Host(`api.babymonitor.creativeilk.com`) && PathPrefix(`/square`) && Method(`POST`)"
+      - "traefik.http.routers.square.rule=Host(`api.beddybytes.com`) && PathPrefix(`/square`) && Method(`POST`)"
       - "traefik.http.routers.square.entrypoints=websecure"
       - "traefik.http.routers.square.tls=true"
       - "traefik.http.routers.square.tls.certresolver=letsencrypt"
-      - "traefik.http.routers.square.tls.domains[0].main=api.babymonitor.creativeilk.com"
+      - "traefik.http.routers.square.tls.domains[0].main=api.beddybytes.com"
 
-      - "traefik.http.routers.backend.rule=Host(`api.babymonitor.creativeilk.com`)"
+      - "traefik.http.routers.backend.rule=Host(`api.beddybytes.com`)"
       - "traefik.http.routers.backend.entrypoints=websecure"
       - "traefik.http.routers.backend.tls=true"
       - "traefik.http.routers.backend.tls.certresolver=letsencrypt"
-      - "traefik.http.routers.backend.tls.domains[0].main=api.babymonitor.creativeilk.com"
+      - "traefik.http.routers.backend.tls.domains[0].main=api.beddybytes.com"
       - "traefik.http.routers.backend.middlewares=headers-cors@docker,rate-limit-backend@docker"
   influxdb:
     image: influxdb:2.7-alpine
@@ -90,11 +89,11 @@ services:
     volumes:
       - ./influxdb/data:/var/lib/influxdb2
     labels:
-      - "traefik.http.routers.influx.rule=Host(`influx.babymonitor.creativeilk.com`)"
+      - "traefik.http.routers.influx.rule=Host(`influx.beddybytes.com`)"
       - "traefik.http.routers.influx.entrypoints=websecure"
       - "traefik.http.routers.influx.tls=true"
       - "traefik.http.routers.influx.tls.certresolver=letsencrypt"
-      - "traefik.http.routers.influx.tls.domains[0].main=influx.babymonitor.creativeilk.com"
+      - "traefik.http.routers.influx.tls.domains[0].main=influx.beddybytes.com"
       - "traefik.http.routers.influx.middlewares=headers-cors@docker"
   grafana:
     image: grafana/grafana-oss:10.2.2
@@ -104,11 +103,11 @@ services:
     volumes:
       - grafana_storage:/var/lib/grafana
     labels:
-      - "traefik.http.routers.grafana.rule=Host(`grafana.babymonitor.creativeilk.com`)"
+      - "traefik.http.routers.grafana.rule=Host(`grafana.beddybytes.com`)"
       - "traefik.http.routers.grafana.entrypoints=websecure"
       - "traefik.http.routers.grafana.tls=true"
       - "traefik.http.routers.grafana.tls.certresolver=letsencrypt"
-      - "traefik.http.routers.grafana.tls.domains[0].main=grafana.babymonitor.creativeilk.com"
+      - "traefik.http.routers.grafana.tls.domains[0].main=grafana.beddybytes.com"
       - "traefik.http.routers.grafana.middlewares=headers-cors@docker"
 
 volumes:

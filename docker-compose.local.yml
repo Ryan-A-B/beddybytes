@@ -14,19 +14,19 @@ services:
       - ./traefik/dynamic_conf.local.yml:/etc/traefik/dynamic_conf.yml
       - ./traefik/certificates:/opt/certificates
     labels:
-      - "traefik.http.middlewares.headers-cors.headers.accesscontrolalloworiginlist=https://app.babymonitor.local"
+      - "traefik.http.middlewares.headers-cors.headers.accesscontrolalloworiginlist=https://app.beddybytes.local"
       - "traefik.http.middlewares.headers-cors.headers.accesscontrolallowheaders=Content-Type,Authorization"
       - "traefik.http.middlewares.headers-cors.headers.accesscontrolallowcredentials=true"
       - "traefik.http.middlewares.headers-cors.headers.accessControlAllowMethods=GET,OPTIONS,POST,PUT,DELETE"
     networks:
       default:
         aliases:
-          - app.babymonitor.local
-          - api.babymonitor.local
-          - influx.babymonitor.local
-          - grafana.babymonitor.local
+          - app.beddybytes.local
+          - api.beddybytes.local
+          - influx.beddybytes.local
+          - grafana.beddybytes.local
   backend:
-    image: baby-monitor-backend
+    image: beddybytes-backend
     build:
       context: .
       dockerfile: Dockerfile
@@ -37,20 +37,19 @@ services:
       - "8000:8000"
     environment:
       - ENCRYPTION_KEY=${ENCRYPTION_KEY}
-      - COOKIE_DOMAIN=.babymonitor.local
+      - COOKIE_DOMAIN=.beddybytes.local
       - SERVER_ADDR=:8000
       - FILE_EVENT_LOG_FOLDER_PATH=/opt/eventlog
       - SQUARE_SCHEME=https
       - SQUARE_HOST=connect.squareupsandbox.com
       - SQUARE_APPLICATION_ID=${SQUARE_APPLICATION_ID}
       - SQUARE_ACCESS_TOKEN=${SQUARE_ACCESS_TOKEN}
-      - SQUARE_SUBSCRIPTION_PLAN_ID=${SQUARE_SUBSCRIPTION_PLAN_ID}
       - SQUARE_LOCATION_ID=${SQUARE_LOCATION_ID}
       - SQUARE_SIGNATURE_KEY=${SQUARE_SIGNATURE_KEY}
       - FROM_EMAIL_ADDRESS=${FROM_EMAIL_ADDRESS}
       - SEND_EMAIL_STRATEGY=null
     labels:
-      - "traefik.http.routers.backend.rule=Host(`api.babymonitor.local`)"
+      - "traefik.http.routers.backend.rule=Host(`api.beddybytes.local`)"
       - "traefik.http.routers.backend.entrypoints=websecure"
       - "traefik.http.routers.backend.tls=true"
       - "traefik.http.routers.backend.middlewares=headers-cors@docker"
@@ -62,11 +61,11 @@ services:
     volumes:
       - ./frontend/:/opt/frontend
     environment:
-      - WDS_SOCKET_HOST=app.babymonitor.local
+      - WDS_SOCKET_HOST=app.beddybytes.local
       - WDS_SOCKET_PORT=443
     working_dir: /opt/frontend
     labels:
-      - "traefik.http.routers.frontend.rule=Host(`app.babymonitor.local`)"
+      - "traefik.http.routers.frontend.rule=Host(`app.beddybytes.local`)"
       - "traefik.http.routers.frontend.entrypoints=websecure"
       - "traefik.http.routers.frontend.tls=true"
   influxdb:
@@ -77,7 +76,7 @@ services:
     volumes:
       - ./influxdb/data:/var/lib/influxdb2
     labels:
-      - "traefik.http.routers.influx.rule=Host(`influx.babymonitor.local`)"
+      - "traefik.http.routers.influx.rule=Host(`influx.beddybytes.local`)"
       - "traefik.http.routers.influx.entrypoints=websecure"
       - "traefik.http.routers.influx.tls=true"
       - "traefik.http.routers.influx.middlewares=headers-cors@docker"
@@ -89,7 +88,7 @@ services:
     volumes:
       - grafana_storage:/var/lib/grafana
     labels:
-      - "traefik.http.routers.grafana.rule=Host(`grafana.babymonitor.local`)"
+      - "traefik.http.routers.grafana.rule=Host(`grafana.beddybytes.local`)"
       - "traefik.http.routers.grafana.entrypoints=websecure"
       - "traefik.http.routers.grafana.tls=true"
       - "traefik.http.routers.grafana.middlewares=headers-cors@docker"
@@ -138,8 +137,6 @@ secrets:
   SQUARE_APPLICATION_ID:
     external: true
   SQUARE_ACCESS_TOKEN:
-    external: true
-  SQUARE_SUBSCRIPTION_PLAN_ID:
     external: true
   SQUARE_LOCATION_ID:
     external: true

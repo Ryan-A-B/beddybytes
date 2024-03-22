@@ -13,6 +13,7 @@ from utils import create_account, login, stop_backend_container, start_backend_c
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
+# When either baby station or parent station is not connected to the backend attempts to connect the parent station to the baby station will fail
 # When backend disconnects for a while, baby station attempts to reconnect with an exponential backoff. If a parent station attempts to connect before the baby station has reconnected it will fail
 
 Command = Callable[[], List['Command']]
@@ -139,7 +140,11 @@ class ParentStation:
         self.driver.find_element(By.ID, "nav-link-parent").click()
         driver_wait = WebDriverWait(self.driver, 1)
         session_dropdown = driver_wait.until(lambda driver: Select(driver.find_element(By.ID, "session-dropdown")))
-        session_dropdown.options[1].click()
+        first_session_option = session_dropdown.options[1]
+        if first_session_option.text.endswith(" 🔴"):
+            print(f"{self.name} could not connect because the baby station is unavailable")
+            return
+        first_session_option.click()
         self.video_element = driver_wait.until(lambda driver: driver.find_element(By.ID, "video-parent"))
         if not self.video_element.is_displayed():
             raise Exception(f"{self.name} video element is not displayed")

@@ -9,6 +9,9 @@ from selenium.webdriver.support.wait import WebDriverWait
 def create_account(driver, email, password):
     wait = WebDriverWait(driver, timeout=1)
 
+    nav_button_create_account = wait.until(lambda driver: driver.find_element(By.ID, "nav-button-create-account"))
+    nav_button_create_account.click()
+
     form_element = wait.until(lambda driver: driver.find_element(By.ID, "form-create-account"))
 
     email_input_element = form_element.find_element(By.ID, "input-create-account-email")
@@ -24,9 +27,6 @@ def create_account(driver, email, password):
 
 def login(driver, email, password):
     wait = WebDriverWait(driver, timeout=1)
-
-    nav_button_login = wait.until(lambda driver: driver.find_element(By.ID, "nav-button-login"))
-    nav_button_login.click()
 
     form_element = wait.until(lambda driver: driver.find_element(By.ID, "form-login"))
     
@@ -55,7 +55,7 @@ def generate_random_string(length):
     alphabet = string.ascii_letters + string.digits
     return ''.join(secrets.choice(alphabet) for _ in range(length))
 
-backend_container_name = "baby-monitor-backend-1"
+backend_container_name = "beddybytes-backend-1"
 
 def stop_backend_container():
     subprocess.run(["docker", "stop", backend_container_name], stderr=subprocess.DEVNULL, stdout=subprocess.DEVNULL)

@@ -10,7 +10,7 @@ import (
 
 	"github.com/ansel1/merry"
 
-	"github.com/Ryan-A-B/baby-monitor/internal/fatal"
+	"github.com/Ryan-A-B/beddybytes/internal/fatal"
 )
 
 const Version = "2023-07-20"

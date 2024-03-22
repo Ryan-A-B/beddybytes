@@ -1,8 +1,8 @@
 #!/bin/bash
 set -ex
 
-# Clone the baby-monitor repo
-git clone https://github.com/Ryan-A-B/baby-monitor.git
+# Clone the beddybytes repo
+git clone https://github.com/Ryan-A-B/beddybytes.git
 
 # Install Docker
 # https://docs.docker.com/engine/install/ubuntu/#install-using-the-repository

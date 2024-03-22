@@ -3,7 +3,7 @@
 set -ex
 
 region=ap-southeast-2
-stack_name=baby-monitor-wordpress
+stack_name=beddybytes-wordpress
 
 aws cloudformation create-stack \
     --region $region \

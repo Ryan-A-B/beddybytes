@@ -10,10 +10,10 @@ import (
 	"github.com/ansel1/merry"
 	"github.com/gorilla/mux"
 
-	"github.com/Ryan-A-B/baby-monitor/backend/internal"
-	"github.com/Ryan-A-B/baby-monitor/backend/internal/eventlog"
-	"github.com/Ryan-A-B/baby-monitor/backend/internal/xhttp"
-	"github.com/Ryan-A-B/baby-monitor/internal/fatal"
+	"github.com/Ryan-A-B/beddybytes/backend/internal"
+	"github.com/Ryan-A-B/beddybytes/backend/internal/eventlog"
+	"github.com/Ryan-A-B/beddybytes/backend/internal/xhttp"
+	"github.com/Ryan-A-B/beddybytes/internal/fatal"
 )
 
 const EventTypeSessionStarted = "session.started"

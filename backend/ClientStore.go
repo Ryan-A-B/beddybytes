@@ -5,7 +5,7 @@ import (
 	"log"
 	"sync"
 
-	"github.com/Ryan-A-B/baby-monitor/backend/internal"
+	"github.com/Ryan-A-B/beddybytes/backend/internal"
 )
 
 type PutClientInput struct {

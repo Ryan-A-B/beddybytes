@@ -1,11 +1,11 @@
 tls:
   certificates:
-    - certFile: /opt/certificates/babymonitor.local.crt
-      keyFile: /opt/certificates/babymonitor.local.key
+    - certFile: /opt/certificates/beddybytes.local.crt
+      keyFile: /opt/certificates/beddybytes.local.key
       stores:
         - default
   stores:
     default:
       defaultCertificate:
-        certFile: /opt/certificates/babymonitor.local.crt
-        keyFile: /opt/certificates/babymonitor.local.key
+        certFile: /opt/certificates/beddybytes.local.crt
+        keyFile: /opt/certificates/beddybytes.local.key

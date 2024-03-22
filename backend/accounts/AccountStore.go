@@ -9,8 +9,8 @@ import (
 
 	"github.com/ansel1/merry"
 
-	"github.com/Ryan-A-B/baby-monitor/backend/internal/store"
-	"github.com/Ryan-A-B/baby-monitor/internal/fatal"
+	"github.com/Ryan-A-B/beddybytes/backend/internal/store"
+	"github.com/Ryan-A-B/beddybytes/internal/fatal"
 )
 
 type AccountStore struct {

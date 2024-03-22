@@ -6,7 +6,7 @@ from create_account_test import CreateAccountTest
 from session_test import SessionTest
 
 hub_url = 'http://selenium_hub:4444'
-app_base_url = 'https://app.babymonitor.local'
+app_base_url = 'https://app.beddybytes.local'
 
 def wait_for_selenium_hub():
     try:

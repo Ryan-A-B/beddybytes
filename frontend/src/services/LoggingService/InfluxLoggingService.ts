@@ -15,7 +15,7 @@ class InfluxLoggingService implements LoggingService {
     private static Facility = 'console';
     private static FacilityCode = 14;
     private static ApplicationName = 'frontend';
-    private static HostName = 'babymonitor';
+    private static HostName = 'beddybytes';
     private static Version = 1;
 
     private static SeverityCode = Map<Severity, string>().withMutations((map) => {

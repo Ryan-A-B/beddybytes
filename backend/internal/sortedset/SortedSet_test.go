@@ -6,7 +6,7 @@ import (
 	uuid "github.com/satori/go.uuid"
 	. "github.com/smartystreets/goconvey/convey"
 
-	"github.com/Ryan-A-B/baby-monitor/backend/internal/sortedset"
+	"github.com/Ryan-A-B/beddybytes/backend/internal/sortedset"
 )
 
 type Object struct {

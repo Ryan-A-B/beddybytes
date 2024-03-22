@@ -5,7 +5,7 @@ import (
 
 	. "github.com/smartystreets/goconvey/convey"
 
-	"github.com/Ryan-A-B/baby-monitor/backend/internal/store"
+	"github.com/Ryan-A-B/beddybytes/backend/internal/store"
 )
 
 func TestFileSystemStore(t *testing.T) {

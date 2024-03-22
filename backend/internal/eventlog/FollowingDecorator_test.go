@@ -9,7 +9,7 @@ import (
 	uuid "github.com/satori/go.uuid"
 	. "github.com/smartystreets/goconvey/convey"
 
-	"github.com/Ryan-A-B/baby-monitor/backend/internal/eventlog"
+	"github.com/Ryan-A-B/beddybytes/backend/internal/eventlog"
 )
 
 func TestFollowingDecorator(t *testing.T) {

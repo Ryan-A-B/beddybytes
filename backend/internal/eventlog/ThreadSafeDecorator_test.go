@@ -4,7 +4,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/Ryan-A-B/baby-monitor/backend/internal/eventlog"
+	"github.com/Ryan-A-B/beddybytes/backend/internal/eventlog"
 )
 
 type ThreadSafeDecoratorFactory struct{}

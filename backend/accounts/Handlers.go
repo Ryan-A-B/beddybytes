@@ -16,11 +16,11 @@ import (
 	"github.com/gorilla/mux"
 	uuid "github.com/satori/go.uuid"
 
-	"github.com/Ryan-A-B/baby-monitor/backend/internal"
-	"github.com/Ryan-A-B/baby-monitor/backend/internal/eventlog"
-	"github.com/Ryan-A-B/baby-monitor/backend/internal/xhttp"
-	"github.com/Ryan-A-B/baby-monitor/internal/fatal"
-	"github.com/Ryan-A-B/baby-monitor/internal/square"
+	"github.com/Ryan-A-B/beddybytes/backend/internal"
+	"github.com/Ryan-A-B/beddybytes/backend/internal/eventlog"
+	"github.com/Ryan-A-B/beddybytes/backend/internal/xhttp"
+	"github.com/Ryan-A-B/beddybytes/internal/fatal"
+	"github.com/Ryan-A-B/beddybytes/internal/square"
 )
 
 type Handlers struct {
@@ -36,16 +36,8 @@ type Handlers struct {
 
 	SignatureKey []byte
 
-	PaymentLinkMutex       sync.Mutex
-	Client                 *square.Client
-	SubscriptionPlanID     string
-	LocationID             string
-	PaymentLinkByAccountID map[string]*square.PaymentLink
-
-	AppliedInvoiceIDs         map[string]struct{}
-	AccountIDByOrderID        map[string]string
-	AccountIDBySubscriptionID map[string]string
-	SquareSubscriptionByID    map[string]*square.Subscription
+	Client     *square.Client ``
+	LocationID string
 }
 
 func (handlers *Handlers) AddRoutes(router *mux.Router) {
@@ -58,7 +50,6 @@ func (handlers *Handlers) AddRoutes(router *mux.Router) {
 	authenticatedRouter.Use(internal.NewAuthorizationMiddleware(handlers.Key).Middleware)
 	authenticatedRouter.HandleFunc("", handlers.GetAccount).Methods(http.MethodGet).Name("GetAccount")
 	authenticatedRouter.HandleFunc("", handlers.DeleteAccount).Methods(http.MethodDelete).Name("DeleteAccount")
-	authenticatedRouter.HandleFunc("/payment_link_url", handlers.GetPaymentLinkURL).Methods(http.MethodGet).Name("GetPaymentLinkURL")
 }
 
 type UsedTokens struct {
@@ -203,13 +194,7 @@ func (handlers *Handlers) CreateAccount(responseWriter http.ResponseWriter, requ
 		Password: input.Password,
 	})
 	account := Account{
-		ID: uuid.NewV4().String(),
-		Subscription: Subscription{
-			State: SubscriptionStateTrial,
-			Trial: &SubscriptionTrial{
-				Expiry: time.Now().AddDate(0, 0, 7).UTC(),
-			},
-		},
+		ID:   uuid.NewV4().String(),
 		User: user,
 	}
 	data, err := json.Marshal(account)
@@ -397,8 +382,8 @@ func (handlers *Handlers) createAnonymousAccessToken(remoteAddress string) (acce
 	expiry := time.Now().Add(handlers.AnonymousAccessTokenDuration)
 	claims := internal.Claims{
 		ID:       uuid.NewV4().String(),
-		Issuer:   "baby-monitor",
-		Audience: "baby-monitor",
+		Issuer:   "beddybytes",
+		Audience: "beddybytes",
 		Subject: internal.URN{
 			Service:      "",
 			Region:       "",
@@ -417,8 +402,8 @@ func (handlers *Handlers) createAnonymousAccessToken(remoteAddress string) (acce
 func (handlers *Handlers) createAccessToken(account *Account) (accessToken string) {
 	expiry := time.Now().Add(handlers.AccessTokenDuration)
 	claims := internal.Claims{
-		Issuer:   "baby-monitor",
-		Audience: "baby-monitor",
+		Issuer:   "beddybytes",
+		Audience: "beddybytes",
 		Subject: internal.URN{
 			Service:      "iam",
 			Region:       "",
@@ -437,8 +422,8 @@ func (handlers *Handlers) createRefreshToken(account *Account) (refreshToken str
 	expiry := time.Now().Add(handlers.RefreshTokenDuration)
 	claims := internal.Claims{
 		ID:       uuid.NewV4().String(),
-		Issuer:   "baby-monitor",
-		Audience: "baby-monitor",
+		Issuer:   "beddybytes",
+		Audience: "beddybytes",
 		Subject: internal.URN{
 			Service:      "iam",
 			Region:       "",

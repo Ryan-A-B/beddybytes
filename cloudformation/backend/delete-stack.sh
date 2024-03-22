@@ -3,7 +3,7 @@
 set -ex
 
 region=ap-southeast-2
-stack_name=baby-monitor-backend
+stack_name=beddybytes-backend
 
 aws cloudformation delete-stack \
     --region $region \

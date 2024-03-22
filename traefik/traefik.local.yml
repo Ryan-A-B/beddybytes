@@ -23,6 +23,6 @@ accessLog: {}
 metrics:
   influxDB2:
     address: http://influxdb:8086
-    token: ll06xbBsf99S5AiAd1eMBy0j65SsmiNYo5Fb5Vgr4ix34LnFIJKMNWkdWM7i-QnTAP7ArBkRML9jG6chq_h8tA==
-    org: creativeilk
+    token: g7PJBncqbvOIJfuFtRTbSHr99T_PwDvyFmnC1zdpZooFnauwuRBeWHM5E54DespJlKDw5Fy4AWgvZH-5no5dgQ==
+    org: beddybytes
     bucket: traefik

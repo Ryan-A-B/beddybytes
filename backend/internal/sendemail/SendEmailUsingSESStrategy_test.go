@@ -12,7 +12,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/sesv2"
 	. "github.com/smartystreets/goconvey/convey"
 
-	"github.com/Ryan-A-B/baby-monitor/backend/internal/sendemail"
+	"github.com/Ryan-A-B/beddybytes/backend/internal/sendemail"
 )
 
 func TestSendEmailUsingSESStrategy(t *testing.T) {
@@ -40,9 +40,9 @@ func TestSendEmailUsingSESStrategy(t *testing.T) {
 			Name: "Ryan",
 		}
 		var buffer bytes.Buffer
-		buffer.WriteString(fmt.Sprintf("From: \"Baby Monitor by Creative Ilk\" <%s>\n", fromEmailAddress))
+		buffer.WriteString(fmt.Sprintf("From: \"BeddyBytes\" <%s>\n", fromEmailAddress))
 		buffer.WriteString(fmt.Sprintf("To: %s\n", toEmailAddress))
-		buffer.WriteString("Subject: Baby Camera - Early Access\n")
+		buffer.WriteString("Subject: BeddyBytes - Early Access\n")
 		buffer.WriteString("Content-Type: text/html; charset=\"UTF-8\";\n")
 		buffer.WriteString("\n")
 		err = emailTemplate.Execute(&buffer, emailData)

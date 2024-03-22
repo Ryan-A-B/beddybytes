@@ -1,4 +1,4 @@
-module github.com/Ryan-A-B/baby-monitor
+module github.com/Ryan-A-B/beddybytes
 
 go 1.18
 

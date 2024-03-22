@@ -17,11 +17,11 @@ type Claims struct {
 }
 
 func (claims *Claims) Valid() (err error) {
-	if claims.Issuer != "baby-monitor" {
+	if claims.Issuer != "beddybytes" {
 		err = merry.New("invalid issuer").WithHTTPCode(http.StatusUnauthorized)
 		return
 	}
-	if claims.Audience != "baby-monitor" {
+	if claims.Audience != "beddybytes" {
 		err = merry.New("invalid audience").WithHTTPCode(http.StatusUnauthorized)
 		return
 	}

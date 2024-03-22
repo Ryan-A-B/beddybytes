@@ -8,8 +8,8 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	. "github.com/smartystreets/goconvey/convey"
 
-	"github.com/Ryan-A-B/baby-monitor/backend/internal"
-	"github.com/Ryan-A-B/baby-monitor/backend/internal/store"
+	"github.com/Ryan-A-B/beddybytes/backend/internal"
+	"github.com/Ryan-A-B/beddybytes/backend/internal/store"
 )
 
 func TestS3Store(t *testing.T) {

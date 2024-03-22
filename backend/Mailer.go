@@ -8,10 +8,10 @@ import (
 	"log"
 	"time"
 
-	"github.com/Ryan-A-B/baby-monitor/backend/internal/eventlog"
-	"github.com/Ryan-A-B/baby-monitor/backend/internal/sendemail"
-	"github.com/Ryan-A-B/baby-monitor/internal/fatal"
-	"github.com/Ryan-A-B/baby-monitor/internal/square"
+	"github.com/Ryan-A-B/beddybytes/backend/internal/eventlog"
+	"github.com/Ryan-A-B/beddybytes/backend/internal/sendemail"
+	"github.com/Ryan-A-B/beddybytes/internal/fatal"
+	"github.com/Ryan-A-B/beddybytes/internal/square"
 )
 
 const EventTypeEarlyAccessEmailSent = "mailer.early_access.email_sent"
@@ -140,9 +140,9 @@ type SendEarlyAccessEmailInput struct {
 
 func (mailer *Mailer) sendEarlyAccessEmail(ctx context.Context, input SendEarlyAccessEmailInput) (messageID string) {
 	buffer := new(bytes.Buffer)
-	buffer.WriteString(fmt.Sprintf("From: \"Baby Monitor by Creative Ilk\" <%s>\n", mailer.fromEmailAddress))
+	buffer.WriteString(fmt.Sprintf("From: \"BeddyBytes\" <%s>\n", mailer.fromEmailAddress))
 	buffer.WriteString(fmt.Sprintf("To: %s\n", input.EmailAddress))
-	buffer.WriteString("Subject: Baby Camera - Early Access\n")
+	buffer.WriteString("Subject: BeddyBytes - Early Access\n")
 	buffer.WriteString("Content-Type: text/html; charset=\"UTF-8\";\n")
 	buffer.WriteString("\n")
 	err := mailer.earlyAccessTemplate.Execute(buffer, input)

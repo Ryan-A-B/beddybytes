@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Ryan-A-B/baby-monitor/backend/internal/store"
+	"github.com/Ryan-A-B/beddybytes/backend/internal/store"
 	. "github.com/smartystreets/goconvey/convey"
 )
 

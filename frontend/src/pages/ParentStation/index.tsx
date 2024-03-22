@@ -12,7 +12,7 @@ import { ClientSessionState } from "../../services/ClientSessionService/ClientSe
 import { useClientSessionService, useSignalService } from "../../services";
 import Stream from "./Stream";
 
-import "./Monitor.scss";
+import "./style.scss";
 import { SignalService } from "../../services/SignalService/types";
 
 const getSessionIfActive = (client_session_status: ClientSessionState): Session | null => {
@@ -54,7 +54,7 @@ const useStopper = (input: UseClientSignalServiceStopperInput) => {
     }, [signal_service, client_session_service]);
 }
 
-const Monitor: React.FunctionComponent = () => {
+const ParentStation: React.FunctionComponent = () => {
     const client_session_service = useClientSessionService();
     const signal_service = useSignalService();
     const client_session_state = useClientSessionState();
@@ -80,7 +80,7 @@ const Monitor: React.FunctionComponent = () => {
     });
 
     return (
-        <div className="monitor">
+        <div className="parent-station">
             <SessionDropdown session_list={session_list} value={getSessionIfActive(client_session_state)} onChange={onSessionChange} />
             {client_session_state.state === 'session_ended' && (
                 <div id="alert-session-ended" className="alert alert-danger" role="alert">
@@ -94,4 +94,4 @@ const Monitor: React.FunctionComponent = () => {
     );
 };
 
-export default Monitor;
+export default ParentStation;

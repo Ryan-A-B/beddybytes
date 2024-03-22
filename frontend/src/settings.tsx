@@ -10,9 +10,9 @@ export interface Settings {
 
 const getHost = () => {
     if (process.env.NODE_ENV === "development") {
-        return "api.babymonitor.local"
+        return "api.beddybytes.local"
     }
-    return "api.babymonitor.creativeilk.com"
+    return "api.beddybytes.com"
 }
 
 const getClientID = (): string => {
