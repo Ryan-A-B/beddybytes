@@ -99,7 +99,7 @@ Resources:
                 Action:
                   - ses:SendEmail
                   - ses:SendRawEmail
-                Resource: !Ref EmailIdentity
+                Resource: !Sub arn:aws:ses:${AWS::Region}:${AWS::AccountId}:identity/${EmailIdentityDomain}
 
   IAMInstanceProfile:
     Type: AWS::IAM::InstanceProfile
@@ -194,7 +194,7 @@ Resources:
       Type: TXT
       TTL: '1800'
       ResourceRecords:
-        - "v=DMARC1; p=quarantine;"
+        - "\"v=DMARC1; p=quarantine;\""
 
 Outputs:
   InstanceId:
