@@ -7,7 +7,7 @@ const getClient = (): InfluxDB => {
     })
     return new InfluxDB({
         url: 'https://influx.beddybytes.com',
-        token: 'q4v2Oq_mdvvT9AheFq-FgtZ9HGUQJ-D6R8ilVEkVa4D5rdjlrEdo3IhMNOTLyJ0YQcVKuV9of968-MmmV2xVuw==',
+        token: 'QWPp6p0hcgPozmUDKfb6dgEpbcmugF98nkSqtCsZfDxt8iHZJ6Ky-IDaZwsCKC7wUPIvKagoF5eExaECks9BBw==',
     })
 }
 
