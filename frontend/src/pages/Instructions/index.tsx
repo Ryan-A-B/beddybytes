@@ -7,13 +7,25 @@ const Instructions: React.FunctionComponent = () => {
     return (
         <div id="page-index" className="row align-items-center">
             <div className="col-12 col-xl order-xl-2">
-                <div className="ratio ratio-16x9">
+                <div className="ratio ratio-16x9 mb-3">
                     <YoutubeVideo
                         src="https://www.youtube.com/embed/AuUb7thmu80?si=IEg92DaB-DnvrZof"
                         title="YouTube video player"
                         thumbnail={thumbnail}
                     />
                 </div>
+                <aside className="alert alert-light" role="alert">
+                    <small>
+                        <p>Some things have changed since the video was recorded.</p>
+                        <ul>
+                            <li>The "Camera" page is now called "Baby Station"</li>
+                            <li>The "Monitor" page is now called "Parent Station"</li>
+                            <li>On mobile devices the navigation bar turns into a dropdown menu</li>
+                            <li>The Baby Station has a "No camera" option for audio only operation</li>
+                        </ul>
+                        <p>We'll re-record the video soon!</p>
+                    </small>
+                </aside>
             </div>
             <div className="col order-xl-1">
                 <h1>Instructions:</h1>
