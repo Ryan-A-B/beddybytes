@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html>
+
 <head>
     <style>
         .container {
@@ -9,15 +10,18 @@
             padding: 20px;
             font-family: Arial, sans-serif;
         }
+
         .header {
             font-size: 24px;
             font-weight: bold;
             margin-bottom: 20px;
         }
+
         .content {
             font-size: 16px;
             line-height: 1.5;
         }
+
         .button {
             display: inline-block;
             padding: 10px 20px;
@@ -26,8 +30,19 @@
             text-decoration: none;
             border-radius: 5px;
         }
+
+        .text-bold {
+            font-weight: 700;
+        }
+
+        .terms-and-conditions {
+            padding-top: 20px;
+            font-size: small;
+            color: lightslategray;
+        }
     </style>
 </head>
+
 <body>
     <div class="container">
         <div class="header">
@@ -35,14 +50,35 @@
         </div>
         <div class="content">
             <p>Dear {{.Name}},</p>
-            <p>We sincerely thank you for purchasing early access to BeddyBytes. Your support is greatly appreciated and plays a vital role in our development process.</p>
+            <p>
+                We sincerely thank you for purchasing early access to BeddyBytes. Your support is greatly appreciated,
+                and plays a vital role in our development process.
+            </p>
             <p>To start using the app, please follow the link below to create your account:</p>
-            <a href="https://app.beddybytes.com" class="button">Create Your Account</a>
+            <a href="https://app.beddybytes.com/#create_account" class="button" target="_blank">Create Your Account</a>
             <p>If the button doesn't work, you can copy and paste the following link into your browser:</p>
-            <p>https://app.beddybytes.com</p>
+            <p>
+                <a href="https://app.beddybytes.com/#create_account" target="_blank">
+                    https://app.beddybytes.com/#create_account
+                </a>
+            </p>
             <p>Warm regards,</p>
-            <p>Ryan</p>
+            <p class="text-bold">
+                Ryan
+                <br>
+                Founder
+                <br>
+                <a href="https://app.beddybytes.com">BeddyBytes</a>
+                <br>
+                The privacy-first baby camera
+            </p>
+        </div>
+        <div class="terms-and-conditions">
+            This is a service email sent to you because you made a purchase at BeddyBytes.com, which partners with
+            Square to provide payment processing. You now have lifetime access to BeddyBytes, the privacy-first baby
+            camera.
         </div>
     </div>
 </body>
+
 </html>
