@@ -79,7 +79,7 @@ const LoginOrCreateAccount: React.FunctionComponent<Props> = () => {
                         <li>✅<b>Efficient</b>: Your video stream is kept within your local network so internet bandwidth is dramatically reduced</li>
                     </ul>
                     <p>
-                        We use sleep stream multiple times a day, we hope you find it as useful as we have. 
+                        We use BeddyBytes multiple times a day, we hope you find it as useful as we have. 
                     </p>
                     <a href="https://beddybytes.com" target="_blank" rel="noreferrer">
                         Click here to learn more
