@@ -40,7 +40,7 @@ func TestSendEmailUsingSESStrategy(t *testing.T) {
 			Name: "Ryan",
 		}
 		var buffer bytes.Buffer
-		buffer.WriteString(fmt.Sprintf("From: \"BeddyBytes\" <%s>\n", fromEmailAddress))
+		buffer.WriteString(fmt.Sprintf("From: %s\n", fromEmailAddress))
 		buffer.WriteString(fmt.Sprintf("To: %s\n", toEmailAddress))
 		buffer.WriteString("Subject: BeddyBytes - Early Access\n")
 		buffer.WriteString("Content-Type: text/html; charset=\"UTF-8\";\n")

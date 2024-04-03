@@ -129,7 +129,7 @@ type SendEarlyAccessEmailInput struct {
 
 func (mailer *Mailer) sendEarlyAccessEmail(ctx context.Context, input SendEarlyAccessEmailInput) (messageID string) {
 	buffer := new(bytes.Buffer)
-	buffer.WriteString(fmt.Sprintf("From: \"BeddyBytes\" <%s>\n", mailer.fromEmailAddress))
+	buffer.WriteString(fmt.Sprintf("From: %s\n", mailer.fromEmailAddress))
 	buffer.WriteString(fmt.Sprintf("To: %s\n", input.EmailAddress))
 	buffer.WriteString("Subject: BeddyBytes - Early Access\n")
 	buffer.WriteString("Content-Type: text/html; charset=\"UTF-8\";\n")
