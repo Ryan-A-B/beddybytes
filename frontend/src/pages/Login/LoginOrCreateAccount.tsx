@@ -19,7 +19,13 @@ const getNavLinkClassName = (tab: string, activeTab: string) => {
 }
 
 const LoginOrCreateAccount: React.FunctionComponent<Props> = () => {
-    const [email, setEmail] = React.useState<string>("");
+    const [email, setEmail] = React.useState<string>(() => {
+        const urlParams = new URLSearchParams(window.location.search);
+        const email_address = urlParams.get('email_address');
+        if (email_address)
+            return email_address
+        return ""
+    });
     const [password, setPassword] = React.useState<string>("");
     const [tab, setTab] = React.useState<Tab>(() => {
         const location_hash = window.location.hash.substring(1);

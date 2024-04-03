@@ -20,16 +20,12 @@ class CreateAccountTest(unittest.TestCase):
         password = generate_random_string(20)
 
         with webdriver.Remote(command_executor=hub_url, options=chrome_options) as driver:
-            driver.get(f"{app_base_url}#create_account")
+            driver.get(f"{app_base_url}?email_address={email}#create_account")
 
             wait = WebDriverWait(driver, timeout=1)
 
             form_element = wait.until(lambda driver: driver.find_element(By.ID, "form-create-account"))
             self.assertTrue(form_element.is_displayed())
-
-            email_input_element = form_element.find_element(By.ID, "input-create-account-email")
-            self.assertTrue(email_input_element.is_displayed())
-            email_input_element.send_keys(email)
 
             password_input_element = form_element.find_element(By.ID, "input-create-account-password")
             self.assertTrue(password_input_element.is_displayed())
