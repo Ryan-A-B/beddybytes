@@ -109,18 +109,44 @@ func TestMailer(t *testing.T) {
 					So("timeout", ShouldNotBeNil)
 				}
 				Convey("don't send email twice", func() {
-					mailer := NewMailer(&NewMailerInput{
-						EventLog:              eventLog,
-						SendEmail:             sendEmail,
-						EmailDeferralDuration: emailDeferralDuration,
+					Convey("due to restart", func() {
+						mailer := NewMailer(&NewMailerInput{
+							EventLog:              eventLog,
+							SendEmail:             sendEmail,
+							EmailDeferralDuration: emailDeferralDuration,
+						})
+						go mailer.Run(ctx)
+						select {
+						case <-sendEmailC:
+							t.Error("unexpected message")
+						case <-time.After(timeoutDuration):
+							So("timeout", ShouldNotBeNil)
+						}
 					})
-					go mailer.Run(ctx)
-					select {
-					case <-sendEmailC:
-						t.Error("unexpected message")
-					case <-time.After(timeoutDuration):
-						So("timeout", ShouldNotBeNil)
-					}
+					Convey("due to duplicate payment event", func() {
+						_, err = eventLog.Append(ctx, &eventlog.AppendInput{
+							Type: "square.payment.updated",
+							Data: fatal.UnlessMarshalJSON(map[string]interface{}{
+								"data": map[string]interface{}{
+									"type": "payment",
+									"object": map[string]interface{}{
+										"payment": &square.Payment{
+											OrderID:    squareOrderID,
+											CustomerID: customerID,
+											Status:     "COMPLETED",
+										},
+									},
+								},
+							}),
+						})
+						So(err, ShouldBeNil)
+						select {
+						case <-sendEmailC:
+							t.Error("unexpected message")
+						case <-time.After(timeoutDuration):
+							So("timeout", ShouldNotBeNil)
+						}
+					})
 				})
 			})
 		})

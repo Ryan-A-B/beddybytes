@@ -109,6 +109,7 @@ func (mailer *Mailer) applyPaymentEvent(ctx context.Context, event *eventlog.Eve
 		EmailAddress:  customer.EmailAddress,
 		SquareOrderID: payment.OrderID,
 	}
+	mailer.processedOrders[payment.OrderID] = struct{}{}
 }
 
 func (mailer *Mailer) applyEarlyAccessEmailSentEvent(ctx context.Context, event *eventlog.Event) {
