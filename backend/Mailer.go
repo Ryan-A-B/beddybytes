@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"html/template"
-	"log"
 	"time"
 
 	"github.com/Ryan-A-B/beddybytes/backend/internal/eventlog"
@@ -58,6 +57,7 @@ func NewMailer(input *NewMailerInput) *Mailer {
 }
 
 func (mailer *Mailer) Run(ctx context.Context) {
+	const firstOfApril2024 = 1711893600000
 	eventC := make(chan *eventlog.Event, 8)
 	go eventlog.StreamToChannel(ctx, &eventlog.StreamToChannelInput{
 		EventLog:   mailer.eventLog,
@@ -67,9 +67,10 @@ func (mailer *Mailer) Run(ctx context.Context) {
 	for {
 		select {
 		case event := <-eventC:
+			if event.UnixTimestamp < firstOfApril2024 {
+				continue
+			}
 			switch event.Type {
-			case "square.customer.created", "square.customer.updated":
-				mailer.applyCustomerEvent(ctx, event)
 			case "square.payment.created", "square.payment.updated":
 				mailer.applyPaymentEvent(ctx, event)
 			case EventTypeEarlyAccessEmailSent:
@@ -80,12 +81,6 @@ func (mailer *Mailer) Run(ctx context.Context) {
 			mailer.sendDeferredEmails(ctx)
 		}
 	}
-}
-
-func (mailer *Mailer) applyCustomerEvent(ctx context.Context, event *eventlog.Event) {
-	var squareEvent square.Event
-	fatal.UnlessUnmarshalJSON(event.Data, &squareEvent)
-	mailer.customers[squareEvent.Data.Object.Customer.ID] = squareEvent.Data.Object.Customer
 }
 
 func (mailer *Mailer) applyPaymentEvent(ctx context.Context, event *eventlog.Event) {
@@ -99,14 +94,8 @@ func (mailer *Mailer) applyPaymentEvent(ctx context.Context, event *eventlog.Eve
 	if _, ok := mailer.processedOrders[payment.OrderID]; ok {
 		return
 	}
-	customer, ok := mailer.customers[payment.CustomerID]
-	if !ok {
-		log.Println("customer not found")
-		return
-	}
 	mailer.deferredEmailByOrderID[payment.OrderID] = SendEarlyAccessEmailInput{
-		Name:          customer.GivenName,
-		EmailAddress:  customer.EmailAddress,
+		EmailAddress:  payment.BuyerEmailAddress,
 		SquareOrderID: payment.OrderID,
 	}
 	mailer.processedOrders[payment.OrderID] = struct{}{}
@@ -134,7 +123,6 @@ func (mailer *Mailer) sendDeferredEmails(ctx context.Context) {
 }
 
 type SendEarlyAccessEmailInput struct {
-	Name          string
 	EmailAddress  string
 	SquareOrderID string
 }

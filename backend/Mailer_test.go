@@ -45,8 +45,7 @@ func TestMailer(t *testing.T) {
 		go mailer.Run(ctx)
 		Convey("send early access email", func() {
 			mailer.sendEarlyAccessEmail(ctx, SendEarlyAccessEmailInput{
-				Name:          "Ryan",
-				EmailAddress:  "ryan.a.ballinger@gmail.com",
+				EmailAddress:  "test@example.com",
 				SquareOrderID: uuid.NewV4().String(),
 			})
 			select {
@@ -64,21 +63,6 @@ func TestMailer(t *testing.T) {
 			Convey("after order", func() {
 				customerID := uuid.NewV4().String()
 				squareOrderID := uuid.NewV4().String()
-				_, err := eventLog.Append(ctx, &eventlog.AppendInput{
-					Type: "square.customer.updated",
-					Data: fatal.UnlessMarshalJSON(map[string]interface{}{
-						"data": map[string]interface{}{
-							"type": "customer",
-							"object": map[string]interface{}{
-								"customer": &square.Customer{
-									ID:           customerID,
-									GivenName:    "Ryan",
-									EmailAddress: "ryan.a.ballinger@gmail.com",
-								},
-							},
-						},
-					}),
-				})
 				So(err, ShouldBeNil)
 				_, err = eventLog.Append(ctx, &eventlog.AppendInput{
 					Type: "square.payment.updated",
@@ -87,9 +71,10 @@ func TestMailer(t *testing.T) {
 							"type": "payment",
 							"object": map[string]interface{}{
 								"payment": &square.Payment{
-									OrderID:    squareOrderID,
-									CustomerID: customerID,
-									Status:     "COMPLETED",
+									OrderID:           squareOrderID,
+									BuyerEmailAddress: "test@example.com",
+									CustomerID:        customerID,
+									Status:            "COMPLETED",
 								},
 							},
 						},
