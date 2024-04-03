@@ -57,7 +57,7 @@ func NewMailer(input *NewMailerInput) *Mailer {
 }
 
 func (mailer *Mailer) Run(ctx context.Context) {
-	const firstOfApril2024 = 1711893600000
+	const firstOfApril2024 = 1711893600
 	eventC := make(chan *eventlog.Event, 8)
 	go eventlog.StreamToChannel(ctx, &eventlog.StreamToChannelInput{
 		EventLog:   mailer.eventLog,
