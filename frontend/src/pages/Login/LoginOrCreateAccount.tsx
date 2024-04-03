@@ -4,7 +4,7 @@ import CreateAccountForm from "./CreateAccountForm";
 import LoginForm from "./LoginForm";
 
 interface Props {
-    
+
 }
 
 const useOnTabClick = (tab: Tab, setTab: React.Dispatch<React.SetStateAction<Tab>>) => {
@@ -21,7 +21,11 @@ const getNavLinkClassName = (tab: string, activeTab: string) => {
 const LoginOrCreateAccount: React.FunctionComponent<Props> = () => {
     const [email, setEmail] = React.useState<string>("");
     const [password, setPassword] = React.useState<string>("");
-    const [tab, setTab] = React.useState<Tab>(TabLogin);
+    const [tab, setTab] = React.useState<Tab>(() => {
+        const location_hash = window.location.hash.substring(1);
+        if (location_hash === TabCreateAccount) return TabCreateAccount
+        return TabLogin
+    });
 
     const switchToLogin = useOnTabClick(TabLogin, setTab);
     const switchToCreateAccount = useOnTabClick(TabCreateAccount, setTab);
@@ -79,7 +83,7 @@ const LoginOrCreateAccount: React.FunctionComponent<Props> = () => {
                         <li>✅<b>Efficient</b>: Your video stream is kept within your local network so internet bandwidth is dramatically reduced</li>
                     </ul>
                     <p>
-                        We use BeddyBytes multiple times a day, we hope you find it as useful as we have. 
+                        We use BeddyBytes multiple times a day, we hope you find it as useful as we have.
                     </p>
                     <a href="https://beddybytes.com" target="_blank" rel="noreferrer">
                         Click here to learn more
