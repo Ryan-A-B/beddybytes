@@ -1,0 +1,141 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Parameters:
+  HostedZoneId:
+    Description: The ID of the hosted zone where the DNS record will be created
+    Type: String
+  HostedZoneName:
+    Description: The name of the hosted zone where the DNS record will be created
+    Type: String
+  DomainName:
+    Description: The domain name where the DNS record will be created
+    Type: String
+
+Resources:
+  DNSRecord:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneName: !Ref HostedZoneName
+      Name: !Ref DomainName
+      Type: A
+      AliasTarget:
+        HostedZoneId: Z2FDTNDATAQYW2
+        DNSName: !GetAtt CDN.DomainName
+
+  Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub ${AWS::StackName}-bucket
+
+  BucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref Bucket
+      PolicyDocument:
+        Version: 2008-10-17
+        Statement:
+          - Sid: AllowGetObject
+            Effect: Allow
+            Principal: 
+              Service: cloudfront.amazonaws.com
+            Action: s3:GetObject
+            Resource: !Sub arn:aws:s3:::${Bucket}/*
+            Condition:
+              StringEquals:
+                aws:SourceArn: !Sub arn:aws:cloudfront::${AWS::AccountId}:distribution/${CDN}
+          - Sid: AllowListBucket
+            Effect: Allow
+            Principal:
+              Service: cloudfront.amazonaws.com
+            Action: s3:ListBucket
+            Resource: !Sub arn:aws:s3:::${Bucket}
+            Condition:
+              StringEquals:
+                aws:SourceArn: !Sub arn:aws:cloudfront::${AWS::AccountId}:distribution/${CDN}
+
+  OriginAccessControl:
+    Type: AWS::CloudFront::OriginAccessControl
+    Properties:
+      OriginAccessControlConfig:
+        Name: !Sub ${AWS::StackName}-origin-access-control
+        OriginAccessControlOriginType: s3
+        SigningBehavior: always
+        SigningProtocol: sigv4
+
+  CachePolicy:
+    Type: AWS::CloudFront::CachePolicy
+    Properties:
+      CachePolicyConfig:
+        Name: !Sub ${AWS::StackName}-cache-policy
+        DefaultTTL: 86400 # 1 day
+        MaxTTL: 31536000 # 1 year
+        MinTTL: 86400 # 1 day
+        ParametersInCacheKeyAndForwardedToOrigin:
+          CookiesConfig:
+            CookieBehavior: none
+          EnableAcceptEncodingBrotli: true
+          EnableAcceptEncodingGzip: true
+          HeadersConfig:
+            HeaderBehavior: none
+          QueryStringsConfig:
+            QueryStringBehavior: none
+
+  Certificate:
+    Type: AWS::CertificateManager::Certificate
+    Properties:
+      DomainName: !Ref DomainName
+      ValidationMethod: DNS
+      DomainValidationOptions:
+        - DomainName: !Ref DomainName
+          HostedZoneId: !Ref HostedZoneId
+
+  CDN:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        Aliases:
+          - !Ref DomainName
+        DefaultRootObject: index.html
+        Origins:
+          - DomainName: !GetAtt Bucket.DomainName
+            Id: !Ref Bucket
+            OriginAccessControlId: !Ref OriginAccessControl
+            S3OriginConfig:
+              OriginAccessIdentity: ""
+        DefaultCacheBehavior:
+          TargetOriginId: !Ref Bucket
+          ViewerProtocolPolicy: redirect-to-https
+          CachePolicyId: !Ref CachePolicy
+          Compress: true
+          FunctionAssociations:
+            - EventType: viewer-request
+              FunctionARN: !GetAtt RedirectToIndexIfRequired.FunctionARN
+        HttpVersion: http2and3
+        ViewerCertificate:
+          AcmCertificateArn: !Ref Certificate
+          SslSupportMethod: sni-only
+          MinimumProtocolVersion: TLSv1.2_2021
+        CustomErrorResponses:
+          - ErrorCode: 404
+            ResponseCode: 200
+            ResponsePagePath: /index.html
+        
+  RedirectToIndexIfRequired:
+    Type: AWS::CloudFront::Function
+    Properties:
+      AutoPublish: true
+      Name: !Sub ${AWS::StackName}-redirect-to-index-if-required
+      FunctionCode: |
+        async function handler(event) {
+          const request = event.request;
+          const uri = request.uri;
+          if (uri.endsWith('/')) {
+            request.uri += 'index.html';
+          } else if (!uri.includes('.')) {
+            request.uri += '/index.html';
+          }
+          return request;
+        }
+      FunctionConfig:
+        Comment: Redirect to index.html if required
+        Runtime: cloudfront-js-2.0

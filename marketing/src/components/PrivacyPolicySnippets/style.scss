@@ -1,0 +1,19 @@
+.privacy-policy-snippets {
+    .carousel-inner {
+        height: 420px;
+    }
+
+    @media (min-width: 768px) {
+        .carousel-inner {
+            height: 280px;
+        }
+    }
+
+    @media (min-width: 992px) {
+        max-width: 500px;
+
+        .carousel-inner {
+            height: 320px;
+        }
+    }
+}

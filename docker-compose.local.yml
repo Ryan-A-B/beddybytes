@@ -32,11 +32,11 @@ services:
     volumes:
       - ./eventlog:/opt/eventlog
     ports:
-      - "8000:8000"
+      - "9000:9000"
     environment:
       - ENCRYPTION_KEY=${ENCRYPTION_KEY}
       - COOKIE_DOMAIN=.beddybytes.local
-      - SERVER_ADDR=:8000
+      - SERVER_ADDR=:9000
       - FILE_EVENT_LOG_FOLDER_PATH=/opt/eventlog
       - SQUARE_SCHEME=https
       - SQUARE_HOST=connect.squareupsandbox.com
@@ -54,6 +54,7 @@ services:
   frontend:
     image: node:18
     command: yarn start
+    restart: always
     ports:
       - "3000:3000"
     volumes:
@@ -66,6 +67,19 @@ services:
       - "traefik.http.routers.frontend.rule=Host(`app.beddybytes.local`)"
       - "traefik.http.routers.frontend.entrypoints=websecure"
       - "traefik.http.routers.frontend.tls=true"
+  marketing:
+    image: node:18
+    command: npm run develop
+    restart: always
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./marketing/:/opt/marketing
+    working_dir: /opt/marketing
+    labels:
+      - "traefik.http.routers.marketing.rule=Host(`beddybytes.local`)"
+      - "traefik.http.routers.marketing.entrypoints=websecure"
+      - "traefik.http.routers.marketing.tls=true"
   influxdb:
     image: influxdb:2.7-alpine
     restart: always

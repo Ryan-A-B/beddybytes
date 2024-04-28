@@ -2,6 +2,8 @@
 . init.sh
 set -ex
 
+region=us-east-1
+
 aws cloudformation validate-template \
-    --region ap-southeast-2 \
+    --region $region \
     --template-body file://cloudformation.yml
