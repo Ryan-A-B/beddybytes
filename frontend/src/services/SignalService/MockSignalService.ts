@@ -1,4 +1,4 @@
-import { EventTypeSignalStateChange, SendSignalInput, SignalService, SignalState } from "./types";
+import { EventTypeSignalStateChange } from "./WebSocketSignalService";
 
 class MockSignalService extends EventTarget implements SignalService {
     private state: SignalState = { state: 'not_connected' }

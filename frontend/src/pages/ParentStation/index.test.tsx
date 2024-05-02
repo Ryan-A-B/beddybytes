@@ -5,19 +5,18 @@ import moment from 'moment';
 import { v4 as uuid } from 'uuid';
 import { Services, context as ServicesContext } from '../../services';
 import ConsoleLoggingService from '../../services/LoggingService/ConsoleLoggingService';
-import MockClientSessionService from '../../services/ClientSessionService/MockClientSessionService';
-import MockSessionListService from '../../services/SessionListService/MockSessionListService';
+import MockSessionListService from '../../services/ParentStation/SessionListService/MockSessionListService';
 import MockSignalService from '../../services/SignalService/MockSignalService';
-import { Session } from '../../services/SessionListService/types';
 import ParentStation from '.';
 import sleep from '../../utils/sleep';
+import MockSessionService from '../../services/ParentStation/SessionService/MockSessionService';
 
 describe('Monitor', () => {
     describe('when there are no sessions', () => {
         it('should not show stream', () => {
             const logging_service = new ConsoleLoggingService();
             const signal_service = new MockSignalService();
-            const client_session_service = new MockClientSessionService();
+            const client_session_service = new MockSessionService();
             const session_list_service = new MockSessionListService();
             const services: any = {
                 logging_service,
@@ -41,7 +40,7 @@ describe('Monitor', () => {
             it('should show session in dropdown', async () => {
                 const logging_service = new ConsoleLoggingService();
                 const signal_service = new MockSignalService();
-                const client_session_service = new MockClientSessionService();
+                const client_session_service = new MockSessionService();
                 const session_list_service = new MockSessionListService();
                 const services: any = {
                     logging_service,
@@ -83,7 +82,7 @@ describe('Monitor', () => {
         it('should show stream', async () => {
             const logging_service = new ConsoleLoggingService();
             const signal_service = new MockSignalService();
-            const client_session_service = new MockClientSessionService();
+            const client_session_service = new MockSessionService();
             const session_list_service = new MockSessionListService();
             const services: any = {
                 logging_service,

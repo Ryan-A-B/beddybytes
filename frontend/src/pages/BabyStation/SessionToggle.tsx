@@ -1,5 +1,4 @@
 import React from 'react';
-import { HostSessionStatus } from '../../services/HostSessionService';
 
 const id = 'session-toggle';
 

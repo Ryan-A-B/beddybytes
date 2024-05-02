@@ -1,19 +1,16 @@
 import { v4 as uuid } from 'uuid';
-import { Session } from "../SessionListService/types";
-import ClientConnection, { MediaStreamState } from "./ClientConnection";
-import ClientSessionService, { ClientSessionState } from "./ClientSessionService";
-import { InitiatedBy } from "./InitiatedBy";
+import { InitiatedBy } from "./Connection/InitiatedBy";
 
 export const EventTypeClientSessionStatusChanged = 'client_session_status_changed';
 
-class MockClientSessionService extends EventTarget implements ClientSessionService {
-    private state: ClientSessionState = { state: 'not_joined' };
+class MockSessionService extends EventTarget implements ParentStationSessionService {
+    private state: ParentStationSessionState = { state: 'not_joined' };
 
-    public get_state = (): ClientSessionState => {
+    public get_state = (): ParentStationSessionState => {
         return this.state;
     }
 
-    private set_status = (client_session_state: ClientSessionState): void => {
+    private set_status = (client_session_state: ParentStationSessionState): void => {
         this.state = client_session_state;
         this.dispatchEvent(new Event(EventTypeClientSessionStatusChanged));
     }
@@ -29,14 +26,14 @@ class MockClientSessionService extends EventTarget implements ClientSessionServi
         this.leave_session_with_state({ state: 'left' });
     }
 
-    private leave_session_with_state = (state: ClientSessionState) => {
+    private leave_session_with_state = (state: ParentStationSessionState) => {
         if (this.state.state !== 'joined')
             return;
         this.set_status(state);
     }
 }
 
-class MockClientConnection extends EventTarget implements ClientConnection {
+class MockClientConnection extends EventTarget implements Connection {
     private media_stream: MediaStream = new MockMediaStream(uuid());
 
     public get_rtc_peer_connection_state = (): RTCPeerConnectionState => {
@@ -59,7 +56,7 @@ class MockClientConnection extends EventTarget implements ClientConnection {
     }
 }
 
-export default MockClientSessionService;
+export default MockSessionService;
 
 
 

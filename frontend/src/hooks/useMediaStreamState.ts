@@ -1,9 +1,7 @@
 import React from "react";
-import { EventTypeRTCConnectionStreamStatusChanged } from "../services/ClientSessionService/RTCConnection";
-import { ClientSessionState } from "../services/ClientSessionService/ClientSessionService";
-import { MediaStreamState } from "../services/ClientSessionService/ClientConnection";
+import { EventTypeRTCConnectionStreamStatusChanged } from "../services/ParentStation/SessionService/Connection/RTCConnection";
 
-const useMediaStreamState = (client_session_state: ClientSessionState) => {
+const useMediaStreamState = (client_session_state: ParentStationSessionState) => {
     const [status, set_status] = React.useState<MediaStreamState>(() => {
         if (client_session_state.state !== 'joined')
             return { state: 'not_available' };

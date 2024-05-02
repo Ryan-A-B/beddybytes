@@ -1,8 +1,9 @@
 import React from "react";
 import Connections from "./Connections";
-import { useMediaStreamService, useSignalService } from "../../services";
+import { useSignalService } from "../../services";
 import useMediaStreamStatus from "../../hooks/useMediaStreamStatus";
 import add_audio_noise from "../../utils/add_audio_noise";
+import baby_station from "../../services/instances/baby_station";
 
 interface Props {
     audioDeviceID: string
@@ -11,7 +12,7 @@ interface Props {
 }
 
 const MediaStream: React.FunctionComponent<Props> = ({ audioDeviceID, videoDeviceID, sessionActive }) => {
-    const media_stream_service = useMediaStreamService();
+    const media_stream_service = baby_station.media_stream_service;
     const signal_service = useSignalService();
     const videoRef = React.useRef<HTMLVideoElement>(null);
     const mediaStreamStatus = useMediaStreamStatus();

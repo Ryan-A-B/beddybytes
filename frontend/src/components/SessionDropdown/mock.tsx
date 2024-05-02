@@ -1,7 +1,6 @@
 import React from 'react';
 import { List } from 'immutable';
 import moment from 'moment';
-import { Session } from '../../services/SessionListService/types';
 
 const RFC3339 = "YYYY-MM-DDTHH:mm:ss.SSSZ";
 

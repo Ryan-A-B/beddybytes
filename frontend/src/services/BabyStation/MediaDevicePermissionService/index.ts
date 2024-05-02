@@ -1,24 +1,6 @@
-import Severity from "./LoggingService/Severity";
+import Severity from "../../LoggingService/Severity";
 
 export const EventTypeMediaDevicePermissionStatusChanged = 'media_device_permission_status_changed';
-
-interface MediaDevicesPermissionStatusNotRequested {
-    status: 'not_requested';
-}
-
-interface MediaDevicesPermissionStatusRequested {
-    status: 'requested';
-}
-
-interface MediaDevicesPermissionStatusGranted {
-    status: 'granted';
-}
-
-interface MediaDevicesPermissionStatusDenied {
-    status: 'denied';
-}
-
-export type MediaDevicePermissionStatus = MediaDevicesPermissionStatusNotRequested | MediaDevicesPermissionStatusRequested | MediaDevicesPermissionStatusGranted | MediaDevicesPermissionStatusDenied;
 
 interface NewMediaDevicePermissionServiceInput {
     logging_service: LoggingService;
@@ -46,7 +28,7 @@ class MediaDevicePermissionService extends EventTarget {
         this.dispatchEvent(new Event(EventTypeMediaDevicePermissionStatusChanged));
     }
 
-    public requestVideoAndAudioPermission = async () => {
+    public request_video_and_audio_permission = async () => {
         if (this.status.status !== 'not_requested') return;
         try {
             this.set_status({ status: 'requested' });

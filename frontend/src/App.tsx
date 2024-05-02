@@ -3,13 +3,8 @@ import { Route, Routes } from 'react-router-dom';
 
 import logging_service from "./services/instances/logging_service"
 import authorization_service from "./services/instances/authorization_service"
-import client_session_service from "./services/instances/client_session_service"
 import event_service from "./services/instances/event_service"
 import signal_service from "./services/instances/signal_service"
-import media_stream_service from "./services/instances/media_stream_service"
-import host_session_service from "./services/instances/host_session_service"
-import media_device_permission_service from "./services/instances/media_device_permission_service"
-import session_list_service from "./services/instances/session_list_service"
 import service_worker_service from "./services/instances/service_worker_service"
 
 import Navbar from './components/Navbar';
@@ -25,13 +20,8 @@ import './App.scss';
 export const services: Services = {
   logging_service,
   authorization_service,
-  client_session_service,
   event_service,
   signal_service,
-  media_device_permission_service,
-  media_stream_service,
-  host_session_service,
-  session_list_service,
   service_worker_service,
 };
 

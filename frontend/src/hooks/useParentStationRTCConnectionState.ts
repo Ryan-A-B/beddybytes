@@ -1,10 +1,9 @@
 import React from "react";
-import { EventTypeRTCConnectionStateChanged } from "../services/ClientSessionService/RTCConnection";
-import { ClientSessionState } from "../services/ClientSessionService/ClientSessionService";
+import { EventTypeRTCConnectionStateChanged } from "../services/ParentStation/SessionService/Connection/RTCConnection";
 
 const DefaultRTCConnectionState: RTCPeerConnectionState = 'new';
 
-const useClientRTCConnectionState = (client_session_state: ClientSessionState) => {
+const useClientRTCConnectionState = (client_session_state: ParentStationSessionState) => {
     const [connectionState, setConnectionState] = React.useState<RTCPeerConnectionState>(() => {
         if (client_session_state.state !== 'joined')
             return DefaultRTCConnectionState;

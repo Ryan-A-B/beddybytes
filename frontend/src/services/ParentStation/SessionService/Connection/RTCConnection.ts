@@ -1,8 +1,5 @@
-import settings from "../../settings";
-import Severity from "../LoggingService/Severity";
-import { Session } from "../SessionListService/types";
-import { SignalService } from "../SignalService/types";
-import ClientConnection, { MediaStreamState } from "./ClientConnection";
+import settings from "../../../../settings";
+import Severity from "../../../LoggingService/Severity";
 import { InitiatedBy } from "./InitiatedBy";
 
 export const EventTypeRTCConnectionStateChanged = 'rtc_connection_state_changed';
@@ -44,7 +41,7 @@ interface NewRTCConnectionInput {
     session: Session;
 }
 
-class RTCConnection extends EventTarget implements ClientConnection {
+class RTCConnection extends EventTarget implements Connection {
     private logging_service: LoggingService;
     private signal_service: SignalService;
     private session: Session;

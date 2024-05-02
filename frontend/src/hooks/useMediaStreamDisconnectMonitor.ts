@@ -1,6 +1,6 @@
 import React from 'react'
 import moment from 'moment'
-import MediaStreamDisconnectMonitor from './index'
+import MediaStreamDisconnectMonitor from '../services/ParentStation/MediaStreamDisconnectMonitor/index'
 
 const useMediaStreamDisconnectMonitor = (mediaStream: MediaStream): MediaStreamConnectionState => {
     // TODO add an unintialized state?

@@ -1,27 +1,25 @@
 import React from "react";
-import ClientSessionService, { EventTypeClientSessionStateChanged } from "../../services/ClientSessionService";
 import SessionDuration from "./SessionDuration";
 import useWakeLock from "../../hooks/useWakeLock";
-import useClientSessionState from "../../hooks/useClientSessionStatus";
+import useParentStationSessionState from "../../hooks/useParentStationSessionStatus";
 import useSessionList from "../../hooks/useSessionList";
-import useClientRTCConnectionState from "../../hooks/useClientRTCConnectionState";
+import useClientRTCConnectionState from "../../hooks/useParentStationRTCConnectionState";
 import ConnectionFailed from "../../components/ConnectionFailedAlert";
 import SessionDropdown from "../../components/SessionDropdown";
-import { Session } from "../../services/SessionListService/types";
-import { ClientSessionState } from "../../services/ClientSessionService/ClientSessionService";
-import { useClientSessionService, useSignalService } from "../../services";
+import { useSignalService } from "../../services";
 import Stream from "./Stream";
 
 import "./style.scss";
-import { SignalService } from "../../services/SignalService/types";
+import parent_station from "../../services/instances/parent_station";
+import { EventTypeParentStationSessionStateChanged } from "../../services/ParentStation/SessionService";
 
-const getSessionIfActive = (client_session_status: ClientSessionState): Session | null => {
+const getSessionIfActive = (client_session_status: ParentStationSessionState): Session | null => {
     if (client_session_status.state === "joining") return client_session_status.session;
     if (client_session_status.state === "joined") return client_session_status.session;
     return null;
 }
 
-const isClientSessionActive = (client_session_status: ClientSessionState["state"]) => {
+const isClientSessionActive = (client_session_status: ParentStationSessionState["state"]) => {
     if (client_session_status === "joining") return false;
     if (client_session_status === "joined") return true;
     return false;
@@ -31,33 +29,33 @@ const isBadRTCPeerConnectionState = (connection_state: RTCPeerConnectionState): 
     return connection_state === "failed" || connection_state === "disconnected" || connection_state === "closed";
 }
 
-type UseClientSignalServiceStopperInput = {
-    client_session_service: ClientSessionService;
+type UseSignalServiceStopperInput = {
+    session_service: ParentStationSessionService;
     signal_service: SignalService;
 }
 
-const useStopper = (input: UseClientSignalServiceStopperInput) => {
-    const { client_session_service, signal_service } = input;
+const useStopper = (input: UseSignalServiceStopperInput) => {
+    const { session_service, signal_service } = input;
     React.useEffect(() => {
         const handleClientSessionStatusChanged = () => {
-            const status = client_session_service.get_state();
+            const status = session_service.get_state();
             if (status.state === "session_ended")
                 signal_service.stop();
         }
 
-        client_session_service.addEventListener(EventTypeClientSessionStateChanged, handleClientSessionStatusChanged);
+        session_service.addEventListener(EventTypeParentStationSessionStateChanged, handleClientSessionStatusChanged);
 
         return () => {
-            client_session_service.leave_session();
+            session_service.leave_session();
             signal_service.stop();
         }
-    }, [signal_service, client_session_service]);
+    }, [signal_service, session_service]);
 }
 
 const ParentStation: React.FunctionComponent = () => {
-    const client_session_service = useClientSessionService();
+    const session_service = parent_station.session_service;
     const signal_service = useSignalService();
-    const client_session_state = useClientSessionState();
+    const client_session_state = useParentStationSessionState();
     const session_list = useSessionList();
     const rtc_peer_connection_state = useClientRTCConnectionState(client_session_state);
     const should_show_stream = client_session_state.state === "joined" && !isBadRTCPeerConnectionState(rtc_peer_connection_state);
@@ -65,17 +63,17 @@ const ParentStation: React.FunctionComponent = () => {
     useWakeLock(isClientSessionActive(client_session_state.state));
 
     const onSessionChange = React.useCallback((session: Session | null) => {
-        client_session_service.leave_session();
+        session_service.leave_session();
         if (session === null) {
             signal_service.stop();
             return;
         }
         signal_service.start();
-        client_session_service.join_session(session);
-    }, [signal_service, client_session_service]);
+        session_service.join_session(session);
+    }, [signal_service, session_service]);
 
     useStopper({
-        client_session_service,
+        session_service,
         signal_service
     });
 

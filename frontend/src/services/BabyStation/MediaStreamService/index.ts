@@ -1,32 +1,7 @@
-import Severity from "./LoggingService/Severity";
-import MediaDevicePermissionService from "./MediaDevicePermissionService";
+import Severity from "../../LoggingService/Severity";
+import MediaDevicePermissionService from "../MediaDevicePermissionService";
 
 export const EventTypeMediaStreamStatusChanged = 'media_stream_status_changed';
-
-interface MediaStreamStatusNotRunning {
-    status: 'not_running';
-}
-
-interface MediaStreamStatusStarting {
-    status: 'starting';
-}
-
-interface MediaStreamStatusRunning {
-    status: 'running';
-    media_stream: MediaStream;
-}
-
-interface MediaStreamStatusRejected {
-    status: 'rejected';
-    error: unknown;
-}
-
-export type MediaStreamStatus = MediaStreamStatusNotRunning | MediaStreamStatusStarting | MediaStreamStatusRunning | MediaStreamStatusRejected;
-
-interface StartMediaStreamInput {
-    audio_device_id: string;
-    video_device_id: string;
-}
 
 interface NewMediaStreamServiceInput {
     logging_service: LoggingService;

@@ -1,6 +1,5 @@
 import { Map } from "immutable";
 import settings from "../../settings";
-import { SignalService } from "../../services/SignalService/types";
 
 interface IncomingSignalDescription {
     from_connection_id: string;

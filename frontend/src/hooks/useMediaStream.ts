@@ -1,10 +1,9 @@
 import React from "react";
-import { MediaStreamStatus } from "../services/MediaStreamService";
 import useMediaStreamStatus from "./useMediaStreamStatus";
-import { useMediaStreamService } from "../services";
+import baby_station from "../services/instances/baby_station";
 
 const useMediaStream = (audioDeviceID: string, videoDeviceID: string): MediaStreamStatus => {
-    const media_stream_service = useMediaStreamService();
+    const media_stream_service = baby_station.media_stream_service;
     const mediaStreamStatus = useMediaStreamStatus();
     React.useEffect(() => {
         media_stream_service.start_media_stream({

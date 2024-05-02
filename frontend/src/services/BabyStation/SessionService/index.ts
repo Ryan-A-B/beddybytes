@@ -1,37 +1,11 @@
 import moment from 'moment';
 import { v4 as uuid } from 'uuid';
-import settings from "../settings";
-import isClientError from '../utils/isClientError';
-import sleep from '../utils/sleep';
-import Severity from './LoggingService/Severity';
+import settings from "../../../settings";
+import isClientError from '../../../utils/isClientError';
+import sleep from '../../../utils/sleep';
+import Severity from '../../LoggingService/Severity';
 
 export const EventTypeHostSessionStatusChanged = 'host_session_status_changed';
-
-interface HostSessionStatusNoSessionRunning {
-    status: 'no_session_running';
-}
-
-interface HostSessionStatusSessionStarting {
-    status: 'session_starting';
-    session_id: string;
-}
-
-interface HostSessionStatusSessionRunning {
-    status: 'session_running';
-    session_id: string;
-}
-
-interface HostSessionStatusSessionEnding {
-    status: 'session_ending';
-    session_id: string;
-}
-
-export type HostSessionStatus =
-    | HostSessionStatusNoSessionRunning
-    | HostSessionStatusSessionStarting
-    | HostSessionStatusSessionRunning
-    | HostSessionStatusSessionEnding;
-
 
 interface NewHostSessionServiceInput {
     logging_service: LoggingService;

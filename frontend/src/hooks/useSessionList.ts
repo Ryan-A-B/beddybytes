@@ -1,11 +1,11 @@
 import React from "react";
 import { List } from "immutable";
 import debounce from "../utils/debounce";
-import { useSessionListService } from "../services";
-import { EventTypeSessionListChanged, Session } from "../services/SessionListService/types";
+import parent_station from "../services/instances/parent_station";
+import { EventTypeSessionListChanged } from "../services/ParentStation/SessionListService/ProjectedListService";
 
 const useSessionList = () => {
-    const session_list_service = useSessionListService();
+    const session_list_service = parent_station.session_list_service;
     const [session_list, set_session_list] = React.useState<List<Session>>(() => {
         return session_list_service.get_session_list();
     });

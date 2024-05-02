@@ -2,17 +2,17 @@ import React from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faTag, faMicrophone, faVideo } from '@fortawesome/free-solid-svg-icons';
 
-import HostSessionService from '../../services/HostSessionService';
 import useMediaDevicesPermissionStatus from '../../hooks/useMediaDevicePermissionStatus';
 import useWakeLock from '../../hooks/useWakeLock';
-import useHostSessionStatus from '../../hooks/useHostSessionStatus';
+import useHostSessionStatus from '../../hooks/useBabyStationSessionStatus';
 import Input from '../../components/Input';
 import SelectVideoDevice from './SelectVideoDevice';
 import SelectAudioDevice from './SelectAudioDevice';
 import MediaStream from './MediaStream';
 import SessionToggle from './SessionToggle';
 import './style.scss';
-import { useHostSessionService, useMediaDevicePermissionService, useMediaStreamService, useSignalService } from '../../services';
+import { useSignalService } from '../../services';
+import baby_station from '../../services/instances/baby_station';
 
 const DefaultSessionName = 'Baby Station';
 
@@ -32,21 +32,21 @@ const useSessionName = () => {
     return [sessionName, setAndStoreSessionName] as const;
 }
 
-const useEndSessionOnUnmount = (host_session_service: HostSessionService) => {
+const useEndSessionOnUnmount = (session_service: BabyStationSessionService) => {
     React.useEffect(() => {
         return () => {
-            const host_session_status = host_session_service.get_status();
+            const host_session_status = session_service.get_status();
             if (host_session_status.status === 'session_running')
-                host_session_service.end_session();
+                session_service.end_session();
         }
-    }, [host_session_service]);
+    }, [session_service]);
 }
 
 const BabyStation: React.FunctionComponent = () => {
     const signal_service = useSignalService();
-    const host_session_service = useHostSessionService();
-    const media_device_permission_service = useMediaDevicePermissionService();
-    const media_stream_service = useMediaStreamService();
+    const session_service = baby_station.session_service;
+    const media_device_permission_service = baby_station.media_device_permission_service;
+    const media_stream_service = baby_station.media_stream_service;
     const host_session_status = useHostSessionStatus();
 
     const media_devices_permission_status = useMediaDevicesPermissionStatus();
@@ -85,14 +85,14 @@ const BabyStation: React.FunctionComponent = () => {
         setVideoDeviceID(videoDeviceID);
     }, []);
     const startSession = React.useCallback(async () => {
-        await host_session_service.start_session({
+        await session_service.start_session({
             connection_id: signal_service.connection_id,
             name: sessionName,
         });
-    }, [host_session_service, signal_service, sessionName]);
-    useEndSessionOnUnmount(host_session_service);
+    }, [session_service, signal_service, sessionName]);
+    useEndSessionOnUnmount(session_service);
     React.useEffect(() => {
-        media_device_permission_service.requestVideoAndAudioPermission();
+        media_device_permission_service.request_video_and_audio_permission();
     }, [media_device_permission_service]);
     if (media_devices_permission_status.status === 'requested') return (
         <div>
@@ -148,7 +148,7 @@ const BabyStation: React.FunctionComponent = () => {
                     <SessionToggle
                         host_session_status={host_session_status}
                         startSession={startSession}
-                        endSession={host_session_service.end_session}
+                        endSession={session_service.end_session}
                         disabled={!canActivateSession}
                     />
                 </div>

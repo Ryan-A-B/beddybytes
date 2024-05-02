@@ -2,7 +2,8 @@ import { v4 as uuid } from 'uuid';
 import settings from "../../settings";
 import sleep from '../../utils/sleep';
 import Severity from '../LoggingService/Severity';
-import { EventTypeSignalStateChange, SendSignalInput, SignalService, SignalStateConnected, SignalStateConnecting, SignalStateDisconnecting, SignalStateNotConnected, SignalStateReconnecting } from './types';
+
+export const EventTypeSignalStateChange = 'signal_state_change';
 
 const WebSocketCloseCodeNormalClosure = 1000;
 

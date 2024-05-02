@@ -1,7 +1,3 @@
-import { List } from 'immutable';
-
-export const EventTypeSessionListChanged = 'sessions_changed';
-
 interface HostConnectionStateConnected {
     state: 'connected';
     request_id: string;
@@ -15,7 +11,7 @@ interface HostConnectionStateDisconnected {
 
 type HostConnectionState = HostConnectionStateConnected | HostConnectionStateDisconnected;
 
-export interface Session {
+interface Session {
     id: string;
     name: string
     host_connection_id: string;
@@ -26,5 +22,3 @@ export interface Session {
 interface SessionListService extends EventTarget {
     get_session_list: () => List<Session>;
 }
-
-export default SessionListService;

@@ -1,13 +1,13 @@
 import React from "react"
-import useClientSessionState from "../hooks/useClientSessionStatus";
-import useClientRTCConnectionState from "../hooks/useClientRTCConnectionState";
+import useParentStationSessionState from "../hooks/useParentStationSessionStatus";
+import useClientRTCConnectionState from "../hooks/useParentStationRTCConnectionState";
 
 const isBadRTCPeerConnectionState = (connection_state: RTCPeerConnectionState): boolean => {
     return connection_state === "failed" || connection_state === "disconnected" || connection_state === "closed";
 }
 
 const ConnectionFailed: React.FunctionComponent = () => {
-    const client_session_state = useClientSessionState();
+    const client_session_state = useParentStationSessionState();
     const rtc_peer_connection_state = useClientRTCConnectionState(client_session_state);
     if (client_session_state.state !== 'joined') return null;
     if (!isBadRTCPeerConnectionState(rtc_peer_connection_state)) return null;

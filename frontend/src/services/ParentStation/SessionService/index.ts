@@ -1,25 +1,24 @@
-import Severity from "../LoggingService/Severity";
-import SessionListService, { EventTypeSessionListChanged, Session } from "../SessionListService/types";
-import { SignalService } from "../SignalService/types";
-import ClientSessionService, { ClientSessionState } from "./ClientSessionService";
-import { InitiatedBy } from "./InitiatedBy";
-import RTCConnection from "./RTCConnection";
+import { List } from "immutable";
+import Severity from "../../LoggingService/Severity";
+import { EventTypeSessionListChanged } from "../SessionListService/ProjectedListService";
+import { InitiatedBy } from "./Connection/InitiatedBy";
+import RTCConnection from "./Connection/RTCConnection";
 
-export const EventTypeClientSessionStateChanged = 'client_session_status_changed';
+export const EventTypeParentStationSessionStateChanged = 'client_session_status_changed';
 
-interface NewClientSessionServiceInput {
+interface NewParentStationSessionServiceInput {
     logging_service: LoggingService;
     signal_service: SignalService;
     session_list_service: SessionListService;
 }
 
-class MainClientSessionService extends EventTarget implements ClientSessionService {
+class SessionService extends EventTarget implements ParentStationSessionService {
     private logging_service: LoggingService;
     private signal_service: SignalService;
     private session_list_service: SessionListService;
-    private state: ClientSessionState = { state: 'not_joined' };
+    private state: ParentStationSessionState = { state: 'not_joined' };
 
-    constructor(input: NewClientSessionServiceInput) {
+    constructor(input: NewParentStationSessionServiceInput) {
         super();
         this.logging_service = input.logging_service;
         this.signal_service = input.signal_service;
@@ -27,17 +26,17 @@ class MainClientSessionService extends EventTarget implements ClientSessionServi
         this.session_list_service.addEventListener(EventTypeSessionListChanged, this.handle_session_list_changed);
     }
 
-    public get_state = (): ClientSessionState => {
+    public get_state = (): ParentStationSessionState => {
         return this.state;
     }
 
-    private set_state = (client_session_state: ClientSessionState): void => {
+    private set_state = (client_session_state: ParentStationSessionState): void => {
         this.logging_service.log({
             severity: Severity.Debug,
             message: `client session status changed from ${this.state.state} to ${client_session_state.state}`,
         })
         this.state = client_session_state;
-        this.dispatchEvent(new Event(EventTypeClientSessionStateChanged));
+        this.dispatchEvent(new Event(EventTypeParentStationSessionStateChanged));
     }
 
     public join_session(session: Session) {
@@ -55,7 +54,7 @@ class MainClientSessionService extends EventTarget implements ClientSessionServi
         this.leave_session_with_state({ state: 'left' });
     }
 
-    private leave_session_with_state = (state: ClientSessionState) => {
+    private leave_session_with_state = (state: ParentStationSessionState) => {
         if (this.state.state !== 'joined')
             return;
         const rtc_connection = this.state.client_connection;
@@ -68,10 +67,11 @@ class MainClientSessionService extends EventTarget implements ClientSessionServi
             return;
         const session = this.state.session;
         const session_list = this.session_list_service.get_session_list();
-        const session_gone = session_list.find((s) => s.id === session.id) === undefined;
+        // TODO List in types.d.ts
+        const session_gone = (session_list as List<Session>).find((s) => s.id === session.id) === undefined;
         if (session_gone)
             return this.leave_session_with_state({ state: 'session_ended' });
     }
 }
 
-export default MainClientSessionService;
+export default SessionService;

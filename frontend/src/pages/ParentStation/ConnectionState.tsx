@@ -1,5 +1,5 @@
 import React from 'react';
-import useMediaStreamDisconnectMonitor from '../../services/MediaStreamDisconnectMonitor/useMediaStreamDisconnectMonitor';
+import useMediaStreamDisconnectMonitor from '../../hooks/useMediaStreamDisconnectMonitor';
 
 type Props = {
     stream: MediaStream
