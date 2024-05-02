@@ -4,6 +4,7 @@ import unittest
 
 from create_account_test import CreateAccountTest
 from session_test import SessionTest
+from recording_service_test import RecordingServiceTest
 
 hub_url = 'http://selenium_hub:4444'
 app_base_url = 'https://app.beddybytes.local'

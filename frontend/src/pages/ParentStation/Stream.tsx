@@ -5,9 +5,9 @@ import useMediaStreamState from '../../hooks/useMediaStreamState';
 import useParentStationSessionState from '../../hooks/useParentStationSessionStatus';
 
 const Stream: React.FunctionComponent = () => {
-    const client_session_state = useParentStationSessionState();
-    const media_stream_state = useMediaStreamState(client_session_state);
-    if (client_session_state.state !== "joined") return null;
+    const parent_station_session_state = useParentStationSessionState();
+    const media_stream_state = useMediaStreamState(parent_station_session_state);
+    if (parent_station_session_state.state !== "joined") return null;
     if (media_stream_state.state === "not_available") return (
         <p>
             Waiting for stream...
