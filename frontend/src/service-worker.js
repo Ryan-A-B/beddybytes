@@ -1,3 +1,4 @@
+/* eslint-disable no-restricted-globals */
 import * as navigationPreload from 'workbox-navigation-preload';
 import { NetworkFirst, CacheFirst } from 'workbox-strategies';
 import { registerRoute, NavigationRoute, Route } from 'workbox-routing';
