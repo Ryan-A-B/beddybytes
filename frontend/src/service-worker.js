@@ -1,5 +1,5 @@
 import * as navigationPreload from 'workbox-navigation-preload';
-import { NetworkFirst, StaleWhileRevalidate } from 'workbox-strategies';
+import { NetworkFirst, CacheFirst } from 'workbox-strategies';
 import { registerRoute, NavigationRoute, Route } from 'workbox-routing';
 import { precacheAndRoute } from 'workbox-precaching';
 
@@ -15,7 +15,7 @@ registerRoute(navigationRoute);
 
 const staticAssetsRoute = new Route(({ request }) => {
     return ['image', 'script', 'style'].includes(request.destination);
-}, new StaleWhileRevalidate({
+}, new CacheFirst({
     cacheName: 'static-assets'
 }));
 

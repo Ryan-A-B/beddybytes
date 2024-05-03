@@ -7,7 +7,6 @@ import event_service from "./services/instances/event_service"
 import signal_service from "./services/instances/signal_service"
 
 import Navbar from './components/Navbar';
-import UpdateAvailableAlert from './components/UpdateAvailableAlert';
 import Login from './pages/Login';
 import Instructions from './pages/Instructions';
 import BabyStation from './pages/BabyStation';
@@ -28,7 +27,6 @@ const App: React.FunctionComponent = () => {
     <ServicesContext.Provider value={services}>
       <Navbar />
       <div className="container">
-        <UpdateAvailableAlert />
         <Login>
           <Routes>
             <Route path="/" element={<Instructions />} />
