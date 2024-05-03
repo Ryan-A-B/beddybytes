@@ -5,7 +5,6 @@ import logging_service from "./services/instances/logging_service"
 import authorization_service from "./services/instances/authorization_service"
 import event_service from "./services/instances/event_service"
 import signal_service from "./services/instances/signal_service"
-import service_worker_service from "./services/instances/service_worker_service"
 
 import Navbar from './components/Navbar';
 import UpdateAvailableAlert from './components/UpdateAvailableAlert';
@@ -22,7 +21,6 @@ export const services: Services = {
   authorization_service,
   event_service,
   signal_service,
-  service_worker_service,
 };
 
 const App: React.FunctionComponent = () => {
