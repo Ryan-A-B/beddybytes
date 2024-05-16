@@ -1,0 +1,18 @@
+$purple: #730099;
+
+$purple-100: tint-color($purple, 80%);
+$purple-200: tint-color($purple, 60%);
+$purple-300: tint-color($purple, 40%);
+$purple-400: tint-color($purple, 20%);
+$purple-500: $purple;
+$purple-600: shade-color($purple, 20%);
+$purple-700: shade-color($purple, 40%);
+$purple-800: shade-color($purple, 60%);
+$purple-900: shade-color($purple, 80%);
+
+$dark: $purple-700;
+
+$primary: $purple;
+
+@import "bootstrap/scss/variables";
+@import "bootstrap/scss/variables-dark";

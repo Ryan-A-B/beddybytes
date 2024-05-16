@@ -47,7 +47,7 @@ const Navbar: React.FunctionComponent = () => {
     }
 
     return (
-        <nav className="navbar navbar-expand-lg navbar-dark bg-dark fixed-top" ref={navRef}>
+        <nav className="navbar navbar-expand-lg" ref={navRef}>
             <div className="container">
                 <Link className="navbar-brand" to="/">BeddyBytes</Link>
                 <button
@@ -81,7 +81,7 @@ const Navbar: React.FunctionComponent = () => {
                 </div>
                 <div className="d-lg-flex collapse">
                     <Link to="/pricing" className="btn btn-primary">
-                        Get BeddyBytes
+                        Use baby monitor
                     </Link>
                 </div>
             </div>

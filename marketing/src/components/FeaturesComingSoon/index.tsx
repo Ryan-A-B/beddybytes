@@ -5,13 +5,6 @@ const FeaturesComingSoon: React.FunctionComponent = () => {
         <section>
             <h4>Coming soon</h4>
             <section>
-                <h5>Recording</h5>
-                <p>
-                    There aren't many things cuter than a baby talking and singing to themselves in their
-                    cot (except when it's 3am and they want to “Dance? Dance? Dance?”).
-                </p>
-            </section>
-            <section>
                 <h5>Talk back</h5>
                 <p>
                     For when you need to give your child a soothing word before they get to sleep.

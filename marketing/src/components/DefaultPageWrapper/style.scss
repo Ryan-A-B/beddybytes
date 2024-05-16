@@ -1,0 +1,32 @@
+@import "../../scss/configuration";
+
+.wrapper {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+
+    .wrapper-body {
+        flex-grow: 1;
+        display: flex;
+        flex-direction: column;
+        overflow-y: auto;
+    }
+
+    .wrapper-content {
+        flex-grow: 1;
+    }
+
+    .wrapper-footer {
+        flex-shrink: 0;
+
+        a {
+            text-decoration: none;
+            color: var(--bs-body-color);
+
+            &:hover {
+                color: var(--bs-link-hover-color);
+                text-decoration: underline;
+            }
+        }
+    }
+}

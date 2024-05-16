@@ -1,0 +1,10 @@
+@import "../../scss/configuration";
+
+section.how-to {
+    $vertical-padding: 5 * $spacer;
+
+    padding: {
+        top: $vertical-padding;
+        bottom: $vertical-padding;
+    }
+}

@@ -28,6 +28,13 @@ const FeaturesCurrent: React.FunctionComponent = () => {
                     Simply log in and you're good to go.
                 </p>
             </section>
+            <section>
+                <h5>Recording</h5>
+                <p>
+                    There aren't many things cuter than a baby talking and singing to themselves in their
+                    cot (except when it's 3am and they want to “Dance? Dance? Dance?”).
+                </p>
+            </section>
         </section>
     )
 }

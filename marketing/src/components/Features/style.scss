@@ -1,0 +1,22 @@
+@import '../../scss/configuration';
+
+section.features {
+    section.feature {
+        $vertical-padding: 3 * $spacer;
+
+        padding: {
+            top: $vertical-padding;
+            bottom: $vertical-padding;
+        }
+
+        &:nth-child(odd) {
+            .feature-body {
+                order: 1;
+            }
+
+            .feature-image {
+                order: 0;
+            }
+        }
+    }
+}

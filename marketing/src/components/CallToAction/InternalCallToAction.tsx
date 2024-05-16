@@ -1,7 +1,7 @@
 import React from 'react'
+import { Link } from 'gatsby'
 
 import "./style.scss"
-import { Link } from 'gatsby'
 
 interface Props {
     internal_link: string

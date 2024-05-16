@@ -4,7 +4,7 @@ import "./style.scss"
 import ExternalCallToAction from './ExternalCallToAction'
 import InternalCallToAction from './InternalCallToAction'
 
-interface Props {
+export interface Props {
     action: Action
 }
 

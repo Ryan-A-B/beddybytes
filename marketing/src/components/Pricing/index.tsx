@@ -1,10 +1,9 @@
 import React from "react";
-import CallToAction from '../CallToAction'
+import PurchaseOneYearAccessCallToAction from "../CallToAction/PurchaseOneYearAccessCallToAction";
+import PurchaseLifetimeAccessCallToAction from "../CallToAction/PurchaseLifetimeAccessCallToAction";
 import DiscountedPrice from "./DiscountedPrice";
 
 import "./style.scss"
-import PurchaseOneYearAccessCallToAction from "../CallToAction/PurchaseOneYearAccessCallToAction";
-import PurchaseLifetimeAccessCallToAction from "../CallToAction/PurchaseLifetimeAccessCallToAction";
 
 const PopularBadge: React.FunctionComponent = () => {
     return (
