@@ -5,7 +5,7 @@ import Pricing from '../components/Pricing'
 
 const PricingPage: React.FunctionComponent<PageProps> = () => {
     return (
-        <DefaultPageWrapper>
+        <DefaultPageWrapper include_call_to_action_section={false}>
             <main id="main" className="container">
                 <h1 className="text-center mt-3">BeddyBytes Pricing</h1>
                 <Pricing />

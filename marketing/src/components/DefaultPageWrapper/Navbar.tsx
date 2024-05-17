@@ -1,5 +1,6 @@
 import React from 'react'
 import { Link } from 'gatsby'
+import NavbarDropdown from './NavbarDropdown'
 
 const ActiveButtonProps = {
     'aria-expanded': true,
@@ -62,6 +63,13 @@ const Navbar: React.FunctionComponent = () => {
                 </button>
                 <div className={getCollapseClassName(show)} id="navbar-collapse">
                     <ul className="navbar-nav">
+                        <NavbarDropdown buttonText="Features">
+                                <li>
+                                    <Link to="/features/recording" className="dropdown-item">
+                                        Recording
+                                    </Link>
+                                </li>
+                        </NavbarDropdown>
                         <li className="nav-item">
                             <Link to="/pricing" className="nav-link" onClick={onNavLinkClick}>
                                 Pricing

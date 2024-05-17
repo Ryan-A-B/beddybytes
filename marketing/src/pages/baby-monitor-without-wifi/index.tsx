@@ -1,19 +1,18 @@
 import React, { FunctionComponent } from 'react'
-import { type HeadFC, type PageProps } from "gatsby"
+import { type HeadFC } from "gatsby"
+import { StaticImage } from 'gatsby-plugin-image'
 
 import DemoSection from '../../components/LandingPage/DemoSection'
 import PricingSection from '../../components/LandingPage/PricingSection'
 import FAQSection from '../../components/LandingPage/FAQSection'
 import FeaturesCurrent from '../../components/FeaturesCurrent'
 import FeaturesComingSoon from '../../components/FeaturesComingSoon'
-import LandingPageNavbar from '../../components/LandingPage/Navbar'
-import { StaticImage } from 'gatsby-plugin-image'
 import PurchaseLifetimeAccessCallToAction from '../../components/CallToAction/PurchaseLifetimeAccessCallToAction'
+import DefaultPageWrapper from '../../components/DefaultPageWrapper'
 
-const PrivateBabyMonitorPage: React.FunctionComponent<PageProps> = ({ data }) => {
-    return (
-        <div className="landing-page">
-            <LandingPageNavbar />
+const PrivateBabyMonitorPage: React.FunctionComponent = () => (
+    <DefaultPageWrapper>
+        <main className="landing-page">
             <main id="main">
                 <section id="hero">
                     <div className="container">
@@ -99,9 +98,9 @@ const PrivateBabyMonitorPage: React.FunctionComponent<PageProps> = ({ data }) =>
             <DemoSection />
             <PricingSection />
             <FAQSection />
-        </div>
-    )
-}
+        </main>
+    </DefaultPageWrapper>
+)
 
 export default PrivateBabyMonitorPage
 
