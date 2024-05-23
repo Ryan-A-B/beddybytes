@@ -10,83 +10,85 @@ const PaymentProviderPrivacyPolicyLink: React.FunctionComponent = () => (
 
 const PrivacyPolicy: React.FunctionComponent<PageProps> = () => (
     <DefaultPageWrapper>
-        <h1 className="mt-5">Privacy Policy</h1>
-        <p>
-            I probably shouldn't write this myself. One day if this project
-            goes well I'll hire a lawyer who'll tell me all the things I've
-            done wrong. But, if I'm going to claim that BeddyBytes is putting
-            your family's privacy first, then you deserve better than a
-            vague "we take your privacy seriously" message.
-        </p>
-        <section className="my-5">
-            <h2>Information we collect</h2>
+        <main className="container">
+            <h1 className="mt-5">Privacy Policy</h1>
             <p>
-                We directly collect your email address and
-                anonymous website analytics.
+                I probably shouldn't write this myself. One day if this project
+                goes well I'll hire a lawyer who'll tell me all the things I've
+                done wrong. But, if I'm going to claim that BeddyBytes is putting
+                your family's privacy first, then you deserve better than a
+                vague "we take your privacy seriously" message.
             </p>
-            <p>
-                We use Square to process payments. At this time the
-                Square checkout page asks for your phone number, email
-                address and first and last name. For more information
-                vist <PaymentProviderPrivacyPolicyLink />.
-            </p>
-            <section className="my-3">
-                <h3>Why do we collect it?</h3>
+            <section className="my-5">
+                <h2>Information we collect</h2>
                 <p>
-                    We collect your email address for account management and
-                    communication. We collect anonymous website analytics to
-                    understand how people use our website.
+                    We directly collect your email address and
+                    anonymous website analytics.
+                </p>
+                <p>
+                    We use Square to process payments. At this time the
+                    Square checkout page asks for your phone number, email
+                    address and first and last name. For more information
+                    vist <PaymentProviderPrivacyPolicyLink />.
+                </p>
+                <section className="my-3">
+                    <h3>Why do we collect it?</h3>
+                    <p>
+                        We collect your email address for account management and
+                        communication. We collect anonymous website analytics to
+                        understand how people use our website.
+                    </p>
+                </section>
+            </section>
+            <section className="my-5">
+                <h2>We protect and limit use of your data when you communicate directly with BeddyBytes</h2>
+                <p>
+                    If you voluntarily provide personal information to us directly,
+                    we protect and limit its use. We will limit its use by only
+                    keeping it for as long necessary for the stated purpose, and we
+                    will protect it by keeping it secure and deleting it when it is
+                    no longer required, unless a longer period is required by law.
+                </p>
+                <p>
+                    Similarly, if you reach out to us directly for support, to
+                    provide feedback (such as in a crash report) or for other
+                    reasons, we will only use your contact information to respond to
+                    you. In that process, your communication may be accessible to
+                    the software-as-a-service providers we use in our corporate
+                    systems (such as our company email and project management
+                    software).
                 </p>
             </section>
-        </section>
-        <section className="my-5">
-            <h2>We protect and limit use of your data when you communicate directly with BeddyBytes</h2>
-            <p>
-                If you voluntarily provide personal information to us directly,
-                we protect and limit its use. We will limit its use by only
-                keeping it for as long necessary for the stated purpose, and we
-                will protect it by keeping it secure and deleting it when it is
-                no longer required, unless a longer period is required by law.
-            </p>
-            <p>
-                Similarly, if you reach out to us directly for support, to
-                provide feedback (such as in a crash report) or for other
-                reasons, we will only use your contact information to respond to
-                you. In that process, your communication may be accessible to
-                the software-as-a-service providers we use in our corporate
-                systems (such as our company email and project management
-                software).
-            </p>
-        </section>
-        <section className="my-5">
-            <h2>We respect and support your legal privacy rights</h2>
-            <p>
-                We will vigorously resist government efforts to compel us to
-                produce the very limited personal information that we might
-                have.
-            </p>
-            <p>
-                Related, we are based in Australia and are using AWS servers
-                in the Sydney region. As such the limited data that we do
-                collect will be stored in Australia.
-            </p>
-        </section>
-        <section className="my-5">
-            <h2>We do not sell your personal information.</h2>
-            <p>We have never sold any personal information. Period.</p>
-        </section>
-        <section className="my-5">
-            <h2>We will post a notice on this page when our policy is updated.</h2>
-            <p>
-                We will notify you of changes by posting the modified version on
-                our website. We will indicate the date it was last modified
-                below with an update message on top.
-            </p>
-        </section>
-        <section className="my-5">
-            <h6>Last updated 2024-05-04</h6>
-            <p>This is the first version of our privacy policy.</p>
-        </section>
+            <section className="my-5">
+                <h2>We respect and support your legal privacy rights</h2>
+                <p>
+                    We will vigorously resist government efforts to compel us to
+                    produce the very limited personal information that we might
+                    have.
+                </p>
+                <p>
+                    Related, we are based in Australia and are using AWS servers
+                    in the Sydney region. As such the limited data that we do
+                    collect will be stored in Australia.
+                </p>
+            </section>
+            <section className="my-5">
+                <h2>We do not sell your personal information.</h2>
+                <p>We have never sold any personal information. Period.</p>
+            </section>
+            <section className="my-5">
+                <h2>We will post a notice on this page when our policy is updated.</h2>
+                <p>
+                    We will notify you of changes by posting the modified version on
+                    our website. We will indicate the date it was last modified
+                    below with an update message on top.
+                </p>
+            </section>
+            <section className="my-5">
+                <h6>Last updated 2024-05-04</h6>
+                <p>This is the first version of our privacy policy.</p>
+            </section>
+        </main>
     </DefaultPageWrapper>
 )
 

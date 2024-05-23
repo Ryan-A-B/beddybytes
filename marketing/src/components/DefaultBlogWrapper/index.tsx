@@ -8,10 +8,14 @@ interface Props {
 
 const DefaultBlogWrapper: React.FunctionComponent<Props> = ({ children }) => (
     <DefaultPageWrapper>
-        {children}
-        <footer>
-            <Link to="/blog">Back to blog</Link>
-        </footer>
+        <main className="bg-body-tertiary py-5">
+            <div className="container">
+                {children}
+                <footer>
+                    <Link to="/blog">Back to blog</Link>
+                </footer>
+            </div>
+        </main>
     </DefaultPageWrapper>
 )
 

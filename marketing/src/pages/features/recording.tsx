@@ -3,7 +3,7 @@ import type { HeadFC } from "gatsby";
 
 import DefaultPageWrapper from "../../components/DefaultPageWrapper";
 import DefaultHeroSection from "../../components/DefaultHeroSection";
-import DefaultHowToSection from "../../components/DefaultHowToSection";
+import { StaticImage } from "gatsby-plugin-image";
 
 const RecordingFeaturePage: React.FunctionComponent = () => (
     <DefaultPageWrapper>
@@ -15,7 +15,12 @@ const RecordingFeaturePage: React.FunctionComponent = () => (
                         Record those precious moments when your baby is talking and singing to themselves in their cot.
                     </p>
                 </React.Fragment>
-                <img src="https://via.placeholder.com/640x360" alt="Placeholder" className="img-fluid" />
+                <StaticImage
+                    src="../../images/Recording.png"
+                    alt="baby monitor recording"
+                    aspectRatio={16 / 9}
+                    transformOptions={{ fit: "contain" }}
+                />
             </DefaultHeroSection>
             <section className="bg-body-tertiary py-5">
                 <div className="container">
@@ -25,18 +30,21 @@ const RecordingFeaturePage: React.FunctionComponent = () => (
                     </p>
                 </div>
             </section>
-            <DefaultHowToSection>
-                <React.Fragment>
-                    <h2>How to record using BeddyBytes</h2>
-                    <ol>
-                        <li>Select a session from the Parent Station</li>
-                        <li>Click on the record button to start recording</li>
-                        <li>Click on the record button again to stop recording</li>
-                        <li>The recording will be automatically downloaded</li>
-                    </ol>
-                </React.Fragment>
-                <img src="https://via.placeholder.com/640x360" alt="Placeholder" className="img-fluid" />
-            </DefaultHowToSection>
+            <section className="bg-body-secondary py-5">
+                <div className="container">
+                    <div className="row">
+                        <div className="col-sm-auto mx-auto">
+                            <h2>How to record using BeddyBytes</h2>
+                            <ol>
+                                <li>Select a session from the Parent Station</li>
+                                <li>Click on the record button to start recording</li>
+                                <li>Click on the record button again to stop recording</li>
+                                <li>The recording will be automatically downloaded</li>
+                            </ol>
+                        </div>
+                    </div>
+                </div>
+            </section>
         </main>
     </DefaultPageWrapper>
 )

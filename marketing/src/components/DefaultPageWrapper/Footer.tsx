@@ -26,7 +26,7 @@ const Footer: React.FunctionComponent = () => (
                             <Link to="/pricing">Pricing</Link>
                         </li>
                         <li>
-                            <Link to="/about">Us</Link>
+                            <Link to="/about">Creators</Link>
                         </li>
                         <li>
                             <Link to="/privacy-policy">Privacy Policy</Link>

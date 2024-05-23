@@ -1,9 +1,9 @@
 import * as React from "react"
 import type { HeadFC, PageProps } from "gatsby"
+import { StaticImage } from 'gatsby-plugin-image'
 import DefaultPageWrapper from "../components/DefaultPageWrapper"
 import DefaultHeroSection from "../components/DefaultHeroSection"
 import Features from "../components/Features"
-
 
 const IndexPage: React.FunctionComponent<PageProps> = () => {
   return (
@@ -18,45 +18,16 @@ const IndexPage: React.FunctionComponent<PageProps> = () => {
               - with BeddyBytes, images and videos never leave your devices.
             </p>
           </React.Fragment>
-          <img
-            src="https://via.placeholder.com/640x360"
-            alt="Placeholder"
-            className="img-fluid"
+          <StaticImage
+            src="../images/BabyStation.png"
+            alt="smartphone baby station"
+            aspectRatio={16 / 9}
+            transformOptions={{ fit: "contain" }}
           />
         </DefaultHeroSection>
         <Features>
           <h2>Features</h2>
         </Features>
-        <section className="bg-body-secondary py-5">
-          <div className="container text-center">
-            <h2>Be assured of privacy</h2>
-            <img
-              src="https://via.placeholder.com/640x360"
-              alt="Peer to peer over local network"
-              className="img-fluid"
-            />
-          </div>
-        </section>
-        <section className="bg-body-tertiary py-5">
-          <div className="container">
-            <div className="row align-items-center">
-              <div className="col-lg-6">
-                <h2>Reduce eWaste</h2>
-                <p>
-                  BeddyBytes repurposes your old devices into a baby camera and
-                  monitor. Give your old devices a new lease of life.
-                </p>
-              </div>
-              <div className="d-none d-lg-block col">
-                <img
-                  src="https://via.placeholder.com/640x360"
-                  alt="Reduce eWaste"
-                  className="img-fluid"
-                />
-              </div>
-            </div>
-          </div>
-        </section>
       </main>
     </DefaultPageWrapper>
   )
