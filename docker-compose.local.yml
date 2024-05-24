@@ -31,8 +31,6 @@ services:
     restart: always
     volumes:
       - ./eventlog:/opt/eventlog
-    ports:
-      - "9000:9000"
     environment:
       - ENCRYPTION_KEY=${ENCRYPTION_KEY}
       - COOKIE_DOMAIN=.beddybytes.local
@@ -51,12 +49,11 @@ services:
       - "traefik.http.routers.backend.entrypoints=websecure"
       - "traefik.http.routers.backend.tls=true"
       - "traefik.http.routers.backend.middlewares=headers-cors@docker"
+      - "traefik.http.services.backend.loadbalancer.server.port=9000"
   frontend:
     image: node:18
     command: yarn start
     restart: always
-    ports:
-      - "3000:3000"
     volumes:
       - ./frontend/:/opt/frontend
     environment:
@@ -67,12 +64,11 @@ services:
       - "traefik.http.routers.frontend.rule=Host(`app.beddybytes.local`)"
       - "traefik.http.routers.frontend.entrypoints=websecure"
       - "traefik.http.routers.frontend.tls=true"
+      - "traefik.http.services.frontend.loadbalancer.server.port=3000"
   marketing:
     image: node:18
     command: npm run develop
     restart: always
-    ports:
-      - "8000:8000"
     volumes:
       - ./marketing/:/opt/marketing
     working_dir: /opt/marketing
@@ -80,11 +76,10 @@ services:
       - "traefik.http.routers.marketing.rule=Host(`beddybytes.local`)"
       - "traefik.http.routers.marketing.entrypoints=websecure"
       - "traefik.http.routers.marketing.tls=true"
+      - "traefik.http.services.marketing.loadbalancer.server.port=8000"
   influxdb:
     image: influxdb:2.7-alpine
     restart: always
-    ports:
-      - "8086:8086"
     volumes:
       - ./influxdb/data:/var/lib/influxdb2
     labels:
@@ -92,11 +87,10 @@ services:
       - "traefik.http.routers.influx.entrypoints=websecure"
       - "traefik.http.routers.influx.tls=true"
       - "traefik.http.routers.influx.middlewares=headers-cors@docker"
+      - "traefik.http.services.influx.loadbalancer.server.port=8086"
   grafana:
     image: grafana/grafana-oss:10.2.2
     restart: always
-    ports:
-      - "3001:3000"
     volumes:
       - grafana_storage:/var/lib/grafana
     labels:
@@ -104,6 +98,7 @@ services:
       - "traefik.http.routers.grafana.entrypoints=websecure"
       - "traefik.http.routers.grafana.tls=true"
       - "traefik.http.routers.grafana.middlewares=headers-cors@docker"
+      - "traefik.http.services.grafana.loadbalancer.server.port=3000"
   selenium_hub:
     image: selenium/hub:4.11.0-20230801
     restart: always
