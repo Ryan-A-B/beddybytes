@@ -43,12 +43,12 @@ class HostSessionService extends EventTarget {
     }
 
     public start_session = async (input: StartSessionInput): Promise<void> => {
-        const access_token = await this.authorization_service.get_access_token();
         const session_id = uuid();
         this.set_status({
             status: 'session_starting',
             session_id: session_id,
         })
+        const access_token = await this.authorization_service.get_access_token();
         const response = await fetch(`https://${settings.API.host}/sessions/${session_id}`, {
             method: 'PUT',
             headers: {

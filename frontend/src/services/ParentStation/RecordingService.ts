@@ -1,3 +1,5 @@
+import moment from 'moment';
+
 interface RecordingServiceStateNotRecording {
     state: 'not_recording';
 }
@@ -43,6 +45,7 @@ class RecordingService extends EventTarget {
             throw new Error('Cannot start recording when media stream is not available');
         if (this.state.state === 'recording')
             throw new Error('Cannot start recording when already recording');
+        const t0 = moment();
         const media_recorder = new MediaRecorder(media_stream_state.media_stream);
         const chunks: Blob[] = [];
         media_recorder.addEventListener('dataavailable', (event) => {
@@ -55,7 +58,8 @@ class RecordingService extends EventTarget {
             document.body.appendChild(a);
             a.style.display = 'none';
             a.href = url;
-            a.download = `${session_state.session.name}.webm`;
+            a.target = '_blank';
+            a.download = `BeddyBytes_${t0.format('YYYYMMDD_HHmmss')}.webm`;
             a.click();
             this.set_state(InitialState);
         });
