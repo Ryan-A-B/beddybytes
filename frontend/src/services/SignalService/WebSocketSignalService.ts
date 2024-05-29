@@ -108,10 +108,10 @@ class WebSocketSignalService extends EventTarget implements SignalService {
         const query_parameters = new URLSearchParams();
         query_parameters.set('access_token', access_token);
         const ws = new WebSocket(`wss://${settings.API.host}/clients/${settings.API.clientID}/connections/${this.connection_id}?${query_parameters.toString()}`);
-        ws.onopen = this.on_open;
-        ws.onmessage = this.on_message;
-        ws.onerror = this.on_error;
-        ws.onclose = this.on_close;
+        ws.addEventListener('open', this.on_open);
+        ws.addEventListener('message', this.on_message);
+        ws.addEventListener('error', this.on_error);
+        ws.addEventListener('close', this.on_close);
         return ws;
     }
 

@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"sync"
+	"time"
 
 	"github.com/Ryan-A-B/beddybytes/backend/internal"
 	"github.com/Ryan-A-B/beddybytes/backend/internal/eventlog"
@@ -130,8 +131,17 @@ func (handlers *Handlers) HandleConnection(responseWriter http.ResponseWriter, r
 		ConnectionID: connectionID,
 		conn:         conn,
 	})
-	for {
-		err = connection.handleNextMessage(ctx)
+	errC := make(chan error, 1)
+	go func() {
+		errC <- connection.runKeepAlive(ctx)
+	}()
+	go func() {
+		errC <- connection.handleMessages(ctx)
+	}()
+	select {
+	case <-ctx.Done():
+		return
+	case err = <-errC:
 		if err != nil {
 			if closeError, ok := err.(*websocket.CloseError); ok {
 				webSocketCloseCode = closeError.Code
@@ -161,7 +171,9 @@ func (factory *ConnectionFactory) CreateConnection(ctx context.Context, input *C
 		AccountID:       input.AccountID,
 		ID:              input.ConnectionID,
 		conn:            input.conn,
+		pongC:           make(chan struct{}),
 	}
+	connection.conn.SetPongHandler(connection.handlePong)
 	factory.ConnectionStore.Put(ctx, ConnectionStoreKey{
 		AccountID:    input.AccountID,
 		ConnectionID: input.ConnectionID,
@@ -175,6 +187,21 @@ type Connection struct {
 	ID              string
 	mutex           sync.Mutex
 	conn            *websocket.Conn
+	pongC           chan struct{}
+}
+
+func (connection *Connection) handleMessages(ctx context.Context) (err error) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		default:
+			err = connection.handleNextMessage(ctx)
+			if err != nil {
+				return
+			}
+		}
+	}
 }
 
 func (connection *Connection) handleNextMessage(ctx context.Context) (err error) {
@@ -215,4 +242,63 @@ func (connection *Connection) handleSignal(ctx context.Context, signal *Incoming
 		},
 	})
 	return
+}
+
+func (connection *Connection) handlePong(appData string) (err error) {
+	select {
+	case connection.pongC <- struct{}{}:
+	default:
+		log.Println("unexpected pong")
+	}
+	return
+}
+
+func (connection *Connection) runKeepAlive(ctx context.Context) (err error) {
+	const pingPeriod = 30 * time.Second
+	ticker := time.NewTicker(pingPeriod)
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			err = connection.pingPong(ctx)
+			if err != nil {
+				return
+			}
+		}
+	}
+}
+
+func (connection *Connection) pingPong(ctx context.Context) (err error) {
+	err = connection.sendPing(ctx)
+	if err != nil {
+		return
+	}
+	err = connection.waitForPong(ctx)
+	if err != nil {
+		return
+	}
+	return
+}
+
+func (connection *Connection) sendPing(ctx context.Context) (err error) {
+	const pingWriteTimeout = 10 * time.Second
+	deadline := time.Now().Add(pingWriteTimeout)
+	err = connection.conn.WriteControl(websocket.PingMessage, nil, deadline)
+	if err != nil {
+		return
+	}
+	return
+}
+
+func (connection *Connection) waitForPong(ctx context.Context) (err error) {
+	const pongReadTimeout = 10 * time.Second
+	select {
+	case <-ctx.Done():
+		return
+	case <-time.After(pongReadTimeout):
+		return errors.New("pong timeout")
+	case <-connection.pongC:
+		return
+	}
 }
