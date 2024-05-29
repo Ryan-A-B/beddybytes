@@ -2,15 +2,15 @@
     display: flex;
     flex-direction: column;
     height: 100%;
-    max-height: calc(100vh - 120px);
-
+    
     #button-start-recording,
     #button-stop-recording {
         align-self: center;
     }
-
+    
     .video {
         flex-grow: 1;
         object-fit: contain;
+        max-height: calc(100vh - 250px);
     }
 }

@@ -95,12 +95,12 @@ const BabyStation: React.FunctionComponent = () => {
         media_device_permission_service.request_video_and_audio_permission();
     }, [media_device_permission_service]);
     if (media_devices_permission_status.status === 'requested') return (
-        <div>
+        <div className="container">
             Requesting permission to access camera and microphone...
         </div>
     );
     if (media_devices_permission_status.status === 'denied') return (
-        <div>
+        <div className="container">
             Permission to access camera and microphone denied. To use this device as a camera, please allow access to the camera and microphone.
         </div>
     );
