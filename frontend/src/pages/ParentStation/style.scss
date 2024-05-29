@@ -1,8 +1,16 @@
 .parent-station {
-    height: calc(100vh - 110px);
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    max-height: calc(100vh - 120px);
+
+    #button-start-recording,
+    #button-stop-recording {
+        align-self: center;
+    }
+
     .video {
-        width: 100%;
-        height: 100%;
+        flex-grow: 1;
         object-fit: contain;
     }
 }

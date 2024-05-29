@@ -39,7 +39,14 @@ const VideoStream: React.FunctionComponent<Props> = ({ stream }) => {
                     <FontAwesomeIcon icon={faStop} /> Stop Recording
                 </button>
             )}
-            <video id="video-parent" ref={htmlVideoElementRef} autoPlay playsInline className="video" />
+            <video
+                id="video-parent"
+                ref={htmlVideoElementRef}
+                autoPlay
+                playsInline
+                controls
+                className="video mt-3"
+            />
         </React.Fragment>
     )
 }

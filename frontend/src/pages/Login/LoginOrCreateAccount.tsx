@@ -31,7 +31,7 @@ const LoginOrCreateAccount: React.FunctionComponent<Props> = () => {
     const switchToCreateAccount = useOnTabClick(TabCreateAccount, setTab);
 
     return (
-        <React.Fragment>
+        <div className="container">
             <h1 className="d-md-block d-none mx-auto text-center">
                 Transform your devices!
             </h1>
@@ -90,7 +90,7 @@ const LoginOrCreateAccount: React.FunctionComponent<Props> = () => {
                     </a>
                 </div>
             </div>
-        </React.Fragment>
+        </div>
     );
 }
 
