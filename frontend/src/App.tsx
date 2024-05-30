@@ -11,7 +11,6 @@ import Login from './pages/Login';
 import Instructions from './pages/Instructions';
 import BabyStation from './pages/BabyStation';
 import ParentStation from './pages/ParentStation';
-import Footer from './components/Footer';
 import { Services, context as ServicesContext } from './services';
 
 import './App.scss';
@@ -27,17 +26,14 @@ const App: React.FunctionComponent = () => {
   return (
     <ServicesContext.Provider value={services}>
       <Navbar />
-      <div className="wrapper-body">
-        <div className="wrapper-content">
-          <Login>
-            <Routes>
-              <Route path="/" element={<Instructions />} />
-              <Route path="/baby" element={<BabyStation />} />
-              <Route path="/parent" element={<ParentStation />} />
-            </Routes>
-          </Login>
-        </div>
-        <Footer />
+      <div className="wrapper-content">
+        <Login>
+          <Routes>
+            <Route path="/" element={<Instructions />} />
+            <Route path="/baby" element={<BabyStation />} />
+            <Route path="/parent" element={<ParentStation />} />
+          </Routes>
+        </Login>
       </div>
     </ServicesContext.Provider>
   );

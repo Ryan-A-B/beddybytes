@@ -1,12 +1,13 @@
 .baby-station {
     display: flex;
     flex-direction: column;
-    height: calc(100vh - 110px);
+    height: 100%;
 
     .video {
-        max-width: 100%;
         flex-grow: 1;
         object-fit: contain;
+        max-height: calc(100vh - 150px);
+        background-color: #000000;
 
         filter: grayscale(100%);
 

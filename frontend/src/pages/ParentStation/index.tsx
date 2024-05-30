@@ -78,19 +78,17 @@ const ParentStation: React.FunctionComponent = () => {
     });
 
     return (
-        <div className="container">
-            <div className="parent-station">
-                <SessionDropdown session_list={session_list} value={getSessionIfActive(client_session_state)} onChange={onSessionChange} />
-                {client_session_state.state === 'session_ended' && (
-                    <div id="alert-session-ended" className="alert alert-danger" role="alert">
-                        Session Ended
-                    </div>
-                )}
-                <ConnectionFailed />
-                {client_session_state.state === 'joined' && <SessionDuration startedAt={client_session_state.session.started_at} />}
-                {should_show_stream && <Stream />}
-            </div>
-        </div>
+        <main className="parent-station container">
+            <SessionDropdown session_list={session_list} value={getSessionIfActive(client_session_state)} onChange={onSessionChange} />
+            {client_session_state.state === 'session_ended' && (
+                <div id="alert-session-ended" className="alert alert-danger" role="alert">
+                    Session Ended
+                </div>
+            )}
+            <ConnectionFailed />
+            {client_session_state.state === 'joined' && <SessionDuration startedAt={client_session_state.session.started_at} />}
+            {should_show_stream && <Stream />}
+        </main>
     );
 };
 
