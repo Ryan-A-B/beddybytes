@@ -5,7 +5,17 @@ import eventstore from "../../../eventstore";
 
 export const EventTypeSessionListChanged = 'sessions_changed';
 
+const WebSocketCloseCodeNormalClosure = 1000;
+const WebSocketCloseCodeGoingAway = 1001;
+const WebSocketCloseCodeProtocolError = 1002;
+const WebSocketCloseCodeUnsupportedData = 1003;
+const WebSocketCloseCodeNoStatus = 1005;
 const WebSocketCloseCodeAbnormalClosure = 1006;
+
+const expected_web_socket_close_codes = [
+    WebSocketCloseCodeNormalClosure, // Manually closed by the user
+    WebSocketCloseCodeGoingAway,     // Automatically sent by the browser when the tab is closed
+];
 
 interface SessionStartedEventData {
     id: string;
@@ -167,8 +177,8 @@ class ProjectedSessionList extends EventTarget implements SessionListService {
         if (session === undefined) return;
         if (session.host_connection_state.state !== 'connected') return;
         if (session.host_connection_state.request_id !== event.data.request_id) return;
-        const abnormal_closure = event.data.web_socket_close_code === WebSocketCloseCodeAbnormalClosure;
-        if (abnormal_closure) {
+        const expected_web_socket_close_code_received = expected_web_socket_close_codes.includes(event.data.web_socket_close_code);
+        if (!expected_web_socket_close_code_received) {
             const updated_session: Session = {
                 ...session,
                 host_connection_state: {

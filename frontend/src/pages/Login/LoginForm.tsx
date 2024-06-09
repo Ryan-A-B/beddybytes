@@ -1,6 +1,6 @@
 import React from "react";
 import Input from "../../components/Input";
-import Severity from "../../services/LoggingService/Severity";
+import { Severity } from "../../services/LoggingService";
 import { useAuthorizationService, useLoggingService } from "../../services";
 
 interface Props {

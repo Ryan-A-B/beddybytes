@@ -2,7 +2,7 @@ import moment from 'moment';
 
 import settings from '../../settings';
 import isClientError from '../../utils/isClientError';
-import Severity from '../LoggingService/Severity';
+import LoggingService, { Severity } from '../LoggingService';
 import sleep from '../../utils/sleep';
 
 const InitialRetryDelay = 1000;

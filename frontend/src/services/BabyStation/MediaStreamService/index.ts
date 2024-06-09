@@ -1,4 +1,4 @@
-import Severity from "../../LoggingService/Severity";
+import LoggingService, { Severity } from '../../LoggingService';
 import MediaDevicePermissionService from "../MediaDevicePermissionService";
 
 export const EventTypeMediaStreamStatusChanged = 'media_stream_status_changed';

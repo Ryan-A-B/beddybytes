@@ -1,5 +1,5 @@
 import settings from "../../../../settings";
-import Severity from "../../../LoggingService/Severity";
+import LoggingService, { Severity } from '../../../LoggingService';
 import { InitiatedBy } from "./InitiatedBy";
 
 export const EventTypeRTCConnectionStateChanged = 'rtc_connection_state_changed';

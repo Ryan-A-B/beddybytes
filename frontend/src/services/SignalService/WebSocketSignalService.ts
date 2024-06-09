@@ -1,7 +1,7 @@
 import { v4 as uuid } from 'uuid';
 import settings from "../../settings";
 import sleep from '../../utils/sleep';
-import Severity from '../LoggingService/Severity';
+import LoggingService, { Severity } from '../LoggingService';
 
 export const EventTypeSignalStateChange = 'signal_state_change';
 
@@ -162,14 +162,14 @@ class WebSocketSignalService extends EventTarget implements SignalService {
                 if (this.state.step === 'pending') return;
                 this.logging_service.log({
                     severity: Severity.Error,
-                    message: `WebSocket closed with code ${event.code}, reconnecting...`,
+                    message: `WebSocket closed with code ${event.code}, reconnecting in ${WebSocketSignalService.InitialRetryDelay}ms`,
                 });
                 this.reconnect(WebSocketSignalService.InitialRetryDelay);
                 return;
             case 'connected':
                 this.logging_service.log({
                     severity: Severity.Error,
-                    message: `WebSocket closed with code ${event.code}, reconnecting...`,
+                    message: `WebSocket closed with code ${event.code}, reconnecting in ${WebSocketSignalService.InitialRetryDelay}ms`,
                 });
                 this.reconnect(WebSocketSignalService.InitialRetryDelay);
                 return;
@@ -177,7 +177,7 @@ class WebSocketSignalService extends EventTarget implements SignalService {
                 if (this.state.step === 'pending') return;
                 this.logging_service.log({
                     severity: Severity.Error,
-                    message: `WebSocket closed with code ${event.code}, reconnecting...`,
+                    message: `WebSocket closed with code ${event.code}, reconnecting in ${this.state.retry_delay}ms`,
                 });
                 this.reconnect(this.state.retry_delay);
                 return;

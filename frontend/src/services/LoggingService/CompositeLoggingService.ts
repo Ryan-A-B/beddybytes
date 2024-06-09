@@ -1,4 +1,5 @@
 
+import LoggingService, { LogInput } from '../LoggingService';
 
 class CompositeLoggingService implements LoggingService {
     private services: LoggingService[];

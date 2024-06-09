@@ -16,7 +16,7 @@ const getUniqueDevices = (devices: MediaDeviceInfo[]): MediaDeviceInfo[] => {
     });
 }
 
-const SelectVideoDevice: React.FunctionComponent<Props> = ({ value, onChange, disabled }) => {
+const SelectAudioDevice: React.FunctionComponent<Props> = ({ value, onChange, disabled }) => {
     const devices = useMediaDeviceEnumeration();
     const audioDevices = React.useMemo(() => {
         const audioDevices = devices.filter((device) => device.kind === 'audioinput');
@@ -26,7 +26,7 @@ const SelectVideoDevice: React.FunctionComponent<Props> = ({ value, onChange, di
         onChange(event.target.value);
     }, [onChange]);
     return (
-        <select value={value} onChange={handleChange} className="form-select" disabled={disabled}>
+        <select id="select-audio-device" value={value} onChange={handleChange} className="form-select" disabled={disabled}>
             <option value="">Default microphone</option>
             {audioDevices.map((device, i) => (
                 <option key={device.deviceId} value={device.deviceId}>
@@ -37,4 +37,4 @@ const SelectVideoDevice: React.FunctionComponent<Props> = ({ value, onChange, di
     );
 };
 
-export default SelectVideoDevice;
+export default SelectAudioDevice;

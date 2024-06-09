@@ -3,7 +3,7 @@ import { v4 as uuid } from 'uuid';
 import settings from "../../../settings";
 import isClientError from '../../../utils/isClientError';
 import sleep from '../../../utils/sleep';
-import Severity from '../../LoggingService/Severity';
+import LoggingService, { Severity } from '../../LoggingService';
 
 export const EventTypeHostSessionStatusChanged = 'host_session_status_changed';
 
@@ -17,7 +17,7 @@ interface StartSessionInput {
     connection_id: string;
 }
 
-class HostSessionService extends EventTarget {
+class SessionService extends EventTarget {
     private static RFC3339 = 'YYYY-MM-DDTHH:mm:ssZ';
     private logging_service: LoggingService;
     private authorization_service: AuthorizationService;
@@ -36,7 +36,7 @@ class HostSessionService extends EventTarget {
     private set_status = (status: HostSessionStatus): void => {
         this.logging_service.log({
             severity: Severity.Debug,
-            message: `Host session status changed from ${this.status.status} to ${status.status}`,
+            message: `Baby station session status changed from ${this.status.status} to ${status.status}`,
         });
         this.status = status;
         this.dispatchEvent(new Event(EventTypeHostSessionStatusChanged));
@@ -58,7 +58,7 @@ class HostSessionService extends EventTarget {
                 id: session_id,
                 name: input.name,
                 host_connection_id: input.connection_id,
-                started_at: moment().format(HostSessionService.RFC3339),
+                started_at: moment().format(SessionService.RFC3339),
             }),
         })
         if (!response.ok) {
@@ -110,4 +110,4 @@ class HostSessionService extends EventTarget {
     }
 }
 
-export default HostSessionService;
+export default SessionService;

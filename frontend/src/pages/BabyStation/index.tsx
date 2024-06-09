@@ -113,6 +113,7 @@ const BabyStation: React.FunctionComponent = () => {
                             <FontAwesomeIcon icon={faTag} />
                         </span>
                         <Input
+                            id="input-session-name"
                             value={sessionName}
                             onChange={setSessionName}
                             className="form-control"

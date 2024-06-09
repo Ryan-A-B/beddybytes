@@ -1,14 +1,25 @@
-import Severity from "./Severity";
-
+import LoggingService, { LogInput, Severity } from ".";
 
 class ConsoleLoggingService implements LoggingService {
+    private static SeverityLabel: Record<Severity, string> = {
+        [Severity.Emergency]: 'Emergency',
+        [Severity.Alert]: 'Alert',
+        [Severity.Critical]: 'Critical',
+        [Severity.Error]: 'Error',
+        [Severity.Warning]: 'Warning',
+        [Severity.Notice]: 'Notice',
+        [Severity.Informational]: 'Informational',
+        [Severity.Debug]: 'Debug',
+    }
+
     public log(input: LogInput): void {
-        this.get_log_func(input.severity)(`${input.severity}: ${input.message}`);
+        const label = ConsoleLoggingService.SeverityLabel[input.severity];
+        this.get_log_func(input.severity)(`${label}: ${input.message}`);
     }
 
     private get_log_func = (severity: Severity) => {
-        if (severity <= Severity.Error) return console.error
-        return console.log
+        if (severity <= Severity.Warning) return console.error
+        return console.error
     }
 }
 

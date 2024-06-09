@@ -4,7 +4,7 @@ import IndexedDBEventStore from "../eventstore/IndexedDBEventStore";
 import FollowingDecorator from "../eventstore/FollowingDecorator";
 import settings from "../settings";
 import sleep from "../utils/sleep";
-import Severity from "./LoggingService/Severity";
+import LoggingService, { Severity } from './LoggingService';
 import get_access_token_asap from "./AuthorizationService/get_access_token_asap";
 
 export const EventTypeEventServiceStatusChanged = 'event_service_status_changed';
@@ -93,7 +93,6 @@ class EventService extends EventTarget {
     private handle_error = (event_store: eventstore.EventStore) => (error: Event): void => {
         const event_source = error.target as EventSource;
         event_source.close()
-
         this.logging_service.log({
             severity: Severity.Error,
             message: `Failed to connect to event source, reconnecting in ${this.reconnect_delay}ms`,

@@ -1,6 +1,7 @@
 import React from "react"
 
 import EventService from "./EventService"
+import LoggingService from "./LoggingService"
 
 export type Services = {
     logging_service: LoggingService,

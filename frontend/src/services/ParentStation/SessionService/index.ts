@@ -1,5 +1,5 @@
 import { List } from "immutable";
-import Severity from "../../LoggingService/Severity";
+import LoggingService, { Severity } from '../../LoggingService';
 import { EventTypeSessionListChanged } from "../SessionListService/ProjectedListService";
 import { InitiatedBy } from "./Connection/InitiatedBy";
 import RTCConnection from "./Connection/RTCConnection";
@@ -33,7 +33,7 @@ class SessionService extends EventTarget implements ParentStationSessionService 
     private set_state = (client_session_state: ParentStationSessionState): void => {
         this.logging_service.log({
             severity: Severity.Debug,
-            message: `client session status changed from ${this.state.state} to ${client_session_state.state}`,
+            message: `Parent station session status changed from ${this.state.state} to ${client_session_state.state}`,
         })
         this.state = client_session_state;
         this.dispatchEvent(new Event(EventTypeParentStationSessionStateChanged));

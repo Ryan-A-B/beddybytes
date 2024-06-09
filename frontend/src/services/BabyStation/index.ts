@@ -1,3 +1,4 @@
+import LoggingService from '../LoggingService';
 import MediaDevicePermissionService from "./MediaDevicePermissionService";
 import MediaStreamService from "./MediaStreamService";
 import SessionService from "./SessionService";

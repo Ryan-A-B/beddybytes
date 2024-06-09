@@ -1,3 +1,4 @@
+import LoggingService from '../LoggingService';
 import EventService from "../EventService";
 import RecordingService from "./RecordingService";
 import ProjectedSessionList from "./SessionListService/ProjectedListService";
