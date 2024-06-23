@@ -105,7 +105,7 @@ const BabyStation: React.FunctionComponent = () => {
         </div>
     );
     return (
-        <main className="baby-station container">
+        <main className="container wrapper-content baby-station">
             <div className="row justify-content-center g-2">
                 <div className="form-group col-sm-auto col-lg">
                     <div className="input-group">

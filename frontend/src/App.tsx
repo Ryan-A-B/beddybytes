@@ -7,6 +7,7 @@ import event_service from "./services/instances/event_service"
 import signal_service from "./services/instances/signal_service"
 
 import Navbar from './components/Navbar';
+import Footer from './components/Footer';
 import Login from './pages/Login';
 import Instructions from './pages/Instructions';
 import BabyStation from './pages/BabyStation';
@@ -25,8 +26,8 @@ export const services: Services = {
 const App: React.FunctionComponent = () => {
   return (
     <ServicesContext.Provider value={services}>
-      <Navbar />
-      <div className="wrapper-content">
+      <div className="wrapper">
+        <Navbar />
         <Login>
           <Routes>
             <Route path="/" element={<Instructions />} />
@@ -35,6 +36,7 @@ const App: React.FunctionComponent = () => {
           </Routes>
         </Login>
       </div>
+      <Footer />
     </ServicesContext.Provider>
   );
 }

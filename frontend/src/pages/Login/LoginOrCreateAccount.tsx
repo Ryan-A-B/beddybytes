@@ -31,7 +31,7 @@ const LoginOrCreateAccount: React.FunctionComponent<Props> = () => {
     const switchToCreateAccount = useOnTabClick(TabCreateAccount, setTab);
 
     return (
-        <div className="container">
+        <div className="container wrapper-content">
             <h1 className="d-md-block d-none mx-auto text-center">
                 Transform your devices!
             </h1>

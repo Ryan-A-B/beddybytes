@@ -78,7 +78,7 @@ const ParentStation: React.FunctionComponent = () => {
     });
 
     return (
-        <main className="parent-station container">
+        <main className="container wrapper-content parent-station">
             <SessionDropdown session_list={session_list} value={getSessionIfActive(client_session_state)} onChange={onSessionChange} />
             {client_session_state.state === 'session_ended' && (
                 <div id="alert-session-ended" className="alert alert-danger" role="alert">

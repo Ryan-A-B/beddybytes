@@ -7,10 +7,10 @@ export const EventTypeSessionListChanged = 'sessions_changed';
 
 const WebSocketCloseCodeNormalClosure = 1000;
 const WebSocketCloseCodeGoingAway = 1001;
-const WebSocketCloseCodeProtocolError = 1002;
-const WebSocketCloseCodeUnsupportedData = 1003;
-const WebSocketCloseCodeNoStatus = 1005;
-const WebSocketCloseCodeAbnormalClosure = 1006;
+// const WebSocketCloseCodeProtocolError = 1002;
+// const WebSocketCloseCodeUnsupportedData = 1003;
+// const WebSocketCloseCodeNoStatus = 1005;
+// const WebSocketCloseCodeAbnormalClosure = 1006;
 
 const expected_web_socket_close_codes = [
     WebSocketCloseCodeNormalClosure, // Manually closed by the user

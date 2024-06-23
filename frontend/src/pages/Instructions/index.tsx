@@ -5,7 +5,7 @@ import thumbnail from "./thumbnail.webp";
 
 const Instructions: React.FunctionComponent = () => {
     return (
-        <div className="container">
+        <main className="container wrapper-content">
             <div id="page-index" className="row align-items-center">
                 <div className="col-12 col-xl order-xl-2">
                     <div className="ratio ratio-16x9 mb-3">
@@ -41,7 +41,7 @@ const Instructions: React.FunctionComponent = () => {
                     </aside>
                 </div>
             </div>
-        </div>
+        </main>
     );
 }
 
