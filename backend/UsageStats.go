@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"sync"
 	"time"
 
 	"github.com/Ryan-A-B/beddybytes/backend/internal/eventlog"
@@ -10,6 +11,7 @@ import (
 )
 
 type UsageStats struct {
+	mutex  sync.Mutex
 	log    eventlog.EventLog
 	cursor int64
 
@@ -57,6 +59,8 @@ func (stats *UsageStats) GetCountOfActiveSessions(ctx context.Context) int {
 }
 
 func (stats *UsageStats) catchUp(ctx context.Context) {
+	stats.mutex.Lock()
+	defer stats.mutex.Unlock()
 	iterator := stats.log.GetEventIterator(ctx, &eventlog.GetEventIteratorInput{
 		FromCursor: stats.cursor,
 	})

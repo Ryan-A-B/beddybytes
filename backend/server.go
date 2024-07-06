@@ -61,6 +61,7 @@ type Handlers struct {
 	ConnectionFactory ConnectionFactory
 	SessionProjection SessionProjection
 	EventLog          eventlog.EventLog
+	UsageStats        UsageStats
 
 	Key interface{}
 }
@@ -153,6 +154,8 @@ func (handlers *Handlers) GetKey(token *jwt.Token) (interface{}, error) {
 
 func (handlers *Handlers) AddRoutes(router *mux.Router) {
 	router.HandleFunc("/", handlers.Hello).Methods(http.MethodGet).Name("Hello")
+	router.HandleFunc("/stats/total_duration", handlers.GetTotalDuration).Methods(http.MethodGet).Name("GetTotalDuration")
+
 	clientRouter := router.PathPrefix("/clients").Subrouter()
 	clientRouter.Use(internal.NewAuthorizationMiddleware(handlers.Key).Middleware)
 	clientRouter.HandleFunc("", handlers.ListClients).Methods(http.MethodGet).Name("ListClients")
