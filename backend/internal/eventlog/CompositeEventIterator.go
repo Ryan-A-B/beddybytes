@@ -3,7 +3,7 @@ package eventlog
 type CompositeEventIterator struct {
 	iterators []EventIterator
 	event     *Event
-	head      int
+	head      int64
 	err       error
 }
 

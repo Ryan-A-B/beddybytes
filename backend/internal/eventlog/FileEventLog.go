@@ -20,7 +20,7 @@ const EventsFileName = "events.jsonl"
 type FileEventLog struct {
 	folderPath string
 	file       *os.File
-	cursor     int
+	cursor     int64
 }
 
 type NewFileEventLogInput struct {
@@ -69,7 +69,7 @@ func (log *FileEventLog) GetEventIterator(ctx context.Context, input *GetEventIt
 	file, err := os.Open(filePath)
 	fatal.OnError(err)
 	scanner := bufio.NewScanner(file)
-	for i := 0; i < input.FromCursor; i++ {
+	for i := int64(0); i < input.FromCursor; i++ {
 		ok := scanner.Scan()
 		if !ok {
 			return new(NullEventIterator)
@@ -112,7 +112,7 @@ func (iterator *FileEventIterator) Err() error {
 }
 
 type FileEventLogMetadata struct {
-	Cursor int `json:"cursor"`
+	Cursor int64 `json:"cursor"`
 }
 
 func readFileEventLogMetadata(filePath string) (metadata *FileEventLogMetadata) {

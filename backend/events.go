@@ -20,7 +20,7 @@ const EventTypeServerStarted = "server.started"
 type Event struct {
 	ID            string          `json:"id"`
 	Type          string          `json:"type"`
-	LogicalClock  int             `json:"logical_clock"`
+	LogicalClock  int64           `json:"logical_clock"`
 	UnixTimestamp int64           `json:"unix_timestamp"`
 	Data          json.RawMessage `json:"data"`
 }
@@ -34,7 +34,7 @@ func (handlers *Handlers) GetEvents(responseWriter http.ResponseWriter, request 
 	}()
 	ctx := request.Context()
 	accountID := internal.GetAccountIDFromContext(ctx)
-	fromCursor, err := IntFormValue(request, "from_cursor", 0)
+	fromCursor, err := Int64FormValue(request, "from_cursor", 0)
 	if err != nil {
 		return
 	}
@@ -78,13 +78,13 @@ func WriteEvent(responseWriter http.ResponseWriter, event *eventlog.Event) {
 	}
 }
 
-func IntFormValue(request *http.Request, key string, defaultValue int) (value int, err error) {
+func Int64FormValue(request *http.Request, key string, defaultValue int64) (value int64, err error) {
 	v := request.FormValue(key)
 	if v == "" {
 		value = defaultValue
 		return
 	}
-	value, err = strconv.Atoi(v)
+	value, err = strconv.ParseInt(v, 10, 64)
 	if err != nil {
 		err = merry.Prepend(err, "invalid value for "+key).WithHTTPCode(http.StatusBadRequest)
 		return

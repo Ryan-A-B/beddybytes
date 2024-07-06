@@ -126,7 +126,7 @@ func (handlers *Handlers) EndSession(responseWriter http.ResponseWriter, request
 
 type SessionProjection struct {
 	SessionStore SessionStore
-	Head         int
+	Head         int64
 }
 
 func (projection *SessionProjection) ApplyEvent(ctx context.Context, event *eventlog.Event) {
