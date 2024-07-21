@@ -25,7 +25,7 @@ type NewUsageStatsInput struct {
 	Log eventlog.EventLog
 }
 
-func NewUsageStats(input *NewUsageStatsInput) *UsageStats {
+func NewUsageStats(ctx context.Context, input NewUsageStatsInput) *UsageStats {
 	return &UsageStats{
 		log:                          input.Log,
 		sessionInfoByID:              make(map[string]*SessionInfo),

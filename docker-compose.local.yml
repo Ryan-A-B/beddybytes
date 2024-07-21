@@ -23,12 +23,14 @@ services:
           - api.beddybytes.local
           - influx.beddybytes.local
           - grafana.beddybytes.local
-  backend:
-    image: beddybytes-backend
+  api:
+    image: beddybytes-api
     build:
       context: .
       dockerfile: Dockerfile
     restart: always
+    ports:
+      - 9000
     volumes:
       - ./eventlog:/opt/eventlog
     environment:
@@ -45,30 +47,32 @@ services:
       - FROM_EMAIL_ADDRESS=${FROM_EMAIL_ADDRESS}
       - SEND_EMAIL_STRATEGY=null
     labels:
-      - "traefik.http.routers.backend.rule=Host(`api.beddybytes.local`)"
-      - "traefik.http.routers.backend.entrypoints=websecure"
-      - "traefik.http.routers.backend.tls=true"
-      - "traefik.http.routers.backend.middlewares=headers-cors@docker"
-      - "traefik.http.services.backend.loadbalancer.server.port=9000"
-  frontend:
+      - "traefik.http.routers.api.rule=Host(`api.beddybytes.local`)"
+      - "traefik.http.routers.api.entrypoints=websecure"
+      - "traefik.http.routers.api.tls=true"
+      - "traefik.http.routers.api.middlewares=headers-cors@docker"
+  app:
     image: node:18
     command: yarn start
     restart: always
+    ports:
+      - 3000
     volumes:
-      - ./frontend/:/opt/frontend
+      - ./frontend/:/opt/app
     environment:
       - WDS_SOCKET_HOST=app.beddybytes.local
       - WDS_SOCKET_PORT=443
-    working_dir: /opt/frontend
+    working_dir: /opt/app
     labels:
-      - "traefik.http.routers.frontend.rule=Host(`app.beddybytes.local`)"
-      - "traefik.http.routers.frontend.entrypoints=websecure"
-      - "traefik.http.routers.frontend.tls=true"
-      - "traefik.http.services.frontend.loadbalancer.server.port=3000"
+      - "traefik.http.routers.app.rule=Host(`app.beddybytes.local`)"
+      - "traefik.http.routers.app.entrypoints=websecure"
+      - "traefik.http.routers.app.tls=true"
   marketing:
     image: node:18
     command: npm run develop
     restart: always
+    ports:
+      - 8000
     volumes:
       - ./marketing/:/opt/marketing
     working_dir: /opt/marketing
@@ -76,10 +80,11 @@ services:
       - "traefik.http.routers.marketing.rule=Host(`beddybytes.local`)"
       - "traefik.http.routers.marketing.entrypoints=websecure"
       - "traefik.http.routers.marketing.tls=true"
-      - "traefik.http.services.marketing.loadbalancer.server.port=8000"
   influxdb:
     image: influxdb:2.7-alpine
     restart: always
+    ports:
+      - 8086
     volumes:
       - ./influxdb/data:/var/lib/influxdb2
     labels:
@@ -87,10 +92,11 @@ services:
       - "traefik.http.routers.influx.entrypoints=websecure"
       - "traefik.http.routers.influx.tls=true"
       - "traefik.http.routers.influx.middlewares=headers-cors@docker"
-      - "traefik.http.services.influx.loadbalancer.server.port=8086"
   grafana:
     image: grafana/grafana-oss:10.2.2
     restart: always
+    ports:
+      - 3000
     volumes:
       - grafana_storage:/var/lib/grafana
     labels:
@@ -98,7 +104,6 @@ services:
       - "traefik.http.routers.grafana.entrypoints=websecure"
       - "traefik.http.routers.grafana.tls=true"
       - "traefik.http.routers.grafana.middlewares=headers-cors@docker"
-      - "traefik.http.services.grafana.loadbalancer.server.port=3000"
   selenium_hub:
     image: selenium/hub:4.11.0-20230801
     restart: always
@@ -116,6 +121,7 @@ services:
   #     - SE_EVENT_BUS_PUBLISH_PORT=4442
   #     - SE_EVENT_BUS_SUBSCRIBE_PORT=4443
   selenium_chrome_node:
+    # port 7900 for VNC password is "secret"
     image: selenium/node-chrome:4.11.0-20230801
     restart: always
     depends_on:

@@ -61,7 +61,7 @@ type Handlers struct {
 	ConnectionFactory ConnectionFactory
 	SessionProjection SessionProjection
 	EventLog          eventlog.EventLog
-	UsageStats        UsageStats
+	UsageStats        *UsageStats
 
 	Key interface{}
 }
@@ -154,7 +154,7 @@ func (handlers *Handlers) GetKey(token *jwt.Token) (interface{}, error) {
 
 func (handlers *Handlers) AddRoutes(router *mux.Router) {
 	router.HandleFunc("/", handlers.Hello).Methods(http.MethodGet).Name("Hello")
-	router.HandleFunc("/stats/total_duration", handlers.GetTotalDuration).Methods(http.MethodGet).Name("GetTotalDuration")
+	router.HandleFunc("/stats/total_hours", handlers.GetTotalHours).Methods(http.MethodGet).Name("GetTotalDuration")
 
 	clientRouter := router.PathPrefix("/clients").Subrouter()
 	clientRouter.Use(internal.NewAuthorizationMiddleware(handlers.Key).Middleware)
@@ -227,7 +227,12 @@ func main() {
 			}),
 		},
 		EventLog: eventLog,
-		Key:      key,
+		UsageStats: NewUsageStats(ctx, NewUsageStatsInput{
+			Log: eventlog.NewFileEventLog(&eventlog.NewFileEventLogInput{
+				FolderPath: internal.EnvStringOrFatal("FILE_EVENT_LOG_FOLDER_PATH"),
+			}),
+		}),
+		Key: key,
 	}
 	go eventlog.Project(ctx, &eventlog.ProjectInput{
 		EventLog:   handlers.EventLog,

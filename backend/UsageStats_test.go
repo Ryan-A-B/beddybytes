@@ -20,7 +20,7 @@ func TestUsageStats(t *testing.T) {
 		log := eventlog.NewFileEventLog(&eventlog.NewFileEventLogInput{
 			FolderPath: folderPath,
 		})
-		stats := NewUsageStats(&NewUsageStatsInput{
+		stats := NewUsageStats(ctx, NewUsageStatsInput{
 			Log: log,
 		})
 		So(stats.GetTotalDuration(ctx), ShouldEqual, 0)
