@@ -1,13 +1,18 @@
 @import "../../scss/configuration";
 
-section.social-proof {
+section#social-proof {
     .testimonials {
         columns: 375px 3;
         column-gap: $spacer;
 
         .blockquote {
-            padding: 2 * $spacer;
-            padding-bottom: $spacer;
+            padding: {
+                top: 2 * $spacer;
+                left: 1.5 * $spacer;
+                right: 1.5 * $spacer;
+                bottom: $spacer;
+            }
+
             background-color: $orange-400;
             border-radius: $border-radius;
             position: relative;

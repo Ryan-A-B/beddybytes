@@ -3,7 +3,7 @@ import './style.scss'
 
 const SocialProofSection: React.FunctionComponent = () => {
     return (
-        <section className="bg-secondary text-bg-secondary py-5 social-proof">
+        <section id="social-proof" className="bg-secondary text-bg-secondary py-5 ">
             <div className="container">
                 <h1 className="text-center">
                     Over <span className="text-light">1,500</span> hours monitored!
