@@ -1,5 +1,4 @@
 $purple: #730099;
-
 $purple-100: tint-color($purple, 80%);
 $purple-200: tint-color($purple, 60%);
 $purple-300: tint-color($purple, 40%);
@@ -10,9 +9,21 @@ $purple-700: shade-color($purple, 40%);
 $purple-800: shade-color($purple, 60%);
 $purple-900: shade-color($purple, 80%);
 
+$orange:  #fd7e14;
+$orange-100: tint-color($orange, 80%);
+$orange-200: tint-color($orange, 60%);
+$orange-300: tint-color($orange, 40%);
+$orange-400: tint-color($orange, 20%);
+$orange-500: $orange;
+$orange-600: shade-color($orange, 20%);
+$orange-700: shade-color($orange, 40%);
+$orange-800: shade-color($orange, 60%);
+$orange-900: shade-color($orange, 80%);
+
 $dark: $purple-700;
 
 $primary: $purple;
+$secondary: $orange;
 
 @import "bootstrap/scss/variables";
 @import "bootstrap/scss/variables-dark";

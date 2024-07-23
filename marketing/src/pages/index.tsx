@@ -4,6 +4,7 @@ import { StaticImage } from 'gatsby-plugin-image'
 import DefaultPageWrapper from "../components/DefaultPageWrapper"
 import DefaultHeroSection from "../components/DefaultHeroSection"
 import Features from "../components/Features"
+import SocialProofSection from "../components/SocialProof/Section"
 
 const IndexPage: React.FunctionComponent<PageProps> = () => {
   return (
@@ -28,6 +29,7 @@ const IndexPage: React.FunctionComponent<PageProps> = () => {
         <Features>
           <h2>Features</h2>
         </Features>
+        <SocialProofSection />
       </main>
     </DefaultPageWrapper>
   )

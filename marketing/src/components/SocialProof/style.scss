@@ -1,0 +1,39 @@
+@import "../../scss/configuration";
+
+section.social-proof {
+    .testimonials {
+        columns: 375px 2;
+        column-gap: $spacer;
+
+        .blockquote {
+            padding: 2 * $spacer;
+            padding-bottom: $spacer;
+            background-color: $orange-400;
+            border-radius: $border-radius;
+            position: relative;
+            text-align: justify;
+
+            display: inline-block;
+            width: 100%;
+
+            &::before,
+            &::after {
+                font-size: 4rem;
+                color: $orange-600;
+                position: absolute;
+                top: 0;
+                transform: translate(0, -15%);
+            }
+
+            &::before {
+                content: open-quote;
+                left: 0;
+            }
+
+            &::after {
+                content: close-quote;
+                right: 0;
+            }
+        }
+    }
+}
