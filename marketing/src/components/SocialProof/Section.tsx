@@ -20,10 +20,17 @@ const SocialProofSection: React.FunctionComponent = () => {
                         life are completely private is very reassuring too.
                     </blockquote>
                     <blockquote className="blockquote">
-                        Great job! Your emphasis on security and sustainability by using existing devices is commendable.
+                        Great job! Your emphasis on security and sustainability by
+                        using existing devices is commendable.
                     </blockquote>
                     <blockquote className="blockquote">
                         Love that it keeps things local for privacy.
+                    </blockquote>
+                    <blockquote className="blockquote">
+                        The girls were tidying the garage this morning and normally I
+                        miss out on all their daily activities but I had BeddyBytes
+                        running on a tablet next to me during meeting and I could see
+                        and hear them so felt more included.
                     </blockquote>
                 </section>
             </div>
