@@ -9,21 +9,21 @@ $purple-700: shade-color($purple, 40%);
 $purple-800: shade-color($purple, 60%);
 $purple-900: shade-color($purple, 80%);
 
-$orange:  #fd7e14;
-$orange-100: tint-color($orange, 80%);
-$orange-200: tint-color($orange, 60%);
-$orange-300: tint-color($orange, 40%);
-$orange-400: tint-color($orange, 20%);
-$orange-500: $orange;
-$orange-600: shade-color($orange, 20%);
-$orange-700: shade-color($orange, 40%);
-$orange-800: shade-color($orange, 60%);
-$orange-900: shade-color($orange, 80%);
+$teal:    #20c997 ;
+$teal-100: tint-color($teal, 80%);
+$teal-200: tint-color($teal, 60%);
+$teal-300: tint-color($teal, 40%);
+$teal-400: tint-color($teal, 20%);
+$teal-500: $teal;
+$teal-600: shade-color($teal, 20%);
+$teal-700: shade-color($teal, 40%);
+$teal-800: shade-color($teal, 60%);
+$teal-900: shade-color($teal, 80%);
 
 $dark: $purple-700;
 
 $primary: $purple;
-$secondary: $orange;
+$secondary: $teal;
 
 @import "bootstrap/scss/variables";
 @import "bootstrap/scss/variables-dark";

@@ -5,11 +5,11 @@ const SocialProofSection: React.FunctionComponent = () => {
     return (
         <section id="social-proof" className="bg-secondary text-bg-secondary py-5 ">
             <div className="container">
-                <h1 className="text-center">
+                <h1 className="text-center mb-4">
                     Over <span className="text-light">1,500</span> hours monitored!
                 </h1>
-                <h3 className="text-center">
-                    Here's what some of our users have to say:
+                <h3 className="text-center mb-3">
+                    Here's what some of our users have to say
                 </h3>
                 <section className="testimonials">
                     <blockquote className="blockquote">

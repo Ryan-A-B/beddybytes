@@ -13,31 +13,29 @@ section#social-proof {
                 bottom: $spacer;
             }
 
-            background-color: $orange-400;
+            background-color: tint-color($secondary, 20%);
             border-radius: $border-radius;
             position: relative;
-            text-align: justify;
-
-            display: inline-block;
-            width: 100%;
 
             &::before,
             &::after {
                 font-size: 4rem;
-                color: $orange-600;
+                color: shade-color($secondary, 20%);
                 position: absolute;
-                top: 0;
-                transform: translate(0, -15%);
             }
-
+            
             &::before {
                 content: open-quote;
+                top: 0;
                 left: 0;
+                transform: translate(0, -15%);
             }
 
             &::after {
                 content: close-quote;
+                bottom: 0;
                 right: 0;
+                transform: translate(0, 50%);
             }
         }
     }
