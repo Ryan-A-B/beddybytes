@@ -21,6 +21,16 @@ Resources:
         HostedZoneId: Z2FDTNDATAQYW2
         DNSName: !GetAtt CDN.DomainName
 
+  DNSRecordWWW:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneName: !Ref HostedZoneName
+      Name: !Sub www.${DomainName}
+      Type: A
+      AliasTarget:
+        HostedZoneId: Z2FDTNDATAQYW2
+        DNSName: !GetAtt CDN.DomainName
+
   Bucket:
     Type: AWS::S3::Bucket
     Properties:
@@ -87,6 +97,8 @@ Resources:
       DomainValidationOptions:
         - DomainName: !Ref DomainName
           HostedZoneId: !Ref HostedZoneId
+      SubjectAlternativeNames:
+        - !Sub www.${DomainName}
 
   CDN:
     Type: AWS::CloudFront::Distribution
@@ -95,6 +107,7 @@ Resources:
         Enabled: true
         Aliases:
           - !Ref DomainName
+          - !Sub www.${DomainName}
         DefaultRootObject: index.html
         Origins:
           - DomainName: !GetAtt Bucket.DomainName
