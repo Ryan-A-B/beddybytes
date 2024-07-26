@@ -9,6 +9,7 @@ import FeaturesCurrent from '../../components/FeaturesCurrent'
 import FeaturesComingSoon from '../../components/FeaturesComingSoon'
 import PurchaseLifetimeAccessCallToAction from '../../components/CallToAction/PurchaseLifetimeAccessCallToAction'
 import DefaultPageWrapper from '../../components/DefaultPageWrapper'
+import SocialProofSection from '../../components/SocialProof/Section'
 
 const PrivateBabyMonitorPage: React.FunctionComponent = () => (
     <DefaultPageWrapper>
@@ -96,6 +97,7 @@ const PrivateBabyMonitorPage: React.FunctionComponent = () => (
                 </section>
             </main >
             <DemoSection />
+            <SocialProofSection />
             <PricingSection />
             <FAQSection />
         </main>
