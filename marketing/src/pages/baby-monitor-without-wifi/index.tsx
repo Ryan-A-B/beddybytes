@@ -13,7 +13,7 @@ import SocialProofSection from '../../components/SocialProof/Section'
 
 const PrivateBabyMonitorPage: React.FunctionComponent = () => (
     <DefaultPageWrapper>
-        <main className="landing-page">
+        <div className="landing-page">
             <main id="main">
                 <section id="hero">
                     <div className="container">
@@ -100,7 +100,7 @@ const PrivateBabyMonitorPage: React.FunctionComponent = () => (
             <SocialProofSection />
             <PricingSection />
             <FAQSection />
-        </main>
+        </div>
     </DefaultPageWrapper>
 )
 
