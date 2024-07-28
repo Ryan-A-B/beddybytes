@@ -2,8 +2,8 @@ package sendemail
 
 import (
 	"context"
+	"log"
 
-	"github.com/Ryan-A-B/beddybytes/internal/fatal"
 	"github.com/aws/aws-sdk-go-v2/service/sesv2"
 	"github.com/aws/aws-sdk-go-v2/service/sesv2/types"
 )
@@ -41,7 +41,9 @@ func (strategy *SendEmailUsingSESStrategy) SendEmail(ctx context.Context, input 
 			},
 		},
 	})
-	fatal.OnError(err)
+	if err != nil {
+		log.Println("SendEmailUsingSESStrategy.SendEmail failed:", err)
+	}
 	messageID = *output.MessageId
 	return
 }
