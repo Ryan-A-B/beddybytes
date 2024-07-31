@@ -11,7 +11,7 @@ const AppLink: React.FunctionComponent = () => (
 )
 
 const PaymentComplete: React.FunctionComponent = () => (
-    <DefaultPageWrapper include_call_to_action_section={false}>
+    <DefaultPageWrapper without_call_to_action_section>
         <main id="payment-complete" >
             <section className="bg-primary text-bg-primary py-5">
                 <div className="container">
