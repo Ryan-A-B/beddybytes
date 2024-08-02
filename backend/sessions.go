@@ -47,20 +47,6 @@ type Session struct {
 	StartedAt        time.Time `json:"started_at"`
 }
 
-func (handlers *Handlers) ListSessions(responseWriter http.ResponseWriter, request *http.Request) {
-	var err error
-	defer func() {
-		if err != nil {
-			log.Println(err)
-			xhttp.Error(responseWriter, err)
-		}
-	}()
-	ctx := request.Context()
-	accountID := internal.GetAccountIDFromContext(ctx)
-	sessions := handlers.SessionProjection.SessionStore.List(accountID)
-	json.NewEncoder(responseWriter).Encode(sessions)
-}
-
 func (handlers *Handlers) StartSession(responseWriter http.ResponseWriter, request *http.Request) {
 	var err error
 	defer func() {

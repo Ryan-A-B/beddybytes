@@ -1,3 +1,4 @@
+// For callers who ask for an access token before the user has logged in
 const get_access_token_asap = async (authorization_service: AuthorizationService) => {
     const authorization_state = authorization_service.get_state();
     if (authorization_state.state !== 'no_account')

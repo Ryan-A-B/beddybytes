@@ -67,7 +67,7 @@ const items: FAQItem[] = [
         question: 'Does it have night vision?',
         answer: (
             <p>
-                Sadly, most smartphone cameras don't have a night vision camera.
+                Sadly, most smartphone cameras don't have a night vision camera. But there is an audio only mode which we use every night.
             </p>
         )
     }

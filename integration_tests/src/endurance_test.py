@@ -112,7 +112,6 @@ class ParentStation:
         self.probability_of_connecting = input["probability_of_connecting"]
         self.probability_of_disconnecting = input["probability_of_disconnecting"]
         self.driver = None
-        self.video_element = None
 
     def __call__(self):
         if self.status == "disconnected":
@@ -145,13 +144,15 @@ class ParentStation:
             print(f"{self.name} could not connect because the baby station is unavailable")
             return
         first_session_option.click()
-        self.video_element = driver_wait.until(lambda driver: driver.find_element(By.ID, "video-parent"))
-        if not self.video_element.is_displayed():
+        video_element = driver_wait.until(lambda driver: driver.find_element(By.ID, "video-parent"))
+        if not video_element.is_displayed():
             raise Exception(f"{self.name} video element is not displayed")
         self.status = "connected"
 
     def handle_connected(self):
-        if not self.video_element.is_displayed():
+        driver_wait = WebDriverWait(self.driver, 1)
+        video_element = driver_wait.until(lambda driver: driver.find_element(By.ID, "video-parent"))
+        if not video_element.is_displayed():
             raise Exception(f"{self.name} video element is not displayed")
 
         if get_random_bool(self.probability_of_disconnecting):

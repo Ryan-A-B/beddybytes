@@ -5,6 +5,7 @@ import { v4 as uuid } from 'uuid';
 import moment from 'moment';
 
 import SessionsDropdown from '.';
+import { Session } from '../../services/ParentStation/SessionListService/types';
 
 describe('SessionsDropdown', () => {
     it('should render correctly when there are no sessions', async () => {

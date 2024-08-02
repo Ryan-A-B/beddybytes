@@ -1,4 +1,5 @@
 import { v4 as uuid } from 'uuid';
+import { Session } from '../SessionListService/types';
 import { InitiatedBy } from "./Connection/InitiatedBy";
 
 export const EventTypeClientSessionStatusChanged = 'client_session_status_changed';

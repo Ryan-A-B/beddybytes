@@ -7,13 +7,16 @@ import SocialProofSection from '../../components/SocialProof/Section'
 import FAQSection from '../../components/LandingPage/FAQSection'
 import Features from '../../components/Features'
 import CallToAction from './CallToAction'
+import DiscountedPrice from '../../components/Pricing/DiscountedPrice'
+
+import "./style.scss"
 
 const CitizenOneLink: React.FunctionComponent = () => <a href="https://paulgconlon.com" target="_blank" className="link-secondary">Citizen One</a>
 
 const PaulGConlon = () => (
     <DefaultPageWrapper without_call_to_action_section>
-        <div className="landing-page">
-            <main >
+        <div id="paulgconlon" className="landing-page">
+            <main>
                 <section className="bg-primary text-bg-primary py-5">
                     <div className="container ">
                         <div className="row align-items-center">
@@ -39,6 +42,7 @@ const PaulGConlon = () => (
                 </section>
                 <section id="problem">
                     <div className="container">
+                        <h2>You want a baby monitor, not a video broadcasting service.</h2>
                         <p>
                             As parents, we cherish every moment with our little ones and strive to protect their
                             future. Yet it's hard for many to grasp that digital protection is now every bit as
@@ -99,6 +103,28 @@ const PaulGConlon = () => (
             <Features backgroundClassName="bg-tertiary">
                 <h2>Features</h2>
             </Features>
+            <section id="pricing">
+                <div className="container">
+                    <h6 className="text-center">Pricing</h6>
+                    <h2 className="text-center">No subscription</h2>
+                    <div className="row justify-content-center">
+                        <div className="col-sm-auto my-3">
+                            <section className="card card-pricing">
+                                <div className="card-body">
+                                    <h3 className="card-title">
+                                        Lifetime access
+                                    </h3>
+                                    <h5 className="card-subtitle mb-3">
+                                        Buy once, use forever
+                                    </h5>
+                                    <DiscountedPrice price={80} discount={0.8} />
+                                    <CallToAction button_color="primary" />
+                                </div>
+                            </section>
+                        </div>
+                    </div>
+                </div>
+            </section>
             <DemoSection />
             <SocialProofSection />
             <FAQSection />

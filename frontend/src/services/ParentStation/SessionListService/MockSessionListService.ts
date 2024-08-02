@@ -1,5 +1,5 @@
 import { List } from 'immutable';
-import { EventTypeSessionListChanged } from './ProjectedListService';
+import { EventTypeSessionListChanged, Session, SessionListService } from './types';
 
 class MockSessionListService extends EventTarget implements SessionListService {
     private session_list: List<Session> = List();

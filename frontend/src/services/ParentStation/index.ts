@@ -1,13 +1,13 @@
 import LoggingService from '../LoggingService';
-import EventService from "../EventService";
 import RecordingService from "./RecordingService";
-import ProjectedSessionList from "./SessionListService/ProjectedListService";
 import SessionService from "./SessionService";
+import { SessionListService } from './SessionListService/types';
+import SessionListServiceImpl from './SessionListService';
 
 interface NewParentStationInput {
     logging_service: LoggingService;
+    authorization_service: AuthorizationService;
     signal_service: SignalService;
-    event_service: EventService;
 }
 
 class ParentStation {
@@ -15,9 +15,10 @@ class ParentStation {
     readonly session_service: ParentStationSessionService;
     readonly recording_service: RecordingService;
 
-    constructor({ logging_service, signal_service, event_service }: NewParentStationInput) {
-        this.session_list_service = new ProjectedSessionList({
-            event_service,
+    constructor({ logging_service, authorization_service, signal_service }: NewParentStationInput) {
+        this.session_list_service = new SessionListServiceImpl({
+            logging_service,
+            authorization_service: authorization_service,
         });
         this.session_service = new SessionService({
             logging_service,

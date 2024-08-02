@@ -19,7 +19,7 @@ class ConsoleLoggingService implements LoggingService {
 
     private get_log_func = (severity: Severity) => {
         if (severity <= Severity.Warning) return console.error
-        return console.error
+        return console.log
     }
 }
 

@@ -12,6 +12,7 @@ import Stream from "./Stream";
 import "./style.scss";
 import parent_station from "../../services/instances/parent_station";
 import { EventTypeParentStationSessionStateChanged } from "../../services/ParentStation/SessionService";
+import { Session } from "../../services/ParentStation/SessionListService/types";
 
 const getSessionIfActive = (client_session_status: ParentStationSessionState): Session | null => {
     if (client_session_status.state === "joining") return client_session_status.session;

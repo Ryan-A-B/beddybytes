@@ -53,6 +53,7 @@ class WebSocketSignalService extends EventTarget implements SignalService {
     private logging_service: LoggingService;
     private authorization_service: AuthorizationService;
     private state: WebSocketSignalState = WebSocketSignalService.InitialState;
+    private pong_event_target: EventTarget = new EventTarget();
 
     public readonly connection_id: string;
 
@@ -122,16 +123,31 @@ class WebSocketSignalService extends EventTarget implements SignalService {
             state: 'connected',
             ws: this.state.ws,
         });
+        this.keep_alive();
     }
 
     private on_message = (event: MessageEvent) => {
         if (this.state.state !== 'connected') return;
         const message = JSON.parse(event.data);
-        if (message.type !== 'signal') return;
+        switch (message.type) {
+            case 'signal':
+                this.on_signal(message);
+                return;
+            case 'pong':
+                this.on_pong();
+                return;
+        }
+    }
+
+    private on_signal = (message: any) => {
         this.dispatchEvent(new CustomEvent('signal', {
             detail: message.signal,
             bubbles: true
         }));
+    }
+
+    private on_pong = () => {
+        this.pong_event_target.dispatchEvent(new Event('pong'));
     }
 
     public send_signal = (input: SendSignalInput) => {
@@ -145,6 +161,45 @@ class WebSocketSignalService extends EventTarget implements SignalService {
             type: 'signal',
             signal: input,
         }));
+    }
+
+    private keep_alive = async () => {
+        const pingInterval = 30000;
+        if (this.state.state !== 'connected') return;
+        this.send_ping(this.state.ws);
+        try {
+            await this.wait_for_pong();
+        } catch (err: unknown) {
+            this.logging_service.log({
+                severity: Severity.Error,
+                message: "pong timeout, reconnecting"
+            });
+            this.reconnect(WebSocketSignalService.InitialRetryDelay);
+        }
+        setTimeout(this.keep_alive, pingInterval);
+    }
+
+    private send_ping = (ws: WebSocket) => {
+        ws.send(JSON.stringify({
+            type: 'ping',
+        }));
+    }
+
+    private wait_for_pong = (): Promise<void> => {
+        const pong_timeout = 10000;
+        return new Promise((resolve, reject) => {
+            let done = false;
+            this.pong_event_target.addEventListener('pong', () => {
+                if (done) return;
+                done = true;
+                resolve();
+            });
+            setTimeout(() => {
+                if (done) return;
+                done = true;
+                reject(new Error('WebSocket ping timeout'));
+            }, pong_timeout);
+        });
     }
 
     private on_error = (event: Event) => {

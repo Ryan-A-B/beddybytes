@@ -22,6 +22,7 @@ import (
 	"github.com/Ryan-A-B/beddybytes/backend/internal/sendemail"
 	"github.com/Ryan-A-B/beddybytes/backend/internal/store"
 	"github.com/Ryan-A-B/beddybytes/backend/internal/store2"
+	"github.com/Ryan-A-B/beddybytes/backend/sessionlist"
 	"github.com/Ryan-A-B/beddybytes/internal/fatal"
 	"github.com/Ryan-A-B/beddybytes/internal/square"
 )
@@ -60,6 +61,7 @@ type Handlers struct {
 	ClientStore       ClientStore
 	ConnectionFactory ConnectionFactory
 	SessionProjection SessionProjection
+	SessionList       *sessionlist.SessionList
 	EventLog          eventlog.EventLog
 	UsageStats        *UsageStats
 
@@ -148,6 +150,16 @@ func (handlers *Handlers) ListClients(responseWriter http.ResponseWriter, reques
 	}
 }
 
+func (handlers *Handlers) ListSessions(responseWriter http.ResponseWriter, request *http.Request) {
+	ctx := request.Context()
+	output := handlers.SessionList.List(ctx)
+	err := json.NewEncoder(responseWriter).Encode(output)
+	if err != nil {
+		log.Panicln(err)
+		return
+	}
+}
+
 func (handlers *Handlers) GetKey(token *jwt.Token) (interface{}, error) {
 	return handlers.Key, nil
 }
@@ -226,6 +238,11 @@ func main() {
 				Decorated: new(SessionStoreInMemory),
 			}),
 		},
+		SessionList: sessionlist.New(ctx, sessionlist.NewInput{
+			Log: eventlog.NewFileEventLog(&eventlog.NewFileEventLogInput{
+				FolderPath: internal.EnvStringOrFatal("FILE_EVENT_LOG_FOLDER_PATH"),
+			}),
+		}),
 		EventLog: eventLog,
 		UsageStats: NewUsageStats(ctx, NewUsageStatsInput{
 			Log: eventlog.NewFileEventLog(&eventlog.NewFileEventLogInput{

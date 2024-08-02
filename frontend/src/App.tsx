@@ -3,7 +3,6 @@ import { Route, Routes } from 'react-router-dom';
 
 import logging_service from "./services/instances/logging_service"
 import authorization_service from "./services/instances/authorization_service"
-import event_service from "./services/instances/event_service"
 import signal_service from "./services/instances/signal_service"
 
 import Navbar from './components/Navbar';
@@ -19,7 +18,6 @@ import './App.scss';
 export const services: Services = {
   logging_service,
   authorization_service,
-  event_service,
   signal_service,
 };
 

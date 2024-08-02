@@ -10,6 +10,7 @@ import MockSignalService from '../../services/SignalService/MockSignalService';
 import ParentStation from '.';
 import sleep from '../../utils/sleep';
 import MockSessionService from '../../services/ParentStation/SessionService/MockSessionService';
+import { Session } from '../../services/ParentStation/SessionListService/types';
 
 describe('Monitor', () => {
     describe('when there are no sessions', () => {

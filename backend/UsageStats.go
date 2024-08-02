@@ -72,16 +72,16 @@ func (stats *UsageStats) catchUp(ctx context.Context) {
 }
 
 func (stats *UsageStats) applyEvent(ctx context.Context, event *eventlog.Event) {
-	apply, ok := applyByType[event.Type]
+	apply, ok := statsApplyByType[event.Type]
 	if !ok {
 		return
 	}
 	apply(ctx, stats, event)
 }
 
-type applyFunc func(ctx context.Context, stats *UsageStats, event *eventlog.Event)
+type statsApplyFunc func(ctx context.Context, stats *UsageStats, event *eventlog.Event)
 
-var applyByType = map[string]applyFunc{
+var statsApplyByType = map[string]statsApplyFunc{
 	EventTypeServerStarted:      applyServerStartedEvent,
 	EventTypeSessionStarted:     applySessionStartedEvent,
 	EventTypeSessionEnded:       applySessionEndedEvent,

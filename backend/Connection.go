@@ -37,8 +37,10 @@ type ClientDisconnectedEventData struct {
 type MessageType string
 
 const (
+	MessageTypePing   MessageType = "ping"
+	MessageTypePong   MessageType = "pong"
 	MessageTypeSignal MessageType = "signal"
-	MessageTypeEvent  MessageType = "event"
+	MessageTypeEvent  MessageType = "event" // TODO delete
 )
 
 type IncomingMessage struct {
@@ -47,15 +49,19 @@ type IncomingMessage struct {
 }
 
 func (message *IncomingMessage) Validate() (err error) {
-	if message.Type != MessageTypeSignal {
+	switch message.Type {
+	case MessageTypePing:
+		return
+	case MessageTypeSignal:
+		if message.Signal == nil {
+			err = errors.New("missing signal")
+			return
+		}
+		return message.Signal.Validate()
+	default:
 		err = errors.New("invalid message type")
 		return
 	}
-	if message.Signal == nil {
-		err = errors.New("missing signal")
-		return
-	}
-	return message.Signal.Validate()
 }
 
 type IncomingSignal struct {
@@ -215,6 +221,10 @@ func (connection *Connection) handleNextMessage(ctx context.Context) (err error)
 		return
 	}
 	switch incomingMessage.Type {
+	case MessageTypePing:
+		return connection.conn.WriteJSON(OutgoingMessage{
+			Type: MessageTypePong,
+		})
 	case MessageTypeSignal:
 		return connection.handleSignal(ctx, incomingMessage.Signal)
 	default:

@@ -1,8 +1,8 @@
 import { List } from "immutable";
 import LoggingService, { Severity } from '../../LoggingService';
-import { EventTypeSessionListChanged } from "../SessionListService/ProjectedListService";
 import { InitiatedBy } from "./Connection/InitiatedBy";
 import RTCConnection from "./Connection/RTCConnection";
+import { EventTypeSessionListChanged, Session, SessionListService } from "../SessionListService/types";
 
 export const EventTypeParentStationSessionStateChanged = 'client_session_status_changed';
 

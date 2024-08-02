@@ -1,9 +1,7 @@
 import { Map, List } from "immutable";
 import moment from "moment";
-import EventService, { EventTypeEventServiceStatusChanged } from "../../EventService";
 import eventstore from "../../../eventstore";
-
-export const EventTypeSessionListChanged = 'sessions_changed';
+import { Session } from "./types";
 
 const WebSocketCloseCodeNormalClosure = 1000;
 const WebSocketCloseCodeGoingAway = 1001;
@@ -60,50 +58,19 @@ interface ClientDisconnectedEvent extends eventstore.Event<ClientDisconnectedEve
 interface ServerStartedEvent extends eventstore.Event<null> {
 }
 
-interface NewSessionServiceInput {
-    event_service: EventService;
-}
-
-class ProjectedSessionList extends EventTarget implements SessionListService {
-    private event_service: EventService;
+class SessionList {
     private sessionByID: Map<string, Session> = Map();
     private sessionByConnectionID: Map<string, Session> = Map();
-    private projecting: boolean = false;
 
-    constructor(input: NewSessionServiceInput) {
-        super();
-        this.event_service = input.event_service;
-        const event_service_status = this.event_service.get_status();
-        if (event_service_status.status === 'loading') {
-            this.event_service.addEventListener(EventTypeEventServiceStatusChanged, this.handle_event_service_status_changed);
-            return;
-        }
-        const event_store = event_service_status.event_store;
-        this.project_sessions(event_store);
+    public seed = (sessions: Session[]) => {
+        sessions.forEach(this.set_session);
     }
 
     public get_session_list = (): List<Session> => {
         return this.sessionByID.toList();
     }
 
-    private handle_event_service_status_changed = async () => {
-        const event_service_status = this.event_service.get_status();
-        if (event_service_status.status !== 'ready')
-            return;
-        const event_store = event_service_status.event_store;
-        await this.project_sessions(event_store);
-    }
-
-    private project_sessions = async (event_store: eventstore.EventStore) => {
-        if (this.projecting)
-            throw new Error("Already projecting");
-        this.projecting = true;
-        for await (const event of event_store.get_events({ from_cursor: 0 })) {
-            this.apply_event(event);
-        }
-    }
-
-    private apply_event(event: eventstore.Event) {
+    public apply = (event: eventstore.Event): boolean => {
         switch (event.type) {
             case 'session.started':
                 return this.apply_session_started_event(event as SessionStartedEvent);
@@ -115,26 +82,22 @@ class ProjectedSessionList extends EventTarget implements SessionListService {
                 return this.apply_client_disconnected_event(event as ClientDisconnectedEvent);
             case 'server.started':
                 return this.apply_server_started_event(event as ServerStartedEvent);
+            default:
+                return false;
         }
     }
 
     private set_session = (session: Session) => {
         this.sessionByID = this.sessionByID.set(session.id, session);
         this.sessionByConnectionID = this.sessionByConnectionID.set(session.host_connection_id, session);
-        this.dispatch_session_list_changed();
     }
 
     private delete_session = (session: Session) => {
         this.sessionByID = this.sessionByID.delete(session.id);
         this.sessionByConnectionID = this.sessionByConnectionID.delete(session.host_connection_id);
-        this.dispatch_session_list_changed();
     }
 
-    private dispatch_session_list_changed = () => {
-        this.dispatchEvent(new Event(EventTypeSessionListChanged));
-    }
-
-    private apply_session_started_event(event: SessionStartedEvent) {
+    private apply_session_started_event = (event: SessionStartedEvent): boolean => {
         const session: Session = {
             id: event.data.id,
             name: event.data.name,
@@ -150,17 +113,19 @@ class ProjectedSessionList extends EventTarget implements SessionListService {
         if (existing_session !== undefined)
             this.delete_session(existing_session);
         this.set_session(session);
+        return true;
     }
 
-    private apply_session_ended_event(event: SessionEndedEvent) {
+    private apply_session_ended_event = (event: SessionEndedEvent): boolean => {
         const session = this.sessionByID.get(event.data.id);
-        if (session === undefined) return;
+        if (session === undefined) return false;
         this.delete_session(session);
+        return true;
     }
 
-    private apply_client_connected_event(event: ClientConnectedEvent) {
+    private apply_client_connected_event = (event: ClientConnectedEvent): boolean => {
         const session = this.sessionByConnectionID.get(event.data.connection_id);
-        if (session === undefined) return;
+        if (session === undefined) return false;
         const updated_session: Session = {
             ...session,
             host_connection_state: {
@@ -170,13 +135,14 @@ class ProjectedSessionList extends EventTarget implements SessionListService {
             },
         };
         this.set_session(updated_session);
+        return true;
     }
 
-    private apply_client_disconnected_event(event: ClientDisconnectedEvent) {
+    private apply_client_disconnected_event = (event: ClientDisconnectedEvent): boolean => {
         const session = this.sessionByConnectionID.get(event.data.connection_id);
-        if (session === undefined) return;
-        if (session.host_connection_state.state !== 'connected') return;
-        if (session.host_connection_state.request_id !== event.data.request_id) return;
+        if (session === undefined) return false;
+        if (session.host_connection_state.state !== 'connected') return false;
+        if (session.host_connection_state.request_id !== event.data.request_id) return false;
         const expected_web_socket_close_code_received = expected_web_socket_close_codes.includes(event.data.web_socket_close_code);
         if (!expected_web_socket_close_code_received) {
             const updated_session: Session = {
@@ -187,12 +153,13 @@ class ProjectedSessionList extends EventTarget implements SessionListService {
                 },
             };
             this.set_session(updated_session);
-            return;
         }
         this.delete_session(session);
+        return true;
     }
 
-    private apply_server_started_event(event: ServerStartedEvent) {
+    private apply_server_started_event = (event: ServerStartedEvent): boolean => {
+        if (this.sessionByConnectionID.isEmpty()) return false;
         const since = moment(event.unix_timestamp, eventstore.MomentFormatUnixTimestamp);
         this.sessionByConnectionID.forEach((session) => {
             if (session.host_connection_state.state === 'disconnected') return;
@@ -205,7 +172,8 @@ class ProjectedSessionList extends EventTarget implements SessionListService {
             };
             this.set_session(updated_session);
         });
+        return true;
     }
 }
 
-export default ProjectedSessionList;
+export default SessionList;

@@ -1,12 +1,10 @@
 import React from "react"
 
-import EventService from "./EventService"
 import LoggingService from "./LoggingService"
 
 export type Services = {
     logging_service: LoggingService,
     authorization_service: AuthorizationService,
-    event_service: EventService,
     signal_service: SignalService,
 }
 
@@ -25,5 +23,4 @@ function makeUseService<K extends keyof Services>(key: K): UseService<K> {
 
 export const useLoggingService = makeUseService('logging_service');
 export const useAuthorizationService = makeUseService('authorization_service');
-export const useEventService = makeUseService('event_service');
 export const useSignalService = makeUseService('signal_service');
