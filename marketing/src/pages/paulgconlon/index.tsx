@@ -59,6 +59,13 @@ const PaulGConlon = () => (
                 <section id="solution">
                     <div className="container">
                         <div className="row align-items-center">
+                            <div className="order-md-2 d-md-block col-md col-lg-5 col-xl-4">
+                                <StaticImage
+                                    src="../../images/CitizenOne.png"
+                                    alt="Citizen One"
+                                    className="img-fluid"
+                                />
+                            </div>
                             <div className="col-md">
                                 <h4>What can Citizen One do for me?</h4>
                                 <p>
@@ -88,13 +95,6 @@ const PaulGConlon = () => (
                                     tomorrow.
                                 </p>
                                 <CallToAction />
-                            </div>
-                            <div className="d-none d-md-block col-md col-lg-5 col-xl-4">
-                                <StaticImage
-                                    src="../../images/CitizenOne.png"
-                                    alt="Citizen One"
-                                    className="img-fluid"
-                                />
                             </div>
                         </div>
                     </div>
