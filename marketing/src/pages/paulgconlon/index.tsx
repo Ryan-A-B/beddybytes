@@ -10,6 +10,7 @@ import CallToAction from './CallToAction'
 import DiscountedPrice from '../../components/Pricing/DiscountedPrice'
 
 import "./style.scss"
+import TrialPeriod from '../../components/LandingPage/PricingSection/TrialPeriod'
 
 const CitizenOneLink: React.FunctionComponent = () => <a href="https://paulgconlon.com" target="_blank" className="link-secondary">Citizen One</a>
 
@@ -32,8 +33,8 @@ const PaulGConlon = () => (
                             </div>
                             <div className="d-none d-md-block col-md col-lg-5 col-xl-4">
                                 <StaticImage
-                                    src="../../images/ParentStationLaptop.png"
-                                    alt="laptop parent station"
+                                    src="../../images/CitizenOne.png"
+                                    alt="Citizen One"
                                     className="img-fluid"
                                 />
                             </div>
@@ -61,8 +62,8 @@ const PaulGConlon = () => (
                         <div className="row align-items-center">
                             <div className="order-md-2 d-md-block col-md col-lg-5 col-xl-4">
                                 <StaticImage
-                                    src="../../images/CitizenOne.png"
-                                    alt="Citizen One"
+                                    src="../../images/ParentStationLaptop.png"
+                                    alt="laptop parent station"
                                     className="img-fluid"
                                 />
                             </div>
@@ -123,6 +124,7 @@ const PaulGConlon = () => (
                             </section>
                         </div>
                     </div>
+                    <TrialPeriod />
                 </div>
             </section>
             <DemoSection />
