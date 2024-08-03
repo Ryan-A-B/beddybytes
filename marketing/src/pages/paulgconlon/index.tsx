@@ -21,6 +21,13 @@ const PaulGConlon = () => (
                 <section className="bg-primary text-bg-primary py-5">
                     <div className="container ">
                         <div className="row align-items-center">
+                            <div className="order-md-2 d-md-block col-md col-lg-5 col-xl-4">
+                                <StaticImage
+                                    src="../../images/CitizenOne.png"
+                                    alt="Citizen One"
+                                    className="img-fluid"
+                                />
+                            </div>
                             <div className="col text-center">
                                 <h1>Special Offer</h1>
                                 <h5>Celebrate Privacy with BeddyBytes and <CitizenOneLink /></h5>
@@ -30,13 +37,6 @@ const PaulGConlon = () => (
                                     We keep your data safe by never handling it in the first place.
                                 </p>
                                 <CallToAction />
-                            </div>
-                            <div className="d-none d-md-block col-md col-lg-5 col-xl-4">
-                                <StaticImage
-                                    src="../../images/CitizenOne.png"
-                                    alt="Citizen One"
-                                    className="img-fluid"
-                                />
                             </div>
                         </div>
                     </div>
@@ -60,13 +60,6 @@ const PaulGConlon = () => (
                 <section id="solution">
                     <div className="container">
                         <div className="row align-items-center">
-                            <div className="order-md-2 d-md-block col-md col-lg-5 col-xl-4">
-                                <StaticImage
-                                    src="../../images/ParentStationLaptop.png"
-                                    alt="laptop parent station"
-                                    className="img-fluid"
-                                />
-                            </div>
                             <div className="col-md">
                                 <h4>What can Citizen One do for me?</h4>
                                 <p>
@@ -96,6 +89,13 @@ const PaulGConlon = () => (
                                     tomorrow.
                                 </p>
                                 <CallToAction />
+                            </div>
+                            <div className="d-none d-md-block col-md col-lg-5 col-xl-4">
+                                <StaticImage
+                                    src="../../images/ParentStationLaptop.png"
+                                    alt="laptop parent station"
+                                    className="img-fluid"
+                                />
                             </div>
                         </div>
                     </div>
