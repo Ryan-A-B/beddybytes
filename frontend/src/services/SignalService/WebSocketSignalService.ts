@@ -37,8 +37,7 @@ type WebSocketSignalState =
     WebSocketSignalStateConnectionOpening |
     WebSocketSignalStateConnected |
     WebSocketSignalStateReconnectingPending |
-    WebSocketSignalStateReconnectionOpening |
-    SignalStateDisconnecting;
+    WebSocketSignalStateReconnectionOpening;
 
 interface NewWebSocketSignalServiceInput {
     logging_service: LoggingService;
@@ -93,26 +92,23 @@ class WebSocketSignalService extends EventTarget implements SignalService {
             })
             .catch((err: Error) => {
                 this.logging_service.log({
-                    severity: Severity.Critical,
-                    message: err.message
+                    severity: Severity.Error,
+                    message: `start: ${err.message}`
                 })
                 this.set_state(WebSocketSignalService.InitialState);
             })
     }
 
     private connect = async (): Promise<WebSocket> => {
+        const access_token = await this.authorization_service.get_access_token();
         if (!(this.state.state === 'connecting' || this.state.state === 'reconnecting'))
             throw new Error(`Expected state to be connecting or reconnecting, but was ${this.state.state}`);
         if (this.state.step !== 'pending')
             throw new Error(`Expected step to be pending, but was ${this.state.step}`);
-        const access_token = await this.authorization_service.get_access_token();
         const query_parameters = new URLSearchParams();
         query_parameters.set('access_token', access_token);
         const ws = new WebSocket(`wss://${settings.API.host}/clients/${settings.API.clientID}/connections/${this.connection_id}?${query_parameters.toString()}`);
-        ws.addEventListener('open', this.on_open);
-        ws.addEventListener('message', this.on_message);
-        ws.addEventListener('error', this.on_error);
-        ws.addEventListener('close', this.on_close);
+        this.addEventListeners(ws);
         return ws;
     }
 
@@ -154,8 +150,6 @@ class WebSocketSignalService extends EventTarget implements SignalService {
         // TODO wait for correct state? have a decorator to handle this?
         if (this.state.state === 'not_connected')
             throw new Error('Not connected');
-        if (this.state.state === 'disconnecting')
-            throw new Error('Disconnecting');
         if (this.state.state !== 'connected') return;
         this.state.ws.send(JSON.stringify({
             type: 'signal',
@@ -166,13 +160,13 @@ class WebSocketSignalService extends EventTarget implements SignalService {
     private keep_alive = async () => {
         const pingInterval = 30000;
         if (this.state.state !== 'connected') return;
-        this.send_ping(this.state.ws);
         try {
+            this.send_ping(this.state.ws);
             await this.wait_for_pong();
         } catch (err: unknown) {
             this.logging_service.log({
                 severity: Severity.Error,
-                message: "pong timeout, reconnecting"
+                message: "WebSocket keep-alive failed"
             });
             this.reconnect(WebSocketSignalService.InitialRetryDelay);
         }
@@ -189,15 +183,17 @@ class WebSocketSignalService extends EventTarget implements SignalService {
         const pong_timeout = 10000;
         return new Promise((resolve, reject) => {
             let done = false;
-            this.pong_event_target.addEventListener('pong', () => {
+            const handle_pong = () => {
                 if (done) return;
                 done = true;
                 resolve();
-            });
+            }
+            this.pong_event_target.addEventListener('pong', handle_pong);
             setTimeout(() => {
                 if (done) return;
                 done = true;
-                reject(new Error('WebSocket ping timeout'));
+                reject(new Error('WebSocket pong timeout'));
+                this.pong_event_target.removeEventListener('pong', handle_pong);
             }, pong_timeout);
         });
     }
@@ -236,13 +232,13 @@ class WebSocketSignalService extends EventTarget implements SignalService {
                 });
                 this.reconnect(this.state.retry_delay);
                 return;
-            case 'disconnecting':
-                this.set_state(WebSocketSignalService.InitialState);
-                return;
         }
     }
 
     private reconnect = (retry_delay: number) => {
+        if (this.state.state === 'not_connected') return;
+        if (this.state.state === 'connecting' && this.state.step === 'pending') return;
+        if (this.state.state === 'reconnecting' && this.state.step === 'pending') return;
         this.set_state({
             state: 'reconnecting',
             step: 'pending',
@@ -253,24 +249,23 @@ class WebSocketSignalService extends EventTarget implements SignalService {
 
     private reconnect_after_delay = async (retry_delay: number) => {
         await sleep(retry_delay);
-        try {
-            retry_delay *= 2;
-            if (retry_delay > WebSocketSignalService.MaxRetryDelay)
-                retry_delay = WebSocketSignalService.MaxRetryDelay;
-            const ws = await this.connect();
+        retry_delay *= 2;
+        if (retry_delay > WebSocketSignalService.MaxRetryDelay)
+            retry_delay = WebSocketSignalService.MaxRetryDelay;
+        this.connect().then((ws: WebSocket) => {
             this.set_state({
                 state: 'reconnecting',
                 step: 'opening',
                 ws: ws,
                 retry_delay,
             });
-        } catch (err: unknown) {
+        }).catch((err: Error) => {
             this.logging_service.log({
-                severity: Severity.Critical,
-                message: (err as Error).message
+                severity: Severity.Error,
+                message: `reconnect_after_delay: ${err.message}`
             })
             this.set_state(WebSocketSignalService.InitialState);
-        }
+        })
     }
 
     public stop = () => {
@@ -279,16 +274,28 @@ class WebSocketSignalService extends EventTarget implements SignalService {
             this.set_state(WebSocketSignalService.InitialState);
             return;
         }
-        if (this.state.state === 'disconnecting') return;
         if (this.state.state === 'reconnecting' && this.state.step === 'pending') {
             this.set_state(WebSocketSignalService.InitialState);
             return;
         }
         const ws = this.state.ws;
-        this.set_state({
-            state: 'disconnecting',
-        });
+        this.removeEventListeners(ws);
+        this.set_state(WebSocketSignalService.InitialState);
         ws.close(WebSocketCloseCodeNormalClosure);
+    }
+
+    private addEventListeners = (ws: WebSocket) => {
+        ws.addEventListener('open', this.on_open);
+        ws.addEventListener('message', this.on_message);
+        ws.addEventListener('error', this.on_error);
+        ws.addEventListener('close', this.on_close);
+    }
+
+    private removeEventListeners = (ws: WebSocket) => {
+        ws.removeEventListener('open', this.on_open);
+        ws.removeEventListener('message', this.on_message);
+        ws.removeEventListener('error', this.on_error);
+        ws.removeEventListener('close', this.on_close);
     }
 }
 

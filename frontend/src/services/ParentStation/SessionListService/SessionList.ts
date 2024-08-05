@@ -153,6 +153,7 @@ class SessionList {
                 },
             };
             this.set_session(updated_session);
+            return true;
         }
         this.delete_session(session);
         return true;

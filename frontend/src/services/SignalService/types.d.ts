@@ -14,10 +14,6 @@ interface SignalStateReconnecting {
     state: 'reconnecting';
 }
 
-interface SignalStateDisconnecting {
-    state: 'disconnecting';
-}
-
 type SignalState =
     SignalStateNotConnected |
     SignalStateConnecting |
