@@ -1,8 +1,8 @@
 import React from 'react'
 import Pricing from '../../Pricing'
+import TrialPeriod from '../../Pricing/TrialPeriod'
 
 import "./style.scss"
-import TrialPeriod from './TrialPeriod'
 
 const PricingSection: React.FunctionComponent = () => {
     return (

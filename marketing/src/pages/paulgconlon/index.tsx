@@ -2,15 +2,15 @@ import React from 'react'
 import type { HeadFC } from "gatsby"
 import { StaticImage } from 'gatsby-plugin-image'
 import DefaultPageWrapper from '../../components/DefaultPageWrapper'
-import DemoSection from '../../components/LandingPage/DemoSection'
-import SocialProofSection from '../../components/SocialProof/Section'
 import FAQSection from '../../components/LandingPage/FAQSection'
 import Features from '../../components/Features'
-import CallToAction from './CallToAction'
 import DiscountedPrice from '../../components/Pricing/DiscountedPrice'
+import TrialPeriod from '../../components/Pricing/TrialPeriod'
+import DemoSection from '../../components/LandingPage/DemoSection'
+import SocialProofSection from '../../components/SocialProof/Section'
+import CallToAction from './CallToAction'
 
 import "./style.scss"
-import TrialPeriod from '../../components/LandingPage/PricingSection/TrialPeriod'
 
 const CitizenOneLink: React.FunctionComponent = () => <a href="https://paulgconlon.com" target="_blank" className="link-secondary">Citizen One</a>
 

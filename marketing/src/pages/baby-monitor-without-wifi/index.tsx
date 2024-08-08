@@ -2,14 +2,14 @@ import React, { FunctionComponent } from 'react'
 import { type HeadFC } from "gatsby"
 import { StaticImage } from 'gatsby-plugin-image'
 
+import DefaultPageWrapper from '../../components/DefaultPageWrapper'
 import DemoSection from '../../components/LandingPage/DemoSection'
 import PricingSection from '../../components/LandingPage/PricingSection'
 import FAQSection from '../../components/LandingPage/FAQSection'
 import FeaturesCurrent from '../../components/FeaturesCurrent'
 import FeaturesComingSoon from '../../components/FeaturesComingSoon'
-import PurchaseLifetimeAccessCallToAction from '../../components/CallToAction/PurchaseLifetimeAccessCallToAction'
-import DefaultPageWrapper from '../../components/DefaultPageWrapper'
 import SocialProofSection from '../../components/SocialProof/Section'
+import PurchaseLifetimeAccessCallToAction from '../../components/CallToAction/PurchaseLifetimeAccessCallToAction'
 
 const PrivateBabyMonitorPage: React.FunctionComponent = () => (
     <DefaultPageWrapper>

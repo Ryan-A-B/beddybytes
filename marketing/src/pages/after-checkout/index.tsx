@@ -4,7 +4,6 @@ import DefaultPageWrapper from '../../components/DefaultPageWrapper';
 import YoutubeVideo from '../../components/YoutubeVideo';
 
 import thumbnail from './thumbnail.webp';
-import MicrosoftTrackingTag from '../../components/MicrosoftTrackingTag';
 
 const AppLink: React.FunctionComponent = () => (
     <a href="https://app.beddybytes.com/#create_account" className="link-secondary" target="_blank">app</a>
@@ -48,9 +47,4 @@ const PaymentComplete: React.FunctionComponent = () => (
 
 export default PaymentComplete;
 
-export const Head: HeadFC = () => (
-    <React.Fragment>
-        <title>Thank you!</title>
-        <MicrosoftTrackingTag />
-    </React.Fragment>
-)
+export const Head: HeadFC = () => <title>Thank you!</title>

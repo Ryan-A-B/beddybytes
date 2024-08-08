@@ -1,5 +1,4 @@
 import React from "react";
-
 import FeatureSection from "./FeatureSection";
 
 import "./style.scss";

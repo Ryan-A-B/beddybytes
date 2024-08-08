@@ -12,7 +12,7 @@ services:
       - ./traefik/dynamic_conf.local.yml:/etc/traefik/dynamic_conf.yml
       - ./traefik/certificates:/opt/certificates
     labels:
-      - "traefik.http.middlewares.headers-cors.headers.accesscontrolalloworiginlist=https://app.beddybytes.local"
+      - "traefik.http.middlewares.headers-cors.headers.accesscontrolalloworiginlist=https://app.beddybytes.local,https://beddybytes.local"
       - "traefik.http.middlewares.headers-cors.headers.accesscontrolallowheaders=Content-Type,Authorization"
       - "traefik.http.middlewares.headers-cors.headers.accesscontrolallowcredentials=true"
       - "traefik.http.middlewares.headers-cors.headers.accessControlAllowMethods=GET,OPTIONS,POST,PUT,DELETE"
