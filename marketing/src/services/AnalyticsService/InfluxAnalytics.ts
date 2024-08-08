@@ -23,7 +23,7 @@ class InfluxAnalytics {
 
     public write_point = (point: Point) => {
         this.writer.writePoint(point)
-        this.writer.flush()
+        this.writer.flush(true)
     }
 }
 

@@ -6,7 +6,8 @@ import "./src/scss/style.scss"
 
 export const onRouteUpdate: GatsbyBrowser["onRouteUpdate"] = ({ location, prevLocation }) => {
     const point = new Point('page_view')
-        .stringField('path', location.pathname)
+        .tag('path', location.pathname)
+        .intField('_value', 1)
     if (prevLocation) point.tag('referrer', prevLocation.pathname)
     analytics_service.write_point(point);
 }
