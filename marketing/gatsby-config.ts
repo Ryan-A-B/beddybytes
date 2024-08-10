@@ -14,6 +14,20 @@ const config: GatsbyConfig = {
     "gatsby-plugin-image",
     "gatsby-plugin-sitemap",
     {
+      resolve: "gatsby-plugin-robots-txt",
+      options: {
+        "host": "https://beddybytes.com",
+        "sitemap": "https://beddybytes.com/sitemap-index.xml",
+        "policy": [
+          {
+            "userAgent": "*",
+            "allow": "/",
+            "disallow": ["/404/", "/404.html", "/after-checkout/"]
+          }
+        ]
+      }
+    },
+    {
       resolve: 'gatsby-plugin-manifest',
       options: {
         "icon": "src/images/icon.png"
@@ -28,13 +42,6 @@ const config: GatsbyConfig = {
         "path": "./src/images/"
       },
       __key: "images"
-    },
-    {
-      resolve: 'gatsby-source-filesystem',
-      options: {
-        "name": "content",
-        "path": `${__dirname}/src/content`
-      }
     },
     "gatsby-transformer-remark",
   ]
