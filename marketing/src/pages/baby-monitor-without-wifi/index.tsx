@@ -10,6 +10,7 @@ import FeaturesCurrent from '../../components/FeaturesCurrent'
 import FeaturesComingSoon from '../../components/FeaturesComingSoon'
 import SocialProofSection from '../../components/SocialProof/Section'
 import PurchaseLifetimeAccessCallToAction from '../../components/CallToAction/PurchaseLifetimeAccessCallToAction'
+import SEOHead from '../../components/SEOHead'
 
 const PrivateBabyMonitorPage: React.FunctionComponent = () => (
     <DefaultPageWrapper>
@@ -106,7 +107,7 @@ const PrivateBabyMonitorPage: React.FunctionComponent = () => (
 
 export default PrivateBabyMonitorPage
 
-export const Head: HeadFC = () => <title>Baby monitor without Wifi</title>
+export const Head: HeadFC = () => <SEOHead title="Private Baby Monitor - BeddyBytes" description="BeddyBytes is a private baby monitor that streams video directly between your devices" />
 
 const ProblemFlowDiagramLandscape = () => (
     <svg viewBox="0 0 170 80" width={500}>

@@ -1,6 +1,7 @@
 import React from 'react'
 import type { HeadFC } from "gatsby"
 import { StaticImage } from 'gatsby-plugin-image'
+import SEOHead from '../../components/SEOHead'
 import DefaultPageWrapper from '../../components/DefaultPageWrapper'
 import FAQSection from '../../components/LandingPage/FAQSection'
 import Features from '../../components/Features'
@@ -142,4 +143,4 @@ const PaulGConlon = () => (
 
 export default PaulGConlon
 
-export const Head: HeadFC = () => <title>BeddyBytes</title>
+export const Head: HeadFC = () => <SEOHead title="Citizen One - BeddyBytes" description="Celebrate Privacy with BeddyBytes and Citizen One" />

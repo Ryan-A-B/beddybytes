@@ -2,6 +2,7 @@ import React from 'react'
 import type { HeadFC, PageProps } from "gatsby"
 import { Link } from 'gatsby'
 import DefaultPageWrapper from '../../components/DefaultPageWrapper'
+import SEOHead from '../../components/SEOHead'
 
 interface ReadMoreLinkProps {
     to: string
@@ -78,4 +79,4 @@ const BlogIndexPage: React.FunctionComponent<PageProps> = () => {
 
 export default BlogIndexPage
 
-export const Head: HeadFC = () => <title>Blog - BeddyBytes</title>
+export const Head: HeadFC = () => <SEOHead title="Blog - BeddyBytes" description="Read the latest from BeddyBytes" />

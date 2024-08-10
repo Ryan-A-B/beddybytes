@@ -1,6 +1,7 @@
 import * as React from "react"
 import type { HeadFC, PageProps } from "gatsby"
 import { StaticImage } from 'gatsby-plugin-image'
+import SEOHead from "../components/SEOHead"
 import DefaultPageWrapper from "../components/DefaultPageWrapper"
 import DefaultHeroSection from "../components/DefaultHeroSection"
 import Features from "../components/Features"
@@ -37,7 +38,7 @@ const IndexPage: React.FunctionComponent<PageProps> = () => {
 
 export default IndexPage
 
-export const Head: HeadFC = () => <title>BeddyBytes</title>
+export const Head: HeadFC = () => <SEOHead title="BeddyBytes" description="The privacy-first baby camera" />
 
 
 

@@ -4,6 +4,7 @@ import type { HeadFC } from "gatsby";
 import DefaultPageWrapper from "../../components/DefaultPageWrapper";
 import DefaultHeroSection from "../../components/DefaultHeroSection";
 import { StaticImage } from "gatsby-plugin-image";
+import SEOHead from "../../components/SEOHead";
 
 const RecordingFeaturePage: React.FunctionComponent = () => (
     <DefaultPageWrapper>
@@ -51,4 +52,4 @@ const RecordingFeaturePage: React.FunctionComponent = () => (
 
 export default RecordingFeaturePage
 
-export const Head: HeadFC = () => <title>Baby monitor that records</title>
+export const Head: HeadFC = () => <SEOHead title="BeddyBytes Recording" description="Record your baby's sounds with BeddyBytes" />

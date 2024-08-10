@@ -1,5 +1,6 @@
 import React from "react";
 import type { HeadFC, PageProps } from "gatsby"
+import SEOHead from "../components/SEOHead";
 import DefaultPageWrapper from "../components/DefaultPageWrapper";
 
 const AboutPage: React.FunctionComponent<PageProps> = () => {
@@ -65,4 +66,4 @@ const AboutPage: React.FunctionComponent<PageProps> = () => {
 
 export default AboutPage;
 
-export const Head: HeadFC = () => <title>About - BeddyBytes</title>
+export const Head: HeadFC = () => <SEOHead title="About - BeddyBytes" description="Learn about the story behind BeddyBytes and how it puts your family's privacy first" />

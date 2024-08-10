@@ -1,5 +1,6 @@
 import React from 'react';
 import { type HeadFC } from "gatsby"
+import SEOHead from '../../components/SEOHead';
 import DefaultPageWrapper from '../../components/DefaultPageWrapper';
 import YoutubeVideo from '../../components/YoutubeVideo';
 
@@ -47,4 +48,4 @@ const PaymentComplete: React.FunctionComponent = () => (
 
 export default PaymentComplete;
 
-export const Head: HeadFC = () => <title>Thank you!</title>
+export const Head: HeadFC = () => <SEOHead title="Thank you!" noindex />

@@ -1,5 +1,6 @@
 import * as React from "react"
 import { HeadFC, PageProps } from "gatsby"
+import SEOHead from "../components/SEOHead"
 import DefaultPageWrapper from "../components/DefaultPageWrapper"
 
 const NotFoundPage: React.FC<PageProps> = () => {
@@ -16,4 +17,4 @@ const NotFoundPage: React.FC<PageProps> = () => {
 
 export default NotFoundPage
 
-export const Head: HeadFC = () => <title>Not found</title>
+export const Head: HeadFC = () => <SEOHead title="404: Not found" noindex />

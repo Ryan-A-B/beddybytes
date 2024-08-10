@@ -1,6 +1,7 @@
 import React from 'react'
 import type { HeadFC, PageProps } from "gatsby"
 import DefaultBlogWrapper from '../../components/DefaultBlogWrapper'
+import SEOHead from '../../components/SEOHead'
 
 const BabyMonitorForTravelBlogPost: React.FunctionComponent = () => (
     <DefaultBlogWrapper>
@@ -81,4 +82,4 @@ const BabyMonitorForTravelBlogPost: React.FunctionComponent = () => (
 
 export default BabyMonitorForTravelBlogPost
 
-export const head: HeadFC = () => <title>Baby monitor for travel</title>
+export const head: HeadFC = () => <SEOHead title="Baby monitor for travel" description="Learn how our baby monitor simplifies family vacations" />

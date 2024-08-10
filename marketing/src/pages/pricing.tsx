@@ -1,5 +1,6 @@
 import React from 'react'
 import type { HeadFC, PageProps } from 'gatsby'
+import SEOHead from '../components/SEOHead'
 import DefaultPageWrapper from '../components/DefaultPageWrapper'
 import Pricing from '../components/Pricing'
 import TrialPeriod from '../components/Pricing/TrialPeriod'
@@ -20,4 +21,4 @@ const PricingPage: React.FunctionComponent<PageProps> = () => {
 
 export default PricingPage
 
-export const Head: HeadFC = () => <title>Pricing - BeddyBytes</title>
+export const Head: HeadFC = () => <SEOHead title="BeddyBytes Pricing" description="BeddyBytes pricing information" />

@@ -1,5 +1,6 @@
 import React from "react";
 import { type HeadFC, type PageProps } from "gatsby"
+import SEOHead from "../components/SEOHead";
 import DefaultPageWrapper from "../components/DefaultPageWrapper";
 
 const PaymentProviderPrivacyPolicyLink: React.FunctionComponent = () => (
@@ -94,7 +95,7 @@ const PrivacyPolicy: React.FunctionComponent<PageProps> = () => (
 
 export default PrivacyPolicy;
 
-export const Head: HeadFC = () => <title>Privacy Policy - BeddyBytes</title>
+export const Head: HeadFC = () => <SEOHead title="Privacy Policy - BeddyBytes" description="BeddyBytes privacy policy" />
 
 /*
 <section className="my-5">

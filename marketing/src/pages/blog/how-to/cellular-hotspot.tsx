@@ -1,6 +1,7 @@
 import React from 'react'
 import type { HeadFC, PageProps } from "gatsby"
 import DefaultBlogWrapper from '../../../components/DefaultBlogWrapper'
+import SEOHead from '../../../components/SEOHead'
 
 const CellularHotspotBlogPost: React.FunctionComponent = () => (
     <DefaultBlogWrapper>
@@ -117,5 +118,5 @@ const CellularHotspotBlogPost: React.FunctionComponent = () => (
 
 export default CellularHotspotBlogPost
 
-export const Head: HeadFC = () => <title>How to use BeddyBytes on a cellular hotspot</title>
+export const Head: HeadFC = () => <SEOHead title="How to use BeddyBytes on a cellular hotspot" description="A step-by-step guide to using BeddyBytes on a cellular hotspot" />
 
