@@ -3,6 +3,7 @@ import { v4 as uuid } from "uuid";
 import InfluxAnalytics from "./AnalyticsService/InfluxAnalytics";
 
 const getClientID = (): string => {
+    if (typeof localStorage === 'undefined') return uuid();
     const key = "clientID";
     const clientID = localStorage.getItem(key);
     if (clientID !== null) return clientID;

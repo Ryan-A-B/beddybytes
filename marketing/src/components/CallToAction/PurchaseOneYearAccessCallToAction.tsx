@@ -5,8 +5,9 @@ const purchaseOneYearAccess: ActionExternalLink = {
     type: "external_link",
     external_link: "https://square.link/u/qz0OYi34"
 }
+
 const PurchaseOneYearAccessCallToAction: React.FunctionComponent = () => (
-    <CallToAction action={purchaseOneYearAccess} />
+    <CallToAction click_id="cta-purchase-one-year" action={purchaseOneYearAccess} />
 )
 
 export default PurchaseOneYearAccessCallToAction

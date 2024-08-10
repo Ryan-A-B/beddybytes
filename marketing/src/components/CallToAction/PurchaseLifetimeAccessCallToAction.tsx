@@ -7,7 +7,7 @@ const purchaseLifetimeAccess: ActionExternalLink = {
 }
 
 const PurchaseLifetimeAccessCallToAction: React.FunctionComponent = () => (
-    <CallToAction action={purchaseLifetimeAccess} />
+    <CallToAction click_id="cta-purchase-lifetime" action={purchaseLifetimeAccess} />
 )
 
 export default PurchaseLifetimeAccessCallToAction
