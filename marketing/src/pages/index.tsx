@@ -6,6 +6,9 @@ import DefaultPageWrapper from "../components/DefaultPageWrapper"
 import DefaultHeroSection from "../components/DefaultHeroSection"
 import Features from "../components/Features"
 import SocialProofSection from "../components/SocialProof/Section"
+import YoutubeVideo from "../components/YoutubeVideo"
+
+import thumbnail from "../components/LandingPage/DemoSection/thumbnail.webp"
 
 const IndexPage: React.FunctionComponent<PageProps> = () => {
   return (
@@ -30,6 +33,18 @@ const IndexPage: React.FunctionComponent<PageProps> = () => {
         <Features>
           <h2>Features</h2>
         </Features>
+        <section id="demo" className="py-5">
+          <div className="container">
+            <h2>Set up in under 5 minutes</h2>
+            <div className="ratio ratio-16x9 mb-3">
+              <YoutubeVideo
+                video_id="uQHlMu7m5us"
+                title="Getting started video"
+                thumbnail={thumbnail}
+              />
+            </div>
+          </div>
+        </section>
         <SocialProofSection />
       </main>
     </DefaultPageWrapper>
