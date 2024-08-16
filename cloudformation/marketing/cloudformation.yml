@@ -9,6 +9,9 @@ Parameters:
   DomainName:
     Description: The domain name where the DNS record will be created
     Type: String
+  StoreVerificationToken:
+    Description: The token to verify the app with store.app
+    Type: String
 
 Resources:
   DNSRecord:
@@ -30,6 +33,16 @@ Resources:
       AliasTarget:
         HostedZoneId: Z2FDTNDATAQYW2
         DNSName: !GetAtt CDN.DomainName
+
+  DNSRecordStoreVerify:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneName: !Ref HostedZoneName
+      Name: !Sub store-verify.${DomainName}
+      Type: TXT
+      ResourceRecords:
+        - !Ref StoreVerificationToken
+      TTL: 3600
 
   Bucket:
     Type: AWS::S3::Bucket

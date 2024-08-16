@@ -33,6 +33,14 @@ const Footer: React.FunctionComponent = () => (
                         </li>
                     </ul>
                 </div>
+                <div className="col-6 col-lg-2">
+                    <h5>Socials</h5>
+                    <ul className="list-unstyled">
+                        <li>
+                            <Link to="https://www.youtube.com/@BeddyBytes" target="_blank">YouTube</Link>
+                        </li>
+                    </ul>
+                </div>
             </div>
         </div>
     </footer>
