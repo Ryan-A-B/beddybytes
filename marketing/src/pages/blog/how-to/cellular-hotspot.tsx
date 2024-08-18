@@ -1,5 +1,5 @@
 import React from 'react'
-import type { HeadFC, PageProps } from "gatsby"
+import type { HeadFC } from "gatsby"
 import DefaultBlogWrapper from '../../../components/DefaultBlogWrapper'
 import SEOHead from '../../../components/SEOHead'
 
@@ -8,7 +8,7 @@ const CellularHotspotBlogPost: React.FunctionComponent = () => (
         <h1>How to use BeddyBytes on a cellular hotspot: A step-by-step guide.</h1>
         <p>
             Whether you're camping in the great outdoors or on a road trip, monitoring
-            your baby shouldn't be a source of worry. With our baby monitor, you can
+            your baby shouldn't be a source of worry. With BeddyBytes, you can
             keep an eye and an ear on your little one without the need for additional
             hardware. All you need are your existing devices like a smartphone,
             tablet, or computer.
@@ -16,7 +16,7 @@ const CellularHotspotBlogPost: React.FunctionComponent = () => (
         <p>
             In a typical setting, our BeddyBytes works over a Wi-Fi connection. However,
             you might wonder, “What if I don't have access to Wi-Fi while I'm away from
-            home?” The good news is, you can still use our baby monitor by creating a
+            home?” The good news is, you can still use BeddyBytes by creating a
             hotspot. This guide will walk you through the process step-by-step.
         </p>
         <section>
@@ -96,9 +96,9 @@ const CellularHotspotBlogPost: React.FunctionComponent = () => (
                 </p>
             </section>
             <section>
-                <h3>Step 4: Use the baby monitor as usual</h3>
+                <h3>Step 4: Use BeddyBytes as usual</h3>
                 <p>
-                    That's it, you've created the WiFi network that the baby monitor
+                    That's it, you've created the WiFi network that BeddyBytes
                     requires to work. Now you can use it as if you were still home.
                 </p>
             </section>
@@ -109,7 +109,7 @@ const CellularHotspotBlogPost: React.FunctionComponent = () => (
                 Using BeddyBytes on a cellular connection offers flexibility without
                 compromising on reliability. This feature comes particularly handy when
                 you are in locations without Wi-Fi. Just follow these simple steps to
-                create a mobile hotspot, and you'll be able to use our baby monitor
+                create a mobile hotspot, and you'll be able to use BeddyBytes
                 wherever your travels may take you.
             </p>
         </section>
@@ -118,5 +118,10 @@ const CellularHotspotBlogPost: React.FunctionComponent = () => (
 
 export default CellularHotspotBlogPost
 
-export const Head: HeadFC = () => <SEOHead title="How to use BeddyBytes on a cellular hotspot" description="A step-by-step guide to using BeddyBytes on a cellular hotspot" />
+export const Head: HeadFC = () => (
+    <SEOHead
+        title="How to use BeddyBytes on a cellular hotspot"
+        description="Learn how to use BeddyBytes with a cellular hotspot for baby monitoring on the go. Perfect for camping or road trips."
+    />
+)
 

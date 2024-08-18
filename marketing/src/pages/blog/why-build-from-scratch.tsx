@@ -5,7 +5,7 @@ import SEOHead from '../../components/SEOHead'
 
 const WhyFromScratchBlogPost: React.FunctionComponent = () => (
     <DefaultBlogWrapper>
-        <h1>Why I built an online baby monitor from scratch</h1>
+        <h1>Why I built a baby monitor from scratch</h1>
         <p>
             As a parent, you're always thinking about your child's comfort and
             safety. Is the room the right temperature? Is the car seat safely
@@ -55,9 +55,9 @@ const WhyFromScratchBlogPost: React.FunctionComponent = () => (
         </p>
         <p>
             Privacy and convenience are classically at odds with each other, but
-            our baby monitor tries to strike a good balance. I believe that the
+            BeddyBytes strikes a balance. I believe that the
             best way that I can protect your data is to never receive it in the
-            first place. No, my baby monitor doesn't have all the bells and
+            first place. No, BeddyBytes doesn't have all the bells and
             whistles like sleep analytics - it's a convenient solution that does,
             and always will, place your privacy first.
         </p>
@@ -65,7 +65,7 @@ const WhyFromScratchBlogPost: React.FunctionComponent = () => (
             So how does it work? If you've got two devices (one with a camera)
             already connected to your home network and an internet connection,
             you've got everything you need. By using a web browser on your
-            devices, our baby monitor is able to stream video directly between
+            devices, BeddyBytes is able to stream video directly between
             them. Besides privacy, this setup has other advantages:
         </p>
         <table className="table">
@@ -121,7 +121,7 @@ const WhyFromScratchBlogPost: React.FunctionComponent = () => (
                             connect to each other.
                         </p>
                         <p>
-                            At its core, this baby monitor uses WebRTC which operates
+                            At its core, BeddyBytes uses WebRTC which operates
                             in a peer to peer fashion between your devices on your
                             local network. This means that after an initial
                             discovery phase no data needs to leave your local
@@ -154,4 +154,9 @@ const WhyFromScratchBlogPost: React.FunctionComponent = () => (
 
 export default WhyFromScratchBlogPost
 
-export const Head: HeadFC = () => <SEOHead title="Why I build a baby monitor from scratch" description="Learn why I built an online baby monitor from scratch" />
+export const Head: HeadFC = () => (
+    <SEOHead
+        title="Why I build a baby monitor from scratch"
+        description="Discover Why a Software Engineer Built a Privacy-Focused Baby Monitor from Scratch."
+    />
+)

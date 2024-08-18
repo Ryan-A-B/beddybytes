@@ -1,11 +1,11 @@
 import React from 'react'
-import type { HeadFC, PageProps } from "gatsby"
+import type { HeadFC } from "gatsby"
 import DefaultBlogWrapper from '../../components/DefaultBlogWrapper'
 import SEOHead from '../../components/SEOHead'
 
 const BabyMonitorForTravelBlogPost: React.FunctionComponent = () => (
     <DefaultBlogWrapper>
-        <h1>The Perfect Travel Mate: How Our Baby Monitor Simplifies Family Vacations</h1>
+        <h1>The Perfect Travel Mate: How BeddyBytes Simplifies Family Vacations</h1>
         <p>
             Is it time for a well-deserved vacation with the family? Whether you're
             dreaming of the sound of waves crashing on the beach or the thrill of a
@@ -16,13 +16,13 @@ const BabyMonitorForTravelBlogPost: React.FunctionComponent = () => (
         </p>
         <p>
             There is a way to monitor your tiny tot without carrying around extra
-            gear: introducing our baby monitor by Creative Ilk—a game-changer for
+            gear: introducing BeddyBytes a game-changer for
             families on the move.
         </p>
         <section>
             <h2>No Additional Devices Needed</h2>
             <p>
-                First off, our baby monitor lets you take advantage of devices you
+                First off, BeddyBytes lets you take advantage of devices you
                 already have with you: your smartphone, tablet, or laptop. The web
                 app turns these devices into either a camera or a monitor. That
                 means fewer gadgets (and associated charging cables!) to pack,
@@ -46,7 +46,7 @@ const BabyMonitorForTravelBlogPost: React.FunctionComponent = () => (
             <h2>Your Privacy, Our Priority</h2>
             <p>
                 Being on vacation doesn't mean you compromise on security. That's
-                why our baby monitor features end-to-end encryption, ensuring
+                why BeddyBytes features end-to-end encryption, ensuring
                 your baby's sweetest moments are safe and sound. Rest assured,
                 the video feed is accessible only by you.
             </p>
@@ -74,7 +74,7 @@ const BabyMonitorForTravelBlogPost: React.FunctionComponent = () => (
         </section>
         <p>
             Ready for a stress-free family vacation? Well good luck, but we'll
-            help where we can. Give our baby monitor a try, and start your
+            help where we can. Give BeddyBytes a try, and start your
             adventure on the right foot.
         </p>
     </DefaultBlogWrapper>
@@ -82,4 +82,9 @@ const BabyMonitorForTravelBlogPost: React.FunctionComponent = () => (
 
 export default BabyMonitorForTravelBlogPost
 
-export const head: HeadFC = () => <SEOHead title="Baby monitor for travel" description="Learn how our baby monitor simplifies family vacations" />
+export const head: HeadFC = () => (
+    <SEOHead
+        title="Baby monitor for travel"
+        description="BeddyBytes: The baby monitor that travels with you. No extra devices, quick setup, and total privacy for your family adventures."
+    />
+)
