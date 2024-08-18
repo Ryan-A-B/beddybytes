@@ -24,6 +24,27 @@ const BlogIndexPage: React.FunctionComponent<PageProps> = () => {
                         <article className="card card-blog">
                             <div className="card-body">
                                 <h2 className="card-title">
+                                    Baby Routine and Ritual
+                                </h2>
+                                <p>
+                                    Leading up to the birth of our now 2-year-old, my wife and I were
+                                    reading and watching everything we could find about looking after
+                                    a newborn. While in an information session run by our hospital,
+                                    another soon-to-be-parent asked a question. They said they were
+                                    extremely routine-driven, and asked if there was any way they could
+                                    keep their routine. After a hearty chuckle from the nurse, they
+                                    were told no, their routine would be going out the window. I now
+                                    think this was a terrible response. Not because it was wrong, but
+                                    because of what was missing.
+                                </p>
+                                <ReadMoreLink to="/blog/baby-routine-and-ritual" />
+                            </div>
+                        </article>
+                    </div>
+                    <div className="col-auto col-lg-6 col-xl-4 mb-3">
+                        <article className="card card-blog">
+                            <div className="card-body">
+                                <h2 className="card-title">
                                     The Perfect Travel Mate: How Our Baby Monitor Simplifies Family Vacations
                                 </h2>
                                 <p>
