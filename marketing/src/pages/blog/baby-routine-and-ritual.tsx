@@ -110,7 +110,7 @@ const BabyRoutineAndRitual: React.FunctionComponent = () => (
 
 export default BabyRoutineAndRitual;
 
-export const head: HeadFC = () => (
+export const Head: HeadFC = () => (
     <SEOHead
         title="Baby Routine and Ritual"
         description="Discover the importance of establishing routines and rituals for better sleep and happier parenting. Learn from our personal experience."

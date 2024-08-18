@@ -82,7 +82,7 @@ const BabyMonitorForTravelBlogPost: React.FunctionComponent = () => (
 
 export default BabyMonitorForTravelBlogPost
 
-export const head: HeadFC = () => (
+export const Head: HeadFC = () => (
     <SEOHead
         title="Baby monitor for travel"
         description="BeddyBytes: The baby monitor that travels with you. No extra devices, quick setup, and total privacy for your family adventures."
