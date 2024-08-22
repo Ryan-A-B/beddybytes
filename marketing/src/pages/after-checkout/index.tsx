@@ -19,7 +19,7 @@ const PaymentComplete: React.FunctionComponent = () => (
                         <div className="col text-center">
                             <h1>Thank You for Your Purchase!</h1>
                             <p>
-                                We sincerely thank you for purchasing early access to BeddyBytes.
+                                We sincerely thank you for purchasing access to BeddyBytes.
                                 Your support is greatly appreciated, and plays a vital role in
                                 our development process.
                             </p>

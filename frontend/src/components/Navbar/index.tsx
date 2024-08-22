@@ -14,7 +14,7 @@ const Navbar: React.FunctionComponent = () => {
         <nav className="navbar navbar-expand-md bg-body-tertiary mb-3">
             <div className="container">
                 <Link to="/" className="navbar-brand">
-                    BeddyBytes<sup>Early Access</sup>
+                    BeddyBytes
                 </Link>
                 <button
                     type="button"

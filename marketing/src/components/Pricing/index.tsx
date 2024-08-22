@@ -12,12 +12,12 @@ const PopularBadge: React.FunctionComponent = () => {
     )
 }
 
-const EarlyAccessBadge: React.FunctionComponent = () => {
+const LaunchSaleBadge: React.FunctionComponent = () => {
     return (
         <span className="badge text-bg-success position-absolute top-0 end-0">
             Save 70%
             <br />
-            Early Access Offer
+            Launch Sale Offer
         </span>
     )
 }
@@ -26,7 +26,7 @@ const Pricing: React.FunctionComponent = () => (
     <div className="row justify-content-center">
         <div className="col-sm-auto my-3">
             <section className="card card-pricing">
-                <EarlyAccessBadge />
+                <LaunchSaleBadge />
                 <div className="card-body">
                     <h3 className="card-title">1 year access</h3>
                     <h5 className="card-subtitle mb-3">
@@ -40,7 +40,7 @@ const Pricing: React.FunctionComponent = () => (
         <div className="col-sm-auto my-3">
             <section className="card card-pricing">
                 <PopularBadge />
-                <EarlyAccessBadge />
+                <LaunchSaleBadge />
                 <div className="card-body">
                     <h3 className="card-title">
                         Lifetime access
