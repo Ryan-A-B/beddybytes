@@ -40,7 +40,6 @@
 @import "bootstrap/scss/utilities/api";
 
 .landing-page {
-
     #hero,
     #problem,
     #solution,
@@ -84,4 +83,13 @@
     code {
         color: $teal-400;
     }
+}
+
+.call-to-action {
+    max-width: 350px;
+    margin: {
+        left: auto;
+        right: auto;
+    }
+    text-align: center;
 }

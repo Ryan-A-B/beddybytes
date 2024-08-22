@@ -1,6 +1,7 @@
 import React from 'react'
 import type { HeadFC } from "gatsby"
 import { StaticImage } from 'gatsby-plugin-image'
+import numeral from 'numeral'
 import SEOHead from '../../components/SEOHead'
 import DefaultPageWrapper from '../../components/DefaultPageWrapper'
 import FAQSection from '../../components/LandingPage/FAQSection'
@@ -9,9 +10,15 @@ import DiscountedPrice from '../../components/Pricing/DiscountedPrice'
 import TrialPeriod from '../../components/Pricing/TrialPeriod'
 import DemoSection from '../../components/LandingPage/DemoSection'
 import SocialProofSection from '../../components/SocialProof/Section'
-import CallToAction from './CallToAction'
+import CallToAction from '../../components/CallToAction'
+import PricingCallToAction from '../../components/Pricing/CallToAction'
 
 import "./style.scss"
+import { CouponCode, DiscountFormat } from '../../components/CallToAction/types'
+
+const coupon_code: CouponCode = "PAULGCONLON"
+const discount = 0.8
+const formattedDiscount = numeral(discount).format(DiscountFormat)
 
 const CitizenOneLink: React.FunctionComponent = () => <a href="https://paulgconlon.com" target="_blank" className="link-secondary">Citizen One</a>
 
@@ -37,7 +44,13 @@ const PaulGConlon = () => (
                                     BeddyBytes won't send a single frame of video over the internet.
                                     We keep your data safe by never handling it in the first place.
                                 </p>
-                                <CallToAction />
+                                <CallToAction
+                                    to="#pricing"
+                                    color="light"
+                                    coupon_code={coupon_code}
+                                    discount={formattedDiscount}
+                                    click_id="cta-hero-section"
+                                />
                             </div>
                         </div>
                     </div>
@@ -89,7 +102,13 @@ const PaulGConlon = () => (
                                     Join the privacy renaissance and do something today your children will thank you for
                                     tomorrow.
                                 </p>
-                                <CallToAction />
+                                <CallToAction
+                                    to="#pricing"
+                                    color="light"
+                                    coupon_code={coupon_code}
+                                    discount={formattedDiscount}
+                                    click_id="cta-solution-section"
+                                />
                             </div>
                             <div className="d-none d-md-block col-md col-lg-5 col-xl-4">
                                 <StaticImage
@@ -119,8 +138,12 @@ const PaulGConlon = () => (
                                     <h5 className="card-subtitle mb-3">
                                         Buy once, use forever
                                     </h5>
-                                    <DiscountedPrice price={80} discount={0.8} />
-                                    <CallToAction button_color="primary" />
+                                    <DiscountedPrice price={80} discount={discount} />
+                                    <PricingCallToAction
+                                        product="lifetime"
+                                        coupon_code={coupon_code}
+                                        discount={formattedDiscount}
+                                    />
                                 </div>
                             </section>
                         </div>
@@ -134,7 +157,13 @@ const PaulGConlon = () => (
             <section className="bg-primary text-light py-5">
                 <div className="container text-center">
                     <h2>Get started today</h2>
-                    <CallToAction />
+                    <CallToAction
+                        to="#pricing"
+                        color="light"
+                        coupon_code={coupon_code}
+                        discount={formattedDiscount}
+                        click_id="cta-cta-section"
+                    />
                 </div>
             </section>
         </div>
@@ -143,4 +172,9 @@ const PaulGConlon = () => (
 
 export default PaulGConlon
 
-export const Head: HeadFC = () => <SEOHead title="Citizen One - BeddyBytes" description="Celebrate Privacy with BeddyBytes and Citizen One" />
+export const Head: HeadFC = () => (
+    <SEOHead
+        title="Citizen One - BeddyBytes"
+        description="Celebrate Privacy with BeddyBytes and Citizen One"
+    />
+)

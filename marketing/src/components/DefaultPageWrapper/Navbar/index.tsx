@@ -1,6 +1,7 @@
 import React from 'react'
 import { Link } from 'gatsby'
-import NavbarDropdown from './NavbarDropdown'
+import NavbarDropdown from './Dropdown'
+import CallToAction from './CallToAction'
 
 const ActiveButtonProps = {
     'aria-expanded': true,
@@ -88,9 +89,7 @@ const Navbar: React.FunctionComponent = () => {
                     </ul>
                 </div>
                 <div className="d-lg-flex collapse">
-                    <Link to="/pricing" className="btn btn-primary">
-                        Use baby monitor
-                    </Link>
+                    <CallToAction />
                 </div>
             </div>
         </nav>

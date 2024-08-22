@@ -9,11 +9,11 @@ import FAQSection from '../../components/LandingPage/FAQSection'
 import FeaturesCurrent from '../../components/FeaturesCurrent'
 import FeaturesComingSoon from '../../components/FeaturesComingSoon'
 import SocialProofSection from '../../components/SocialProof/Section'
-import PurchaseLifetimeAccessCallToAction from '../../components/CallToAction/PurchaseLifetimeAccessCallToAction'
 import SEOHead from '../../components/SEOHead'
+import CallToAction from '../../components/CallToAction'
 
 const PrivateBabyMonitorPage: React.FunctionComponent = () => (
-    <DefaultPageWrapper>
+    <DefaultPageWrapper have_pricing_section>
         <div className="landing-page">
             <main id="main">
                 <section id="hero">
@@ -28,7 +28,7 @@ const PrivateBabyMonitorPage: React.FunctionComponent = () => (
                                     BeddyBytes doesn't send a single frame over the internet.
                                     Video is streamed directly between your smartphone and laptop.
                                 </p>
-                                <PurchaseLifetimeAccessCallToAction />
+                                <CallToAction to="#pricing" color="light" click_id="cta-hero-section" />
                             </div>
                             <div className="d-none d-md-block col-md col-lg-5 col-xl-4">
                                 <StaticImage

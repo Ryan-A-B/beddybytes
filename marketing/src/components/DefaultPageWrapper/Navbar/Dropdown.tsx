@@ -12,7 +12,7 @@ const getDropdownMenuClassName = (isActive: boolean) => {
     return isActive ? ActiveDropdownMenuClassName : DropdownMenuClassName
 }
 
-const NavbarDropdown: React.FunctionComponent<Props> = ({ buttonText, children }) => {
+const Dropdown: React.FunctionComponent<Props> = ({ buttonText, children }) => {
     const [show, setShow] = React.useState<boolean>(false)
     const toggleShow = React.useCallback(
         () => setShow(!show),
@@ -46,4 +46,4 @@ const NavbarDropdown: React.FunctionComponent<Props> = ({ buttonText, children }
     )
 }
 
-export default NavbarDropdown
+export default Dropdown

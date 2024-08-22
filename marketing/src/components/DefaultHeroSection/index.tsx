@@ -1,6 +1,5 @@
 import React from "react";
-
-import CallToAction from "./CallToAction";
+import CallToAction from "../CallToAction";
 
 import "./style.scss";
 
@@ -14,7 +13,7 @@ const DefaultHeroSection: React.FunctionComponent<Props> = ({ children: [copy, i
             <div className="row align-items-center">
                 <div className="col-lg-6">
                     {copy}
-                    <CallToAction />
+                    <CallToAction to="/pricing" color="light" click_id="cta-hero-section" />
                 </div>
                 <div className="d-none d-lg-block col">
                     {image}

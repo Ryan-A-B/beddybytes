@@ -1,9 +1,8 @@
 import React from "react";
-import PurchaseOneYearAccessCallToAction from "../CallToAction/PurchaseOneYearAccessCallToAction";
-import PurchaseLifetimeAccessCallToAction from "../CallToAction/PurchaseLifetimeAccessCallToAction";
+import CallToAction from "./CallToAction";
 import DiscountedPrice from "./DiscountedPrice";
 
-import "./style.scss"
+import "./style.scss";
 
 const PopularBadge: React.FunctionComponent = () => {
     return (
@@ -34,7 +33,7 @@ const Pricing: React.FunctionComponent = () => (
                         Get to know us
                     </h5>
                     <DiscountedPrice price={50} discount={0.7} />
-                    <PurchaseOneYearAccessCallToAction />
+                    <CallToAction product="one_year" />
                 </div>
             </section>
         </div>
@@ -50,7 +49,7 @@ const Pricing: React.FunctionComponent = () => (
                         Buy once, use forever
                     </h5>
                     <DiscountedPrice price={80} discount={0.7} />
-                    <PurchaseLifetimeAccessCallToAction />
+                    <CallToAction product="lifetime" />
                 </div>
             </section>
         </div>
