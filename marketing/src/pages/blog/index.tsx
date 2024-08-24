@@ -92,7 +92,7 @@ const BlogIndexPage: React.FunctionComponent<PageProps> = () => {
                                     installed? Can the tottering toddler finally reach an exciting
                                     new surface which now needs to be baby proofed?
                                 </p>
-                                <ReadMoreLink to="/blog/baby-monitor-for-travel/" />
+                                <ReadMoreLink to="/blog/why-build-from-scratch/" />
                             </div>
                         </article>
                     </div>
