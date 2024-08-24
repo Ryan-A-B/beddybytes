@@ -24,6 +24,27 @@ const BlogIndexPage: React.FunctionComponent<PageProps> = () => {
                         <article className="card card-blog">
                             <div className="card-body">
                                 <h2 className="card-title">
+                                    Do I Need a Baby Monitor?
+                                </h2>
+                                <p>
+                                    When my wife and I were expecting our first child, we were
+                                    bombarded with recommendations on what we should buy. From fancy
+                                    bassinets that rock your baby to sleep to bottle warmers that could
+                                    be controlled by an app, it seemed like there was a gadget for
+                                    every possible parenting need. One item that consistently appeared
+                                    at the top of every list was the baby monitor. And not just any
+                                    baby monitor—oh no, it had to have video, night vision, two-way
+                                    audio, sleep analytics, temperature sensors, and a 5-inch HD
+                                    screen.
+                                </p>
+                                <ReadMoreLink to="/blog/do-i-need-a-baby-monitor/" />
+                            </div>
+                        </article>
+                    </div>
+                    <div className="col-auto col-lg-6 col-xl-4 mb-3">
+                        <article className="card card-blog">
+                            <div className="card-body">
+                                <h2 className="card-title">
                                     Baby Routine and Ritual
                                 </h2>
                                 <p>
@@ -37,7 +58,7 @@ const BlogIndexPage: React.FunctionComponent<PageProps> = () => {
                                     think this was a terrible response. Not because it was wrong, but
                                     because of what was missing.
                                 </p>
-                                <ReadMoreLink to="/blog/baby-routine-and-ritual" />
+                                <ReadMoreLink to="/blog/baby-routine-and-ritual/" />
                             </div>
                         </article>
                     </div>
@@ -55,7 +76,7 @@ const BlogIndexPage: React.FunctionComponent<PageProps> = () => {
                                     packed it all—oops!—you realise you need to find space for the baby
                                     monitor.
                                 </p>
-                                <ReadMoreLink to="/blog/baby-monitor-for-travel" />
+                                <ReadMoreLink to="/blog/baby-monitor-for-travel/" />
                             </div>
                         </article>
                     </div>
@@ -71,7 +92,7 @@ const BlogIndexPage: React.FunctionComponent<PageProps> = () => {
                                     installed? Can the tottering toddler finally reach an exciting
                                     new surface which now needs to be baby proofed?
                                 </p>
-                                <ReadMoreLink to="/blog/baby-monitor-for-travel" />
+                                <ReadMoreLink to="/blog/baby-monitor-for-travel/" />
                             </div>
                         </article>
                     </div>
@@ -88,7 +109,7 @@ const BlogIndexPage: React.FunctionComponent<PageProps> = () => {
                                     hardware. All you need are your existing devices like a smartphone,
                                     tablet, or computer.
                                 </p>
-                                <ReadMoreLink to="/blog/baby-monitor-for-travel" />
+                                <ReadMoreLink to="/blog/how-to/cellular-hotspot/" />
                             </div>
                         </article>
                     </div>
