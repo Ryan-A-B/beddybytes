@@ -10,8 +10,6 @@ import (
 	"time"
 
 	"github.com/ansel1/merry"
-	awsconfig "github.com/aws/aws-sdk-go-v2/config"
-	"github.com/aws/aws-sdk-go-v2/service/sesv2"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
@@ -19,12 +17,10 @@ import (
 	"github.com/Ryan-A-B/beddybytes/backend/accounts"
 	"github.com/Ryan-A-B/beddybytes/backend/internal"
 	"github.com/Ryan-A-B/beddybytes/backend/internal/eventlog"
-	"github.com/Ryan-A-B/beddybytes/backend/internal/sendemail"
 	"github.com/Ryan-A-B/beddybytes/backend/internal/store"
 	"github.com/Ryan-A-B/beddybytes/backend/internal/store2"
 	"github.com/Ryan-A-B/beddybytes/backend/sessionlist"
 	"github.com/Ryan-A-B/beddybytes/internal/fatal"
-	"github.com/Ryan-A-B/beddybytes/internal/square"
 )
 
 type IncomingMessageFrame struct {
@@ -190,7 +186,6 @@ func main() {
 	key := []byte(internal.EnvStringOrFatal("ENCRYPTION_KEY"))
 	cookieDomain := internal.EnvStringOrFatal("COOKIE_DOMAIN")
 	eventLog := newEventLog(ctx)
-	go runMailer(ctx, eventLog)
 	accountHandlers := accounts.Handlers{
 		CookieDomain: cookieDomain,
 		EventLog:     eventLog,
@@ -203,11 +198,6 @@ func main() {
 		RefreshTokenDuration:         30 * 24 * time.Hour,
 		UsedTokens:                   accounts.NewUsedTokens(),
 		AnonymousAccessTokenDuration: 10 * time.Second,
-
-		SignatureKey: []byte(internal.EnvStringOrFatal("SQUARE_SIGNATURE_KEY")),
-
-		Client:     newSquareClient(),
-		LocationID: internal.EnvStringOrFatal("SQUARE_LOCATION_ID"),
 	}
 	go eventlog.Project(ctx, &eventlog.ProjectInput{
 		EventLog:   accountHandlers.EventLog,
@@ -287,45 +277,4 @@ func appendServerStartedEvent(ctx context.Context, eventLog eventlog.EventLog) {
 		Data: fatal.UnlessMarshalJSON(nil),
 	})
 	fatal.OnError(err)
-}
-
-func newSquareClient() *square.Client {
-	return square.NewClient(&square.NewClientInput{
-		HTTPClient:    http.DefaultClient,
-		Scheme:        internal.EnvStringOrFatal("SQUARE_SCHEME"),
-		Host:          internal.EnvStringOrFatal("SQUARE_HOST"),
-		ApplicationID: internal.EnvStringOrFatal("SQUARE_APPLICATION_ID"),
-		AccessToken:   internal.EnvStringOrFatal("SQUARE_ACCESS_TOKEN"),
-	})
-}
-
-func runMailer(ctx context.Context, eventLog eventlog.EventLog) {
-	fromEmailAddress := internal.EnvStringOrFatal("FROM_EMAIL_ADDRESS")
-	input := NewMailerInput{
-		EventLog:              eventLog,
-		FromEmailAddress:      fromEmailAddress,
-		EmailDeferralDuration: 10 * time.Second,
-	}
-	strategyName := internal.EnvStringOrFatal("SEND_EMAIL_STRATEGY")
-	switch strategyName {
-	case "null":
-		input.SendEmail = func(ctx context.Context, input sendemail.SendEmailInput) (messageID string) {
-			log.Println("Would send email to " + input.EmailAddress)
-			return
-		}
-	case "ses":
-		config, err := awsconfig.LoadDefaultConfig(ctx, awsconfig.WithRegion(internal.EnvStringOrFatal("AWS_REGION")))
-		fatal.OnError(err)
-		strategy := sendemail.NewSendEmailUsingSESStrategy(&sendemail.NewSendEmailUsingSESStrategyInput{
-			Client:                      sesv2.NewFromConfig(config),
-			FromEmailAddress:            fromEmailAddress,
-			FromEmailAddressIdentityARN: internal.EnvStringOrFatal("SEND_EMAIL_USING_SES_FROM_EMAIL_ADDRESS_IDENTITY_ARN"),
-		})
-		input.SendEmail = strategy.SendEmail
-	default:
-		log.Fatal("invalid SEND_EMAIL_STRATEGY: ", strategyName)
-	}
-
-	mailer := NewMailer(&input)
-	mailer.Run(ctx)
 }

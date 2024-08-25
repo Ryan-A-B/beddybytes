@@ -38,14 +38,6 @@ services:
       - COOKIE_DOMAIN=.beddybytes.local
       - SERVER_ADDR=:9000
       - FILE_EVENT_LOG_FOLDER_PATH=/opt/eventlog
-      - SQUARE_SCHEME=https
-      - SQUARE_HOST=connect.squareupsandbox.com
-      - SQUARE_APPLICATION_ID=${SQUARE_APPLICATION_ID}
-      - SQUARE_ACCESS_TOKEN=${SQUARE_ACCESS_TOKEN}
-      - SQUARE_LOCATION_ID=${SQUARE_LOCATION_ID}
-      - SQUARE_SIGNATURE_KEY=${SQUARE_SIGNATURE_KEY}
-      - FROM_EMAIL_ADDRESS=${FROM_EMAIL_ADDRESS}
-      - SEND_EMAIL_STRATEGY=null
     labels:
       - "traefik.http.routers.api.rule=Host(`api.beddybytes.local`)"
       - "traefik.http.routers.api.entrypoints=websecure"
@@ -146,12 +138,4 @@ volumes:
 
 secrets:
   ENCRYPTION_KEY:
-    external: true
-  SQUARE_APPLICATION_ID:
-    external: true
-  SQUARE_ACCESS_TOKEN:
-    external: true
-  SQUARE_LOCATION_ID:
-    external: true
-  SQUARE_SIGNATURE_KEY:
     external: true

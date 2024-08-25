@@ -20,7 +20,6 @@ import (
 	"github.com/Ryan-A-B/beddybytes/backend/internal/eventlog"
 	"github.com/Ryan-A-B/beddybytes/backend/internal/xhttp"
 	"github.com/Ryan-A-B/beddybytes/internal/fatal"
-	"github.com/Ryan-A-B/beddybytes/internal/square"
 )
 
 type Handlers struct {
@@ -33,18 +32,12 @@ type Handlers struct {
 	RefreshTokenDuration         time.Duration
 	UsedTokens                   UsedTokens
 	AnonymousAccessTokenDuration time.Duration
-
-	SignatureKey []byte
-
-	Client     *square.Client ``
-	LocationID string
 }
 
 func (handlers *Handlers) AddRoutes(router *mux.Router) {
 	router.HandleFunc("/anonymous_token", handlers.AnonymousToken).Methods(http.MethodPost).Name("AnonymousToken")
 	router.HandleFunc("/token", handlers.Token).Methods(http.MethodPost).Name("Token")
 	router.HandleFunc("/accounts", handlers.CreateAccount).Methods(http.MethodPost).Name("CreateAccount")
-	router.HandleFunc("/square/webhook", handlers.HandleWebhook).Methods(http.MethodPost).Name("HandleWebhook")
 
 	authenticatedRouter := router.PathPrefix("/accounts/{account_id}").Subrouter()
 	authenticatedRouter.Use(internal.NewAuthorizationMiddleware(handlers.Key).Middleware)

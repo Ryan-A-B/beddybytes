@@ -9,11 +9,6 @@ import (
 )
 
 const EventTypeAccountCreated = "account.created"
-const EventTypeSquareSubscriptionCreated = "square.subscription.created"
-const EventTypeSquareInvoiceCreated = "square.invoice.created"
-const EventTypeSquareInvoiceUpdated = "square.invoice.updated"
-const EventTypeSquareInvoicePublished = "square.invoice.published"
-const EventTypeSquareInvoicePaymentMade = "square.invoice.payment_made"
 
 func (handlers *Handlers) ApplyEvent(ctx context.Context, event *eventlog.Event) {
 	switch event.Type {
