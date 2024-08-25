@@ -4,7 +4,7 @@ import SEOHead from '../components/SEOHead'
 import DefaultPageWrapper from '../components/DefaultPageWrapper'
 import Pricing from '../components/Pricing'
 import TrialPeriod from '../components/Pricing/TrialPeriod'
-import RedirectToSquare from '../components/Pricing/RedirectToSquare'
+import RedirectToPaymentProcessor from '../components/Pricing/RedirectToPaymentProcessor'
 
 const maxWidth = 760
 
@@ -14,7 +14,7 @@ const PricingPage: React.FunctionComponent<PageProps> = () => {
             <main className="container" style={{ maxWidth }}>
                 <h1 className="text-center mt-3 fs-5">Pricing</h1>
                 <h4 className="text-center fs-2">No Subscription</h4>
-                <RedirectToSquare />
+                <RedirectToPaymentProcessor />
                 <Pricing />
                 <TrialPeriod />
             </main>

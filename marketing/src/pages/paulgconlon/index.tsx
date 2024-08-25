@@ -15,7 +15,12 @@ import PricingCallToAction from '../../components/Pricing/CallToAction'
 
 import "./style.scss"
 import { CouponCode, DiscountFormat } from '../../components/CallToAction/types'
-import RedirectToSquare from '../../components/Pricing/RedirectToSquare'
+import RedirectToPaymentProcessor from '../../components/Pricing/RedirectToPaymentProcessor'
+
+const payment_link = {
+    "lifetime": "https://buy.stripe.com/bIY3fh6os9dp68o9AC?prefilled_promo_code=PAULGCONLON",
+    "one_year": "https://buy.stripe.com/bIY8zBbIM89lbsI9AD?prefilled_promo_code=PAULGCONLON",
+}
 
 const coupon_code: CouponCode = "PAULGCONLON"
 const discount = 0.8
@@ -129,7 +134,7 @@ const PaulGConlon = () => (
                 <div className="container">
                     <h6 className="text-center">Pricing</h6>
                     <h2 className="text-center">No subscription</h2>
-                    <RedirectToSquare />
+                    <RedirectToPaymentProcessor />
                     <div className="row justify-content-center">
                         <div className="col-sm-auto my-3">
                             <section className="card card-pricing">
@@ -140,7 +145,7 @@ const PaulGConlon = () => (
                                     <h5 className="card-subtitle mb-3">
                                         Buy once, use forever
                                     </h5>
-                                    <DiscountedPrice price={80} discount={discount} />
+                                    <DiscountedPrice price={55} discount={discount} />
                                     <PricingCallToAction
                                         product="lifetime"
                                         coupon_code={coupon_code}

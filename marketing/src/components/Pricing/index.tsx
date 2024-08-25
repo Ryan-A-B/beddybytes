@@ -32,7 +32,7 @@ const Pricing: React.FunctionComponent = () => (
                     <h5 className="card-subtitle mb-3">
                         Get to know us
                     </h5>
-                    <DiscountedPrice price={50} discount={0.7} />
+                    <DiscountedPrice price={35} discount={0.7} />
                     <CallToAction product="one_year" />
                 </div>
             </section>
@@ -48,7 +48,7 @@ const Pricing: React.FunctionComponent = () => (
                     <h5 className="card-subtitle mb-3">
                         Buy once, use forever
                     </h5>
-                    <DiscountedPrice price={80} discount={0.7} />
+                    <DiscountedPrice price={55} discount={0.7} />
                     <CallToAction product="lifetime" />
                 </div>
             </section>

@@ -3,27 +3,27 @@ import useOnClick from '../../hooks/useOnClick'
 import { CouponCode } from "../CallToAction/types"
 import { DefaultCouponCode, DefaultDiscount } from "../CallToAction/defaults"
 
-const square_link = {
-    "lifetime": "https://square.link/u/7hK0Ut9W",
-    "one_year": "https://square.link/u/qz0OYi34",
+const payment_links = {
+    "lifetime": "https://buy.stripe.com/bIY3fh6os9dp68o9AC",
+    "one_year": "https://buy.stripe.com/bIY8zBbIM89lbsI9AD",
 }
 
 interface Props {
-    product: keyof typeof square_link
+    product: keyof typeof payment_links
     coupon_code?: CouponCode
     discount?: string
 }
 
 const CallToAction: React.FunctionComponent<Props> = ({ product, coupon_code = DefaultCouponCode, discount = DefaultDiscount }) => {
     const onClick = useOnClick(`purchase-${product}`)
-    const external_link = square_link[product]
+    const payment_link = `${payment_links[product]}?prefilled_promo_code=${coupon_code}`
     return (
         <div className={`call-to-action mt-3`}>
             <small>
                 Use coupon code <code>{coupon_code}</code> for {discount} off.
             </small>
             <br />
-            <a href={external_link} onClick={onClick} target="_blank" className="btn btn-primary btn-lg w-100">
+            <a href={payment_link} onClick={onClick} target="_blank" className="btn btn-primary btn-lg w-100">
                 Use baby monitor
             </a>
         </div>

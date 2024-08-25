@@ -7,7 +7,7 @@ interface Props {
     currency?: string;
 }
 
-const DefaultCurrency = "AUD";
+const DefaultCurrency = "USD";
 const CurrencyFormat = "0,0.00";
 
 const DiscountedPrice: React.FunctionComponent<Props> = ({ price, discount, currency = DefaultCurrency }) => {

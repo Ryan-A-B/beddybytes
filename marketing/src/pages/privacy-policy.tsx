@@ -4,8 +4,8 @@ import SEOHead from "../components/SEOHead";
 import DefaultPageWrapper from "../components/DefaultPageWrapper";
 
 const PaymentProviderPrivacyPolicyLink: React.FunctionComponent = () => (
-    <a href="https://squareup.com/privacy" target="_blank">
-        Square's privacy policy
+    <a href="https://stripe.com/privacy" target="_blank">
+        Stripe's privacy policy
     </a>
 )
 
@@ -27,10 +27,9 @@ const PrivacyPolicy: React.FunctionComponent<PageProps> = () => (
                     anonymous website analytics.
                 </p>
                 <p>
-                    We use Square to process payments. At this time the
-                    Square checkout page asks for your phone number, email
-                    address and first and last name. For more information
-                    vist <PaymentProviderPrivacyPolicyLink />.
+                    We use Stripe to process payments. At this time the
+                    Stripe checkout page asks for your email in addition to payment
+                    details. For more information vist <PaymentProviderPrivacyPolicyLink />.
                 </p>
                 <section className="my-3">
                     <h3>Why do we collect it?</h3>
