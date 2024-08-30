@@ -106,9 +106,9 @@ const FAQSection: React.FunctionComponent = () => {
     }
 
     return (
-        <section id="faq">
+        <section id="faq" className="py-5">
             <div className="container">
-                <h2>FAQ</h2>
+                <h2>Frequently asked questions</h2>
                 <div className="accordion">
                     {items.map((item, index) => {
                         const isActive = activeIndex === index

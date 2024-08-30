@@ -66,7 +66,7 @@ const Navbar: React.FunctionComponent = () => {
                     <ul className="navbar-nav">
                         <NavbarDropdown buttonText="Features">
                                 <li>
-                                    <Link to="/features/recording" className="dropdown-item">
+                                    <Link to="/features/baby-monitor-with-recording" className="dropdown-item">
                                         Recording
                                     </Link>
                                 </li>
