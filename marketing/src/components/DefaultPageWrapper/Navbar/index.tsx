@@ -3,6 +3,10 @@ import { Link } from 'gatsby'
 import NavbarDropdown from './Dropdown'
 import CallToAction from './CallToAction'
 
+interface Props {
+    without_call_to_action?: boolean
+}
+
 const ActiveButtonProps = {
     'aria-expanded': true,
 }
@@ -22,7 +26,7 @@ const getCollapseClassName = (isActive: boolean) => {
     return isActive ? ActiveCollapseClassName : CollapseClassName
 }
 
-const Navbar: React.FunctionComponent = () => {
+const Navbar: React.FunctionComponent<Props> = ({ without_call_to_action }) => {
     const [show, setShow] = React.useState<boolean>(false)
     const toggleShow = React.useCallback(
         () => setShow(!show),
@@ -65,11 +69,11 @@ const Navbar: React.FunctionComponent = () => {
                 <div className={getCollapseClassName(show)} id="navbar-collapse">
                     <ul className="navbar-nav">
                         <NavbarDropdown buttonText="Features">
-                                <li>
-                                    <Link to="/features/baby-monitor-with-recording" className="dropdown-item">
-                                        Recording
-                                    </Link>
-                                </li>
+                            <li>
+                                <Link to="/features/baby-monitor-with-recording" className="dropdown-item">
+                                    Recording
+                                </Link>
+                            </li>
                         </NavbarDropdown>
                         <li className="nav-item">
                             <Link to="/pricing" className="nav-link" onClick={onNavLinkClick}>
@@ -88,9 +92,11 @@ const Navbar: React.FunctionComponent = () => {
                         </li>
                     </ul>
                 </div>
-                <div className="d-lg-flex collapse">
-                    <CallToAction />
-                </div>
+                {!without_call_to_action && (
+                    <div className="d-lg-flex collapse">
+                        <CallToAction />
+                    </div>
+                )}
             </div>
         </nav>
     )

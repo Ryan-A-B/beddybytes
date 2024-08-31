@@ -11,7 +11,7 @@ const maxWidth = 760
 
 const PricingPage: React.FunctionComponent<PageProps> = () => {
     return (
-        <DefaultPageWrapper without_call_to_action_section>
+        <DefaultPageWrapper without_call_to_action>
             <main className="bg-primary text-bg-primary py-5">
                 <div className="container" style={{ maxWidth }}>
                     <h1 className="text-center mt-3 fs-5">Pricing</h1>

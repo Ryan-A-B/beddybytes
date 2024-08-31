@@ -29,7 +29,7 @@ const formattedDiscount = numeral(discount).format(DiscountFormat)
 const CitizenOneLink: React.FunctionComponent = () => <a href="https://paulgconlon.com" target="_blank" className="link-secondary">Citizen One</a>
 
 const PaulGConlon = () => (
-    <DefaultPageWrapper without_call_to_action_section>
+    <DefaultPageWrapper without_call_to_action>
         <div id="paulgconlon" className="landing-page">
             <main>
                 <section className="bg-primary text-bg-primary py-5">

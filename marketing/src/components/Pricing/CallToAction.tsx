@@ -23,7 +23,13 @@ const CallToAction: React.FunctionComponent<Props> = ({ product, coupon_code = D
                 Use coupon code <code>{coupon_code}</code> for {discount} off.
             </small>
             <br />
-            <a href={payment_link} onClick={onClick} target="_blank" className="btn btn-primary btn-lg w-100">
+            <a
+                href={payment_link}
+                onClick={onClick}
+                target="_blank"
+                rel="external"
+                className="btn btn-primary btn-lg w-100"
+            >
                 Buy now
             </a>
         </div>
