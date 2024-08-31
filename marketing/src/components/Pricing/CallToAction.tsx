@@ -24,7 +24,7 @@ const CallToAction: React.FunctionComponent<Props> = ({ product, coupon_code = D
             </small>
             <br />
             <a href={payment_link} onClick={onClick} target="_blank" className="btn btn-primary btn-lg w-100">
-                Use baby monitor
+                Buy now
             </a>
         </div>
     )
