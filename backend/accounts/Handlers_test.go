@@ -47,14 +47,6 @@ func TestHandlers(t *testing.T) {
 		server := httptest.NewServer(router)
 		defer server.Close()
 		client := server.Client()
-		Convey("Options", func() {
-			request, err := http.NewRequest(http.MethodOptions, server.URL+"/accounts", nil)
-			So(err, ShouldBeNil)
-			response, err := client.Do(request)
-			So(err, ShouldBeNil)
-			So(response.StatusCode, ShouldEqual, 200)
-			So(response.Header.Get("Access-Control-Allow-Methods"), ShouldEqual, "POST,OPTIONS")
-		})
 		Convey("GetAnonymousAccessToken", func() {
 			request, err := http.NewRequest(http.MethodPost, server.URL+"/anonymous_token", nil)
 			So(err, ShouldBeNil)

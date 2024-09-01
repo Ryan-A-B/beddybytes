@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/Ryan-A-B/beddybytes/backend/internal/xhttp"
 	"github.com/ansel1/merry"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/gorilla/mux"
@@ -27,7 +28,7 @@ func (middleware *AuthorizationMiddleware) Middleware(next http.Handler) http.Ha
 		defer func() {
 			if err != nil {
 				log.Println("Warn: ", err)
-				http.Error(responseWriter, err.Error(), merry.HTTPCode(err))
+				xhttp.Error(responseWriter, err)
 				return
 			}
 		}()
@@ -38,15 +39,15 @@ func (middleware *AuthorizationMiddleware) Middleware(next http.Handler) http.Ha
 		var claims Claims
 		_, err = jwt.ParseWithClaims(accessToken, &claims, middleware.getKey)
 		if err != nil {
-			err = merry.New("unauthorized").WithHTTPCode(http.StatusUnauthorized)
+			err = merry.Prepend(err, "failed to parse access token").WithUserMessage("unauthorized").WithHTTPCode(http.StatusUnauthorized)
 			return
 		}
 		if claims.Subject.Service != "iam" {
-			err = merry.New("unauthorized").WithHTTPCode(http.StatusUnauthorized)
+			err = merry.New("wrong subject service").WithUserMessage("unauthorized").WithHTTPCode(http.StatusUnauthorized)
 			return
 		}
 		if claims.Subject.ResourceType != "user" {
-			err = merry.New("unauthorized").WithHTTPCode(http.StatusUnauthorized)
+			err = merry.New("wrong subject resource type").WithUserMessage("unauthorized").WithHTTPCode(http.StatusUnauthorized)
 			return
 		}
 		vars := mux.Vars(request)

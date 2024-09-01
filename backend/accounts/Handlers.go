@@ -213,7 +213,7 @@ func (handlers *Handlers) Token(responseWriter http.ResponseWriter, request *htt
 	defer func() {
 		if err != nil {
 			log.Println("Warn:", err)
-			http.Error(responseWriter, err.Error(), merry.HTTPCode(err))
+			xhttp.Error(responseWriter, err)
 			return
 		}
 	}()
@@ -234,7 +234,7 @@ func (handlers *Handlers) TokenUsingPasswordGrant(responseWriter http.ResponseWr
 	defer func() {
 		if err != nil {
 			log.Println("Warn:", err)
-			http.Error(responseWriter, err.Error(), merry.HTTPCode(err))
+			xhttp.Error(responseWriter, err)
 			return
 		}
 	}()
@@ -251,12 +251,12 @@ func (handlers *Handlers) TokenUsingPasswordGrant(responseWriter http.ResponseWr
 	}
 	account, err := handlers.AccountStore.GetByEmail(ctx, email)
 	if err != nil {
-		err = merry.New("unauthorized").WithHTTPCode(http.StatusUnauthorized)
+		err = merry.New("account not found").WithUserMessage("unauthorized").WithHTTPCode(http.StatusUnauthorized)
 		return
 	}
 	passwordHash := calculatePasswordHash(password, account.User.PasswordSalt)
 	if !bytes.Equal(passwordHash, account.User.PasswordHash) {
-		err = merry.New("unauthorized").WithHTTPCode(http.StatusUnauthorized)
+		err = merry.New("wrong password").WithUserMessage("unauthorized").WithHTTPCode(http.StatusUnauthorized)
 		return
 	}
 	output := AccessTokenOutput{
@@ -274,7 +274,7 @@ func (handlers *Handlers) TokenUsingRefreshTokenGrant(responseWriter http.Respon
 	defer func() {
 		if err != nil {
 			log.Println("Warn:", err)
-			http.Error(responseWriter, err.Error(), merry.HTTPCode(err))
+			xhttp.Error(responseWriter, err)
 			return
 		}
 	}()
@@ -282,7 +282,7 @@ func (handlers *Handlers) TokenUsingRefreshTokenGrant(responseWriter http.Respon
 	cookie, err := request.Cookie("refresh_token")
 	if err != nil {
 		log.Println(err)
-		err = merry.New("unauthorized").WithHTTPCode(http.StatusUnauthorized)
+		err = merry.Prepend(err, "missing refresh token cookie").WithUserMessage("unauthorized").WithHTTPCode(http.StatusUnauthorized)
 		return
 	}
 	refreshToken := cookie.Value
@@ -324,7 +324,7 @@ func (handlers *Handlers) Logout(responseWriter http.ResponseWriter, request *ht
 	defer func() {
 		if err != nil {
 			log.Println("Warn:", err)
-			http.Error(responseWriter, err.Error(), merry.HTTPCode(err))
+			xhttp.Error(responseWriter, err)
 			return
 		}
 	}()
@@ -347,7 +347,7 @@ func (handlers *Handlers) GetAccount(responseWriter http.ResponseWriter, request
 	defer func() {
 		if err != nil {
 			log.Println("Warn:", err)
-			http.Error(responseWriter, err.Error(), merry.HTTPCode(err))
+			xhttp.Error(responseWriter, err)
 			return
 		}
 	}()
@@ -366,7 +366,7 @@ func (handlers *Handlers) DeleteAccount(responseWriter http.ResponseWriter, requ
 	err := handlers.AccountStore.Remove(ctx, accountID)
 	if err != nil {
 		log.Println("Warn:", err)
-		http.Error(responseWriter, err.Error(), http.StatusInternalServerError)
+		xhttp.Error(responseWriter, err)
 		return
 	}
 }

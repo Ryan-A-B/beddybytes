@@ -19,6 +19,7 @@ import (
 	"github.com/Ryan-A-B/beddybytes/backend/internal/eventlog"
 	"github.com/Ryan-A-B/beddybytes/backend/internal/store"
 	"github.com/Ryan-A-B/beddybytes/backend/internal/store2"
+	"github.com/Ryan-A-B/beddybytes/backend/internal/xhttp"
 	"github.com/Ryan-A-B/beddybytes/backend/sessionlist"
 	"github.com/Ryan-A-B/beddybytes/internal/fatal"
 )
@@ -76,7 +77,7 @@ func (handlers *Handlers) HandleWebsocket(responseWriter http.ResponseWriter, re
 	if !ok {
 		err := merry.Errorf("invalid client_type: %s", request.FormValue("client_type")).WithHTTPCode(http.StatusBadRequest)
 		log.Println("Warn: ", err)
-		http.Error(responseWriter, err.Error(), merry.HTTPCode(err))
+		xhttp.Error(responseWriter, err)
 		return
 	}
 	clientAlias := request.FormValue("client_alias")
@@ -182,6 +183,7 @@ func (handlers *Handlers) AddRoutes(router *mux.Router) {
 }
 
 func main() {
+	log.SetFlags(log.LstdFlags | log.Llongfile)
 	ctx := context.Background()
 	key := []byte(internal.EnvStringOrFatal("ENCRYPTION_KEY"))
 	cookieDomain := internal.EnvStringOrFatal("COOKIE_DOMAIN")
@@ -199,11 +201,14 @@ func main() {
 		UsedTokens:                   accounts.NewUsedTokens(),
 		AnonymousAccessTokenDuration: 10 * time.Second,
 	}
-	go eventlog.Project(ctx, &eventlog.ProjectInput{
-		EventLog:   accountHandlers.EventLog,
-		FromCursor: 0,
-		Apply:      accountHandlers.ApplyEvent,
-	})
+	go func() {
+		eventlog.Project(ctx, &eventlog.ProjectInput{
+			EventLog:   accountHandlers.EventLog,
+			FromCursor: 0,
+			Apply:      accountHandlers.ApplyEvent,
+		})
+		log.Fatal("eventlog.Project exited")
+	}()
 	handlers := Handlers{
 		Upgrader: websocket.Upgrader{
 			ReadBufferSize:  1024,
@@ -241,11 +246,14 @@ func main() {
 		}),
 		Key: key,
 	}
-	go eventlog.Project(ctx, &eventlog.ProjectInput{
-		EventLog:   handlers.EventLog,
-		FromCursor: 0,
-		Apply:      handlers.SessionProjection.ApplyEvent,
-	})
+	go func() {
+		eventlog.Project(ctx, &eventlog.ProjectInput{
+			EventLog:   handlers.EventLog,
+			FromCursor: 0,
+			Apply:      handlers.SessionProjection.ApplyEvent,
+		})
+		log.Fatal("eventlog.Project exited")
+	}()
 	router := mux.NewRouter()
 	router.Use(internal.LoggingMiddleware)
 	handlers.AddRoutes(router.NewRoute().Subrouter())
