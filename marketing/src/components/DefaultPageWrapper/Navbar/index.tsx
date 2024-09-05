@@ -70,6 +70,9 @@ const Navbar: React.FunctionComponent<Props> = ({ without_call_to_action }) => {
                     <ul className="navbar-nav">
                         <NavbarDropdown buttonText="Features">
                             <li>
+                                <Link to="/features/video-baby-monitor" className="dropdown-item">
+                                    Video
+                                </Link>
                                 <Link to="/features/baby-monitor-with-recording" className="dropdown-item">
                                     Recording
                                 </Link>
