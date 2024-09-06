@@ -33,10 +33,10 @@ const VideoFeaturePage: React.FunctionComponent = () => (
                     </h2>
                     <div className="row mt-4">
                         <div className="col-lg">
-                            <div className="card">
+                            <div className="card h-100">
                                 <div className="card-body">
-                                    <h3>
-                                        Peace of Mind, Wherever You Are
+                                    <h3 className="card-title fs-5">
+                                        Peace of mind, wherever you are
                                     </h3>
                                     <p>
                                         Turn your devices into trusted baby
@@ -49,10 +49,10 @@ const VideoFeaturePage: React.FunctionComponent = () => (
                             </div>
                         </div>
                         <div className="col-lg">
-                            <div className="card">
+                            <div className="card h-100">
                                 <div className="card-body">
-                                    <h3>
-                                        Switch, Connect, Relax
+                                    <h3 className="card-title fs-5">
+                                        Switch, connect, relax
                                     </h3>
                                     <p>
                                         Use any device with a browser to
@@ -64,10 +64,10 @@ const VideoFeaturePage: React.FunctionComponent = () => (
                             </div>
                         </div>
                         <div className="col-lg">
-                            <div className="card">
+                            <div className="card h-100">
                                 <div className="card-body">
-                                    <h3>
-                                        Instant Baby Monitor Magic
+                                    <h3 className="card-title fs-5">
+                                        Instant baby monitor magic
                                     </h3>
                                     <p>
                                         Turn any device with a browser, camera,
@@ -119,7 +119,7 @@ const VideoFeaturePage: React.FunctionComponent = () => (
                                 Check in on what they're complaining about.
                                 Maybe they're making some noise in their sleep.
                                 And maybe they've got a leg stuck in the crib.
-                                Don't intervene unless you have to.
+                                You'll know exactly what's going on.
                             </li>
                             <li>
                                 Watch as they decide to make an escape attempt.
