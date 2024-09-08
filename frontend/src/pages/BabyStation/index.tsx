@@ -13,6 +13,7 @@ import SessionToggle from './SessionToggle';
 import './style.scss';
 import { useSignalService } from '../../services';
 import baby_station from '../../services/instances/baby_station';
+import run_screen_saver from './run_screen_saver';
 
 const DefaultSessionName = 'Baby Station';
 
@@ -106,7 +107,7 @@ const BabyStation: React.FunctionComponent = () => {
     );
     return (
         <main className="container wrapper-content baby-station">
-            <div className="row justify-content-center g-2">
+            <div className="row justify-content-center g-2 mb-3">
                 <div className="form-group col-sm-auto col-lg">
                     <div className="input-group">
                         <span className="input-group-text">
@@ -154,6 +155,13 @@ const BabyStation: React.FunctionComponent = () => {
                     />
                 </div>
             </div>
+            <button
+                onClick={run_screen_saver}
+                disabled={host_session_status.status !== 'session_running'}
+                className='btn btn-secondary mb-3 mx-auto'
+            >
+                Screen Saver
+            </button>
             {media_devices_permission_status.status === 'granted' && (
                 <MediaStream
                     audioDeviceID={audioDeviceID}
