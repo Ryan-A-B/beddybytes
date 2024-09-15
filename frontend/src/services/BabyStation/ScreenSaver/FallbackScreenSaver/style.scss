@@ -1,0 +1,20 @@
+.screen-saver {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: #000000;
+
+    canvas {
+        position: absolute;
+    }
+
+    video {
+        position: absolute;
+
+        &::-webkit-media-controls {
+            display: none !important;
+        }
+    }
+}

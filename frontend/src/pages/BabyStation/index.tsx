@@ -13,7 +13,7 @@ import SessionToggle from './SessionToggle';
 import './style.scss';
 import { useSignalService } from '../../services';
 import baby_station from '../../services/instances/baby_station';
-import run_screen_saver from './run_screen_saver';
+import run_screen_saver from '../../services/BabyStation/ScreenSaver';
 
 const DefaultSessionName = 'Baby Station';
 
