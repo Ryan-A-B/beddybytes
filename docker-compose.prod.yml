@@ -11,7 +11,7 @@ services:
       - ./traefik/letsencrypt:/letsencrypt
       - ./traefik/logs:/opt/logs
     labels:
-      - "traefik.http.middlewares.headers-cors.headers.accesscontrolalloworiginlist=https://app.beddybytes.com,https://beddybytes.com"
+      - "traefik.http.middlewares.headers-cors.headers.accesscontrolalloworiginlist=https://app.beddybytes.com,https://beddybytes.com,https://app.beddybytes.local"
       - "traefik.http.middlewares.headers-cors.headers.accesscontrolallowheaders=Content-Type,Authorization"
       - "traefik.http.middlewares.headers-cors.headers.accesscontrolallowcredentials=true"
       - "traefik.http.middlewares.headers-cors.headers.accessControlAllowMethods=GET,OPTIONS,POST,PUT,DELETE"
