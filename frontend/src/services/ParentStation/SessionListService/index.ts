@@ -3,10 +3,10 @@ import settings from "../../../settings";
 import isClientError from '../../../utils/isClientError';
 import sleep from '../../../utils/sleep';
 import LoggingService, { Severity } from '../../LoggingService';
-import get_access_token_asap from "../../AuthorizationService/get_access_token_asap";
+import eventstore from '../../../eventstore';
+import { AuthorizationService } from '../../AuthorizationService/types';
 import EventSubscription from './EventSubscription';
 import { EventTypeSessionListChanged, Session, SessionListService } from './types';
-import eventstore from '../../../eventstore';
 import SessionList from './SessionList';
 import moment from 'moment';
 
@@ -19,16 +19,23 @@ class SessionListServiceImpl extends EventTarget implements SessionListService {
     private logging_service: LoggingService;
     private authorization_service: AuthorizationService;
     private session_list = new SessionList();
+    private running = false;
 
     constructor(input: NewSessionListServiceInput) {
         super();
         this.logging_service = input.logging_service;
         this.authorization_service = input.authorization_service;
-        this.seed_session_list().then(this.subscribe);
     }
 
     public get_session_list = (): List<Session> => {
+        this.run();
         return this.session_list.get_session_list();
+    }
+
+    private run = async () => {
+        if (this.running) return;
+        this.running = true;
+        this.seed_session_list().then(this.subscribe);
     }
 
     private dispatch_session_list_changed_event = () => {
@@ -37,7 +44,7 @@ class SessionListServiceImpl extends EventTarget implements SessionListService {
 
     private seed_session_list = async (): Promise<number> => {
         const endpoint = `https://${settings.API.host}/sessions`;
-        const access_token = await get_access_token_asap(this.authorization_service);
+        const access_token = await this.authorization_service.get_access_token();
         const response = await fetch(endpoint, {
             method: 'GET',
             headers: {

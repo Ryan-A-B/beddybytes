@@ -4,38 +4,33 @@ import settings from '../../settings';
 import isClientError from '../../utils/isClientError';
 import LoggingService, { Severity } from '../LoggingService';
 import sleep from '../../utils/sleep';
+import Service from '../Service';
+import { AuthorizationState, TokenOutput } from './types';
 
 const InitialRetryDelay = 1000;
 const MaxRetryDelay = 2 * 60 * 1000;
 
 const GracePeriod = moment.duration(5, 'minutes');
 
+const get_initial_state = (account: Optional<Account>): AuthorizationState => {
+    if (account === null)
+        return { state: 'no_account' };
+    return { state: 'token_not_fetched', account };
+}
+
 type NewAuthorizationServiceInput = {
     logging_service: LoggingService;
 }
 
-class AuthorizationService extends EventTarget implements AuthorizationService {
+class AuthorizationService extends Service<AuthorizationState> implements AuthorizationService {
     private logging_service: LoggingService;
-    private state: AuthorizationState;
 
     constructor(input: NewAuthorizationServiceInput) {
-        super();
-        this.logging_service = input.logging_service;
         const account = load_account_from_local_storage();
-        if (account === null) {
-            this.state = { state: 'no_account' };
-            return;
-        }
-        this.state = { state: 'token_not_fetched', account };
-    }
-
-    public get_state = (): AuthorizationState => {
-        return this.state;
-    }
-
-    private set_state(state: AuthorizationState): void {
-        this.state = state;
-        this.dispatchEvent(new Event('statechange'))
+        const initial_state = get_initial_state(account);
+        super(initial_state);
+        this.logging_service = input.logging_service;
+        if (initial_state.state === "token_not_fetched") this.get_access_token()
     }
 
     private set_token_fetched_state = (account: Account, token_output: TokenOutput): void => {
@@ -48,7 +43,8 @@ class AuthorizationService extends EventTarget implements AuthorizationService {
     }
 
     public create_account_and_login = async (email: string, password: string): Promise<void> => {
-        if (this.state.state !== 'no_account')
+        const state = this.get_state();
+        if (state.state !== 'no_account')
             throw new Error('already have account');
         const access_token = await get_anonymous_token();
         const response = await fetch(`https://${settings.API.host}/accounts`, {
@@ -73,7 +69,8 @@ class AuthorizationService extends EventTarget implements AuthorizationService {
     }
 
     public login = async (email: string, password: string): Promise<void> => {
-        if (this.state.state !== 'no_account')
+        const state = this.get_state();
+        if (state.state !== 'no_account')
             throw new Error('already have account');
         const token_output = await login(email, password);
         const account = await get_current_account(token_output.access_token);
@@ -82,38 +79,40 @@ class AuthorizationService extends EventTarget implements AuthorizationService {
     }
 
     public get_access_token = async (): Promise<string> => {
-        switch (this.state.state) {
+        const state = this.get_state();
+        switch (state.state) {
             case 'no_account': throw new Error('no account');
             case 'token_not_fetched': {
                 const token_output = await this.refresh_token();
                 return token_output.access_token;
             }
             case 'refreshing_token': {
-                const token_output = await this.state.promise;
+                const token_output = await state.promise;
                 return token_output.access_token;
             }
             case 'token_fetched': {
-                if (moment().isAfter(this.state.expiry)) {
+                if (moment().isAfter(state.expiry)) {
                     const token_output = await this.refresh_token();
                     return token_output.access_token;
                 }
-                return this.state.access_token;
+                return state.access_token;
             }
         }
     }
 
     private refresh_token = async (): Promise<TokenOutput> => {
-        if (this.state.state !== 'token_not_fetched' && this.state.state !== 'token_fetched')
+        const state = this.get_state();
+        if (state.state !== 'token_not_fetched' && state.state !== 'token_fetched')
             throw new Error('invalid state');
         const promise = refresh_token_with_retry(this.logging_service, InitialRetryDelay);
         this.set_state({
             state: 'refreshing_token',
-            account: this.state.account,
+            account: state.account,
             promise,
         });
         try {
             const token_output = await promise;
-            this.set_token_fetched_state(this.state.account, token_output);
+            this.set_token_fetched_state(state.account, token_output);
             return token_output;
         } catch (error) {
             remove_account_from_local_storage();

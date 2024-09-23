@@ -3,6 +3,7 @@ import RecordingService from "./RecordingService";
 import SessionService from "./SessionService";
 import { SessionListService } from './SessionListService/types';
 import SessionListServiceImpl from './SessionListService';
+import { AuthorizationService } from '../AuthorizationService/types';
 
 interface NewParentStationInput {
     logging_service: LoggingService;

@@ -2,6 +2,7 @@ import settings from '../../../settings';
 import eventstore from "../../../eventstore";
 import sleep from '../../../utils/sleep';
 import LoggingService, { Severity } from '../../LoggingService';
+import { AuthorizationService } from '../../AuthorizationService/types';
 
 interface NewEventSubscriptionInput {
     logging_service: LoggingService;

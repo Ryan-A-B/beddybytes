@@ -1,6 +1,7 @@
 import React from "react"
 
 import LoggingService from "./LoggingService"
+import { AuthorizationService } from "./AuthorizationService/types";
 
 export type Services = {
     logging_service: LoggingService,

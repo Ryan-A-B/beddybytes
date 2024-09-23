@@ -1,5 +1,7 @@
 import React from "react";
 import { useAuthorizationService } from "../services";
+import useServiceState from "./useServiceState";
+import { AccountStatus, AuthorizationState } from "../services/AuthorizationService/types";
 
 const authorization_state_to_account_status = (authorization_state: AuthorizationState): AccountStatus => {
     if (authorization_state.state === 'no_account') return { status: 'no_account' };
@@ -11,22 +13,11 @@ const authorization_state_to_account_status = (authorization_state: Authorizatio
 
 const useAccountStatus = (): AccountStatus => {
     const authorization_service = useAuthorizationService();
-    const [status, set_status] = React.useState<AccountStatus>(() => {
-        const authorization_state = authorization_service.get_state();
-        return authorization_state_to_account_status(authorization_state);
-    });
-    React.useEffect(() => {
-        const handle_account_status_changed = () => {
-            const authorization_state = authorization_service.get_state();
-            set_status(authorization_state_to_account_status(authorization_state));
-        }
-        authorization_service.addEventListener('statechange', handle_account_status_changed);
-        return () => {
-            authorization_service.removeEventListener('statechange', handle_account_status_changed);
-        }
-    }, [authorization_service]);
-
-    return status;
+    const authorization_state = useServiceState(authorization_service);
+    return React.useMemo(
+        () => authorization_state_to_account_status(authorization_state),
+        [authorization_state]
+    );
 }
 
 export default useAccountStatus;

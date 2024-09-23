@@ -1,4 +1,6 @@
-interface AuthorizationService extends EventTarget {
+import Service from '../Service';
+
+export interface AuthorizationService extends Service<AuthorizationState> {
     create_account_and_login: (email: string, password: string) => Promise<void>
     login: (email: string, password: string) => Promise<void>
     get_access_token: () => Promise<string>
@@ -27,9 +29,9 @@ interface AuthorizationStateTokenFetched {
     expiry: moment.Moment;
 }
 
-type AuthorizationState = AuthorizationStateNoAccount | AuthorizationStateTokenNotFetched | AuthorizationStateRefreshingToken | AuthorizationStateTokenFetched;
+export type AuthorizationState = AuthorizationStateNoAccount | AuthorizationStateTokenNotFetched | AuthorizationStateRefreshingToken | AuthorizationStateTokenFetched;
 
-type TokenOutput = {
+export type TokenOutput = {
     token_type: string;
     access_token: string;
     expires_in: number;
@@ -44,4 +46,4 @@ interface AccountStatusHaveAccount {
     account: Account
 }
 
-type AccountStatus = AccountStatusNoAccount | AccountStatusHaveAccount;
+export type AccountStatus = AccountStatusNoAccount | AccountStatusHaveAccount;
