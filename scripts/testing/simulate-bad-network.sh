@@ -10,13 +10,13 @@ if [ -z "$NETWORK_INTERFACE" ]; then
 fi
 
 cleanup() {
-    tc qdisc del dev $NETWORK_INTERFACE root
+    sudo tc qdisc del dev $NETWORK_INTERFACE root
 }
 
 trap cleanup EXIT
 
-# Drop 10% of packets
-tc qdisc add dev $NETWORK_INTERFACE root netem delay 500ms loss 80%
+sudo tc qdisc add dev $NETWORK_INTERFACE root netem loss 100%
+# sudo tc qdisc add dev $NETWORK_INTERFACE root netem delay 500ms loss 80%
 
 # Wait for the user to press Ctrl+C
 read -r -d '' _ </dev/tty

@@ -17,10 +17,6 @@ const VideoStream: React.FunctionComponent<Props> = ({ stream }) => {
             throw new Error("videoRef.current is null");
         const htmlVideoElement = htmlVideoElementRef.current
         htmlVideoElement.srcObject = stream;
-        htmlVideoElement.addEventListener('waiting', () => console.log("waiting"));
-        htmlVideoElement.addEventListener('playing', () => console.log("playing"));
-        htmlVideoElement.addEventListener('stalled', () => console.log("stalled"));
-        htmlVideoElement.addEventListener('stalled', () => console.log("suspend"));
         return () => {
             if (document.fullscreenEnabled && document.fullscreenElement !== null)
                 document.exitFullscreen();

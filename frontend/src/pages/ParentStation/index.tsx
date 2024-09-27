@@ -58,8 +58,8 @@ const ParentStation: React.FunctionComponent = () => {
     const signal_service = useSignalService();
     const client_session_state = useParentStationSessionState();
     const session_list = useSessionList();
-    // const rtc_peer_connection_state = useClientRTCConnectionState(client_session_state);
-    const should_show_stream = client_session_state.state === "joined"; // && !isBadRTCPeerConnectionState(rtc_peer_connection_state);
+    const rtc_peer_connection_state = useClientRTCConnectionState(client_session_state);
+    const should_show_stream = client_session_state.state === "joined" && !isBadRTCPeerConnectionState(rtc_peer_connection_state);
 
     useWakeLock(isClientSessionActive(client_session_state.state));
 

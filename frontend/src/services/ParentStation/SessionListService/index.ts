@@ -35,7 +35,6 @@ class SessionListServiceHTTP extends Service<SessionListServiceState> implements
     }
 
     public start = async () => {
-        console.log('SessionListServiceHTTP start', this.started);
         if (this.started) return;
         this.started = true;
         await wait_for_token_fetched(this.authorization_service);
