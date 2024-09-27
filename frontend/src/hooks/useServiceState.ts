@@ -1,5 +1,5 @@
 import React from 'react';
-import Service from '../services/Service';
+import Service, { EventTypeStateChanged } from '../services/Service';
 
 const useServiceState = <T>(service: Service<T>): T => {
     const [state, setState] = React.useState(service.get_state());
@@ -7,9 +7,9 @@ const useServiceState = <T>(service: Service<T>): T => {
         const onStateChanged = () => {
             setState(service.get_state());
         };
-        service.addEventListener('state_changed', onStateChanged);
+        service.addEventListener(EventTypeStateChanged, onStateChanged);
         return () => {
-            service.removeEventListener('state_changed', onStateChanged);
+            service.removeEventListener(EventTypeStateChanged, onStateChanged);
         };
     }, [service]);
     return state;

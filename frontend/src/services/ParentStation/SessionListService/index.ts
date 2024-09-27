@@ -1,13 +1,14 @@
-import { List } from 'immutable';
 import settings from "../../../settings";
 import isClientError from '../../../utils/isClientError';
 import sleep from '../../../utils/sleep';
+import Service from '../../Service';
 import LoggingService, { Severity } from '../../LoggingService';
 import eventstore from '../../../eventstore';
 import { AuthorizationService } from '../../AuthorizationService/types';
+import wait_for_token_fetched from '../../AuthorizationService/wait_for_token_fetched';
 import EventSubscription from './EventSubscription';
-import { EventTypeSessionListChanged, Session, SessionListService } from './types';
-import SessionList from './SessionList';
+import { SessionListService, SessionListServiceState } from './types';
+import SessionListProjection from './SessionListProjection';
 import moment from 'moment';
 
 interface NewSessionListServiceInput {
@@ -15,31 +16,31 @@ interface NewSessionListServiceInput {
     authorization_service: AuthorizationService;
 }
 
-class SessionListServiceImpl extends EventTarget implements SessionListService {
+// TODO implement stop method which closes the EventSubscription
+// TODO use a ref counter to avoid multiple subscriptions
+// TODO store the state and cursor in the local storage
+// TODO only seed the session list if local storage is out of date by more than n days
+class SessionListServiceHTTP extends Service<SessionListServiceState> implements SessionListService {
     private logging_service: LoggingService;
     private authorization_service: AuthorizationService;
-    private session_list = new SessionList();
-    private running = false;
+    private projection: SessionListProjection;
+    private started = false;
 
     constructor(input: NewSessionListServiceInput) {
-        super();
+        const projection = new SessionListProjection();
+        super(projection.get_session_list());
         this.logging_service = input.logging_service;
         this.authorization_service = input.authorization_service;
+        this.projection = projection;
     }
 
-    public get_session_list = (): List<Session> => {
-        this.run();
-        return this.session_list.get_session_list();
-    }
-
-    private run = async () => {
-        if (this.running) return;
-        this.running = true;
-        this.seed_session_list().then(this.subscribe);
-    }
-
-    private dispatch_session_list_changed_event = () => {
-        this.dispatchEvent(new Event(EventTypeSessionListChanged));
+    public start = async () => {
+        console.log('SessionListServiceHTTP start', this.started);
+        if (this.started) return;
+        this.started = true;
+        await wait_for_token_fetched(this.authorization_service);
+        const cursor = await this.seed_session_list()
+        return this.subscribe(cursor);
     }
 
     private seed_session_list = async (): Promise<number> => {
@@ -71,8 +72,8 @@ class SessionListServiceImpl extends EventTarget implements SessionListService {
                 since: moment(session.host_connection_state.since, eventstore.MomentFormatUnixTimestamp),
             }
         }));
-        this.session_list.seed(sessions);
-        this.dispatch_session_list_changed_event();
+        this.projection.seed(sessions);
+        this.set_state(this.projection.get_session_list());
         return output.cursor;
     }
 
@@ -90,11 +91,11 @@ class SessionListServiceImpl extends EventTarget implements SessionListService {
         if (!isCustomEvent)
             return;
         const detail = event.detail as eventstore.Event;
-        const session_list_changed = this.session_list.apply(detail);
+        const session_list_changed = this.projection.apply(detail);
         if (!session_list_changed)
             return;
-        this.dispatch_session_list_changed_event();
+        this.set_state(this.projection.get_session_list());
     }
 }
 
-export default SessionListServiceImpl;
+export default SessionListServiceHTTP;

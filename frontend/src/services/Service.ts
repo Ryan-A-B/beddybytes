@@ -1,3 +1,5 @@
+export const EventTypeStateChanged = 'state_changed';
+
 class Service<T> extends EventTarget {
     private state: T;
 
@@ -12,7 +14,7 @@ class Service<T> extends EventTarget {
 
     protected set_state(state: T): void {
         this.state = state;
-        this.dispatchEvent(new Event('state_changed'));
+        this.dispatchEvent(new Event(EventTypeStateChanged));
     }
 }
 

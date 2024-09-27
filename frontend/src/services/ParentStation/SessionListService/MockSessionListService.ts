@@ -1,16 +1,18 @@
 import { List } from 'immutable';
-import { EventTypeSessionListChanged, Session, SessionListService } from './types';
+import Service from '../../Service';
+import { Session, SessionListService, SessionListServiceState } from './types';
 
-class MockSessionListService extends EventTarget implements SessionListService {
-    private session_list: List<Session> = List();
+class MockSessionListService extends Service<SessionListServiceState> implements SessionListService {
+    constructor() {
+        super(List());
+    }
 
-    public get_session_list = (): List<Session> => {
-        return this.session_list;
+    public start = () => {
+        return this.get_state();
     }
 
     public set_session_list = (session_list: List<Session>) => {
-        this.session_list = session_list;
-        this.dispatchEvent(new Event(EventTypeSessionListChanged));
+        this.set_state(session_list);
     }
 }
 

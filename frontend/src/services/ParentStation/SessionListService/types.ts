@@ -1,5 +1,7 @@
 import { List } from 'immutable';
 import moment from 'moment';
+import SessionListProjection from './SessionListProjection';
+import Service from '../../Service';
 
 export interface HostConnectionStateConnected {
     state: 'connected';
@@ -22,8 +24,8 @@ export interface Session {
     host_connection_state: HostConnectionState;
 }
 
-export interface SessionListService extends EventTarget {
-    get_session_list: () => List<Session>;
-}
+export type SessionListServiceState = List<Session>;
 
-export const EventTypeSessionListChanged = 'sessions_changed';
+export interface SessionListService extends Service<SessionListServiceState> {
+    start(): void;
+}

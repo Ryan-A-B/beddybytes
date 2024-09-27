@@ -1,8 +1,9 @@
 import { List } from "immutable";
+import { EventTypeStateChanged } from "../../Service";
 import LoggingService, { Severity } from '../../LoggingService';
+import { Session, SessionListService } from "../SessionListService/types";
 import { InitiatedBy } from "./Connection/InitiatedBy";
 import RTCConnection from "./Connection/RTCConnection";
-import { EventTypeSessionListChanged, Session, SessionListService } from "../SessionListService/types";
 
 export const EventTypeParentStationSessionStateChanged = 'client_session_status_changed';
 
@@ -23,7 +24,7 @@ class SessionService extends EventTarget implements ParentStationSessionService 
         this.logging_service = input.logging_service;
         this.signal_service = input.signal_service;
         this.session_list_service = input.session_list_service;
-        this.session_list_service.addEventListener(EventTypeSessionListChanged, this.handle_session_list_changed);
+        this.session_list_service.addEventListener(EventTypeStateChanged, this.handle_session_list_changed);
     }
 
     public get_state = (): ParentStationSessionState => {
@@ -66,7 +67,7 @@ class SessionService extends EventTarget implements ParentStationSessionService 
         if (this.state.state !== 'joined')
             return;
         const session = this.state.session;
-        const session_list = this.session_list_service.get_session_list();
+        const session_list = this.session_list_service.get_state();
         // TODO List in types.d.ts
         const session_gone = (session_list as List<Session>).find((s) => s.id === session.id) === undefined;
         if (session_gone)

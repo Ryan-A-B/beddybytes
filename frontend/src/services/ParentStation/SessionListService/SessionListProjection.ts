@@ -58,7 +58,7 @@ interface ClientDisconnectedEvent extends eventstore.Event<ClientDisconnectedEve
 interface ServerStartedEvent extends eventstore.Event<null> {
 }
 
-class SessionList {
+class SessionListProjection {
     private sessionByID: Map<string, Session> = Map();
     private sessionByConnectionID: Map<string, Session> = Map();
 
@@ -177,4 +177,4 @@ class SessionList {
     }
 }
 
-export default SessionList;
+export default SessionListProjection;

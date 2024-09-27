@@ -2,7 +2,7 @@ import LoggingService from '../LoggingService';
 import RecordingService from "./RecordingService";
 import SessionService from "./SessionService";
 import { SessionListService } from './SessionListService/types';
-import SessionListServiceImpl from './SessionListService';
+import SessionListServiceHTTP from './SessionListService';
 import { AuthorizationService } from '../AuthorizationService/types';
 
 interface NewParentStationInput {
@@ -17,7 +17,7 @@ class ParentStation {
     readonly recording_service: RecordingService;
 
     constructor({ logging_service, authorization_service, signal_service }: NewParentStationInput) {
-        this.session_list_service = new SessionListServiceImpl({
+        this.session_list_service = new SessionListServiceHTTP({
             logging_service,
             authorization_service: authorization_service,
         });
