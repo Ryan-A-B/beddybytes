@@ -40,13 +40,11 @@ class RecordingService extends EventTarget {
         if (session_state.state !== 'joined')
             throw new Error('Cannot start recording when not joined to a session');
         const connection = session_state.client_connection;
-        const media_stream_state = connection.get_media_stream_state();
-        if (media_stream_state.state !== 'available')
-            throw new Error('Cannot start recording when media stream is not available');
+        const media_stream = connection.get_media_stream();
         if (this.state.state === 'recording')
             throw new Error('Cannot start recording when already recording');
         const t0 = moment();
-        const media_recorder = new MediaRecorder(media_stream_state.media_stream);
+        const media_recorder = new MediaRecorder(media_stream);
         const chunks: Blob[] = [];
         media_recorder.addEventListener('dataavailable', (event) => {
             chunks.push(event.data);

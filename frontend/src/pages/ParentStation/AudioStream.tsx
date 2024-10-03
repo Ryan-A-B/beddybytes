@@ -67,7 +67,7 @@ const AudioStream: React.FunctionComponent<Props> = ({ stream }) => {
     return (
         <React.Fragment>
             <p id="audio-only-message">Audio only</p>
-            <ConnectionState stream={stream} />
+            {/* <ConnectionState stream={stream} /> */}
             <audio id="audio-parent" ref={htmlAudioElementRef} playsInline autoPlay />
             <canvas
                 id="audio-visualizer"

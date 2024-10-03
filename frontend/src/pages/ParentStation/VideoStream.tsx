@@ -28,7 +28,7 @@ const VideoStream: React.FunctionComponent<Props> = ({ stream }) => {
     // TODO what's playsInline?
     return (
         <React.Fragment>
-            <ConnectionState stream={stream} />
+            {/* <ConnectionState stream={stream} /> */}
             {recording_state.state === 'not_recording' && (
                 <button id="button-start-recording" onClick={parent_station.recording_service.start} className='btn btn-outline-danger'>
                     <FontAwesomeIcon icon={faCircle} /> Start Recording

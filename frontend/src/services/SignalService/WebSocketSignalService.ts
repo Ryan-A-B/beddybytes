@@ -2,6 +2,7 @@ import { v4 as uuid } from 'uuid';
 import settings from "../../settings";
 import sleep from '../../utils/sleep';
 import LoggingService, { Severity } from '../LoggingService';
+import { AuthorizationService } from '../AuthorizationService/types';
 
 export const EventTypeSignalStateChange = 'signal_state_change';
 

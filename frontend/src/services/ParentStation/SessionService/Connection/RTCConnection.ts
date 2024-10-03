@@ -2,6 +2,7 @@ import settings from "../../../../settings";
 import LoggingService, { Severity } from '../../../LoggingService';
 import { Session } from "../../SessionListService/types";
 import { InitiatedBy } from "./InitiatedBy";
+import watch_latency from "./watch_latency";
 
 export const EventTypeRTCConnectionStateChanged = 'rtc_connection_state_changed';
 export const EventTypeRTCConnectionStreamStatusChanged = 'rtc_connection_stream_status_changed';
@@ -47,7 +48,7 @@ class RTCConnection extends EventTarget implements Connection {
     private signal_service: SignalService;
     private session: Session;
     private peer_connection: RTCPeerConnection;
-    private connection_stream_state: MediaStreamState = { state: 'not_available' };
+    private media_stream: MediaStream = new MediaStream();
 
     constructor(input: NewRTCConnectionInput) {
         super();
@@ -71,17 +72,8 @@ class RTCConnection extends EventTarget implements Connection {
         return this.peer_connection.connectionState;
     }
 
-    public get_media_stream_state = (): MediaStreamState => {
-        return this.connection_stream_state;
-    }
-
-    private set_connection_stream_state = (connection_stream_state: MediaStreamState): void => {
-        this.logging_service.log({
-            severity: Severity.Debug,
-            message: `RTC stream state changed to ${connection_stream_state.state}`,
-        })
-        this.connection_stream_state = connection_stream_state;
-        this.dispatchEvent(new Event(EventTypeRTCConnectionStreamStatusChanged));
+    public get_media_stream = (): MediaStream => {
+        return this.media_stream;
     }
 
     private send_description = async () => {
@@ -130,8 +122,11 @@ class RTCConnection extends EventTarget implements Connection {
     }
 
     private handle_track = (event: RTCTrackEvent) => {
-        const stream = event.streams[0];
-        this.set_connection_stream_state({ state: 'available', media_stream: stream });
+        console.log(event);
+
+        this.media_stream.addTrack(event.track);
+
+        if (event.track.kind === "video") watch_latency(event.track)
     }
 
     private handle_connection_state_change = (event: Event) => {
@@ -163,6 +158,8 @@ class RTCConnection extends EventTarget implements Connection {
     }
 
     private close_peer_connection = () => {
+        // TODO close all tracks?
+
         this.peer_connection.onicecandidate = null;
         this.peer_connection.ontrack = null;
         this.peer_connection.onconnectionstatechange = null;

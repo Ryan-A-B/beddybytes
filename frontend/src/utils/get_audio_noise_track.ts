@@ -1,6 +1,5 @@
-const add_audio_noise = (media_stream: MediaStream): MediaStream => {
+const get_audio_noise_track = (): MediaStreamTrack => {
     const audio_context = new AudioContext();
-    const source = audio_context.createMediaStreamSource(media_stream);
 
     const noise = audio_context.createGain();
     noise.gain.value = 0.0002;
@@ -17,15 +16,9 @@ const add_audio_noise = (media_stream: MediaStream): MediaStream => {
     noise_source.connect(noise);
     noise_source.start();
 
-    const combined = audio_context.createMediaStreamDestination();
-    source.connect(combined);
-    noise.connect(combined);
-
-    media_stream.getVideoTracks().forEach((track) => {
-        combined.stream.addTrack(track);
-    });
-
-    return combined.stream;
+    const destination = audio_context.createMediaStreamDestination();
+    noise.connect(destination);
+    return destination.stream.getAudioTracks()[0];
 }
 
-export default add_audio_noise;
+export default get_audio_noise_track;

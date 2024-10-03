@@ -8,7 +8,7 @@ import useHostSessionStatus from '../../hooks/useBabyStationSessionStatus';
 import Input from '../../components/Input';
 import SelectVideoDevice from './SelectVideoDevice';
 import SelectAudioDevice from './SelectAudioDevice';
-import MediaStream from './MediaStream';
+import MediaStreamComponent from './MediaStreamComponent';
 import SessionToggle from './SessionToggle';
 import './style.scss';
 import { useSignalService } from '../../services';
@@ -163,7 +163,7 @@ const BabyStation: React.FunctionComponent = () => {
                 Screen Saver
             </button>
             {media_devices_permission_status.status === 'granted' && (
-                <MediaStream
+                <MediaStreamComponent
                     audioDeviceID={audioDeviceID}
                     videoDeviceID={videoDeviceID}
                     sessionActive={host_session_status.status === 'session_running'}

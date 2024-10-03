@@ -4,6 +4,7 @@ import settings from "../../../settings";
 import isClientError from '../../../utils/isClientError';
 import sleep from '../../../utils/sleep';
 import LoggingService, { Severity } from '../../LoggingService';
+import { AuthorizationService } from '../../AuthorizationService/types';
 
 export const EventTypeHostSessionStatusChanged = 'host_session_status_changed';
 

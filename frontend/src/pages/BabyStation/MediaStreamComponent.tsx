@@ -2,8 +2,21 @@ import React from "react";
 import Connections from "./Connections";
 import { useSignalService } from "../../services";
 import useMediaStreamStatus from "../../hooks/useMediaStreamStatus";
-import add_audio_noise from "../../utils/add_audio_noise";
+import get_audio_noise_track from "../../utils/get_audio_noise_track";
 import baby_station from "../../services/instances/baby_station";
+import CanvasService from "../../services/BabyStation/CanvasService";
+import get_video_track_with_timestamps from "./get_video_track_with_timestamps";
+
+const useCanvasService = (media_stream_status: MediaStreamStatus) => {
+    const [video_track, set_video_track] = React.useState<MediaStreamTrack | null>(null);
+    React.useEffect(() => {
+        if (media_stream_status.status !== 'running') return;
+        const canvas_service = new CanvasService(media_stream_status.media_stream);
+        set_video_track(canvas_service.get_video_track());
+        return canvas_service.stop_rendering;
+    }, [media_stream_status]);
+    return video_track;
+}
 
 interface Props {
     audioDeviceID: string
@@ -11,7 +24,7 @@ interface Props {
     sessionActive: boolean
 }
 
-const MediaStream: React.FunctionComponent<Props> = ({ audioDeviceID, videoDeviceID, sessionActive }) => {
+const MediaStreamComponent: React.FunctionComponent<Props> = ({ audioDeviceID, videoDeviceID, sessionActive }) => {
     const media_stream_service = baby_station.media_stream_service;
     const signal_service = useSignalService();
     const videoRef = React.useRef<HTMLVideoElement>(null);
@@ -23,19 +36,28 @@ const MediaStream: React.FunctionComponent<Props> = ({ audioDeviceID, videoDevic
         });
     }, [media_stream_service, audioDeviceID, videoDeviceID]);
     React.useLayoutEffect(() => {
-        if (mediaStreamStatus.status !== 'running') return;
         if (videoRef.current === null) return;
-        const video = videoRef.current;
-        video.srcObject = mediaStreamStatus.media_stream;
+        if (mediaStreamStatus.status !== 'running') return;
+        const video_tracks = mediaStreamStatus.media_stream.getVideoTracks();
+        if (video_tracks.length !== 1) throw new Error('Expected exactly one video track');
+        const video_track = video_tracks[0];
+        const video_track_with_timestamps = get_video_track_with_timestamps(video_track);
+        const video_element = videoRef.current;
+        video_element.srcObject = mediaStreamStatus.media_stream;
+        video_element.play();
         return () => {
-            video.srcObject = null;
+            video_element.srcObject = null;
         }
     }, [mediaStreamStatus]);
     React.useEffect(() => {
         if (!sessionActive) return;
         if (mediaStreamStatus.status !== 'running') return;
-        const media_stream = add_audio_noise(mediaStreamStatus.media_stream);
-        const connections = new Connections(signal_service, media_stream);
+        const video_tracks = mediaStreamStatus.media_stream.getVideoTracks();
+        if (video_tracks.length !== 1) throw new Error('Expected exactly one video track');
+        const video_track = video_tracks[0];
+        const audio_tracks = mediaStreamStatus.media_stream.getAudioTracks();
+        audio_tracks.push(get_audio_noise_track());
+        const connections = new Connections(signal_service, video_track, audio_tracks);
         return connections.close;
     }, [signal_service, sessionActive, mediaStreamStatus]);
     if (mediaStreamStatus.status === 'starting') return (<div>Getting stream...</div>)
@@ -56,7 +78,6 @@ const MediaStream: React.FunctionComponent<Props> = ({ audioDeviceID, videoDevic
     return (
         <video
             ref={videoRef}
-            autoPlay
             playsInline
             muted
             className={`video my-3 ${sessionActive && 'active'}`}
@@ -64,4 +85,4 @@ const MediaStream: React.FunctionComponent<Props> = ({ audioDeviceID, videoDevic
     )
 };
 
-export default MediaStream;
+export default MediaStreamComponent;

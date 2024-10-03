@@ -41,8 +41,8 @@ class MockClientConnection extends EventTarget implements Connection {
         return 'connected';
     }
 
-    public get_media_stream_state = (): MediaStreamState => {
-        return { state: 'available', media_stream: this.media_stream };
+    public get_media_stream = (): MediaStream => {
+        return this.media_stream;
     }
 
     reconnect() {

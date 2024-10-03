@@ -1,3 +1,4 @@
+import { AuthorizationService } from '../AuthorizationService/types';
 import LoggingService from '../LoggingService';
 import MediaDevicePermissionService from "./MediaDevicePermissionService";
 import MediaStreamService from "./MediaStreamService";

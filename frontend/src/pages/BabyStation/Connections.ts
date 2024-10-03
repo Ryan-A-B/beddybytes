@@ -45,11 +45,13 @@ const isCloseSignal = (signal: IncomingSignal): signal is IncomingSignalClose =>
 
 class Connections {
     private signal_service: SignalService;
-    private stream: MediaStream;
+    private video_track: MediaStreamTrack;
+    private audio_tracks: MediaStreamTrack[];
     private peer_connections: Map<string, RTCPeerConnection> = Map();
-    constructor(signal_service: SignalService, stream: MediaStream) {
+    constructor(signal_service: SignalService, video_track: MediaStreamTrack, audio_tracks: MediaStreamTrack[]) {
         this.signal_service = signal_service;
-        this.stream = stream;
+        this.video_track = video_track;
+        this.audio_tracks = audio_tracks;
         this.signal_service.start();
         this.signal_service.addEventListener("signal", this.onSignal);
     }
@@ -79,7 +81,9 @@ class Connections {
         peer_connection.onicecandidate = this.onICECandidate(signal.from_connection_id);
         this.peer_connections = this.peer_connections.set(signal.from_connection_id, peer_connection);
         await peer_connection.setRemoteDescription(signal.data.description);
-        this.stream.getTracks().forEach((track) => peer_connection.addTrack(track, this.stream));
+        const sender = peer_connection.addTrack(this.video_track);
+
+        this.audio_tracks.forEach((track) => peer_connection.addTrack(track));
         const answer = await peer_connection.createAnswer();
         await peer_connection.setLocalDescription(answer);
         this.signal_service.send_signal({
