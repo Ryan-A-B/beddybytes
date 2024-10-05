@@ -14,7 +14,7 @@ const get_video_track_with_timestamps = async (video_track: MediaStreamTrack) =>
             return;
         }
         const video_frame = value as VideoFrame;
-        console.log(video_frame.timestamp);
+        console.log(video_frame.timestamp, Date.now());
         video_frame.close();
         return read_frame();
     }

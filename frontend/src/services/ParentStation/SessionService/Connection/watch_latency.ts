@@ -2,10 +2,13 @@ const little_endian = false;
 
 const check_interval = 1000;
 
+const video_timestamp = 225223009342
+const unix_timestamp = 1728011905395
+
 // typescript doesn't know about MediaStreamTrackProcessor or MediaStreamTrackGenerator
 const watch_latency = (video_track: MediaStreamTrack) => {
     // @ts-ignore    
-    if (MediaStreamTrackProcessor === undefined) return;
+    if (!MediaStreamTrackProcessor) return;
     if (video_track.kind !== "video") throw new Error("track.kind is not video");
     // @ts-ignore
     const track_processor = new MediaStreamTrackProcessor({ track: video_track });
@@ -17,7 +20,14 @@ const watch_latency = (video_track: MediaStreamTrack) => {
             return;
         }
         const video_frame = value as VideoFrame;
-        console.log(video_frame.timestamp);
+
+        console.log(video_frame)
+
+        const timestamp = unix_timestamp + (video_frame.timestamp - video_timestamp) / 1000
+        const now = Date.now();
+        const dt = now - timestamp;
+        console.log({ now, timestamp, dt });
+
         video_frame.close();
         return read_frame();
     }
