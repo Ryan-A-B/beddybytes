@@ -14,6 +14,7 @@ import ParentStation from './pages/ParentStation';
 import { Services, context as ServicesContext } from './services';
 
 import './App.scss';
+import { Severity } from './services/LoggingService';
 
 export const services: Services = {
   logging_service,
@@ -40,3 +41,17 @@ const App: React.FunctionComponent = () => {
 }
 
 export default App;
+
+window.addEventListener('error', function (event) {
+  logging_service.log({
+    severity: Severity.Critical,
+    message: `Uncaught error: ${event.message}`,
+  })
+})
+
+window.addEventListener('unhandledrejection', function (event) {
+  logging_service.log({
+    severity: Severity.Critical,
+    message: `Unhandled rejection: ${event.reason}`,
+  })
+})
