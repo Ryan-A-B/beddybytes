@@ -17,6 +17,10 @@ class ConsoleLoggingService implements LoggingService {
         this.get_log_func(input.severity)(`${label}: ${input.message}`);
     }
 
+    public set_account_id(account_id: string): void {
+        // Do nothing
+    }
+
     private get_log_func = (severity: Severity) => {
         if (severity <= Severity.Warning) return console.error
         return console.log

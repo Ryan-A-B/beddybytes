@@ -33,7 +33,7 @@ class MediaStreamService extends EventTarget {
     }
 
     public start_media_stream = async (input: StartMediaStreamInput): Promise<void> => {
-        if (this.media_device_permission_service.get_status().status !== 'granted')
+        if (this.media_device_permission_service.get_state().state !== 'granted')
             throw new Error('Media device permission not granted');
         if (this.status.status === 'running' || this.status.status === 'starting')
             throw new Error('Media stream already running');

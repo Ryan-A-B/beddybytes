@@ -28,4 +28,9 @@ const PricingPage: React.FunctionComponent<PageProps> = () => {
 
 export default PricingPage
 
-export const Head: HeadFC = () => <SEOHead title="BeddyBytes Pricing" description="BeddyBytes pricing information" />
+export const Head: HeadFC = () => (
+    <SEOHead
+        title="BeddyBytes Pricing"
+        description="BeddyBytes pricing information"
+    />
+)

@@ -26,6 +26,7 @@ class AuthorizationService extends EventTarget implements AuthorizationService {
             this.state = { state: 'no_account' };
             return;
         }
+        this.logging_service.set_account_id(account.id);
         this.state = { state: 'token_not_fetched', account };
     }
 
@@ -36,6 +37,8 @@ class AuthorizationService extends EventTarget implements AuthorizationService {
     private set_state(state: AuthorizationState): void {
         this.state = state;
         this.dispatchEvent(new Event('statechange'))
+        if (state.state === 'no_account') this.logging_service.set_account_id('no account');
+        else this.logging_service.set_account_id(state.account.id);
     }
 
     private set_token_fetched_state = (account: Account, token_output: TokenOutput): void => {

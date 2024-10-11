@@ -29,20 +29,47 @@ class InfluxLoggingService implements LoggingService {
     };
 
     private writer: WriteApi;
+    private account_id: string = 'no account';
+    private client_id: string;
+    private instance_id: string;
     private process_id: string;
 
     constructor(input: NewInfluxLoggingServiceInput) {
         this.writer = input.client.getWriteApi(input.org, input.bucket, InfluxLoggingService.WritePrecision);
         this.writer.useDefaultTags({
+            host: window.location.hostname,
             facility: InfluxLoggingService.Facility,
             appname: InfluxLoggingService.ApplicationName,
-            host: InfluxLoggingService.HostName,
             hostname: InfluxLoggingService.HostName,
         });
+        this.client_id = input.client_id;
+        this.instance_id = input.instance_id;
         this.process_id = `${input.client_id}:${input.instance_id}`;
     }
 
+    public set_account_id = (account_id: string) => {
+        this.account_id = account_id;
+    }
+
     public log = (input: LogInput) => {
+        const severity_code = InfluxLoggingService.SeverityCode[input.severity];
+        if (!severity_code)
+            throw new Error(`Unknown severity code: ${input.severity}`);
+
+        const point = new Point('log')
+            .stringField('user_agent', navigator.userAgent)
+            .stringField("message", input.message)
+            .tag('account_id', this.account_id)
+            .tag('client_id', this.client_id)
+            .tag('severity', severity_code)
+            .stringField('instance_id', this.instance_id)
+
+        this.writer.writePoint(point);
+
+        this.old_log(input);
+    }
+
+    private old_log = (input: LogInput) => {
         const severity_code = InfluxLoggingService.SeverityCode[input.severity];
         if (!severity_code)
             throw new Error(`Unknown severity code: ${input.severity}`);

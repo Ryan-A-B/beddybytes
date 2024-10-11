@@ -15,5 +15,6 @@ export interface LogInput {
 }
 
 export default interface LoggingService {
+    set_account_id: (account_id: string) => void
     log: (input: LogInput) => void
 }

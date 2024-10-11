@@ -5,8 +5,8 @@ type Props = {
     stream: MediaStream
 }
 
-const ConnectionState: React.FunctionComponent<Props> = ({ stream }) => {
-    const mediaStreamConnectionState = useMediaStreamDisconnectMonitor(stream);
+const ConnectionState: React.FunctionComponent<Props> = ({ stream: media_stream }) => {
+    const mediaStreamConnectionState = useMediaStreamDisconnectMonitor(media_stream);
     if (mediaStreamConnectionState.state === 'connected') return null;
     if (mediaStreamConnectionState.state === 'unstable') return (
         <p className="align-self-center">Connection unstable</p>

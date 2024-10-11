@@ -54,7 +54,7 @@ class EventSubscription extends EventTarget {
         const event_source = error.target as EventSource;
         event_source.close()
         this.logging_service.log({
-            severity: Severity.Error,
+            severity: Severity.Warning,
             message: `Failed to connect to event source, reconnecting in ${this.reconnect_delay}ms`,
         });
         this.reconnect();

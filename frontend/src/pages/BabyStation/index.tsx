@@ -14,6 +14,7 @@ import './style.scss';
 import { useSignalService } from '../../services';
 import baby_station from '../../services/instances/baby_station';
 import run_screen_saver from '../../services/BabyStation/ScreenSaver';
+import MediaStreamPermissionCheck from './MediaStreamPermissionCheck';
 
 const DefaultSessionName = 'Baby Station';
 
@@ -46,11 +47,10 @@ const useEndSessionOnUnmount = (session_service: BabyStationSessionService) => {
 const BabyStation: React.FunctionComponent = () => {
     const signal_service = useSignalService();
     const session_service = baby_station.session_service;
-    const media_device_permission_service = baby_station.media_device_permission_service;
     const media_stream_service = baby_station.media_stream_service;
     const host_session_status = useHostSessionStatus();
 
-    const media_devices_permission_status = useMediaDevicesPermissionStatus();
+    const media_devices_permission_state = useMediaDevicesPermissionStatus();
     const [sessionName, setSessionName] = useSessionName();
     const [audioDeviceID, setAudioDeviceID] = React.useState(() => {
         const audioDeviceID = localStorage.getItem(LocalStorageAudioDeviceIDKey);
@@ -63,7 +63,7 @@ const BabyStation: React.FunctionComponent = () => {
         return videoDeviceID;
     });
     React.useEffect(() => {
-        if (media_devices_permission_status.status !== 'granted')
+        if (media_devices_permission_state.state !== 'granted')
             return;
         media_stream_service.start_media_stream({
             audio_device_id: audioDeviceID,
@@ -72,7 +72,7 @@ const BabyStation: React.FunctionComponent = () => {
         return () => {
             media_stream_service.stop_media_stream();
         };
-    }, [media_stream_service, media_devices_permission_status, audioDeviceID, videoDeviceID])
+    }, [media_stream_service, media_devices_permission_state, audioDeviceID, videoDeviceID])
     const canActivateSession = React.useMemo(() => {
         return sessionName !== '';
     }, [sessionName]);
@@ -92,85 +92,72 @@ const BabyStation: React.FunctionComponent = () => {
         });
     }, [session_service, signal_service, sessionName]);
     useEndSessionOnUnmount(session_service);
-    React.useEffect(() => {
-        media_device_permission_service.request_video_and_audio_permission();
-    }, [media_device_permission_service]);
-    if (media_devices_permission_status.status === 'requested') return (
-        <div className="container">
-            Requesting permission to access camera and microphone...
-        </div>
-    );
-    if (media_devices_permission_status.status === 'denied') return (
-        <div className="container">
-            Permission to access camera and microphone denied. To use this device as a camera, please allow access to the camera and microphone.
-        </div>
-    );
     return (
-        <main className="container wrapper-content baby-station">
-            <div className="row justify-content-center g-2 mb-3">
-                <div className="form-group col-sm-auto col-lg">
-                    <div className="input-group">
-                        <span className="input-group-text">
-                            <FontAwesomeIcon icon={faTag} />
-                        </span>
-                        <Input
-                            id="input-session-name"
-                            value={sessionName}
-                            onChange={setSessionName}
-                            className="form-control"
-                            disabled={host_session_status.status !== 'no_session_running'}
+        <MediaStreamPermissionCheck media_device_permission_service={baby_station.media_device_permission_service}>
+            <main className="container wrapper-content baby-station">
+                <div className="row justify-content-center g-2 mb-3">
+                    <div className="form-group col-sm-auto col-lg">
+                        <div className="input-group">
+                            <span className="input-group-text">
+                                <FontAwesomeIcon icon={faTag} />
+                            </span>
+                            <Input
+                                id="input-session-name"
+                                value={sessionName}
+                                onChange={setSessionName}
+                                className="form-control"
+                                disabled={host_session_status.status !== 'no_session_running'}
+                            />
+                        </div>
+                    </div>
+                    <div className="form-group col-sm-auto col-lg">
+                        <div className="input-group">
+                            <span className="input-group-text">
+                                <FontAwesomeIcon icon={faMicrophone} />
+                            </span>
+                            <SelectAudioDevice
+                                value={audioDeviceID}
+                                onChange={setAudioDeviceIDAndStore}
+                                disabled={host_session_status.status !== 'no_session_running'}
+                            />
+                        </div>
+                    </div>
+                    <div className="form-group col-sm-auto col-lg">
+                        <div className="input-group">
+                            <span className="input-group-text">
+                                <FontAwesomeIcon icon={faVideo} />
+                            </span>
+                            <SelectVideoDevice
+                                value={videoDeviceID}
+                                onChange={setVideoDeviceIDAndStore}
+                                disabled={host_session_status.status !== 'no_session_running'}
+                            />
+                        </div>
+                    </div>
+                    <div className="form-group col col-md-auto">
+                        <SessionToggle
+                            host_session_status={host_session_status}
+                            startSession={startSession}
+                            endSession={session_service.end_session}
+                            disabled={!canActivateSession}
                         />
                     </div>
                 </div>
-                <div className="form-group col-sm-auto col-lg">
-                    <div className="input-group">
-                        <span className="input-group-text">
-                            <FontAwesomeIcon icon={faMicrophone} />
-                        </span>
-                        <SelectAudioDevice
-                            value={audioDeviceID}
-                            onChange={setAudioDeviceIDAndStore}
-                            disabled={host_session_status.status !== 'no_session_running'}
-                        />
-                    </div>
-                </div>
-                <div className="form-group col-sm-auto col-lg">
-                    <div className="input-group">
-                        <span className="input-group-text">
-                            <FontAwesomeIcon icon={faVideo} />
-                        </span>
-                        <SelectVideoDevice
-                            value={videoDeviceID}
-                            onChange={setVideoDeviceIDAndStore}
-                            disabled={host_session_status.status !== 'no_session_running'}
-                        />
-                    </div>
-                </div>
-                <div className="form-group col col-md-auto">
-                    <SessionToggle
-                        host_session_status={host_session_status}
-                        startSession={startSession}
-                        endSession={session_service.end_session}
-                        disabled={!canActivateSession}
-                    />
-                </div>
-            </div>
-            <button
-                onClick={run_screen_saver}
-                disabled={host_session_status.status !== 'session_running'}
-                className='btn btn-secondary mb-3 mx-auto'
-            >
-                Screen Saver
-            </button>
-            {media_devices_permission_status.status === 'granted' && (
+                <button
+                    onClick={run_screen_saver}
+                    disabled={host_session_status.status !== 'session_running'}
+                    className='btn btn-secondary mb-3 mx-auto'
+                >
+                    Screen Saver
+                </button>
                 <MediaStream
                     audioDeviceID={audioDeviceID}
                     videoDeviceID={videoDeviceID}
                     sessionActive={host_session_status.status === 'session_running'}
                     key={videoDeviceID}
                 />
-            )}
-        </main >
+            </main >
+        </MediaStreamPermissionCheck>
     )
 };
 

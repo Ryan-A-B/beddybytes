@@ -11,6 +11,10 @@ class CompositeLoggingService implements LoggingService {
     public log = (input: LogInput) => {
         this.services.forEach((service) => service.log(input));
     }
+
+    public set_account_id = (account_id: string) => {
+        this.services.forEach((service) => service.set_account_id(account_id));
+    }
 }
 
 export default CompositeLoggingService;

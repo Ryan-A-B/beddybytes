@@ -1,5 +1,7 @@
 import React from 'react';
 import ConnectionState from './ConnectionState';
+import logging_service from '../../services/instances/logging_service';
+import { Severity } from '../../services/LoggingService';
 
 const max_frame_rate = 12;
 const max_frame_interval = 1000 / max_frame_rate;
@@ -10,25 +12,31 @@ interface Props {
     stream: MediaStream
 }
 
-const AudioStream: React.FunctionComponent<Props> = ({ stream }) => {
+const AudioStream: React.FunctionComponent<Props> = ({ stream: media_stream }) => {
     const htmlAudioElementRef = React.useRef<HTMLAudioElement>(null);
     const canvasElementRef = React.useRef<HTMLCanvasElement>(null);
     React.useLayoutEffect(() => {
         if (htmlAudioElementRef.current === null)
             throw new Error("videoRef.current is null");
         const htmlAudioElement = htmlAudioElementRef.current
-        htmlAudioElement.srcObject = stream;
+        htmlAudioElement.srcObject = media_stream;
+        htmlAudioElement.play().catch((error) => {
+            logging_service.log({
+                severity: Severity.Error,
+                message: `Failed to play audio: ${error}`
+            })
+        });
         return () => {
             htmlAudioElement.srcObject = null;
         }
-    }, [stream])
+    }, [media_stream])
     React.useLayoutEffect(() => {
         if (canvasElementRef.current === null)
             throw new Error("canvasElementRef.current is null");
         const canvasElement = canvasElementRef.current
         const canvasContext = canvasElement.getContext('2d');
         const audioContext = new AudioContext();
-        const source = audioContext.createMediaStreamSource(stream);
+        const source = audioContext.createMediaStreamSource(media_stream);
         const analyser = audioContext.createAnalyser();
         source.connect(analyser);
         analyser.fftSize = 64;
@@ -62,13 +70,12 @@ const AudioStream: React.FunctionComponent<Props> = ({ stream }) => {
             stop = true;
             source.disconnect(analyser);
         }
-    }, [stream])
-    // TODO what's playsInline?
+    }, [media_stream])
     return (
         <React.Fragment>
             <p id="audio-only-message">Audio only</p>
-            <ConnectionState stream={stream} />
-            <audio id="audio-parent" ref={htmlAudioElementRef} playsInline autoPlay />
+            <ConnectionState stream={media_stream} />
+            <audio id="audio-parent" ref={htmlAudioElementRef} />
             <canvas
                 id="audio-visualizer"
                 width={512}

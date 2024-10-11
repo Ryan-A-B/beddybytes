@@ -165,7 +165,7 @@ class WebSocketSignalService extends EventTarget implements SignalService {
             await this.wait_for_pong();
         } catch (err: unknown) {
             this.logging_service.log({
-                severity: Severity.Error,
+                severity: Severity.Warning,
                 message: "WebSocket keep-alive failed"
             });
             this.reconnect(WebSocketSignalService.InitialRetryDelay);
@@ -212,14 +212,14 @@ class WebSocketSignalService extends EventTarget implements SignalService {
             case 'connecting':
                 if (this.state.step === 'pending') return;
                 this.logging_service.log({
-                    severity: Severity.Error,
+                    severity: Severity.Warning,
                     message: `WebSocket closed with code ${event.code}, reconnecting in ${WebSocketSignalService.InitialRetryDelay}ms`,
                 });
                 this.reconnect(WebSocketSignalService.InitialRetryDelay);
                 return;
             case 'connected':
                 this.logging_service.log({
-                    severity: Severity.Error,
+                    severity: Severity.Warning,
                     message: `WebSocket closed with code ${event.code}, reconnecting in ${WebSocketSignalService.InitialRetryDelay}ms`,
                 });
                 this.reconnect(WebSocketSignalService.InitialRetryDelay);
@@ -227,7 +227,7 @@ class WebSocketSignalService extends EventTarget implements SignalService {
             case 'reconnecting':
                 if (this.state.step === 'pending') return;
                 this.logging_service.log({
-                    severity: Severity.Error,
+                    severity: Severity.Warning,
                     message: `WebSocket closed with code ${event.code}, reconnecting in ${this.state.retry_delay}ms`,
                 });
                 this.reconnect(this.state.retry_delay);
