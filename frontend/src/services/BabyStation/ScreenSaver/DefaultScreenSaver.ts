@@ -13,11 +13,15 @@ const run_screen_saver = async (): Promise<void> => {
         document.body.removeChild(canvas_element);
     }
 
+    const exit_fullscreen = async () => {
+        await document.exitFullscreen();
+    }
+
     document.addEventListener('fullscreenchange', async () => {
         if (document.fullscreenElement === canvas_element) return;
         await stop();
     }, { once: true });
-    canvas_element.addEventListener('click', document.exitFullscreen, { once: true });
+    canvas_element.addEventListener('click', exit_fullscreen, { once: true });
 }
 
 run_screen_saver.can_i_use = (): boolean => {
