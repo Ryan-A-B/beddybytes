@@ -42,16 +42,24 @@ const App: React.FunctionComponent = () => {
 
 export default App;
 
-window.addEventListener('error', function (event) {
+window.addEventListener('error', function (event: ErrorEvent) {
   logging_service.log({
     severity: Severity.Critical,
-    message: `Uncaught error: ${event.message}`,
+    message: `Uncaught error: ${event.message} ${event.filename}:${event.lineno}`,
   })
 })
 
-window.addEventListener('unhandledrejection', function (event) {
+window.addEventListener('unhandledrejection', function (event: PromiseRejectionEvent) {
+  const reason_is_error = event.reason instanceof Error
+  if (!reason_is_error) {
+    logging_service.log({
+      severity: Severity.Critical,
+      message: `Unhandled rejection: ${event.reason}`,
+    })
+    return
+  }
   logging_service.log({
     severity: Severity.Critical,
-    message: `Unhandled rejection: ${event.reason}`,
+    message: `Unhandled rejection: ${event.reason} ${event.reason.stack}`,
   })
 })

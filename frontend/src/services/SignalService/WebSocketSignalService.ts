@@ -201,7 +201,7 @@ class WebSocketSignalService extends EventTarget implements SignalService {
     private on_error = (event: Event) => {
         this.logging_service.log({
             severity: Severity.Error,
-            message: `WebSocket error: ${event.type}`
+            message: `WebSocket error: event.type: ${event.type}`
         });
     }
 
@@ -252,20 +252,29 @@ class WebSocketSignalService extends EventTarget implements SignalService {
         retry_delay *= 2;
         if (retry_delay > WebSocketSignalService.MaxRetryDelay)
             retry_delay = WebSocketSignalService.MaxRetryDelay;
-        this.connect().then((ws: WebSocket) => {
+        try {
+            const ws = await this.connect();
             this.set_state({
                 state: 'reconnecting',
                 step: 'opening',
                 ws: ws,
                 retry_delay,
             });
-        }).catch((err: Error) => {
+        } catch (error: unknown) {
+            const is_error = error instanceof Error;
+            if (!is_error) {
+                this.logging_service.log({
+                    severity: Severity.Error,
+                    message: `reconnect_after_delay: unknown error`
+                })
+                return;
+            };
             this.logging_service.log({
                 severity: Severity.Error,
-                message: `reconnect_after_delay: ${err.message}`
+                message: `reconnect_after_delay: ${error.message} ${error.stack}`
             })
             this.set_state(WebSocketSignalService.InitialState);
-        })
+        }
     }
 
     public stop = () => {

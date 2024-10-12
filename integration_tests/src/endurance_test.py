@@ -74,6 +74,8 @@ class BabyStation:
         create_account(self.driver, email, password)
         self.driver.find_element(By.ID, "nav-link-baby").click()
         driver_wait = WebDriverWait(self.driver, 1)
+        continue_button = driver_wait.until(lambda driver: driver.find_element(By.ID, "button-continue-media-stream-permission-check"))
+        continue_button.click()
         select_video_device = driver_wait.until(lambda driver: Select(driver.find_element(By.ID, "select-video-device")))
         select_video_device.options[1].click()
         self.session_toggle = driver_wait.until(lambda driver: driver.find_element(By.ID, "session-toggle"))

@@ -24,6 +24,8 @@ class RecordingServiceTest(unittest.TestCase):
             create_account(baby_station_driver, email, password)
             baby_station_driver.find_element(By.ID, "nav-link-baby").click()
             baby_station_driver_wait = WebDriverWait(baby_station_driver, 1)
+            continue_button = baby_station_driver_wait.until(lambda driver: driver.find_element(By.ID, "button-continue-media-stream-permission-check"))
+            continue_button.click()
             select_video_device = baby_station_driver_wait.until(lambda driver: Select(driver.find_element(By.ID, "select-video-device")))
             select_video_device.options[1].click()
             session_toggle = baby_station_driver_wait.until(lambda driver: driver.find_element(By.ID, "session-toggle"))

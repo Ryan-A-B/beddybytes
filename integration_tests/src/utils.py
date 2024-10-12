@@ -55,7 +55,7 @@ def generate_random_string(length):
     alphabet = string.ascii_letters + string.digits
     return ''.join(secrets.choice(alphabet) for _ in range(length))
 
-backend_container_name = "beddybytes-backend-1"
+backend_container_name = "beddybytes-api-1"
 
 def stop_backend_container():
     subprocess.run(["docker", "stop", backend_container_name], stderr=subprocess.DEVNULL, stdout=subprocess.DEVNULL)
