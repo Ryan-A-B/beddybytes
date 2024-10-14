@@ -27,6 +27,9 @@ sudo usermod -aG docker $USER
 
 sudo snap install aws-cli --classic
 
+# crontab -e
+# */10 * * * * cd /home/ubuntu/beddybytes && ./scripts/backend/backup.sh
+
 # create .env with environment variables
 # update traefik/traefik.prod.yml with email for letsencrypt
 # copy eventlog from backup
