@@ -97,9 +97,12 @@ Resources:
             Statement:
               - Effect: Allow
                 Action:
-                  - ses:SendEmail
-                  - ses:SendRawEmail
-                Resource: !Sub arn:aws:ses:${AWS::Region}:${AWS::AccountId}:identity/${EmailIdentityDomain}
+                  - s3:ListBucket
+                Resource: !Sub arn:aws:s3:::${AWS::StackName}-bucket
+              - Effect: Allow
+                Action:
+                  - s3:PutObject
+                Resource: !Sub arn:aws:s3:::${AWS::StackName}-bucket/*
 
   IAMInstanceProfile:
     Type: AWS::IAM::InstanceProfile
@@ -150,6 +153,8 @@ Resources:
     DeletionPolicy: Retain
     Properties:
       BucketName: !Sub ${AWS::StackName}-bucket
+      VersioningConfiguration:
+        Status: Enabled
 
   EmailIdentity:
     Type: AWS::SES::EmailIdentity

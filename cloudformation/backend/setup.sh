@@ -25,6 +25,8 @@ sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin 
 sudo groupadd docker
 sudo usermod -aG docker $USER
 
+sudo snap install aws-cli --classic
+
 # create .env with environment variables
 # update traefik/traefik.prod.yml with email for letsencrypt
 # copy eventlog from backup
