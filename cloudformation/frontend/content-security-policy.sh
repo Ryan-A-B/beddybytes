@@ -4,11 +4,13 @@ set -e
 policies=(
     "default-src 'none'"
     "script-src 'self'"
-    "connect-src 'self' api.beddybytes.com influx.beddybytes.com"
-    "img-src 'self'"
+    "connect-src 'self' https://api.beddybytes.com wss://api.beddybytes.com https://influx.beddybytes.com"
+    "img-src 'self' data:"
     "style-src 'self'"
+    "manifest-src 'self'"
     "base-uri 'self'"
     "form-action 'self'"
+    "frame-src https://www.youtube.com/embed/uQHlMu7m5us"
 )
 
 content_security_policy=""

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Route, Routes } from 'react-router-dom';
 
+import { Severity } from './services/LoggingService';
 import logging_service from "./services/instances/logging_service"
 import authorization_service from "./services/instances/authorization_service"
 import signal_service from "./services/instances/signal_service"
@@ -14,7 +15,6 @@ import ParentStation from './pages/ParentStation';
 import { Services, context as ServicesContext } from './services';
 
 import './App.scss';
-import { Severity } from './services/LoggingService';
 
 export const services: Services = {
   logging_service,
