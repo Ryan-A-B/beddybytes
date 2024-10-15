@@ -32,6 +32,7 @@ const CreateAccountForm: React.FunctionComponent<Props> = ({ email, setEmail, pa
                     name="email"
                     value={email}
                     onChange={setEmail}
+                    autoComplete="email"
                     className="form-control"
                     autoFocus
                     required
@@ -47,6 +48,7 @@ const CreateAccountForm: React.FunctionComponent<Props> = ({ email, setEmail, pa
                     name="password"
                     value={password}
                     onChange={setPassword}
+                    autoComplete="new-password"
                     className="form-control"
                     minLength={20}
                     required
