@@ -2,16 +2,29 @@
     display: flex;
     flex-direction: column;
     height: 100%;
-    
+
     #button-start-recording,
     #button-stop-recording {
-        align-self: center;
+        display: none;
     }
-    
+
     .video {
-        flex-grow: 1;
-        object-fit: contain;
-        max-height: calc(100vh - 250px);
-        background-color: #000000;
+        display: none;
+    }
+
+    &.audio-and-video {
+        #button-start-recording,
+        #button-stop-recording {
+            display: block;
+            align-self: center;
+        }
+
+        .video {
+            display: block;
+            flex-grow: 1;
+            object-fit: contain;
+            max-height: calc(100vh - 250px);
+            background-color: #000000;
+        }
     }
 }

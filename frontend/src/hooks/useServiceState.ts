@@ -1,7 +1,7 @@
 import React from 'react';
-import Service, { EventTypeStateChanged } from '../services/Service';
+import Service, { EventTypeStateChanged, ServiceState } from '../services/Service';
 
-const useServiceState = <T>(service: Service<T>): T => {
+const useServiceState = <T extends ServiceState>(service: Service<T>): T => {
     const [state, setState] = React.useState(service.get_state());
     React.useEffect(() => {
         const onStateChanged = () => {

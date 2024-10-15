@@ -1,40 +1,40 @@
 import React from "react";
-import SessionDuration from "./SessionDuration";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faCircle, faStop } from "@fortawesome/free-solid-svg-icons";
+import { useSignalService } from "../../services";
+import parent_station from "../../services/instances/parent_station";
+import { Session } from "../../services/ParentStation/SessionListService/types";
+import SessionService, { SessionState } from "../../services/ParentStation/SessionService";
+import { EventTypeStateChanged } from "../../services/Service";
+import logging_service from "../../services/instances/logging_service";
+import { Severity } from "../../services/LoggingService";
 import useWakeLock from "../../hooks/useWakeLock";
-import useParentStationSessionState from "../../hooks/useParentStationSessionStatus";
 import useSessionList from "../../hooks/useSessionList";
-import useClientRTCConnectionState from "../../hooks/useParentStationRTCConnectionState";
+import useServiceState from "../../hooks/useServiceState";
 import ConnectionFailed from "../../components/ConnectionFailedAlert";
 import SessionDropdown from "../../components/SessionDropdown";
-import { useSignalService } from "../../services";
-import Stream from "./Stream";
+import SessionDuration from "./SessionDuration";
 
 import "./style.scss";
-import parent_station from "../../services/instances/parent_station";
-import { EventTypeParentStationSessionStateChanged } from "../../services/ParentStation/SessionService";
-import { Session } from "../../services/ParentStation/SessionListService/types";
 
-const getSessionIfActive = (client_session_status: ParentStationSessionState): Session | null => {
+const getSessionIfActive = (client_session_status: SessionState): Session | null => {
     if (client_session_status.state === "joining") return client_session_status.session;
     if (client_session_status.state === "joined") return client_session_status.session;
     return null;
 }
 
-const isClientSessionActive = (client_session_status: ParentStationSessionState["state"]) => {
+const isClientSessionActive = (client_session_status: SessionState["state"]) => {
     if (client_session_status === "joining") return false;
     if (client_session_status === "joined") return true;
     return false;
 }
 
-const isBadRTCPeerConnectionState = (connection_state: RTCPeerConnectionState): boolean => {
-    return connection_state === "failed" || connection_state === "disconnected" || connection_state === "closed";
-}
-
 type UseSignalServiceStopperInput = {
-    session_service: ParentStationSessionService;
+    session_service: SessionService;
     signal_service: SignalService;
 }
 
+// TODO this shouldn't be a hook
 const useStopper = (input: UseSignalServiceStopperInput) => {
     const { session_service, signal_service } = input;
     React.useEffect(() => {
@@ -44,7 +44,7 @@ const useStopper = (input: UseSignalServiceStopperInput) => {
                 signal_service.stop();
         }
 
-        session_service.addEventListener(EventTypeParentStationSessionStateChanged, handleClientSessionStatusChanged);
+        session_service.addEventListener(EventTypeStateChanged, handleClientSessionStatusChanged);
 
         return () => {
             session_service.leave_session();
@@ -56,12 +56,22 @@ const useStopper = (input: UseSignalServiceStopperInput) => {
 const ParentStation: React.FunctionComponent = () => {
     const session_service = parent_station.session_service;
     const signal_service = useSignalService();
-    const client_session_state = useParentStationSessionState();
+    const session_state = useServiceState(session_service);
     const session_list = useSessionList();
-    const rtc_peer_connection_state = useClientRTCConnectionState(client_session_state);
-    const should_show_stream = client_session_state.state === "joined" && !isBadRTCPeerConnectionState(rtc_peer_connection_state);
+    const recording_state = useServiceState(parent_station.recording_service);
+    const media_stream_track_state = useServiceState(parent_station.media_stream_track_monitor);
+    // const rtc_peer_connection_state = useClientRTCConnectionState(client_session_state);
+    // const should_show_stream = client_session_state.state === "joined" && !isBadRTCPeerConnectionState(rtc_peer_connection_state);
 
-    useWakeLock(isClientSessionActive(client_session_state.state));
+    const video_element_ref = React.useRef<HTMLVideoElement>(null);
+    React.useLayoutEffect(() => {
+        const video_element = video_element_ref.current;
+        if (video_element === null) return;
+        video_element.srcObject = parent_station.media_stream;
+    }, [video_element_ref]);
+
+    // TODO this shouldn't be a hook
+    useWakeLock(isClientSessionActive(session_state.state));
 
     const onSessionChange = React.useCallback((session: Session | null) => {
         session_service.leave_session();
@@ -71,24 +81,66 @@ const ParentStation: React.FunctionComponent = () => {
         }
         signal_service.start();
         session_service.join_session(session);
-    }, [signal_service, session_service]);
+        const video_element = video_element_ref.current;
+        if (video_element === null) {
+            logging_service.log({
+                severity: Severity.Critical,
+                message: "Video element not found in ParentStation onSessionChange",
+            })
+            return;
+        }
+        video_element.play().catch((error: unknown) => {
+            const is_error = error instanceof Error;
+            if (!is_error) {
+                logging_service.log({
+                    severity: Severity.Critical,
+                    message: `Error playing video element in ParentStation onSessionChange: ${error}`,
+                })
+                return;
+            }
+            logging_service.log({
+                severity: Severity.Critical,
+                message: `Error playing video element in ParentStation onSessionChange: ${error.message} ${error.stack}`,
+            })
+        });
+    }, [signal_service, session_service, video_element_ref]);
 
     useStopper({
         session_service,
         signal_service
     });
 
+    // TODO detect audio-only and empty streams
+
     return (
-        <main className="container wrapper-content parent-station">
-            <SessionDropdown session_list={session_list} value={getSessionIfActive(client_session_state)} onChange={onSessionChange} />
-            {client_session_state.state === 'session_ended' && (
+        <main className={`container wrapper-content parent-station ${media_stream_track_state}`}>
+            <SessionDropdown session_list={session_list} value={getSessionIfActive(session_state)} onChange={onSessionChange} />
+            {session_state.state === 'session_ended' && (
                 <div id="alert-session-ended" className="alert alert-danger" role="alert">
                     Session Ended
                 </div>
             )}
             <ConnectionFailed />
-            {client_session_state.state === 'joined' && <SessionDuration startedAt={client_session_state.session.started_at} />}
-            {should_show_stream && <Stream />}
+            {session_state.state === 'joined' && <SessionDuration startedAt={session_state.session.started_at} />}
+            {recording_state.state === 'not_recording' && (
+                <button id="button-start-recording" onClick={parent_station.recording_service.start} className='btn btn-outline-danger'>
+                    <FontAwesomeIcon icon={faCircle} /> Start Recording
+                </button>
+            )}
+            {recording_state.state === 'recording' && (
+                <button id="button-stop-recording" onClick={parent_station.recording_service.stop} className='btn btn-outline-success'>
+                    <FontAwesomeIcon icon={faStop} /> Stop Recording
+                </button>
+            )}
+            {media_stream_track_state === "audio-only" && (
+                <p id="audio-only-message">Audio only</p>
+            )}
+            <video
+                id="video-parent-station"
+                ref={video_element_ref}
+                className="video mt-3"
+            />
+            {/* TODO audio visualiser */}
         </main>
     );
 };

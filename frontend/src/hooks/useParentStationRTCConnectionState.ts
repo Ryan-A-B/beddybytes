@@ -1,20 +1,21 @@
 import React from "react";
 import { EventTypeRTCConnectionStateChanged } from "../services/ParentStation/SessionService/Connection/RTCConnection";
+import { SessionState } from "../services/ParentStation/SessionService";
 
 const DefaultRTCConnectionState: RTCPeerConnectionState = 'new';
 
-const useClientRTCConnectionState = (client_session_state: ParentStationSessionState) => {
+const useClientRTCConnectionState = (session_state: SessionState) => {
     const [connectionState, setConnectionState] = React.useState<RTCPeerConnectionState>(() => {
-        if (client_session_state.state !== 'joined')
+        if (session_state.state !== 'joined')
             return DefaultRTCConnectionState;
-        return client_session_state.client_connection.get_rtc_peer_connection_state();
+        return session_state.connection.get_rtc_peer_connection_state();
     });
     React.useEffect(() => {
-        if (client_session_state.state !== 'joined') {
+        if (session_state.state !== 'joined') {
             setConnectionState(DefaultRTCConnectionState);
             return;
         }
-        const connection = client_session_state.client_connection;
+        const connection = session_state.connection;
         const handle_rtc_connection_state_changed = () => {
             setConnectionState(connection.get_rtc_peer_connection_state());
         }
@@ -22,7 +23,7 @@ const useClientRTCConnectionState = (client_session_state: ParentStationSessionS
         return () => {
             connection.removeEventListener(EventTypeRTCConnectionStateChanged, handle_rtc_connection_state_changed);
         }
-    }, [client_session_state]);
+    }, [session_state]);
     return connectionState;
 }
 

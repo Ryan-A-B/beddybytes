@@ -1,6 +1,4 @@
-import { v4 as uuid } from 'uuid';
-
-const get_meta_content_or_default = (name: string): string => {
+const get_meta_content = (name: string): string => {
     const meta_element = document.querySelector(`meta[name="${name}"]`)
     if (meta_element === null)
         throw new Error(`Meta element with name "${name}" not found`);
@@ -10,5 +8,5 @@ const get_meta_content_or_default = (name: string): string => {
     return meta_element_content;
 }
 
-export const build_timestamp = get_meta_content_or_default('build-timestamp');
-export const build_hash = get_meta_content_or_default('build-hash');
+export const build_timestamp = get_meta_content('build-timestamp');
+export const build_hash = get_meta_content('build-hash');

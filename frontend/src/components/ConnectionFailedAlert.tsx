@@ -1,15 +1,16 @@
 import React from "react"
-import useParentStationSessionState from "../hooks/useParentStationSessionStatus";
 import useClientRTCConnectionState from "../hooks/useParentStationRTCConnectionState";
+import useServiceState from "../hooks/useServiceState";
+import parent_station from "../services/instances/parent_station";
 
 const isBadRTCPeerConnectionState = (connection_state: RTCPeerConnectionState): boolean => {
     return connection_state === "failed" || connection_state === "disconnected" || connection_state === "closed";
 }
 
 const ConnectionFailed: React.FunctionComponent = () => {
-    const client_session_state = useParentStationSessionState();
-    const rtc_peer_connection_state = useClientRTCConnectionState(client_session_state);
-    if (client_session_state.state !== 'joined') return null;
+    const session_state = useServiceState(parent_station.session_service);
+    const rtc_peer_connection_state = useClientRTCConnectionState(session_state);
+    if (session_state.state !== 'joined') return null;
     if (!isBadRTCPeerConnectionState(rtc_peer_connection_state)) return null;
     return (
         <div className="alert alert-danger" role="alert">
@@ -21,7 +22,7 @@ const ConnectionFailed: React.FunctionComponent = () => {
                     </div>
                 </div>
                 <div className="col-auto">
-                    <button className="btn btn-primary btn-sm" onClick={client_session_state.client_connection.reconnect}>
+                    <button className="btn btn-primary btn-sm" onClick={session_state.connection.reconnect}>
                         Reconnect
                     </button>
                 </div>

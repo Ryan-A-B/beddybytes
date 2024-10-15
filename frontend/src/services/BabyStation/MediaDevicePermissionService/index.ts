@@ -1,4 +1,3 @@
-import { stat } from 'fs';
 import LoggingService, { Severity } from '../../LoggingService';
 import Service from '../../Service';
 
@@ -39,11 +38,12 @@ interface NewMediaDevicePermissionServiceInput {
 }
 
 class MediaDevicePermissionService extends Service<MediaDevicePermissionStatus> {
-    private logging_service: LoggingService;
-
     constructor(input: NewMediaDevicePermissionServiceInput) {
-        super(InitialState);
-        this.logging_service = input.logging_service;
+        super({
+            logging_service: input.logging_service,
+            to_string: (state: MediaDevicePermissionStatus) => state.state,
+            initial_state: InitialState,
+        });
         this.query_permission_state();
     }
 
