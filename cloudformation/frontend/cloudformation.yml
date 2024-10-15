@@ -107,6 +107,7 @@ Resources:
           ViewerProtocolPolicy: redirect-to-https
           CachePolicyId: !Ref CachePolicy
           Compress: true
+          ResponseHeadersPolicyId: !Ref ResponseHeadersPolicy
         HttpVersion: http2and3
         ViewerCertificate:
           AcmCertificateArn: !Ref Certificate
@@ -116,3 +117,13 @@ Resources:
           - ErrorCode: 404
             ResponseCode: 200
             ResponsePagePath: /index.html
+
+  ResponseHeadersPolicy:
+    Type: AWS::CloudFront::ResponseHeadersPolicy
+    Properties:
+      ResponseHeadersPolicyConfig:
+        Name: !Sub ${AWS::StackName}-response-headers-policy
+        SecurityHeadersConfig:
+          ContentSecurityPolicy:
+            ContentSecurityPolicy: default-src 'none'; script-src 'self'; connect-src 'self' api.beddybytes.com influx.beddybytes.com; img-src 'self'; style-src 'self'; base-uri 'self'; form-action 'self';
+            Override: false
