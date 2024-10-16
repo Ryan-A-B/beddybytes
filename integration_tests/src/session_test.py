@@ -89,16 +89,14 @@ class SessionTest(unittest.TestCase):
             driver_2.find_element(By.ID, "nav-link-parent").click()
 
             driver_2_wait = WebDriverWait(driver_2, 1)
+            video_element = driver_2_wait.until(lambda driver: driver.find_element(By.ID, "video-parent-station"))
             session_dropdown_element = driver_2_wait.until(lambda driver: driver.find_element(By.ID, "session-dropdown"))
             session_dropdown = Select(session_dropdown_element)
             self.assertEqual(len(session_dropdown.options), 2)
             self.assertEqual(session_dropdown.options[0].get_attribute("value"), "")
             self.assertNotEqual(session_dropdown.options[1].get_attribute("value"), "")
-
             session_dropdown.options[1].click()
-
-            driver_2_wait = WebDriverWait(driver_2, 1)
-            video_element = driver_2_wait.until(lambda driver: driver.find_element(By.ID, "video-parent-station"))
+            self.allow_time_for_video_to_display()
             self.assertTrue(video_element.is_displayed())
 
             session_toggle.click()
@@ -132,11 +130,11 @@ class SessionTest(unittest.TestCase):
             driver_2.find_element(By.ID, "nav-link-parent").click()
 
             driver_2_wait = WebDriverWait(driver_2, 1)
+            video_element = driver_2_wait.until(lambda driver: driver.find_element(By.ID, "video-parent-station"))
             session_dropdown_element = driver_2_wait.until(lambda driver: driver.find_element(By.ID, "session-dropdown"))
             session_dropdown = Select(session_dropdown_element)
             session_dropdown.options[1].click()
-
-            video_element = driver_2_wait.until(lambda driver: driver.find_element(By.ID, "video-parent-station"))
+            self.allow_time_for_video_to_display()
             self.assertTrue(video_element.is_displayed())
 
             session_toggle.click()
@@ -294,13 +292,14 @@ class SessionTest(unittest.TestCase):
             driver_2.find_element(By.ID, "nav-link-parent").click()
 
             driver_2_wait = WebDriverWait(driver_2, 1)
+            video_element = driver_2_wait.until(lambda driver: driver.find_element(By.ID, "video-parent-station"))
             session_dropdown_element = driver_2_wait.until(lambda driver: driver.find_element(By.ID, "session-dropdown"))
             session_dropdown = Select(session_dropdown_element)
             self.assertEqual(len(session_dropdown.options), 2)
             self.assertEqual(session_dropdown.options[0].get_attribute("value"), "")
             self.assertNotEqual(session_dropdown.options[1].get_attribute("value"), "")
             session_dropdown.options[1].click()
-            video_element = driver_2_wait.until(lambda driver: driver.find_element(By.ID, "video-parent-station"))
+            self.allow_time_for_video_to_display()
             self.assertTrue(video_element.is_displayed())
 
             stop_backend_container()
