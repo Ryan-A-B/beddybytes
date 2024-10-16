@@ -39,6 +39,7 @@ const LoginForm: React.FunctionComponent<Props> = ({ email, setEmail, password, 
                         name="email"
                         value={email}
                         onChange={setEmail}
+                        autoComplete="email"
                         className="form-control"
                         autoFocus
                         required
@@ -54,6 +55,7 @@ const LoginForm: React.FunctionComponent<Props> = ({ email, setEmail, password, 
                         name="password"
                         value={password}
                         onChange={setPassword}
+                        autoComplete="current-password"
                         className="form-control"
                         required
                     />

@@ -1,14 +1,11 @@
 import React from 'react';
 import icon from './youtube_icon.png';
+import './style.scss';
 
 interface Props {
     src: string
     title: string
     thumbnail: string
-}
-
-const IconStyle: React.CSSProperties = {
-    width: "80px",
 }
 
 const YoutubeVideo: React.FunctionComponent<Props> = ({ src, title, thumbnail }) => {
@@ -20,18 +17,17 @@ const YoutubeVideo: React.FunctionComponent<Props> = ({ src, title, thumbnail })
         <div
             onMouseOver={switchToActualVideo}
             onTouchStart={switchToActualVideo}
-            className="w-100 h-100 bg-dark"
+            className="youtube-video bg-dark"
         >
             <img
                 src={thumbnail}
                 alt="thumbnail"
-                className="w-100 h-100"
+                className="youtube-video-thumbnail"
             />
             <img
                 src={icon}
                 alt="play"
-                className="position-absolute top-50 start-50 translate-middle"
-                style={IconStyle}
+                className="youtube-video-icon position-absolute top-50 start-50 translate-middle"
             />
         </div>
     )

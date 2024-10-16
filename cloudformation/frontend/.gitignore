@@ -1,2 +1,3 @@
 init.sh
-parameters.json
+parameters-prod.json
+parameters-qa.json

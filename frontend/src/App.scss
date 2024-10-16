@@ -10,6 +10,7 @@ $secondary: $blue;
 $danger: $red;
 
 @import "bootstrap";
+@import "@fortawesome/fontawesome-svg-core/styles";
 
 .debug-message {
     display: none;
