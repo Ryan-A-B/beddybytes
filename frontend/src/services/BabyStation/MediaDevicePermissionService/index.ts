@@ -1,4 +1,3 @@
-import { stat } from 'fs';
 import LoggingService, { Severity } from '../../LoggingService';
 import Service from '../../Service';
 

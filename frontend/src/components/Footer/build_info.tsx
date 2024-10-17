@@ -1,5 +1,3 @@
-import { v4 as uuid } from 'uuid';
-
 const get_meta_content_or_default = (name: string): string => {
     const meta_element = document.querySelector(`meta[name="${name}"]`)
     if (meta_element === null)

@@ -8,19 +8,18 @@ const run_screen_saver = async (): Promise<void> => {
     await canvas_element.requestFullscreen();
     const wake_lock_sentinel = await navigator.wakeLock.request('screen');
 
-    const stop = async () => {
-        await wake_lock_sentinel.release();
-        document.body.removeChild(canvas_element);
-    }
-
     const exit_fullscreen = async () => {
         await document.exitFullscreen();
     }
 
-    document.addEventListener('fullscreenchange', async () => {
+    const handle_fullscreen_change = async (event: Event) => {
         if (document.fullscreenElement === canvas_element) return;
-        await stop();
-    }, { once: true });
+        document.body.removeChild(canvas_element);
+        await wake_lock_sentinel.release();
+        document.removeEventListener('fullscreenchange', handle_fullscreen_change);
+    }
+
+    document.addEventListener('fullscreenchange', handle_fullscreen_change);
     canvas_element.addEventListener('click', exit_fullscreen, { once: true });
 }
 
