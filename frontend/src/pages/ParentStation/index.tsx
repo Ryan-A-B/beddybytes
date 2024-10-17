@@ -13,6 +13,7 @@ import useSessionList from "../../hooks/useSessionList";
 import useServiceState from "../../hooks/useServiceState";
 import ConnectionFailed from "../../components/ConnectionFailedAlert";
 import SessionDropdown from "../../components/SessionDropdown";
+import AudioVisualiserComponent from "../../components/AudioVisualiser";
 import SessionDuration from "./SessionDuration";
 
 import "./style.scss";
@@ -133,14 +134,21 @@ const ParentStation: React.FunctionComponent = () => {
                 </button>
             )}
             {media_stream_track_state === "audio-only" && (
-                <p id="audio-only-message">Audio only</p>
+                <React.Fragment>
+                    <p id="audio-only-message">Audio only</p>
+                    <AudioVisualiserComponent
+                        media_stream={parent_station.media_stream}
+                        width={640}
+                        height={360}
+                        className="audio-visualiser"
+                    />
+                </React.Fragment>
             )}
             <video
                 id="video-parent-station"
                 ref={video_element_ref}
                 className="video mt-3"
             />
-            {/* TODO audio visualiser */}
         </main>
     );
 };
