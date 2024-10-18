@@ -17,6 +17,7 @@ class MockSessionService extends Service<SessionState> {
     constructor(input: NewMockSessionServiceInput) {
         super({
             logging_service: input.logging_service,
+            name: 'MockSessionService',
             to_string: (state: SessionState) => state.state,
             initial_state: InitialState,
         });

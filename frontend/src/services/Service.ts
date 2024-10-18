@@ -8,18 +8,21 @@ export interface ServiceState {
 
 interface NewServiceInput<T> {
     logging_service: LoggingService;
+    name: string;
     to_string: (state: T) => string;
     initial_state: T;
 }
 
 class Service<T extends ServiceState> extends EventTarget {
     protected logging_service: LoggingService;
+    private name: string;
     private to_string: (state: T) => string;
     private state: T;
 
     constructor(input: NewServiceInput<T>) {
         super();
         this.logging_service = input.logging_service;
+        this.name = input.name;
         this.to_string = input.to_string;
         this.state = input.initial_state;
     }
@@ -34,7 +37,7 @@ class Service<T extends ServiceState> extends EventTarget {
         this.dispatchEvent(new Event(EventTypeStateChanged));
         this.logging_service.log({
             severity: Severity.Debug,
-            message: `${this.constructor.name}: state changed from ${this.to_string(previous_state)} to ${this.to_string(state)}`
+            message: `${this.name}: state changed from ${this.to_string(previous_state)} to ${this.to_string(state)}`
         })
     }
 }

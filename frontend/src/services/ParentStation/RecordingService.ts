@@ -29,6 +29,7 @@ class RecordingService extends Service<RecordingServiceState> {
     constructor(input: NewRecordingServiceInput) {
         super({
             logging_service: input.logging_service,
+            name: 'RecordingService',
             to_string: (state) => state.state,
             initial_state: InitialState,
         });

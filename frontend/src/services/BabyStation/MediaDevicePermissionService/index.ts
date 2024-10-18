@@ -41,6 +41,7 @@ class MediaDevicePermissionService extends Service<MediaDevicePermissionStatus> 
     constructor(input: NewMediaDevicePermissionServiceInput) {
         super({
             logging_service: input.logging_service,
+            name: 'MediaDevicePermissionService',
             to_string: (state: MediaDevicePermissionStatus) => state.state,
             initial_state: InitialState,
         });

@@ -20,6 +20,7 @@ class MediaStreamTrackMonitor extends Service<MediaStreamTrackState> {
     constructor(input: NewMediaStreamTrackMonitorInput) {
         super({
             logging_service: input.logging_service,
+            name: 'MediaStreamTrackMonitor',
             to_string: (state: MediaStreamTrackState) => state,
             initial_state: InitialState,
         });

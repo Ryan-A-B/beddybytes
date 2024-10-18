@@ -52,6 +52,7 @@ class SessionService extends Service<SessionState> {
     constructor(input: NewSessionServiceInput) {
         super({
             logging_service: input.logging_service,
+            name: 'SessionService',
             to_string: (state: SessionState) => state.state,
             initial_state: InitialState,
         });
