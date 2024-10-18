@@ -218,7 +218,6 @@ func main() {
 			},
 		},
 		ConnectionFactory: ConnectionFactory{
-			// TODO either not in memory or reproject from event log on startup
 			ConnectionStore: make(store2.StoreInMemory[ConnectionStoreKey, *Connection]),
 		},
 		ClientStore: &LoggingDecorator{

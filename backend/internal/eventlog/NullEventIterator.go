@@ -1,8 +1,10 @@
 package eventlog
 
+import "context"
+
 type NullEventIterator struct{}
 
-func (iterator *NullEventIterator) Next() bool {
+func (iterator *NullEventIterator) Next(ctx context.Context) bool {
 	return false
 }
 

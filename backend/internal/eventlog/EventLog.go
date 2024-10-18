@@ -35,7 +35,7 @@ type EventLog interface {
 }
 
 type EventIterator interface {
-	Next() bool
+	Next(ctx context.Context) bool
 	Event() *Event
 	Err() error
 }
@@ -50,7 +50,7 @@ func Project(ctx context.Context, input *ProjectInput) {
 	iterator := input.EventLog.GetEventIterator(ctx, &GetEventIteratorInput{
 		FromCursor: input.FromCursor,
 	})
-	for iterator.Next() {
+	for iterator.Next(ctx) {
 		input.Apply(ctx, iterator.Event())
 	}
 	fatal.OnError(iterator.Err())
@@ -66,7 +66,7 @@ func StreamToChannel(ctx context.Context, input *StreamToChannelInput) {
 	iterator := input.EventLog.GetEventIterator(ctx, &GetEventIteratorInput{
 		FromCursor: input.FromCursor,
 	})
-	for iterator.Next() {
+	for iterator.Next(ctx) {
 		input.C <- iterator.Event()
 	}
 	fatal.OnError(iterator.Err())

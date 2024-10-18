@@ -64,7 +64,7 @@ func (stats *UsageStats) catchUp(ctx context.Context) {
 	iterator := stats.log.GetEventIterator(ctx, &eventlog.GetEventIteratorInput{
 		FromCursor: stats.cursor,
 	})
-	for iterator.Next() {
+	for iterator.Next(ctx) {
 		event := iterator.Event()
 		stats.applyEvent(ctx, event)
 		stats.cursor = event.LogicalClock

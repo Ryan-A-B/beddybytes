@@ -88,7 +88,12 @@ type FileEventIterator struct {
 	event *Event
 }
 
-func (iterator *FileEventIterator) Next() bool {
+func (iterator *FileEventIterator) Next(ctx context.Context) bool {
+	select {
+	case <-ctx.Done():
+		return false
+	default:
+	}
 	ok := iterator.scanner.Scan()
 	if !ok {
 		err := iterator.file.Close()

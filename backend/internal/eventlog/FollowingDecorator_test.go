@@ -3,8 +3,10 @@ package eventlog_test
 import (
 	"context"
 	"encoding/json"
+	"log"
 	"os"
 	"testing"
+	"time"
 
 	uuid "github.com/satori/go.uuid"
 	. "github.com/smartystreets/goconvey/convey"
@@ -14,6 +16,7 @@ import (
 
 func TestFollowingDecorator(t *testing.T) {
 	Convey("TestFollowingDecorator", t, func() {
+		const bufferSize = 128
 		ctx := context.Background()
 		folderPath, err := os.MkdirTemp("testdata", "TestFollowingDecorator-*")
 		So(err, ShouldBeNil)
@@ -21,7 +24,7 @@ func TestFollowingDecorator(t *testing.T) {
 			Decorated: eventlog.NewFileEventLog(&eventlog.NewFileEventLogInput{
 				FolderPath: folderPath,
 			}),
-			BufferSize: 128,
+			BufferSize: bufferSize,
 		})
 		Convey("append one", func() {
 			Convey("before iterator created", func() {
@@ -43,7 +46,7 @@ func TestFollowingDecorator(t *testing.T) {
 				iterator := eventLog.GetEventIterator(ctx, &eventlog.GetEventIteratorInput{
 					FromCursor: 0,
 				})
-				So(iterator.Next(), ShouldBeTrue)
+				So(iterator.Next(ctx), ShouldBeTrue)
 				So(iterator.Event(), ShouldResemble, event)
 			})
 			Convey("after iterator created", func() {
@@ -65,7 +68,7 @@ func TestFollowingDecorator(t *testing.T) {
 				So(event.LogicalClock, ShouldEqual, 1)
 				So(event.UnixTimestamp, ShouldBeGreaterThan, 0)
 				So(event.Data, ShouldResemble, json.RawMessage(data))
-				So(iterator.Next(), ShouldBeTrue)
+				So(iterator.Next(ctx), ShouldBeTrue)
 				So(iterator.Event(), ShouldResemble, event)
 			})
 		})
@@ -89,7 +92,7 @@ func TestFollowingDecorator(t *testing.T) {
 					FromCursor: 0,
 				})
 				for i := 0; i < nEvents; i++ {
-					So(iterator.Next(), ShouldBeTrue)
+					So(iterator.Next(ctx), ShouldBeTrue)
 					So(iterator.Event(), ShouldResemble, events[i])
 				}
 			})
@@ -112,7 +115,7 @@ func TestFollowingDecorator(t *testing.T) {
 					events[i] = event
 				}
 				for i := 0; i < nEvents; i++ {
-					So(iterator.Next(), ShouldBeTrue)
+					So(iterator.Next(ctx), ShouldBeTrue)
 					So(iterator.Event(), ShouldResemble, events[i])
 				}
 			})
@@ -148,8 +151,47 @@ func TestFollowingDecorator(t *testing.T) {
 					events[i] = event
 				}
 				for i := 0; i < nEvents; i++ {
-					So(iterator.Next(), ShouldBeTrue)
+					So(iterator.Next(ctx), ShouldBeTrue)
 					So(iterator.Event(), ShouldResemble, events[i])
+				}
+			})
+		})
+		Convey("event iterator stops when context done", func() {
+			ctx, cancel := context.WithCancel(ctx)
+			iterator := eventLog.GetEventIterator(ctx, &eventlog.GetEventIteratorInput{
+				FromCursor: 0,
+			})
+			So(err, ShouldBeNil)
+			Convey("cancel before next", func() {
+				_, err = eventLog.Append(ctx, &eventlog.AppendInput{
+					Type: "test",
+					Data: json.RawMessage(`{}`),
+				})
+				cancel()
+				So(iterator.Next(ctx), ShouldBeFalse)
+			})
+			Convey("cancel after next", func() {
+				go func() {
+					time.Sleep(100 * time.Millisecond)
+					cancel()
+					_, err = eventLog.Append(ctx, &eventlog.AppendInput{
+						Type: "test",
+						Data: json.RawMessage(`{}`),
+					})
+					if err != nil {
+						log.Fatal(err)
+					}
+				}()
+				So(iterator.Next(ctx), ShouldBeFalse)
+			})
+			Convey("append many after cancel", func() {
+				cancel()
+				for i := 0; i < 4*bufferSize; i++ {
+					_, err = eventLog.Append(ctx, &eventlog.AppendInput{
+						Type: "test",
+						Data: json.RawMessage(`{}`),
+					})
+					So(err, ShouldBeNil)
 				}
 			})
 		})

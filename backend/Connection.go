@@ -40,7 +40,6 @@ const (
 	MessageTypePing   MessageType = "ping"
 	MessageTypePong   MessageType = "pong"
 	MessageTypeSignal MessageType = "signal"
-	MessageTypeEvent  MessageType = "event" // TODO delete
 )
 
 type IncomingMessage struct {
@@ -110,7 +109,8 @@ func (handlers *Handlers) HandleConnection(responseWriter http.ResponseWriter, r
 	}
 	defer conn.Close()
 	requestID := uuid.NewV4().String()
-	handlers.EventLog.Append(ctx, &eventlog.AppendInput{
+	// TODO this is causing a delay
+	_, err = handlers.EventLog.Append(ctx, &eventlog.AppendInput{
 		Type:      EventTypeClientConnected,
 		AccountID: accountID,
 		Data: fatal.UnlessMarshalJSON(&ClientConnectedEventData{
@@ -119,9 +119,10 @@ func (handlers *Handlers) HandleConnection(responseWriter http.ResponseWriter, r
 			RequestID:    requestID,
 		}),
 	})
+	fatal.OnError(err)
 	webSocketCloseCode := websocket.CloseNoStatusReceived
 	defer func() {
-		handlers.EventLog.Append(ctx, &eventlog.AppendInput{
+		_, err = handlers.EventLog.Append(ctx, &eventlog.AppendInput{
 			Type:      EventTypeClientDisconnected,
 			AccountID: accountID,
 			Data: fatal.UnlessMarshalJSON(&ClientDisconnectedEventData{
@@ -131,6 +132,7 @@ func (handlers *Handlers) HandleConnection(responseWriter http.ResponseWriter, r
 				WebSocketCloseCode: webSocketCloseCode,
 			}),
 		})
+		fatal.OnError(err)
 	}()
 	connection := handlers.ConnectionFactory.CreateConnection(ctx, &CreateConnectionInput{
 		AccountID:    accountID,
@@ -180,10 +182,11 @@ func (factory *ConnectionFactory) CreateConnection(ctx context.Context, input *C
 		pongC:           make(chan struct{}),
 	}
 	connection.conn.SetPongHandler(connection.handlePong)
-	factory.ConnectionStore.Put(ctx, ConnectionStoreKey{
+	err := factory.ConnectionStore.Put(ctx, ConnectionStoreKey{
 		AccountID:    input.AccountID,
 		ConnectionID: input.ConnectionID,
 	}, connection)
+	fatal.OnError(err)
 	return
 }
 

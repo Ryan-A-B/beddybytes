@@ -1,5 +1,7 @@
 package eventlog
 
+import "context"
+
 type CompositeEventIterator struct {
 	iterators []EventIterator
 	event     *Event
@@ -7,9 +9,9 @@ type CompositeEventIterator struct {
 	err       error
 }
 
-func (iterator *CompositeEventIterator) Next() bool {
+func (iterator *CompositeEventIterator) Next(ctx context.Context) bool {
 	firstIterator := iterator.iterators[0]
-	if ok := firstIterator.Next(); !ok {
+	if ok := firstIterator.Next(ctx); !ok {
 		err := firstIterator.Err()
 		if err != nil {
 			iterator.err = err
@@ -20,11 +22,11 @@ func (iterator *CompositeEventIterator) Next() bool {
 			return false
 		}
 		iterator.iterators = iterators
-		return iterator.Next()
+		return iterator.Next(ctx)
 	}
 	event := firstIterator.Event()
 	if event.LogicalClock < iterator.head {
-		return iterator.Next()
+		return iterator.Next(ctx)
 	}
 	iterator.event = event
 	iterator.head = event.LogicalClock

@@ -61,7 +61,7 @@ func (sessionList *SessionList) catchUp(ctx context.Context) {
 	iterator := sessionList.log.GetEventIterator(ctx, &eventlog.GetEventIteratorInput{
 		FromCursor: sessionList.cursor,
 	})
-	for iterator.Next() {
+	for iterator.Next(ctx) {
 		event := iterator.Event()
 		sessionList.apply(ctx, event)
 		sessionList.cursor = event.LogicalClock

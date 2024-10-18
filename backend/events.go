@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/ansel1/merry"
 
@@ -39,19 +40,33 @@ func (handlers *Handlers) GetEvents(responseWriter http.ResponseWriter, request 
 		return
 	}
 	responseWriter.Header().Set("Content-Type", "text/event-stream")
-	// TODO ensure GetEventIterator respects ctx.Done()
-	events := handlers.EventLog.GetEventIterator(ctx, &eventlog.GetEventIteratorInput{
-		FromCursor: fromCursor,
-	})
-	for events.Next() {
-		event := events.Event()
-		if ShouldSkipEvent(accountID, event) {
-			continue
+	eventC := make(chan *eventlog.Event)
+	go func() {
+		defer close(eventC)
+		events := handlers.EventLog.GetEventIterator(ctx, &eventlog.GetEventIteratorInput{
+			FromCursor: fromCursor,
+		})
+		for events.Next(ctx) {
+			event := events.Event()
+			if ShouldSkipEvent(accountID, event) {
+				continue
+			}
+			eventC <- event
 		}
-		WriteEvent(responseWriter, event)
+		fatal.OnError(events.Err())
+	}()
+	ticker := time.NewTicker(30 * time.Second)
+	for {
+		select {
+		case event, ok := <-eventC:
+			if !ok {
+				return
+			}
+			WriteEvent(responseWriter, event)
+		case <-ticker.C:
+			io.WriteString(responseWriter, ": keep-alive\n\n")
+		}
 	}
-	fatal.OnError(events.Err())
-	// TODO keep alive?
 }
 
 func ShouldSkipEvent(accountID string, event *eventlog.Event) bool {

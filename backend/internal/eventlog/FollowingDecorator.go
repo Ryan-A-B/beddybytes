@@ -3,12 +3,15 @@ package eventlog
 import (
 	"context"
 	"log"
+	"sync"
+
+	uuid "github.com/satori/go.uuid"
 )
 
 type FollowingDecorator struct {
 	decorated  EventLog
 	bufferSize int
-	eventCs    []chan *Event
+	eventCByID sync.Map
 }
 
 type NewFollowingDecoratorInput struct {
@@ -31,15 +34,23 @@ func (decorator *FollowingDecorator) Append(ctx context.Context, input *AppendIn
 	if err != nil {
 		return
 	}
-	for _, eventC := range decorator.eventCs {
-		eventC <- event
-	}
+	decorator.eventCByID.Range(func(_, eventC interface{}) bool {
+		// TODO if follower is slow, this will block
+		eventC.(chan *Event) <- event
+		return true
+	})
 	return
 }
 
 func (decorator *FollowingDecorator) GetEventIterator(ctx context.Context, input *GetEventIteratorInput) EventIterator {
+	id := uuid.NewV4().String()
 	eventC := make(chan *Event, decorator.bufferSize)
-	decorator.eventCs = append(decorator.eventCs, eventC)
+	decorator.eventCByID.Store(id, eventC)
+	go func() {
+		<-ctx.Done()
+		decorator.eventCByID.Delete(id)
+		close(eventC)
+	}()
 	return &CompositeEventIterator{
 		iterators: []EventIterator{
 			decorator.decorated.GetEventIterator(ctx, input),
@@ -55,13 +66,22 @@ type FollowingEventIterator struct {
 	event  *Event
 }
 
-func (iterator *FollowingEventIterator) Next() bool {
-	event, ok := <-iterator.eventC
-	if !ok {
+func (iterator *FollowingEventIterator) Next(ctx context.Context) bool {
+	select {
+	case <-ctx.Done():
+		return false
+	default:
+	}
+	select {
+	case event, ok := <-iterator.eventC:
+		if !ok {
+			return false
+		}
+		iterator.event = event
+		return true
+	case <-ctx.Done():
 		return false
 	}
-	iterator.event = event
-	return true
 }
 
 func (iterator *FollowingEventIterator) Event() *Event {

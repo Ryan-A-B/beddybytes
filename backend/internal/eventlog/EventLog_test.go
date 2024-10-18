@@ -43,9 +43,9 @@ func testEventLog(t *testing.T, factory EventLogFactory) {
 				FromCursor: event.LogicalClock - 1,
 			})
 			So(iterator, ShouldNotBeNil)
-			So(iterator.Next(), ShouldBeTrue)
+			So(iterator.Next(ctx), ShouldBeTrue)
 			So(iterator.Event(), ShouldResemble, event)
-			So(iterator.Next(), ShouldBeFalse)
+			So(iterator.Next(ctx), ShouldBeFalse)
 			So(iterator.Err(), ShouldBeNil)
 		})
 	})
@@ -70,12 +70,12 @@ func testEventLog(t *testing.T, factory EventLogFactory) {
 			})
 			So(iterator, ShouldNotBeNil)
 			for i := 0; i < 100; i++ {
-				So(iterator.Next(), ShouldBeTrue)
+				So(iterator.Next(ctx), ShouldBeTrue)
 				event := iterator.Event()
 				So(event, ShouldNotBeNil)
 				So(event, ShouldResemble, events[i])
 			}
-			So(iterator.Next(), ShouldBeFalse)
+			So(iterator.Next(ctx), ShouldBeFalse)
 			So(iterator.Err(), ShouldBeNil)
 		})
 	})
@@ -95,10 +95,10 @@ func testEventLog(t *testing.T, factory EventLogFactory) {
 				Data: data,
 			})
 			So(err, ShouldBeNil)
-			So(iterator.Next(), ShouldBeTrue)
+			So(iterator.Next(ctx), ShouldBeTrue)
 			So(iterator.Event(), ShouldResemble, event)
 		}
-		So(iterator.Next(), ShouldBeFalse)
+		So(iterator.Next(ctx), ShouldBeFalse)
 		So(iterator.Err(), ShouldBeNil)
 	})
 }

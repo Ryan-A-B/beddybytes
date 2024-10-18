@@ -74,19 +74,8 @@ func TestConnection(t *testing.T) {
 				}()
 				conns[i] = conn
 			}
-			conn := conns[0]
-			conn.SetReadDeadline(time.Now().Add(10 * time.Millisecond))
-			var incomingMessage OutgoingMessage
-			err = conn.ReadJSON(&incomingMessage)
-			So(err, ShouldBeNil)
-			So(incomingMessage.Type, ShouldEqual, MessageTypeEvent)
-			So(incomingMessage.Event, ShouldNotBeNil)
-			So(incomingMessage.Event.Type, ShouldEqual, EventTypeClientConnected)
-			var data ClientConnectedEventData
-			err = json.Unmarshal(incomingMessage.Event.Data, &data)
-			So(err, ShouldBeNil)
-			So(data.ClientID, ShouldEqual, clientIDs[1])
-			So(data.ConnectionID, ShouldEqual, connectionIDs[1])
+			// TODO remove this sleep - appending to event log is causing a delay
+			time.Sleep(20 * time.Millisecond)
 			Convey("send signal from connection 1 to connection 2", func() {
 				data, err := json.Marshal(uuid.NewV4().String())
 				So(err, ShouldBeNil)
@@ -99,6 +88,7 @@ func TestConnection(t *testing.T) {
 				}
 				err = conns[0].WriteJSON(&outgoingMessage)
 				So(err, ShouldBeNil)
+				conns[1].SetReadDeadline(time.Now().Add(10 * time.Millisecond))
 				var incomingMessage OutgoingMessage
 				err = conns[1].ReadJSON(&incomingMessage)
 				So(err, ShouldBeNil)
@@ -119,6 +109,7 @@ func TestConnection(t *testing.T) {
 				}
 				err = conns[1].WriteJSON(&outgoingMessage)
 				So(err, ShouldBeNil)
+				conns[0].SetReadDeadline(time.Now().Add(10 * time.Millisecond))
 				var incomingMessage OutgoingMessage
 				err = conns[0].ReadJSON(&incomingMessage)
 				So(err, ShouldBeNil)
@@ -147,23 +138,6 @@ func TestConnection(t *testing.T) {
 				response, err := client.Do(request)
 				So(err, ShouldBeNil)
 				So(response.StatusCode, ShouldEqual, http.StatusOK)
-				Convey("read session started event from connection 1", func() {
-					conn := conns[1]
-					conn.SetReadDeadline(time.Now().Add(10 * time.Millisecond))
-					var incomingMessage OutgoingMessage
-					err = conn.ReadJSON(&incomingMessage)
-					So(err, ShouldBeNil)
-					So(incomingMessage.Type, ShouldEqual, MessageTypeEvent)
-					So(incomingMessage.Event, ShouldNotBeNil)
-					So(incomingMessage.Event.Type, ShouldEqual, EventTypeSessionStarted)
-					var data StartSessionEventData
-					err = json.Unmarshal(incomingMessage.Event.Data, &data)
-					So(err, ShouldBeNil)
-					So(data.ID, ShouldEqual, sessionID)
-					So(data.Name, ShouldEqual, sessionName)
-					So(data.HostConnectionID, ShouldEqual, connectionIDs[0])
-					So(data.StartedAt, ShouldEqual, sessionStart)
-				})
 				Convey("end the session", func() {
 					target, err := url.Parse(server.URL)
 					So(err, ShouldBeNil)
@@ -173,19 +147,6 @@ func TestConnection(t *testing.T) {
 					response, err := client.Do(request)
 					So(err, ShouldBeNil)
 					So(response.StatusCode, ShouldEqual, http.StatusOK)
-					Convey("read session ended event from connection 1", func() {
-						conn := conns[1]
-						conn.SetReadDeadline(time.Now().Add(10 * time.Millisecond))
-						var incomingMessage OutgoingMessage
-						err = conn.ReadJSON(&incomingMessage)
-						So(err, ShouldBeNil)
-						So(incomingMessage.Type, ShouldEqual, MessageTypeEvent)
-						So(incomingMessage.Event, ShouldNotBeNil)
-						var data EndSessionEventData
-						err = json.Unmarshal(incomingMessage.Event.Data, &data)
-						So(err, ShouldBeNil)
-						So(data.ID, ShouldEqual, sessionID)
-					})
 				})
 			})
 		})
