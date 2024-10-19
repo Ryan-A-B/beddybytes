@@ -22,12 +22,12 @@ interface BreakPoint {
 
 // TODO make configurable
 const settings: VisualTimerSettings = {
-    duration_ms: 30 * 60 * 1000,
+    duration_ms: 25 * 60 * 1000,
     initial_colour: green,
     final_colour: red,
     breakpoints: [
         {
-            seconds_remaining: 10 * 60,
+            seconds_remaining: 8 * 60,
             colour: orange
         }
     ]
@@ -102,6 +102,15 @@ const VisualTimerPage: React.FunctionComponent<PageProps> = () => {
     const minutes_remaining = Math.floor(seconds_remaining / 60);
 
     React.useEffect(() => {
+        if (state.state !== "running") return;
+        if (navigator.wakeLock === undefined) return;
+        const promise = navigator.wakeLock.request("screen");
+        return () => {
+            promise.then((wake_lock_sentinel) => wake_lock_sentinel.release());
+        }
+    }, [state]);
+
+    React.useEffect(() => {
         if (duration_remaining > 0) return
         dispatch({ type: "finish" });
     }, [duration_remaining]);
@@ -168,8 +177,8 @@ const VisualTimerPage: React.FunctionComponent<PageProps> = () => {
                     <div ref={div_ref} className="visual-timer-indicator" />
                     <div className="alert alert-info">
                         <ul>
-                            <li>Total duration is 30 minutes</li>
-                            <li>Change to orange at 10 minutes</li>
+                            <li>Total duration is 25 minutes</li>
+                            <li>Change to orange at 8 minutes</li>
                             <li>Change to red when finished</li>
                         </ul>
                     </div>
