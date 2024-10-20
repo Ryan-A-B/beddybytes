@@ -1,4 +1,7 @@
 import moment from 'moment';
+import Service from '../Service';
+import SessionService from './SessionService';
+import LoggingService from '../LoggingService';
 
 interface RecordingServiceStateNotRecording {
     state: 'not_recording';
@@ -14,39 +17,35 @@ export type RecordingServiceState = RecordingServiceStateNotRecording | Recordin
 const InitialState: RecordingServiceState = { state: 'not_recording' };
 
 interface NewRecordingServiceInput {
-    session_service: ParentStationSessionService;
+    logging_service: LoggingService;
+    session_service: SessionService;
+    media_stream: MediaStream;
 }
 
-class RecordingService extends EventTarget {
-    private session_service: ParentStationSessionService;
-    private state: RecordingServiceState = InitialState;
+class RecordingService extends Service<RecordingServiceState> {
+    private session_service: SessionService;
+    private media_stream: MediaStream;
 
     constructor(input: NewRecordingServiceInput) {
-        super();
+        super({
+            logging_service: input.logging_service,
+            name: 'RecordingService',
+            to_string: (state) => state.state,
+            initial_state: InitialState,
+        });
         this.session_service = input.session_service;
-    }
-
-    public get_state = (): RecordingServiceState => {
-        return this.state;
-    }
-
-    private set_state = (state: RecordingServiceState): void => {
-        this.state = state;
-        this.dispatchEvent(new Event('statechange'));
+        this.media_stream = input.media_stream;
     }
 
     public start = (): void => {
         const session_state = this.session_service.get_state();
         if (session_state.state !== 'joined')
             throw new Error('Cannot start recording when not joined to a session');
-        const connection = session_state.client_connection;
-        const media_stream_state = connection.get_media_stream_state();
-        if (media_stream_state.state !== 'available')
-            throw new Error('Cannot start recording when media stream is not available');
-        if (this.state.state === 'recording')
+        const state = this.get_state();
+        if (state.state === 'recording')
             throw new Error('Cannot start recording when already recording');
         const t0 = moment();
-        const media_recorder = new MediaRecorder(media_stream_state.media_stream);
+        const media_recorder = new MediaRecorder(this.media_stream);
         const chunks: Blob[] = [];
         media_recorder.addEventListener('dataavailable', (event) => {
             chunks.push(event.data);
@@ -68,9 +67,10 @@ class RecordingService extends EventTarget {
     }
 
     public stop = (): void => {
-        if (this.state.state === 'not_recording')
+        const state = this.get_state();
+        if (state.state === 'not_recording')
             throw new Error('Cannot stop recording when not recording');
-        this.state.media_recorder.stop();
+        state.media_recorder.stop();
     }
 }
 

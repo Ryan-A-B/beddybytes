@@ -1,4 +1,6 @@
 import unittest
+import time
+
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.wait import WebDriverWait
@@ -14,6 +16,9 @@ class RecordingServiceTest(unittest.TestCase):
 
     def tearDown(self):
         pass
+
+    def allow_time_for_video_to_display(self):
+        time.sleep(0.1)
 
     def test_recording(self):
         email = f'{generate_random_string(10)}@integrationtests.com'
@@ -38,6 +43,7 @@ class RecordingServiceTest(unittest.TestCase):
             parent_station_driver_wait = WebDriverWait(parent_station_driver, 1)
             session_dropdown = parent_station_driver_wait.until(lambda driver: Select(driver.find_element(By.ID, "session-dropdown")))
             session_dropdown.options[1].click()
+            self.allow_time_for_video_to_display()
 
             start_recording_button = parent_station_driver_wait.until(lambda driver: driver.find_element(By.ID, "button-start-recording"))
             self.assertTrue(start_recording_button.is_displayed())

@@ -1,5 +1,5 @@
 import React from 'react';
-import { build_timestamp, build_hash } from './build_info';
+import { build_timestamp, build_hash } from '../../utils/build_info';
 
 const Footer: React.FunctionComponent = () => (
     <footer>

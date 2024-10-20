@@ -38,11 +38,13 @@ interface NewMediaDevicePermissionServiceInput {
 }
 
 class MediaDevicePermissionService extends Service<MediaDevicePermissionStatus> {
-    private logging_service: LoggingService;
-
     constructor(input: NewMediaDevicePermissionServiceInput) {
-        super(InitialState);
-        this.logging_service = input.logging_service;
+        super({
+            logging_service: input.logging_service,
+            name: 'MediaDevicePermissionService',
+            to_string: (state: MediaDevicePermissionStatus) => state.state,
+            initial_state: InitialState,
+        });
         this.query_permission_state();
     }
 

@@ -1,36 +1,45 @@
 import { v4 as uuid } from 'uuid';
 import { Session } from '../SessionListService/types';
 import { InitiatedBy } from "./Connection/InitiatedBy";
+import Service from '../../Service';
+import { SessionState } from '.';
+import LoggingService from '../../LoggingService';
 
 export const EventTypeClientSessionStatusChanged = 'client_session_status_changed';
 
-class MockSessionService extends EventTarget implements ParentStationSessionService {
-    private state: ParentStationSessionState = { state: 'not_joined' };
+const InitialState: SessionState = { state: 'not_joined' };
 
-    public get_state = (): ParentStationSessionState => {
-        return this.state;
-    }
+interface NewMockSessionServiceInput {
+    logging_service: LoggingService;
+}
 
-    private set_status = (client_session_state: ParentStationSessionState): void => {
-        this.state = client_session_state;
-        this.dispatchEvent(new Event(EventTypeClientSessionStatusChanged));
+class MockSessionService extends Service<SessionState> {
+    constructor(input: NewMockSessionServiceInput) {
+        super({
+            logging_service: input.logging_service,
+            name: 'MockSessionService',
+            to_string: (state: SessionState) => state.state,
+            initial_state: InitialState,
+        });
     }
 
     public join_session(session: Session) {
-        if (this.state.state === 'joining') throw new Error('Already joining');
-        if (this.state.state === 'joined') throw new Error('Already joined');
+        const state = this.get_state();
+        if (state.state === 'joining') throw new Error('Already joining');
+        if (state.state === 'joined') throw new Error('Already joined');
         const client_connection = new MockClientConnection();
-        this.set_status({ state: 'joined', session, client_connection });
+        this.set_state({ state: 'joined', session, connection: client_connection });
     }
 
     public leave_session() {
         this.leave_session_with_state({ state: 'left' });
     }
 
-    private leave_session_with_state = (state: ParentStationSessionState) => {
-        if (this.state.state !== 'joined')
+    private leave_session_with_state = (state: SessionState) => {
+        const current_state = this.get_state();
+        if (current_state.state !== 'joined')
             return;
-        this.set_status(state);
+        this.set_state(state);
     }
 }
 
@@ -39,10 +48,6 @@ class MockClientConnection extends EventTarget implements Connection {
 
     public get_rtc_peer_connection_state = (): RTCPeerConnectionState => {
         return 'connected';
-    }
-
-    public get_media_stream_state = (): MediaStreamState => {
-        return { state: 'available', media_stream: this.media_stream };
     }
 
     reconnect() {

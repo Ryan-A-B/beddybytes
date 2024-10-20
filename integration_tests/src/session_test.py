@@ -18,6 +18,9 @@ class SessionTest(unittest.TestCase):
     def tearDown(self):
         pass
 
+    def allow_time_for_video_to_display(self):
+        time.sleep(0.1)
+
     def test_audio_session(self):
         email = f'{generate_random_string(10)}@integrationtests.com'
         password = generate_random_string(20)
@@ -48,12 +51,13 @@ class SessionTest(unittest.TestCase):
             driver_2_wait = WebDriverWait(driver_2, 1)
             audio_only_message = driver_2_wait.until(lambda driver: driver.find_element(By.ID, "audio-only-message"))
             self.assertTrue(audio_only_message.is_displayed())
-            audio_element = driver_2_wait.until(lambda driver: driver.find_element(By.ID, "audio-parent"))
+
+            video_element = driver_2_wait.until(lambda driver: driver.find_element(By.ID, "video-parent-station"))
+            self.assertFalse(video_element.is_displayed())
 
             session_toggle.click()
             alert_session_ended = driver_2_wait.until(lambda driver: driver.find_element(By.ID, "alert-session-ended"))
             self.assertTrue(alert_session_ended.is_displayed())
-            self.assertRaises(NoSuchElementException, driver_2.find_element, By.ID, "audio-parent")
 
             driver_1_logs = get_browser_logs(driver_1)
             driver_2_logs = get_browser_logs(driver_2)
@@ -85,22 +89,20 @@ class SessionTest(unittest.TestCase):
             driver_2.find_element(By.ID, "nav-link-parent").click()
 
             driver_2_wait = WebDriverWait(driver_2, 1)
+            video_element = driver_2_wait.until(lambda driver: driver.find_element(By.ID, "video-parent-station"))
             session_dropdown_element = driver_2_wait.until(lambda driver: driver.find_element(By.ID, "session-dropdown"))
             session_dropdown = Select(session_dropdown_element)
             self.assertEqual(len(session_dropdown.options), 2)
             self.assertEqual(session_dropdown.options[0].get_attribute("value"), "")
             self.assertNotEqual(session_dropdown.options[1].get_attribute("value"), "")
-
             session_dropdown.options[1].click()
-
-            driver_2_wait = WebDriverWait(driver_2, 1)
-            video_element = driver_2_wait.until(lambda driver: driver.find_element(By.ID, "video-parent"))
+            self.allow_time_for_video_to_display()
             self.assertTrue(video_element.is_displayed())
 
             session_toggle.click()
             alert_session_ended = driver_2_wait.until(lambda driver: driver.find_element(By.ID, "alert-session-ended"))
             self.assertTrue(alert_session_ended.is_displayed())
-            self.assertRaises(NoSuchElementException, driver_2.find_element, By.ID, "video-parent")
+            self.assertFalse(video_element.is_displayed())
 
             driver_1_logs = get_browser_logs(driver_1)
             driver_2_logs = get_browser_logs(driver_2)
@@ -128,17 +130,17 @@ class SessionTest(unittest.TestCase):
             driver_2.find_element(By.ID, "nav-link-parent").click()
 
             driver_2_wait = WebDriverWait(driver_2, 1)
+            video_element = driver_2_wait.until(lambda driver: driver.find_element(By.ID, "video-parent-station"))
             session_dropdown_element = driver_2_wait.until(lambda driver: driver.find_element(By.ID, "session-dropdown"))
             session_dropdown = Select(session_dropdown_element)
             session_dropdown.options[1].click()
-
-            video_element = driver_2_wait.until(lambda driver: driver.find_element(By.ID, "video-parent"))
+            self.allow_time_for_video_to_display()
             self.assertTrue(video_element.is_displayed())
 
             session_toggle.click()
             alert_session_ended = driver_2_wait.until(lambda driver: driver.find_element(By.ID, "alert-session-ended"))
             self.assertTrue(alert_session_ended.is_displayed())
-            self.assertRaises(NoSuchElementException, driver_2.find_element, By.ID, "video-parent")
+            self.assertFalse(video_element.is_displayed())
 
             session_toggle.click()
             session_dropdown_element = driver_2_wait.until(lambda driver: driver.find_element(By.ID, "session-dropdown"))
@@ -147,7 +149,7 @@ class SessionTest(unittest.TestCase):
             self.assertEqual(session_dropdown.options[0].get_attribute("value"), "")
             self.assertNotEqual(session_dropdown.options[1].get_attribute("value"), "")
             session_dropdown.options[1].click()
-            video_element = driver_2_wait.until(lambda driver: driver.find_element(By.ID, "video-parent"))
+            self.allow_time_for_video_to_display()
             self.assertTrue(video_element.is_displayed())
 
             driver_1_logs = get_browser_logs(driver_1)
@@ -195,9 +197,9 @@ class SessionTest(unittest.TestCase):
             self.assertNotEqual(session_dropdown.options[1].get_attribute("value"), "")
             session_dropdown.options[1].click()
 
-            driver_2_video_element = driver_2_wait.until(lambda driver: driver.find_element(By.ID, "video-parent"))
+            driver_2_video_element = driver_2_wait.until(lambda driver: driver.find_element(By.ID, "video-parent-station"))
             self.assertTrue(driver_2_video_element.is_displayed())
-            driver_3_video_element = driver_3_wait.until(lambda driver: driver.find_element(By.ID, "video-parent"))
+            driver_3_video_element = driver_3_wait.until(lambda driver: driver.find_element(By.ID, "video-parent-station"))
             self.assertTrue(driver_3_video_element.is_displayed())
 
             driver_1_logs = get_browser_logs(driver_1)
@@ -246,19 +248,20 @@ class SessionTest(unittest.TestCase):
             self.assertNotEqual(session_dropdown.options[1].get_attribute("value"), "")
             self.assertNotEqual(session_dropdown.options[2].get_attribute("value"), "")
 
+            video_element = driver_3_wait.until(lambda driver: driver.find_element(By.ID, "video-parent-station"))
             session_dropdown.options[1].click()
-            video_element = driver_3_wait.until(lambda driver: driver.find_element(By.ID, "video-parent"))
+            self.allow_time_for_video_to_display()
             self.assertTrue(video_element.is_displayed())
 
             session_dropdown.options[2].click()
-            video_element = driver_3_wait.until(lambda driver: driver.find_element(By.ID, "video-parent"))
+            self.allow_time_for_video_to_display()
             self.assertTrue(video_element.is_displayed())
 
             session_dropdown.options[0].click()
-            self.assertRaises(NoSuchElementException, driver_3.find_element, By.ID, "video-parent")
+            self.assertFalse(video_element.is_displayed())
 
             session_dropdown.options[1].click()
-            video_element = driver_3_wait.until(lambda driver: driver.find_element(By.ID, "video-parent"))
+            self.allow_time_for_video_to_display()
             self.assertTrue(video_element.is_displayed())
 
             driver_1_logs = get_browser_logs(driver_1)
@@ -289,24 +292,23 @@ class SessionTest(unittest.TestCase):
             driver_2.find_element(By.ID, "nav-link-parent").click()
 
             driver_2_wait = WebDriverWait(driver_2, 1)
+            video_element = driver_2_wait.until(lambda driver: driver.find_element(By.ID, "video-parent-station"))
             session_dropdown_element = driver_2_wait.until(lambda driver: driver.find_element(By.ID, "session-dropdown"))
             session_dropdown = Select(session_dropdown_element)
             self.assertEqual(len(session_dropdown.options), 2)
             self.assertEqual(session_dropdown.options[0].get_attribute("value"), "")
             self.assertNotEqual(session_dropdown.options[1].get_attribute("value"), "")
             session_dropdown.options[1].click()
-            video_element = driver_2_wait.until(lambda driver: driver.find_element(By.ID, "video-parent"))
+            self.allow_time_for_video_to_display()
             self.assertTrue(video_element.is_displayed())
 
             stop_backend_container()
             for _ in range(5):
                 time.sleep(1)
-                video_element = driver_2_wait.until(lambda driver: driver.find_element(By.ID, "video-parent"))
                 self.assertTrue(video_element.is_displayed())
             start_backend_container()
             for _ in range(10):
                 time.sleep(1)
-                video_element = driver_2_wait.until(lambda driver: driver.find_element(By.ID, "video-parent"))
                 self.assertTrue(video_element.is_displayed())
 
             session_toggle.click()

@@ -40,6 +40,7 @@ interface NewRTCConnectionInput {
     logging_service: LoggingService;
     signal_service: SignalService;
     session: Session;
+    parent_station_media_stream: MediaStream;
 }
 
 class RTCConnection extends EventTarget implements Connection {
@@ -47,7 +48,7 @@ class RTCConnection extends EventTarget implements Connection {
     private signal_service: SignalService;
     private session: Session;
     private peer_connection: RTCPeerConnection;
-    private connection_stream_state: MediaStreamState = { state: 'not_available' };
+    private media_stream: MediaStream;
 
     constructor(input: NewRTCConnectionInput) {
         super();
@@ -57,31 +58,39 @@ class RTCConnection extends EventTarget implements Connection {
         this.peer_connection = this.create_peer_connection();
         this.send_description()
         this.signal_service.addEventListener("signal", this.handle_signal);
+        this.media_stream = input.parent_station_media_stream;
     }
 
     private create_peer_connection = (): RTCPeerConnection => {
         const peer_connection = new RTCPeerConnection(settings.RTC);
-        peer_connection.onicecandidate = this.handle_ice_candidate;
-        peer_connection.ontrack = this.handle_track;
-        peer_connection.onconnectionstatechange = this.handle_connection_state_change;
+        peer_connection.addEventListener("icecandidate", this.handle_icecandidate_event);
+        peer_connection.addEventListener("track", this.handle_track_event);
+        peer_connection.addEventListener("connectionstatechange", this.handle_connectionstatechange_event);
+
+        peer_connection.addEventListener("connectionstatechange", (event: Event) => {
+            console.log('connectionstatechange', event);
+        });
+        peer_connection.addEventListener("negotiationneeded", (event: Event) => {
+            console.log('negotiationneeded', event);
+        });
+        peer_connection.addEventListener("iceconnectionstatechange", (event: Event) => {
+            console.log('iceconnectionstatechange', event);
+        });
+        peer_connection.addEventListener("icegatheringstatechange", (event: Event) => {
+            console.log('icegatheringstatechange', event);
+        });
+        peer_connection.addEventListener("icecandidateerror", (event: Event) => {
+            console.log('icecandidateerror', event);
+        });
+        peer_connection.addEventListener("signalingstatechange", (event: Event) => {
+            console.log('signalingstatechange', event);
+        });
+
         return peer_connection;
     }
 
     public get_rtc_peer_connection_state = (): RTCPeerConnectionState => {
         return this.peer_connection.connectionState;
-    }
-
-    public get_media_stream_state = (): MediaStreamState => {
-        return this.connection_stream_state;
-    }
-
-    private set_connection_stream_state = (connection_stream_state: MediaStreamState): void => {
-        this.logging_service.log({
-            severity: Severity.Debug,
-            message: `RTC stream state changed to ${connection_stream_state.state}`,
-        })
-        this.connection_stream_state = connection_stream_state;
-        this.dispatchEvent(new Event(EventTypeRTCConnectionStreamStatusChanged));
     }
 
     private send_description = async () => {
@@ -99,7 +108,7 @@ class RTCConnection extends EventTarget implements Connection {
         const signal = event.detail as IncomingSignal;
         if (signal.from_connection_id !== this.session.host_connection_id) return;
         if (isDescriptionSignal(signal)) {
-            await this.handle_answer(signal);
+            await this.handle_answer_signal(signal);
             return
         }
         if (isCandidateSignal(signal)) {
@@ -108,7 +117,7 @@ class RTCConnection extends EventTarget implements Connection {
         }
     }
 
-    private handle_answer = async (signal: IncomingSignalDescription) => {
+    private handle_answer_signal = async (signal: IncomingSignalDescription) => {
         if (signal.data.description.type !== "answer")
             throw new Error("data.description.type is not answer");
         const peer_connection = this.peer_connection;
@@ -120,7 +129,7 @@ class RTCConnection extends EventTarget implements Connection {
         await this.peer_connection.addIceCandidate(candidate);
     }
 
-    private handle_ice_candidate = (event: RTCPeerConnectionIceEvent) => {
+    private handle_icecandidate_event = (event: RTCPeerConnectionIceEvent) => {
         if (event.candidate === null)
             return;
         this.signal_service.send_signal({
@@ -129,12 +138,23 @@ class RTCConnection extends EventTarget implements Connection {
         });
     }
 
-    private handle_track = (event: RTCTrackEvent) => {
-        const stream = event.streams[0];
-        this.set_connection_stream_state({ state: 'available', media_stream: stream });
+    private handle_track_event = (event: RTCTrackEvent) => {
+        // TODO is it bad to dispatch this event? I expected the browser to do it
+        // but apparently the browser only dispatches it if the user agent does the addTrack
+        // Maybe it isn't dodgy. The agent that adds the track is the agent that dispatches the event
+        this.media_stream.addTrack(event.track);
+        this.media_stream.dispatchEvent(new MediaStreamTrackEvent('addtrack', {
+            track: event.track
+        }));
+        event.track.addEventListener("ended", () => {
+            this.media_stream.removeTrack(event.track);
+            this.media_stream.dispatchEvent(new MediaStreamTrackEvent('removetrack', {
+                track: event.track
+            }));
+        }, { once: true });
     }
 
-    private handle_connection_state_change = (event: Event) => {
+    private handle_connectionstatechange_event = (event: Event) => {
         if (event.type !== "connectionstatechange")
             throw new Error("event.type is not connectionstatechange");
         this.logging_service.log({
@@ -163,9 +183,9 @@ class RTCConnection extends EventTarget implements Connection {
     }
 
     private close_peer_connection = () => {
-        this.peer_connection.onicecandidate = null;
-        this.peer_connection.ontrack = null;
-        this.peer_connection.onconnectionstatechange = null;
+        this.peer_connection.removeEventListener("icecandidate", this.handle_icecandidate_event);
+        this.peer_connection.removeEventListener("track", this.handle_track_event);
+        this.peer_connection.removeEventListener("connectionstatechange", this.handle_connectionstatechange_event);
         this.peer_connection.close();
     }
 }

@@ -1,5 +1,6 @@
 import { InfluxDB, WriteApi, WritePrecisionType, Point } from "@influxdata/influxdb-client";
 import LoggingService, { LogInput, Severity } from ".";
+import { build_hash, build_timestamp } from "../../utils/build_info";
 
 type NewInfluxLoggingServiceInput = {
     client: InfluxDB
@@ -41,6 +42,8 @@ class InfluxLoggingService implements LoggingService {
             facility: InfluxLoggingService.Facility,
             appname: InfluxLoggingService.ApplicationName,
             hostname: InfluxLoggingService.HostName,
+            build_hash: build_hash,
+            build_timestamp: build_timestamp,
         });
         this.client_id = input.client_id;
         this.instance_id = input.instance_id;

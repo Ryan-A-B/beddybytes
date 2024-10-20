@@ -127,6 +127,9 @@ class ParentStation:
             logging.info(f"{self.name} quitting")
             self.driver.quit()
 
+    def allow_time_for_video_to_display(self):
+        time.sleep(0.1)
+
     def handle_disconnected(self):
         if self.backend_disruptor.status == "stopped":
             return
@@ -146,14 +149,15 @@ class ParentStation:
             print(f"{self.name} could not connect because the baby station is unavailable")
             return
         first_session_option.click()
-        video_element = driver_wait.until(lambda driver: driver.find_element(By.ID, "video-parent"))
+        video_element = driver_wait.until(lambda driver: driver.find_element(By.ID, "video-parent-station"))
+        self.allow_time_for_video_to_display()
         if not video_element.is_displayed():
             raise Exception(f"{self.name} video element is not displayed")
         self.status = "connected"
 
     def handle_connected(self):
         driver_wait = WebDriverWait(self.driver, 1)
-        video_element = driver_wait.until(lambda driver: driver.find_element(By.ID, "video-parent"))
+        video_element = driver_wait.until(lambda driver: driver.find_element(By.ID, "video-parent-station"))
         if not video_element.is_displayed():
             raise Exception(f"{self.name} video element is not displayed")
 

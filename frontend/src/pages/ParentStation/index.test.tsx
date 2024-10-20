@@ -17,7 +17,9 @@ describe('Monitor', () => {
         it('should not show stream', () => {
             const logging_service = new ConsoleLoggingService();
             const signal_service = new MockSignalService();
-            const client_session_service = new MockSessionService();
+            const client_session_service = new MockSessionService({
+                logging_service: logging_service,
+            });
             const session_list_service = new MockSessionListService();
             const services: any = {
                 logging_service,
@@ -41,7 +43,9 @@ describe('Monitor', () => {
             it('should show session in dropdown', async () => {
                 const logging_service = new ConsoleLoggingService();
                 const signal_service = new MockSignalService();
-                const client_session_service = new MockSessionService();
+                const client_session_service = new MockSessionService({
+                    logging_service: logging_service,
+                });
                 const session_list_service = new MockSessionListService();
                 const services: any = {
                     logging_service,
@@ -83,7 +87,9 @@ describe('Monitor', () => {
         it('should show stream', async () => {
             const logging_service = new ConsoleLoggingService();
             const signal_service = new MockSignalService();
-            const client_session_service = new MockSessionService();
+            const client_session_service = new MockSessionService({
+                logging_service: logging_service,
+            });
             const session_list_service = new MockSessionListService();
             const services: any = {
                 logging_service,
