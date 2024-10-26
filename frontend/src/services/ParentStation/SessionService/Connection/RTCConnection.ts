@@ -4,7 +4,6 @@ import { Session } from "../../SessionListService/types";
 import { InitiatedBy } from "./InitiatedBy";
 
 export const EventTypeRTCConnectionStateChanged = 'rtc_connection_state_changed';
-export const EventTypeRTCConnectionStreamStatusChanged = 'rtc_connection_stream_status_changed';
 
 interface IncomingSignalDescription {
     from_connection_id: string;
