@@ -200,7 +200,7 @@ class WebSocketSignalService extends EventTarget implements SignalService {
 
     private on_error = (event: Event) => {
         this.logging_service.log({
-            severity: Severity.Error,
+            severity: Severity.Warning,
             message: `WebSocket error: event.type: ${event.type}`
         });
     }

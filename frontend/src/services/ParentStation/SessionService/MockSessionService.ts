@@ -1,9 +1,9 @@
 import { v4 as uuid } from 'uuid';
 import { Session } from '../SessionListService/types';
-import { InitiatedBy } from "./Connection/InitiatedBy";
 import Service from '../../Service';
 import { SessionState } from '.';
 import LoggingService from '../../LoggingService';
+import Connection, { ConnectionState, InitiatedBy } from './Connection';
 
 export const EventTypeClientSessionStatusChanged = 'client_session_status_changed';
 
@@ -27,7 +27,9 @@ class MockSessionService extends Service<SessionState> {
         const state = this.get_state();
         if (state.state === 'joining') throw new Error('Already joining');
         if (state.state === 'joined') throw new Error('Already joined');
-        const client_connection = new MockClientConnection();
+        const client_connection = new MockClientConnection({
+            logging_service: this.logging_service,
+        });
         this.set_state({ state: 'joined', session, connection: client_connection });
     }
 
@@ -43,8 +45,22 @@ class MockSessionService extends Service<SessionState> {
     }
 }
 
-class MockClientConnection extends EventTarget implements Connection {
+interface NewMockClientConnectionInput {
+    logging_service: LoggingService;
+}
+
+class MockClientConnection extends Service<ConnectionState> implements Connection {
+    private static InitialState: ConnectionState = { state: 'connecting' };
     private media_stream: MediaStream = new MockMediaStream(uuid());
+
+    constructor(input: NewMockClientConnectionInput) {
+        super({
+            logging_service: input.logging_service,
+            name: 'MockClientConnection',
+            to_string: (state: ConnectionState) => state.state,
+            initial_state: MockClientConnection.InitialState,
+        })
+    }
 
     public get_rtc_peer_connection_state = (): RTCPeerConnectionState => {
         return 'connected';
@@ -63,8 +79,6 @@ class MockClientConnection extends EventTarget implements Connection {
 }
 
 export default MockSessionService;
-
-
 
 class MockMediaStream extends EventTarget implements MediaStream {
     active: boolean;

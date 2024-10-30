@@ -11,7 +11,7 @@ import { Severity } from "../../services/LoggingService";
 import useWakeLock from "../../hooks/useWakeLock";
 import useSessionList from "../../hooks/useSessionList";
 import useServiceState from "../../hooks/useServiceState";
-import ConnectionFailed from "../../components/ConnectionFailedAlert";
+import ConnectionStateAlert from "../../components/ConnectionStateAlert";
 import SessionDropdown from "../../components/SessionDropdown";
 import AudioVisualiserComponent from "../../components/AudioVisualiser";
 import SessionDuration from "./SessionDuration";
@@ -121,7 +121,7 @@ const ParentStation: React.FunctionComponent = () => {
                     Session Ended
                 </div>
             )}
-            <ConnectionFailed />
+            <ConnectionStateAlert />
             {session_state.state === 'joined' && <SessionDuration startedAt={session_state.session.started_at} />}
             {recording_state.state === 'not_recording' && (
                 <button id="button-start-recording" onClick={parent_station.recording_service.start} className='btn btn-outline-danger'>

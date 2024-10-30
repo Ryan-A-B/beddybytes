@@ -1,9 +1,9 @@
 import { List } from "immutable";
-import LoggingService from '../../LoggingService';
-import { InitiatedBy } from "./Connection/InitiatedBy";
-import RTCConnection from "./Connection/RTCConnection";
-import { EventTypeSessionListChanged, Session, SessionListService } from "../SessionListService/types";
 import Service from "../../Service";
+import LoggingService from '../../LoggingService';
+import { EventTypeSessionListChanged, Session, SessionListService } from "../SessionListService/types";
+import RTCConnection from "./Connection/RTCConnection";
+import Connection, { InitiatedBy } from "./Connection";
 
 interface SessionStateNotJoined {
     state: 'not_joined';
