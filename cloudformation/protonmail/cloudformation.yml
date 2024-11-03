@@ -1,0 +1,77 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Parameters:
+  HostedZoneId:
+    Description: The ID of the hosted zone where the DNS record will be created
+    Type: String
+  HostedZoneName:
+    Description: The name of the hosted zone where the DNS record will be created
+    Type: String
+  DomainName:
+    Description: The domain name where the DNS record will be created
+    Type: String
+  VerificationToken:
+    Description: The token to verify ownership of the domain
+    Type: String
+
+Resources:
+  TXTRecord:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneName: !Ref HostedZoneName
+      Name: !Ref DomainName
+      Type: TXT
+      ResourceRecords:
+        - !Sub "\"${VerificationToken}\""
+        - "\"v=spf1 include:_spf.protonmail.ch ~all\""
+      TTL: 300
+
+  MXRecord:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneName: !Ref HostedZoneName
+      Name: !Ref DomainName
+      Type: MX
+      ResourceRecords:
+        - "10 mail.protonmail.ch"
+        - "20 mailsec.protonmail.ch"
+      TTL: 300
+
+  DomainKeyRecord1:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneName: !Ref HostedZoneName
+      Name: !Sub "protonmail._domainkey.${DomainName}"
+      Type: CNAME
+      ResourceRecords:
+        - "protonmail.domainkey.dhx7fioxpq2f7yzhjlzbzchc4e5vr3wwhd6eri6okkw3pjcktvx7a.domains.proton.ch."
+      TTL: 300
+
+  DomainKeyRecord2:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneName: !Ref HostedZoneName
+      Name: !Sub "protonmail2._domainkey.${DomainName}"
+      Type: CNAME
+      ResourceRecords:
+        - "protonmail2.domainkey.dhx7fioxpq2f7yzhjlzbzchc4e5vr3wwhd6eri6okkw3pjcktvx7a.domains.proton.ch."
+      TTL: 300
+
+  DomainKeyRecord3:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneName: !Ref HostedZoneName
+      Name: !Sub "protonmail3._domainkey.${DomainName}"
+      Type: CNAME
+      ResourceRecords:
+        - "protonmail3.domainkey.dhx7fioxpq2f7yzhjlzbzchc4e5vr3wwhd6eri6okkw3pjcktvx7a.domains.proton.ch."
+      TTL: 300
+
+  DMARCRecord:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneName: !Ref HostedZoneName
+      Name: !Sub "_dmarc.${DomainName}"
+      Type: TXT
+      ResourceRecords:
+        - "\"v=DMARC1; p=quarantine\""
+      TTL: 300

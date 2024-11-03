@@ -27,9 +27,6 @@ Parameters:
   MyIpAddress:
     Description: The IP address of the client that will be allowed to SSH into the EC2 instance
     Type: String
-  EmailIdentityDomain:
-    Description: The domain name of the email identity
-    Type: String
 
 Resources:
   APIDNSRecord:
@@ -155,51 +152,6 @@ Resources:
       BucketName: !Sub ${AWS::StackName}-bucket
       VersioningConfiguration:
         Status: Enabled
-
-  EmailIdentity:
-    Type: AWS::SES::EmailIdentity
-    Properties:
-      EmailIdentity: !Ref EmailIdentityDomain
-
-  DKIM1:
-    Type: AWS::Route53::RecordSet
-    Properties:
-      HostedZoneName: !Ref HostedZoneName
-      Name: !GetAtt EmailIdentity.DkimDNSTokenName1
-      Type: CNAME
-      TTL: '1800'
-      ResourceRecords:
-        - !GetAtt EmailIdentity.DkimDNSTokenValue1
-
-  DKIM2:
-    Type: AWS::Route53::RecordSet
-    Properties:
-      HostedZoneName: !Ref HostedZoneName
-      Name: !GetAtt EmailIdentity.DkimDNSTokenName2
-      Type: CNAME
-      TTL: '1800'
-      ResourceRecords:
-        - !GetAtt EmailIdentity.DkimDNSTokenValue2
-
-  DKIM3:
-    Type: AWS::Route53::RecordSet
-    Properties:
-      HostedZoneName: !Ref HostedZoneName
-      Name: !GetAtt EmailIdentity.DkimDNSTokenName3
-      Type: CNAME
-      TTL: '1800'
-      ResourceRecords:
-        - !GetAtt EmailIdentity.DkimDNSTokenValue3
-
-  DMARC:
-    Type: AWS::Route53::RecordSet
-    Properties:
-      HostedZoneName: !Ref HostedZoneName
-      Name: !Sub _dmarc.${EmailIdentity}
-      Type: TXT
-      TTL: '1800'
-      ResourceRecords:
-        - "\"v=DMARC1; p=quarantine;\""
 
 Outputs:
   InstanceId:
