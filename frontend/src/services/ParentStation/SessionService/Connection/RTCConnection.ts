@@ -1,6 +1,6 @@
 import settings from "../../../../settings";
 import Service from "../../../Service";
-import LoggingService from '../../../LoggingService';
+import LoggingService, { Severity } from '../../../LoggingService';
 import { Session } from "../../SessionListService/types";
 import Connection, { ConnectionState, InitiatedBy } from ".";
 
@@ -71,22 +71,40 @@ class RTCConnection extends Service<ConnectionState> implements Connection {
         peer_connection.addEventListener("connectionstatechange", this.handle_connectionstatechange_event);
 
         peer_connection.addEventListener("connectionstatechange", (event: Event) => {
-            console.log('connectionstatechange', event);
+            this.logging_service.log({
+                severity: Severity.Debug,
+                message: `connectionstatechange: ${peer_connection.connectionState}`,
+            })
         });
         peer_connection.addEventListener("negotiationneeded", (event: Event) => {
-            console.log('negotiationneeded', event);
+            this.logging_service.log({
+                severity: Severity.Debug,
+                message: `negotiationneeded`,
+            })
         });
         peer_connection.addEventListener("iceconnectionstatechange", (event: Event) => {
-            console.log('iceconnectionstatechange', event);
+            this.logging_service.log({
+                severity: Severity.Debug,
+                message: `iceconnectionstatechange: ${peer_connection.iceConnectionState}`,
+            })
         });
         peer_connection.addEventListener("icegatheringstatechange", (event: Event) => {
-            console.log('icegatheringstatechange', event);
+            this.logging_service.log({
+                severity: Severity.Debug,
+                message: `icegatheringstatechange: ${peer_connection.iceGatheringState}`,
+            })
         });
         peer_connection.addEventListener("icecandidateerror", (event: Event) => {
-            console.log('icecandidateerror', event);
+            this.logging_service.log({
+                severity: Severity.Debug,
+                message: `icecandidateerror`,
+            })
         });
         peer_connection.addEventListener("signalingstatechange", (event: Event) => {
-            console.log('signalingstatechange', event);
+            this.logging_service.log({
+                severity: Severity.Debug,
+                message: `signalingstatechange: ${peer_connection.signalingState}`,
+            })
         });
 
         return peer_connection;
