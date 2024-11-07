@@ -54,6 +54,39 @@ const useStopper = (input: UseSignalServiceStopperInput) => {
     }, [signal_service, session_service]);
 }
 
+const usePlay = (video_element_ref: React.RefObject<HTMLVideoElement>) => {
+    const session_state = useServiceState(parent_station.session_service);
+    React.useLayoutEffect(() => {
+        const video_element = video_element_ref.current;
+        if (video_element === null) return;
+        if (session_state.state !== "joined") return;
+        const connection = session_state.connection;
+        const handle_connection_state_change = () => {
+            const connection_state = connection.get_state();
+            if (connection_state.state !== "connected") return;
+            if (!video_element.paused) return;
+            video_element.play().catch((error: unknown) => {
+                const is_error = error instanceof Error;
+                if (!is_error) {
+                    logging_service.log({
+                        severity: Severity.Critical,
+                        message: `Error playing video element in ParentStation usePlay: ${error}`,
+                    })
+                    return;
+                }
+                logging_service.log({
+                    severity: Severity.Critical,
+                    message: `Error playing video element in ParentStation usePlay: ${error.message} ${error.stack}`,
+                })
+            });
+        }
+        connection.addEventListener("state_changed", handle_connection_state_change);
+        return () => {
+            connection.removeEventListener("state_changed", handle_connection_state_change);
+        }
+    }, [video_element_ref, session_state]);
+}
+
 const ParentStation: React.FunctionComponent = () => {
     const session_service = parent_station.session_service;
     const signal_service = useSignalService();
@@ -82,34 +115,14 @@ const ParentStation: React.FunctionComponent = () => {
         }
         signal_service.start();
         session_service.join_session(session);
-        const video_element = video_element_ref.current;
-        if (video_element === null) {
-            logging_service.log({
-                severity: Severity.Critical,
-                message: "Video element not found in ParentStation onSessionChange",
-            })
-            return;
-        }
-        video_element.play().catch((error: unknown) => {
-            const is_error = error instanceof Error;
-            if (!is_error) {
-                logging_service.log({
-                    severity: Severity.Critical,
-                    message: `Error playing video element in ParentStation onSessionChange: ${error}`,
-                })
-                return;
-            }
-            logging_service.log({
-                severity: Severity.Critical,
-                message: `Error playing video element in ParentStation onSessionChange: ${error.message} ${error.stack}`,
-            })
-        });
-    }, [signal_service, session_service, video_element_ref]);
+    }, [signal_service, session_service]);
 
     useStopper({
         session_service,
         signal_service
     });
+
+    usePlay(video_element_ref);
 
     // TODO detect audio-only and empty streams
 
@@ -148,6 +161,7 @@ const ParentStation: React.FunctionComponent = () => {
                 id="video-parent-station"
                 ref={video_element_ref}
                 className="video mt-3"
+                playsInline
             />
         </main>
     );
