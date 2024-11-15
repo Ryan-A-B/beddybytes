@@ -13,10 +13,11 @@ const SessionsDropdown: React.FunctionComponent<Props> = ({ session_list, value,
     const filtered_session_list = React.useMemo(() => {
         const disconnected_since_cutoff = moment().subtract(5, 'minutes');
         return session_list.filter((session) => {
+            if (value !== null && session.id === value.id) return true;
             if (session.host_connection_state.state === 'connected') return true;
             return session.host_connection_state.since.isAfter(disconnected_since_cutoff)
         });
-    }, [session_list]);
+    }, [session_list, value]);
     const handleChange = React.useCallback((event: React.ChangeEvent<HTMLSelectElement>) => {
         if (event.target.value === '') {
             onChange(null);
