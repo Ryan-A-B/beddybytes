@@ -1,5 +1,8 @@
 #!/bin/bash
-set -ex
+set -e
 
-docker compose -f docker-compose.local.yml \
-    exec -it integration_tests python run.py
+pushd integration_tests
+source venv/bin/activate
+./test.sh
+deactivate
+popd

@@ -1,5 +1,8 @@
 #!/bin/bash
-set -ex
+set -e
 
-docker compose -f docker-compose.local.yml \
-    exec -it integration_tests python endurance_test.py
+pushd integration_tests
+source venv/bin/activate
+python src/endurance_test.py
+deactivate
+popd

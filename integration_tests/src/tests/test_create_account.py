@@ -8,7 +8,7 @@ from selenium.common.exceptions import NoSuchElementException
 from settings import hub_url, app_base_url, chrome_options
 from utils import create_account, generate_random_string
 
-class CreateAccountTest(unittest.TestCase):
+class TestCreateAccount(unittest.TestCase):
     def setUp(self):
         pass
 

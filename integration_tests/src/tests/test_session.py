@@ -1,5 +1,4 @@
 import unittest
-import subprocess
 import time
 
 from selenium import webdriver
@@ -11,7 +10,7 @@ from selenium.common.exceptions import NoSuchElementException
 from settings import hub_url, app_base_url, chrome_options
 from utils import create_account, login, get_browser_logs, generate_random_string, stop_backend_container, start_backend_container
 
-class SessionTest(unittest.TestCase):
+class TestSession(unittest.TestCase):
     def setUp(self):
         pass
 

@@ -1,6 +1,6 @@
 from selenium import webdriver
 
-hub_url = 'http://selenium_hub:4444'
+hub_url = 'http://localhost:4444'
 app_base_url = 'https://app.beddybytes.local'
 
 chrome_options = webdriver.ChromeOptions()

@@ -10,7 +10,7 @@ from selenium.common.exceptions import NoSuchElementException
 from settings import hub_url, app_base_url, chrome_options
 from utils import create_account, login, generate_random_string
 
-class RecordingServiceTest(unittest.TestCase):
+class TestRecordingService(unittest.TestCase):
     def setUp(self):
         pass
 
