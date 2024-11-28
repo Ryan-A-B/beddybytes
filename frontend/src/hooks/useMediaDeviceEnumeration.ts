@@ -4,7 +4,9 @@ const useMediaDeviceEnumeration = (): MediaDeviceInfo[] => {
     const [devices, setDevices] = React.useState<MediaDeviceInfo[]>([]);
     React.useEffect(() => {
         const handleDeviceChange = async () => {
-            const devices = await navigator.mediaDevices.enumerateDevices()
+            const media_stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            media_stream.getTracks().forEach((track) => track.stop());
             setDevices(devices);
         };
         navigator.mediaDevices.addEventListener('devicechange', handleDeviceChange);
