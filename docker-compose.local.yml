@@ -43,6 +43,10 @@ services:
       - "traefik.http.routers.api.entrypoints=websecure"
       - "traefik.http.routers.api.tls=true"
       - "traefik.http.routers.api.middlewares=headers-cors@docker"
+    develop:
+      watch:
+        - action: rebuild
+          path: ./backend
   app:
     image: node:18
     command: yarn start
@@ -124,13 +128,6 @@ services:
       - SE_EVENT_BUS_SUBSCRIBE_PORT=4443
     deploy:
       replicas: 4
-  integration_tests:
-    build: integration_tests
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - ./integration_tests/src:/usr/src/integration_tests
-    working_dir: /usr/src/integration_tests
-    command: tail -f /dev/null
 
 volumes:
   # TODO influx_storage + set up script
