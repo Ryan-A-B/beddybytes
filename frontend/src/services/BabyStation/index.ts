@@ -1,6 +1,6 @@
 import LoggingService from '../LoggingService';
 import MediaDevicePermissionService from "./MediaDevicePermissionService";
-import MediaStreamService from "./MediaStreamService";
+import MediaDeviceService from "./MediaDeviceService";
 import SessionService from "./SessionService";
 
 interface NewBabyStationInput {
@@ -10,14 +10,14 @@ interface NewBabyStationInput {
 
 class BabyStation {
     readonly media_device_permission_service: MediaDevicePermissionService;
-    readonly media_stream_service: MediaStreamService;
+    readonly media_device_service: MediaDeviceService;
     readonly session_service: BabyStationSessionService;
 
     constructor(input: NewBabyStationInput) {
         this.media_device_permission_service = new MediaDevicePermissionService({
             logging_service: input.logging_service
         });
-        this.media_stream_service = new MediaStreamService({
+        this.media_device_service = new MediaDeviceService({
             logging_service: input.logging_service,
             media_device_permission_service: this.media_device_permission_service
         });

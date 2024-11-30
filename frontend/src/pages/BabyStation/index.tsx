@@ -15,11 +15,9 @@ import { useSignalService } from '../../services';
 import baby_station from '../../services/instances/baby_station';
 import run_screen_saver from '../../services/BabyStation/ScreenSaver';
 import MediaStreamPermissionCheck from './MediaStreamPermissionCheck';
+import useServiceState from '../../hooks/useServiceState';
 
 const DefaultSessionName = 'Baby Station';
-
-const LocalStorageAudioDeviceIDKey = 'audio_device_id';
-const LocalStorageVideoDeviceIDKey = 'video_device_id';
 
 const useSessionName = () => {
     const [sessionName, setSessionName] = React.useState(() => {
@@ -46,45 +44,21 @@ const useEndSessionOnUnmount = (session_service: BabyStationSessionService) => {
 
 const BabyStation: React.FunctionComponent = () => {
     const signal_service = useSignalService();
-    const session_service = baby_station.session_service;
-    const media_stream_service = baby_station.media_stream_service;
+    const { session_service, media_device_service } = baby_station;
+    const media_device_state = useServiceState(media_device_service);
     const host_session_status = useHostSessionStatus();
 
     const media_devices_permission_state = useMediaDevicesPermissionStatus();
     const [sessionName, setSessionName] = useSessionName();
-    const [audioDeviceID, setAudioDeviceID] = React.useState(() => {
-        const audioDeviceID = localStorage.getItem(LocalStorageAudioDeviceIDKey);
-        if (audioDeviceID === null) return '';
-        return audioDeviceID;
-    });
-    const [videoDeviceID, setVideoDeviceID] = React.useState(() => {
-        const videoDeviceID = localStorage.getItem(LocalStorageVideoDeviceIDKey);
-        if (videoDeviceID === null) return '';
-        return videoDeviceID;
-    });
     React.useEffect(() => {
-        if (media_devices_permission_state.state !== 'granted')
-            return;
-        media_stream_service.start_media_stream({
-            audio_device_id: audioDeviceID,
-            video_device_id: videoDeviceID,
-        });
-        return () => {
-            media_stream_service.stop_media_stream();
-        };
-    }, [media_stream_service, media_devices_permission_state, audioDeviceID, videoDeviceID])
+        if (media_devices_permission_state.state !== 'granted') return;
+        media_device_service.start();
+        return media_device_service.stop;
+    }, [media_devices_permission_state, media_device_service]);
     const canActivateSession = React.useMemo(() => {
         return sessionName !== '';
     }, [sessionName]);
     useWakeLock(host_session_status.status !== 'no_session_running');
-    const setAudioDeviceIDAndStore = React.useCallback((audioDeviceID: string) => {
-        localStorage.setItem(LocalStorageAudioDeviceIDKey, audioDeviceID);
-        setAudioDeviceID(audioDeviceID);
-    }, []);
-    const setVideoDeviceIDAndStore = React.useCallback((videoDeviceID: string) => {
-        localStorage.setItem(LocalStorageVideoDeviceIDKey, videoDeviceID);
-        setVideoDeviceID(videoDeviceID);
-    }, []);
     const startSession = React.useCallback(async () => {
         await session_service.start_session({
             connection_id: signal_service.connection_id,
@@ -116,8 +90,8 @@ const BabyStation: React.FunctionComponent = () => {
                                 <FontAwesomeIcon icon={faMicrophone} />
                             </span>
                             <SelectAudioDevice
-                                value={audioDeviceID}
-                                onChange={setAudioDeviceIDAndStore}
+                                value={media_device_state.audio_device_id}
+                                onChange={media_device_service.set_audio_device_id}
                                 disabled={host_session_status.status !== 'no_session_running'}
                             />
                         </div>
@@ -128,8 +102,8 @@ const BabyStation: React.FunctionComponent = () => {
                                 <FontAwesomeIcon icon={faVideo} />
                             </span>
                             <SelectVideoDevice
-                                value={videoDeviceID}
-                                onChange={setVideoDeviceIDAndStore}
+                                value={media_device_state.video_device_id}
+                                onChange={media_device_service.set_video_device_id}
                                 disabled={host_session_status.status !== 'no_session_running'}
                             />
                         </div>
@@ -151,10 +125,8 @@ const BabyStation: React.FunctionComponent = () => {
                     Screen Saver
                 </button>
                 <MediaStream
-                    audioDeviceID={audioDeviceID}
-                    videoDeviceID={videoDeviceID}
                     sessionActive={host_session_status.status === 'session_running'}
-                    key={videoDeviceID}
+                    key={media_device_state.video_device_id}
                 />
             </main >
         </MediaStreamPermissionCheck>

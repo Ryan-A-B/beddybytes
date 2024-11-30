@@ -1,5 +1,6 @@
 import React from "react";
-import useMediaDeviceEnumeration from "../../hooks/useMediaDeviceEnumeration";
+import baby_station from "../../services/instances/baby_station";
+import useServiceState from "../../hooks/useServiceState";
 
 interface Props {
     value: string
@@ -17,11 +18,12 @@ const getUniqueDevices = (devices: MediaDeviceInfo[]): MediaDeviceInfo[] => {
 }
 
 const SelectAudioDevice: React.FunctionComponent<Props> = ({ value, onChange, disabled }) => {
-    const devices = useMediaDeviceEnumeration();
+    const media_device_service = baby_station.media_device_service;
+    const media_device_state = useServiceState(media_device_service);
     const audioDevices = React.useMemo(() => {
-        const audioDevices = devices.filter((device) => device.kind === 'audioinput');
+        const audioDevices = media_device_state.devices.filter((device) => device.kind === 'audioinput');
         return getUniqueDevices(audioDevices);
-    }, [devices]);
+    }, [media_device_state.devices]);
     const handleChange = React.useCallback((event: React.ChangeEvent<HTMLSelectElement>) => {
         onChange(event.target.value);
     }, [onChange]);
