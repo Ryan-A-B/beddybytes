@@ -1,18 +1,20 @@
 import React from 'react';
 import { Route, Routes } from 'react-router-dom';
 
+import { Services, context as ServicesContext } from './services';
 import { Severity } from './services/LoggingService';
 import logging_service from "./services/instances/logging_service"
 import authorization_service from "./services/instances/authorization_service"
 import signal_service from "./services/instances/signal_service"
+import error_service from "./services/instances/error_service"
 
-import Navbar from './components/Navbar';
-import Footer from './components/Footer';
 import Login from './pages/Login';
 import Instructions from './pages/Instructions';
 import BabyStation from './pages/BabyStation';
 import ParentStation from './pages/ParentStation';
-import { Services, context as ServicesContext } from './services';
+import Navbar from './components/Navbar';
+import Footer from './components/Footer';
+import Errors from './components/Errors';
 
 import './App.scss';
 
@@ -27,16 +29,21 @@ const App: React.FunctionComponent = () => {
     <ServicesContext.Provider value={services}>
       <div className="wrapper">
         <Navbar />
-        <Login>
-          <Routes>
-            <Route path="/" element={<Instructions />} />
-            <Route path="/baby" element={<BabyStation />} />
-            <Route path="/parent" element={<ParentStation />} />
-          </Routes>
-        </Login>
+        <div className="position-relative">
+          <Login>
+            <Errors error_service={error_service} />
+            <div className="pt-3">
+              <Routes>
+                <Route path="/" element={<Instructions />} />
+                <Route path="/baby" element={<BabyStation />} />
+                <Route path="/parent" element={<ParentStation />} />
+              </Routes>
+            </div>
+          </Login>
+        </div>
       </div>
       <Footer />
-    </ServicesContext.Provider>
+    </ServicesContext.Provider >
   );
 }
 
@@ -46,7 +53,8 @@ window.addEventListener('error', function (event: ErrorEvent) {
   logging_service.log({
     severity: Severity.Critical,
     message: `Uncaught error: ${event.message} ${event.filename}:${event.lineno}`,
-  })
+  });
+  error_service.add_error(event.error);
 })
 
 window.addEventListener('unhandledrejection', function (event: PromiseRejectionEvent) {
@@ -55,11 +63,12 @@ window.addEventListener('unhandledrejection', function (event: PromiseRejectionE
     logging_service.log({
       severity: Severity.Critical,
       message: `Unhandled rejection: ${event.reason}`,
-    })
-    return
+    });
+    return;
   }
   logging_service.log({
     severity: Severity.Critical,
     message: `Unhandled rejection: ${event.reason} ${event.reason.stack}`,
-  })
+  });
+  error_service.add_error(event.reason);
 })

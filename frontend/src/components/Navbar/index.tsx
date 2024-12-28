@@ -11,7 +11,7 @@ const Navbar: React.FunctionComponent = () => {
         [show, setShow]
     );
     return (
-        <nav className="navbar navbar-expand-md bg-body-tertiary mb-3">
+        <nav className="navbar navbar-expand-md bg-body-tertiary">
             <div className="container">
                 <Link to="/" className="navbar-brand">
                     BeddyBytes

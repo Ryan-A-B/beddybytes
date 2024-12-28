@@ -76,6 +76,12 @@ const ConnectionStateAlert: React.FunctionComponent<Props> = ({ connection }) =>
                             For example, a computer on a public network often
                             blocks incoming connections by default.
                         </p>
+                        <p>
+                            The default firewall on OSX blocks coonections
+                            required by BeddyBytes. If either the Baby or
+                            Parent station is a Mac, you may need to adjust
+                            the firewall settings.
+                        </p>
                     </section>
                     <section>
                         <h6>VPN</h6>
