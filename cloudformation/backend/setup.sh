@@ -1,35 +1,19 @@
 #!/bin/bash
 set -ex
 
-# Clone the beddybytes repo
-git clone https://github.com/Ryan-A-B/beddybytes.git
+# Create file system. 
+# Only do this once per volume.
+sudo mkfs -t xfs /dev/nvme1n1
 
-# Install Docker
-# https://docs.docker.com/engine/install/ubuntu/#install-using-the-repository
-sudo apt-get update
-sudo apt-get install ca-certificates curl gnupg
+# Mount the volume
+sudo mkdir /eventlog
+sudo mount /dev/nvme1n1 /eventlog
 
-sudo install -m 0755 -d /etc/apt/keyrings
-curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-sudo chmod a+r /etc/apt/keyrings/docker.gpg
+# Update /etc/fstab
+sudo blkid
 
-echo \
-  "deb [arch="$(dpkg --print-architecture)" signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
-  "$(. /etc/os-release && echo "$VERSION_CODENAME")" stable" | \
-  sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+## example output
+# /dev/nvme1n1: UUID="b734b639-de13-47e6-8690-df700164c55a" BLOCK_SIZE="512" TYPE="xfs"
 
-sudo apt-get update
-
-sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-
-sudo groupadd docker
-sudo usermod -aG docker $USER
-
-sudo snap install aws-cli --classic
-
-# crontab -e
-# */10 * * * * cd /home/ubuntu/beddybytes && ./scripts/backend/backup.sh
-
-# create .env with environment variables
-# update traefik/traefik.prod.yml with email for letsencrypt
-# copy eventlog from backup
+## fstab entry
+UUID=b734b639-de13-47e6-8690-df700164c55a /eventlog xfs defaults,nofail 0 2

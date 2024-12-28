@@ -1,0 +1,179 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Parameters:
+  InstanceType:
+    Type: String
+    Description: EC2 instance type for the API server
+  PublicKeyMaterial:
+    Type: String
+    Description: Public key material for the EC2 key pair
+  MyIpAddress:
+    Description: The IP address of the client that will be allowed to SSH into the EC2 instance
+    Type: String
+
+Resources:
+  BackendVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+
+  GatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref BackendVPC
+      InternetGatewayId: !Ref InternetGateway
+
+  PublicSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref BackendVPC
+      CidrBlock: 10.0.1.0/24
+      MapPublicIpOnLaunch: true
+      AvailabilityZone: !Select [ 0, !GetAZs "" ]
+
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref BackendVPC
+
+  PublicRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  PublicSubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet
+      RouteTableId: !Ref PublicRouteTable
+
+  Ec2Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Sub "{{resolve:ssm:/aws/service/ecs/optimized-ami/amazon-linux-2023/arm64/recommended/image_id}}"
+      InstanceType: !Ref InstanceType
+      KeyName: !Ref KeyPair
+      SecurityGroupIds:
+        - !Ref APISecurityGroup
+        - !Ref SSHSecurityGroup
+      SubnetId: !Ref PublicSubnet
+      IamInstanceProfile: !Ref IAMInstanceProfile
+      UserData: 
+        Fn::Base64:
+            !Sub |
+            #!/bin/bash
+            echo ECS_CLUSTER=${BackendCluster} >> /etc/ecs/ecs.config
+
+  # PersistentVolume:
+  #   Type: AWS::EC2::Volume
+  #   # DeletionPolicy: Retain
+  #   Properties:
+  #     AvailabilityZone: !GetAtt Ec2Instance.AvailabilityZone
+  #     Size: 1
+  #     VolumeType: gp3
+
+  # PersistentVolumeAttachment:
+  #   Type: AWS::EC2::VolumeAttachment
+  #   Properties:
+  #     Device: /dev/sdf
+  #     InstanceId: !Ref Ec2Instance
+  #     VolumeId: !Ref PersistentVolume
+
+  InstanceProfileRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceforEC2Role
+
+  IAMInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - !Ref InstanceProfileRole
+
+  APISecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for the API server
+      VpcId: !Ref BackendVPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+
+  SSHSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for the SSH server
+      VpcId: !Ref BackendVPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: !Ref MyIpAddress
+
+  KeyPair:
+    Type: AWS::EC2::KeyPair
+    Properties:
+      KeyName: !Sub ${AWS::StackName}-keypair
+      PublicKeyMaterial: !Ref PublicKeyMaterial
+
+  ElasticIP:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+      InstanceId: !Ref Ec2Instance
+
+  BackendCluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: !Sub ${AWS::StackName}-cluster
+
+  BackendTaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: !Sub ${AWS::StackName}-task
+      Memory: 1792
+      ContainerDefinitions:
+        - Name: traefik
+          Image: traefik:v3.2
+          Essential: true
+          PortMappings:
+            - ContainerPort: 80
+              HostPort: 80
+            - ContainerPort: 443
+              HostPort: 443
+          RestartPolicy:
+            Enabled: true
+      RequiresCompatibilities:
+        - EC2
+      # Volumes:
+
+  BackendService:
+    Type: AWS::ECS::Service
+    Properties:
+      Cluster: !Ref BackendCluster
+      DesiredCount: 1
+      LaunchType: EC2
+      TaskDefinition: !Ref BackendTaskDefinition
+
+Outputs:
+  ElasticIP:
+    Description: The Elastic IP address associated with the API server
+    Value: !Ref ElasticIP
