@@ -1,0 +1,48 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Parameters:
+  PublicIPAddress:
+    Description: The public IP address of the EC2 instance
+    Type: String
+  HostedZoneName:
+    Description: The name of the hosted zone where the DNS record will be created
+    Type: String
+  APIDomainName:
+    Description: The domain name of the backend API
+    Type: String
+  InfluxDomainName:
+    Description: The domain name of the influxDB
+    Type: String
+  GrafanaDomainName:
+    Description: The domain name of the Grafana
+    Type: String
+
+Resources:
+  # APIDNSRecord:
+  #   Type: AWS::Route53::RecordSet
+  #   Properties:
+  #     HostedZoneName: !Ref HostedZoneName
+  #     Name: !Ref APIDomainName
+  #     Type: A
+  #     TTL: '900'
+  #     ResourceRecords:
+  #       - !Ref PublicIPAddress
+
+  InfluxDNSRecord:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneName: !Ref HostedZoneName
+      Name: !Ref InfluxDomainName
+      Type: A
+      TTL: '900'
+      ResourceRecords:
+        - !Ref PublicIPAddress
+
+  GrafanaDNSRecord:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneName: !Ref HostedZoneName
+      Name: !Ref GrafanaDomainName
+      Type: A
+      TTL: '900'
+      ResourceRecords:
+        - !Ref PublicIPAddress

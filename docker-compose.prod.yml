@@ -95,7 +95,6 @@ services:
 volumes:
   grafana_storage:
 
-
 secrets:
   ENCRYPTION_KEY:
     external: true

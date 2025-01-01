@@ -6,11 +6,231 @@ Parameters:
   PublicKeyMaterial:
     Type: String
     Description: Public key material for the EC2 key pair
-  MyIpAddress:
+  MyIPAddress:
     Description: The IP address of the client that will be allowed to SSH into the EC2 instance
     Type: String
+  PersistentVolume:
+    Type: String
+    Description: The ID of the EBS volume to attach to the EC2 instance
 
 Resources:
+  BackendCluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: !Sub ${AWS::StackName}-cluster
+
+  BackendTaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: !Sub ${AWS::StackName}-task
+      Memory: 1792 # 1024 + 512 + 256
+      RequiresCompatibilities:
+        - EC2
+      TaskRoleArn: !Ref BackendTaskRole
+      Volumes:
+        - Name: traefik
+          Host:
+            SourcePath: /ebs/persistent/traefik
+        - Name: traefik-logs
+          Host:
+            SourcePath: /opt/logs/traefik
+      ContainerDefinitions:
+        - Name: traefik
+          Image: traefik:3.2
+          Essential: True
+          RestartPolicy:
+            Enabled: True
+          PortMappings:
+            - ContainerPort: 80
+              HostPort: 80
+            - ContainerPort: 443
+              HostPort: 443
+          HealthCheck:
+            Command:
+              - CMD-SHELL
+              - traefik healthcheck
+          MountPoints:
+            - ContainerPath: /etc/traefik
+              SourceVolume: traefik
+            - ContainerPath: /opt/logs
+              SourceVolume: traefik-logs
+          DockerLabels:
+            traefik.http.middlewares.headers-cors.headers.accesscontrolalloworiginlist: https://app.beddybytes.com,https://qa.app.beddybytes.com,https://app.beddybytes.local,https://beddybytes.com"
+            traefik.http.middlewares.headers-cors.headers.accesscontrolallowheaders: Content-Type,Authorization"
+            traefik.http.middlewares.headers-cors.headers.accesscontrolallowcredentials: "true"
+            traefik.http.middlewares.headers-cors.headers.accessControlAllowMethods: GET,OPTIONS,POST,PUT,DELETE"
+        - Name: influxdb
+          Image: influxdb:2.7-alpine
+          Essential: False
+          RestartPolicy:
+            Enabled: True
+          HealthCheck:
+            Command:
+              - CMD-SHELL
+              - curl --fail http://localhost:8086/ping
+          DockerLabels:
+            traefik.enable: "true"
+            traefik.http.routers.influxdb.rule: "Host(`influxdb.dev.beddybytes.com`)"
+            traefik.http.routers.influxdb.entrypoints: "websecure"
+            traefik.http.routers.influxdb.tls: "true"
+            traefik.http.routers.influxdb.tls.certresolver: "letsencrypt"
+            traefik.http.services.influxdb.loadbalancer.server.port: "8086"
+        - Name: grafana
+          Image: grafana/grafana-oss:11.4.0
+          Essential: False
+          RestartPolicy:
+            Enabled: True
+          HealthCheck:
+            Command:
+              - CMD-SHELL
+              - curl --fail http://localhost:3000/api/health
+          DockerLabels:
+            traefik.enable: "true"
+            traefik.http.routers.grafana.rule: "Host(`grafana.dev.beddybytes.com`)"
+            traefik.http.routers.grafana.entrypoints: "websecure"
+            traefik.http.routers.grafana.tls: "true"
+            traefik.http.routers.grafana.tls.certresolver: "letsencrypt"
+            traefik.http.services.grafana.loadbalancer.server.port: "3000"
+
+  BackendService:
+    Type: AWS::ECS::Service
+    Properties:
+      Cluster: !Ref BackendCluster
+      DesiredCount: 1
+      LaunchType: EC2
+      TaskDefinition: !Ref BackendTaskDefinition
+      DeploymentConfiguration:
+        MaximumPercent: 100
+        MinimumHealthyPercent: 0
+
+  ECSInstanceAutoScalingGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    DependsOn:
+      - GatewayAttachment
+    Properties:
+      LaunchTemplate:
+        LaunchTemplateId: !Ref ECSInstanceLaunchTemplate
+        Version: !GetAtt ECSInstanceLaunchTemplate.LatestVersionNumber
+      DesiredCapacity: 1
+      MinSize: 0
+      MaxSize: 1
+      HealthCheckType: EBS
+      VPCZoneIdentifier:
+        - !Ref PublicSubnet
+
+  ECSInstanceLaunchTemplate:
+    Type: AWS::EC2::LaunchTemplate
+    Properties:
+      LaunchTemplateName: !Sub ${AWS::StackName}-launch-template
+      LaunchTemplateData:
+        ImageId: !Sub "{{resolve:ssm:/aws/service/ecs/optimized-ami/amazon-linux-2023/arm64/recommended/image_id}}"
+        InstanceType: !Ref InstanceType
+        KeyName: !Ref KeyPair
+        SecurityGroupIds:
+          - !GetAtt APISecurityGroup.GroupId
+          - !GetAtt SSHSecurityGroup.GroupId
+        IamInstanceProfile:
+          Arn: !GetAtt IAMInstanceProfile.Arn
+        UserData:
+          Fn::Base64:
+            !Sub |
+            #!/bin/bash -ex
+
+            handle_error() {
+              shutdown -h now
+            }
+
+            trap 'handle_error' ERR
+
+            # Get the instance ID
+            TOKEN=$(curl -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 10")
+            INSTANCE_ID=$(curl -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/instance-id)
+
+            # Attach the EBS volume
+            aws ec2 attach-volume --volume-id ${PersistentVolume} --instance-id $INSTANCE_ID --device /dev/xvdf
+            while [ ! -e /dev/nvme1n1 ]; do sleep 1; done
+            mkdir -p /ebs/persistent
+            mount /dev/nvme1n1 /ebs/persistent
+
+            # Associate the ECS instance with the cluster
+            echo ECS_CLUSTER=${BackendCluster} >> /etc/ecs/ecs.config
+
+            # Associate the instance with the Elastic IP address
+            aws ec2 associate-address --public-ip ${ElasticIP} --instance-id $INSTANCE_ID
+
+  InstanceProfileRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceforEC2Role
+      Policies:
+        - PolicyName: EC2AddressAssociation
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ec2:AssociateAddress
+                Resource: "*"
+        - PolicyName: EC2VolumeAttachment
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ec2:AttachVolume
+                Resource: "*"
+
+  IAMInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - !Ref InstanceProfileRole
+
+  APISecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for the API server
+      VpcId: !Ref BackendVPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+
+  SSHSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for the SSH server
+      VpcId: !Ref BackendVPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: !Ref MyIPAddress
+
+  KeyPair:
+    Type: AWS::EC2::KeyPair
+    Properties:
+      KeyName: !Sub ${AWS::StackName}-keypair
+      PublicKeyMaterial: !Ref PublicKeyMaterial
+
+  ElasticIP:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+
   BackendVPC:
     Type: AWS::EC2::VPC
     Properties:
@@ -51,39 +271,7 @@ Resources:
       SubnetId: !Ref PublicSubnet
       RouteTableId: !Ref PublicRouteTable
 
-  Ec2Instance:
-    Type: AWS::EC2::Instance
-    Properties:
-      ImageId: !Sub "{{resolve:ssm:/aws/service/ecs/optimized-ami/amazon-linux-2023/arm64/recommended/image_id}}"
-      InstanceType: !Ref InstanceType
-      KeyName: !Ref KeyPair
-      SecurityGroupIds:
-        - !Ref APISecurityGroup
-        - !Ref SSHSecurityGroup
-      SubnetId: !Ref PublicSubnet
-      IamInstanceProfile: !Ref IAMInstanceProfile
-      UserData: 
-        Fn::Base64:
-            !Sub |
-            #!/bin/bash
-            echo ECS_CLUSTER=${BackendCluster} >> /etc/ecs/ecs.config
-
-  # PersistentVolume:
-  #   Type: AWS::EC2::Volume
-  #   # DeletionPolicy: Retain
-  #   Properties:
-  #     AvailabilityZone: !GetAtt Ec2Instance.AvailabilityZone
-  #     Size: 1
-  #     VolumeType: gp3
-
-  # PersistentVolumeAttachment:
-  #   Type: AWS::EC2::VolumeAttachment
-  #   Properties:
-  #     Device: /dev/sdf
-  #     InstanceId: !Ref Ec2Instance
-  #     VolumeId: !Ref PersistentVolume
-
-  InstanceProfileRole:
+  BackendTaskRole:
     Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument:
@@ -91,89 +279,26 @@ Resources:
         Statement:
           - Effect: Allow
             Principal:
-              Service: ec2.amazonaws.com
+              Service: ecs-tasks.amazonaws.com
             Action: sts:AssumeRole
-      ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceforEC2Role
-
-  IAMInstanceProfile:
-    Type: AWS::IAM::InstanceProfile
-    Properties:
-      Roles:
-        - !Ref InstanceProfileRole
-
-  APISecurityGroup:
-    Type: AWS::EC2::SecurityGroup
-    Properties:
-      GroupDescription: Security group for the API server
-      VpcId: !Ref BackendVPC
-      SecurityGroupIngress:
-        - IpProtocol: tcp
-          FromPort: 80
-          ToPort: 80
-          CidrIp: 0.0.0.0/0
-        - IpProtocol: tcp
-          FromPort: 443
-          ToPort: 443
-          CidrIp: 0.0.0.0/0
-
-  SSHSecurityGroup:
-    Type: AWS::EC2::SecurityGroup
-    Properties:
-      GroupDescription: Security group for the SSH server
-      VpcId: !Ref BackendVPC
-      SecurityGroupIngress:
-        - IpProtocol: tcp
-          FromPort: 22
-          ToPort: 22
-          CidrIp: !Ref MyIpAddress
-
-  KeyPair:
-    Type: AWS::EC2::KeyPair
-    Properties:
-      KeyName: !Sub ${AWS::StackName}-keypair
-      PublicKeyMaterial: !Ref PublicKeyMaterial
-
-  ElasticIP:
-    Type: AWS::EC2::EIP
-    Properties:
-      Domain: vpc
-      InstanceId: !Ref Ec2Instance
-
-  BackendCluster:
-    Type: AWS::ECS::Cluster
-    Properties:
-      ClusterName: !Sub ${AWS::StackName}-cluster
-
-  BackendTaskDefinition:
-    Type: AWS::ECS::TaskDefinition
-    Properties:
-      Family: !Sub ${AWS::StackName}-task
-      Memory: 1792
-      ContainerDefinitions:
-        - Name: traefik
-          Image: traefik:v3.2
-          Essential: true
-          PortMappings:
-            - ContainerPort: 80
-              HostPort: 80
-            - ContainerPort: 443
-              HostPort: 443
-          RestartPolicy:
-            Enabled: true
-      RequiresCompatibilities:
-        - EC2
-      # Volumes:
-
-  BackendService:
-    Type: AWS::ECS::Service
-    Properties:
-      Cluster: !Ref BackendCluster
-      DesiredCount: 1
-      LaunchType: EC2
-      TaskDefinition: !Ref BackendTaskDefinition
-
+      Policies:
+        - PolicyName: BackendTaskPolicy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Sid: TraefikECSReadAccess
+                Effect: Allow
+                Action:
+                  - ecs:ListClusters
+                  - ecs:DescribeClusters
+                  - ecs:ListTasks
+                  - ecs:DescribeTasks
+                  - ecs:DescribeContainerInstances
+                  - ecs:DescribeTaskDefinition
+                  - ec2:DescribeInstances
+                Resource: "*"
+      
 Outputs:
-  ElasticIP:
+  PublicIPAddress:
     Description: The Elastic IP address associated with the API server
     Value: !Ref ElasticIP

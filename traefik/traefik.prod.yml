@@ -1,5 +1,8 @@
 providers:
-  docker: {}
+  ecs:
+    clusters:
+      - beddybytes-backend-compute-cluster
+    exposedByDefault: false
 
 entryPoints:
   web:
@@ -11,8 +14,8 @@ certificatesResolvers:
   letsencrypt:
     acme:
       caServer: https://acme-v02.api.letsencrypt.org/directory
-      email: ${EMAIL}
-      storage: /letsencrypt/acme.json
+      email: ryan.a.ballinger@gmail.com
+      storage: /etc/traefik/letsencrypt/acme.json
       httpChallenge:
         entryPoint: web
 
@@ -22,6 +25,8 @@ log:
 accessLog:
   filePath: /opt/logs/access.log
   bufferingSize: 128
+
+ping: {}
 
 metrics:
   influxDB2:

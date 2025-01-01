@@ -3,12 +3,6 @@ Parameters:
   InstanceType:
     Type: String
     Description: EC2 instance type for the API server
-  VpcId:
-    Type: AWS::EC2::VPC::Id
-    Description: VPC ID where the EC2 instance will be launched
-  SubnetId:
-    Type: AWS::EC2::Subnet::Id
-    Description: Subnet ID where the EC2 instance will be launched
   PublicKeyMaterial:
     Type: String
     Description: Public key material for the EC2 key pair
@@ -24,150 +18,31 @@ Parameters:
   GrafanaDomainName:
     Description: The domain name of the Grafana
     Type: String
-  MyIpAddress:
+  MyIPAddress:
     Description: The IP address of the client that will be allowed to SSH into the EC2 instance
     Type: String
 
 Resources:
-  APIDNSRecord:
-    Type: AWS::Route53::RecordSet
+  VPC:
+    Type: AWS::CloudFormation::Stack
     Properties:
-      HostedZoneName: !Ref HostedZoneName
-      Name: !Ref APIDomainName
-      Type: A
-      TTL: '900'
-      ResourceRecords:
-        - !Ref ElasticIP
-
-  InfluxDNSRecord:
-    Type: AWS::Route53::RecordSet
+      StackName: !Sub ${AWS::StackName}-vpc
+  Compute:
+    Type: AWS::CloudFormation::Stack
     Properties:
-      HostedZoneName: !Ref HostedZoneName
-      Name: !Ref InfluxDomainName
-      Type: A
-      TTL: '900'
-      ResourceRecords:
-        - !Ref ElasticIP
-
-  GrafanaDNSRecord:
-    Type: AWS::Route53::RecordSet
+      StackName: !Sub ${AWS::StackName}-compute
+      Parameters:
+        SubnetID: !GetAtt VPC.Outputs.PublicSubnetID
+        InstanceType: !Ref InstanceType
+        PublicKeyMaterial: !Ref PublicKeyMaterial
+        MyIPAddress: !Ref MyIPAddress
+  DNSRecords:
+    Type: AWS::CloudFormation::Stack
     Properties:
-      HostedZoneName: !Ref HostedZoneName
-      Name: !Ref GrafanaDomainName
-      Type: A
-      TTL: '900'
-      ResourceRecords:
-        - !Ref ElasticIP
-
-  Ec2Instance:
-    Type: AWS::EC2::Instance
-    Properties:
-      ImageId: ami-0370d04afa44db778  # Ubuntu 22.04 AMI (ARM HVM)
-      InstanceType: !Ref InstanceType
-      KeyName: !Ref KeyPair
-      SecurityGroupIds:
-        - !Ref APISecurityGroup
-        - !Ref SSHSecurityGroup
-      SubnetId: !Ref SubnetId
-      IamInstanceProfile: !Ref IAMInstanceProfile
-      BlockDeviceMappings:
-        - DeviceName: /dev/sda1
-          Ebs:
-            VolumeType: gp2
-            VolumeSize: 16
-            DeleteOnTermination: true
-
-  PersistentVolume:
-    Type: AWS::EC2::Volume
-    Properties:
-      AvailabilityZone: Fn::GetAtt: [Ec2Instance, AvailabilityZone]
-      Size: 2
-      VolumeType: gp3
-
-  PersistentVolumeAttachment:
-    Type: AWS::EC2::VolumeAttachment
-    Properties:
-      Device: /dev/sdf
-      InstanceId: !Ref Ec2Instance
-      VolumeId: !Ref PersistentVolume
-
-  IAMRole:
-    Type: AWS::IAM::Role
-    Properties:
-      AssumeRolePolicyDocument:
-        Version: 2012-10-17
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: ec2.amazonaws.com
-            Action: sts:AssumeRole
-      Policies:
-        - PolicyName: !Sub ${AWS::StackName}-policy
-          PolicyDocument:
-            Version: 2012-10-17
-            Statement:
-              - Effect: Allow
-                Action:
-                  - s3:ListBucket
-                Resource: !Sub arn:aws:s3:::${AWS::StackName}-bucket
-              - Effect: Allow
-                Action:
-                  - s3:PutObject
-                Resource: !Sub arn:aws:s3:::${AWS::StackName}-bucket/*
-
-  IAMInstanceProfile:
-    Type: AWS::IAM::InstanceProfile
-    Properties:
-      Roles:
-        - !Ref IAMRole
-
-  APISecurityGroup:
-    Type: AWS::EC2::SecurityGroup
-    Properties:
-      GroupDescription: Security group for the API server
-      VpcId: !Ref VpcId
-      SecurityGroupIngress:
-        - IpProtocol: tcp
-          FromPort: 80
-          ToPort: 80
-          CidrIp: 0.0.0.0/0
-        - IpProtocol: tcp
-          FromPort: 443
-          ToPort: 443
-          CidrIp: 0.0.0.0/0
-
-  SSHSecurityGroup:
-    Type: AWS::EC2::SecurityGroup
-    Properties:
-      GroupDescription: Security group for the SSH server
-      VpcId: !Ref VpcId
-      SecurityGroupIngress:
-        - IpProtocol: tcp
-          FromPort: 22
-          ToPort: 22
-          CidrIp: !Ref MyIpAddress
-
-  KeyPair:
-    Type: AWS::EC2::KeyPair
-    Properties:
-      KeyName: !Sub ${AWS::StackName}-keypair
-      PublicKeyMaterial: !Ref PublicKeyMaterial
-
-  ElasticIP:
-    Type: AWS::EC2::EIP
-    Properties:
-      Domain: vpc
-      InstanceId: !Ref Ec2Instance
-
-  Bucket:
-    Type: AWS::S3::Bucket
-    DeletionPolicy: Retain
-    Properties:
-      BucketName: !Sub ${AWS::StackName}-bucket
-      VersioningConfiguration:
-        Status: Enabled
-
-Outputs:
-  ElasticIP:
-    Description: The Elastic IP address associated with the API server
-    Value: !Ref ElasticIP
+      StackName: !Sub ${AWS::StackName}-dns
+      Parameters:
+        PublicIPAddress: !GetAtt Compute.Outputs.PublicIPAddress
+        HostedZoneName: !Ref HostedZoneName
+        APIDomainName: !Ref APIDomainName
+        InfluxDomainName: !Ref InfluxDomainName
+        GrafanaDomainName: !Ref GrafanaDomainName
