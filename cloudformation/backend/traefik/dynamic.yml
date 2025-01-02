@@ -1,0 +1,26 @@
+http:
+  middlewares:
+    headers-cors:
+      headers:
+        accesscontrolalloworiginlist: https://app.beddybytes.com,https://qa.app.beddybytes.com,https://app.beddybytes.local,https://beddybytes.com"
+        accesscontrolallowheaders: Content-Type,Authorization"
+        accesscontrolallowcredentials: "true"
+        accessControlAllowMethods: GET,OPTIONS,POST,PUT,DELETE"
+
+    rate-limit-anonymous-token:
+      rateLimit:
+        average: 1
+        period: 20s
+        burst: 1
+
+    rate-limit-create-account:
+      rateLimit:
+        average: 1
+        period: 20s
+        burst: 1
+
+    rate-limit-api:
+      rateLimit:
+        average: 1
+        period: 1s
+        burst: 10

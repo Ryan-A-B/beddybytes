@@ -17,15 +17,15 @@ Parameters:
     Type: String
 
 Resources:
-  # APIDNSRecord:
-  #   Type: AWS::Route53::RecordSet
-  #   Properties:
-  #     HostedZoneName: !Ref HostedZoneName
-  #     Name: !Ref APIDomainName
-  #     Type: A
-  #     TTL: '900'
-  #     ResourceRecords:
-  #       - !Ref PublicIPAddress
+  APIDNSRecord:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneName: !Ref HostedZoneName
+      Name: !Ref APIDomainName
+      Type: A
+      TTL: '900'
+      ResourceRecords:
+        - !Ref PublicIPAddress
 
   InfluxDNSRecord:
     Type: AWS::Route53::RecordSet

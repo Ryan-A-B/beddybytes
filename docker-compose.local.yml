@@ -27,7 +27,7 @@ services:
     image: beddybytes-api
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: scripts/backend/Dockerfile
     restart: always
     ports:
       - 9000

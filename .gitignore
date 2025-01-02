@@ -1,3 +1,6 @@
 .env
+init.sh
 eventlog
+
 download_event_log.sh
+upload_event_log.sh

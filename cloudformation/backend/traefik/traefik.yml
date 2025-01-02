@@ -3,6 +3,9 @@ providers:
     clusters:
       - beddybytes-backend-compute-cluster
     exposedByDefault: false
+  file:
+    filename: /etc/traefik/dynamic.yml
+    watch: true
 
 entryPoints:
   web:
@@ -20,7 +23,7 @@ certificatesResolvers:
         entryPoint: web
 
 log:
-  level: WARN
+  level: INFO
 
 accessLog:
   filePath: /opt/logs/access.log
