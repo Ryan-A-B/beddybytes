@@ -1,7 +1,7 @@
 providers:
   ecs:
     clusters:
-      - beddybytes-backend-compute-cluster
+      - beddybytes-backend-cluster
     exposedByDefault: false
   file:
     filename: /etc/traefik/dynamic.yml
@@ -16,7 +16,8 @@ entryPoints:
 certificatesResolvers:
   letsencrypt:
     acme:
-      caServer: https://acme-v02.api.letsencrypt.org/directory
+      # caServer: https://acme-v02.api.letsencrypt.org/directory
+      caServer: https://acme-staging-v02.api.letsencrypt.org/directory
       email: ryan.a.ballinger@gmail.com
       storage: /etc/traefik/letsencrypt/acme.json
       httpChallenge:

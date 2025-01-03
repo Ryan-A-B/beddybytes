@@ -6,43 +6,489 @@ Parameters:
   PublicKeyMaterial:
     Type: String
     Description: Public key material for the EC2 key pair
-  HostedZoneName:
-    Description: The name of the hosted zone where the DNS record will be created
-    Type: String
-  APIDomainName:
-    Description: The domain name of the backend API
-    Type: String
-  InfluxDomainName:
-    Description: The domain name of the influxDB
-    Type: String
-  GrafanaDomainName:
-    Description: The domain name of the Grafana
-    Type: String
   MyIPAddress:
     Description: The IP address of the client that will be allowed to SSH into the EC2 instance
     Type: String
+  HostedZoneName:
+    Type: String
+    Description: The name of the Route 53 hosted zone
+  APIHostName:
+    Type: String
+    Description: The hostname of the API server
+  InfluxHostName:
+    Type: String
+    Description: The hostname of the InfluxDB server
+  GrafanaHostName:
+    Type: String
+    Description: The hostname of the Grafana server
+  CookieDomain:
+    Type: String
+    Description: The domain name for the cookie
 
 Resources:
-  VPC:
-    Type: AWS::CloudFormation::Stack
+  BackendCluster:
+    Type: AWS::ECS::Cluster
     Properties:
-      StackName: !Sub ${AWS::StackName}-vpc
-  Compute:
-    Type: AWS::CloudFormation::Stack
+      ClusterName: !Sub ${AWS::StackName}-cluster
+
+  BackendTaskDefinition:
+    Type: AWS::ECS::TaskDefinition
     Properties:
-      StackName: !Sub ${AWS::StackName}-compute
-      Parameters:
-        SubnetID: !GetAtt VPC.Outputs.PublicSubnetID
+      Family: !Sub ${AWS::StackName}-task
+      Memory: 1792 # 1024 + 512 + 256
+      RequiresCompatibilities:
+        - EC2
+      ExecutionRoleArn: !Ref TaskExecutionRole
+      TaskRoleArn: !Ref BackendTaskRole
+      Volumes:
+        - Name: traefik
+          Host:
+            SourcePath: /ebs/persistent/traefik
+        - Name: traefik-logs
+          Host:
+            SourcePath: /opt/logs/traefik
+        - Name: grafana
+          Host:
+            SourcePath: /opt/grafana
+        - Name: influxdb
+          Host:
+            SourcePath: /opt/influxdb
+        - Name: eventlog
+          Host:
+            SourcePath: /ebs/persistent/eventlog
+      ContainerDefinitions:
+        - Name: traefik
+          Image: traefik:3.2
+          Essential: True
+          RestartPolicy:
+            Enabled: True
+          PortMappings:
+            - ContainerPort: 80
+              HostPort: 80
+            - ContainerPort: 443
+              HostPort: 443
+          HealthCheck:
+            Command:
+              - CMD-SHELL
+              - traefik healthcheck
+          MountPoints:
+            - ContainerPath: /etc/traefik
+              SourceVolume: traefik
+            - ContainerPath: /opt/logs
+              SourceVolume: traefik-logs
+        - Name: api
+          Image: !Sub ${BackendContainerRepository.RepositoryUri}:latest
+          Essential: True
+          RestartPolicy:
+            Enabled: True
+          PortMappings:
+            - ContainerPort: 9000
+          MountPoints:
+            - ContainerPath: /opt/eventlog
+              SourceVolume: eventlog
+          Environment:
+            - Name: COOKIE_DOMAIN
+              Value: !Ref CookieDomain
+            - Name: SERVER_ADDR
+              Value: :9000
+            - Name: FILE_EVENT_LOG_FOLDER_PATH
+              Value: /opt/eventlog
+          Secrets:
+            - Name: ENCRYPTION_KEY
+              ValueFrom: !Ref BackendEncryptionKey
+          DockerLabels:
+            traefik.enable: "true"
+
+            traefik.http.routers.anonymous-token.rule: !Sub "Host(`${APIHostName}`) && Path(`/anonymous_token`) && Method(`POST`)"
+            traefik.http.routers.anonymous-token.entrypoints: "websecure"
+            traefik.http.routers.anonymous-token.tls: "true"
+            traefik.http.routers.anonymous-token.tls.certresolver: "letsencrypt"
+            traefik.http.routers.anonymous-token.middlewares: headers-cors@file,rate-limit-anonymous-token@file
+
+            traefik.http.routers.create-account.rule: !Sub "Host(`${APIHostName}`) && Path(`/accounts`) && Method(`POST`)"
+            traefik.http.routers.create-account.entrypoints: "websecure"
+            traefik.http.routers.create-account.tls: "true"
+            traefik.http.routers.create-account.tls.certresolver: "letsencrypt"
+            traefik.http.routers.create-account.middlewares: headers-cors@file,rate-limit-create-account@file
+
+            traefik.http.routers.api.rule: !Sub "Host(`${APIHostName}`)"
+            traefik.http.routers.api.entrypoints: "websecure"
+            traefik.http.routers.api.tls: "true"
+            traefik.http.routers.api.tls.certresolver: "letsencrypt"
+            traefik.http.routers.api.middlewares: headers-cors@file,rate-limit-api@file
+        - Name: influxdb
+          Image: influxdb:2.7-alpine
+          Essential: False
+          RestartPolicy:
+            Enabled: True
+          HealthCheck:
+            Command:
+              - CMD-SHELL
+              - curl --fail http://localhost:8086/ping
+          PortMappings:
+            - ContainerPort: 8086
+          MountPoints:
+            - ContainerPath: /var/lib/influxdb2
+              SourceVolume: influxdb
+          Environment:
+            - Name: DOCKER_INFLUXDB_INIT_MODE
+              Value: setup
+            - Name: DOCKER_INFLUXDB_INIT_USERNAME
+              Value: admin
+            - Name: DOCKER_INFLUXDB_INIT_ORG
+              Value: beddybytes
+            - Name: DOCKER_INFLUXDB_INIT_BUCKET
+              Value: app
+            - Name: DOCKER_INFLUXDB_INIT_RETENTION
+              Value: 7d
+          Secrets:
+            - Name: DOCKER_INFLUXDB_INIT_PASSWORD
+              ValueFrom: !Ref InfluxAdminPassword
+          DockerLabels:
+            traefik.enable: "true"
+            traefik.http.routers.influxdb.rule: !Sub "Host(`${InfluxHostName}`)"
+            traefik.http.routers.influxdb.entrypoints: "websecure"
+            traefik.http.routers.influxdb.tls: "true"
+            traefik.http.routers.influxdb.tls.certresolver: "letsencrypt"
+        - Name: grafana
+          Image: grafana/grafana-oss:11.4.0
+          Essential: False
+          RestartPolicy:
+            Enabled: True
+          HealthCheck:
+            Command:
+              - CMD-SHELL
+              - curl --fail http://localhost:3000/api/health
+          PortMappings:
+            - ContainerPort: 3000
+          MountPoints:
+            - ContainerPath: /var/lib/grafana
+              SourceVolume: grafana
+          Secrets:
+            - Name: GF_SECURITY_ADMIN_PASSWORD
+              ValueFrom: !Ref GrafanaAdminPassword
+          DockerLabels:
+            traefik.enable: "true"
+            traefik.http.routers.grafana.rule: !Sub "Host(`${GrafanaHostName}`)"
+            traefik.http.routers.grafana.entrypoints: "websecure"
+            traefik.http.routers.grafana.tls: "true"
+            traefik.http.routers.grafana.tls.certresolver: "letsencrypt"
+
+  BackendService:
+    Type: AWS::ECS::Service
+    Properties:
+      Cluster: !Ref BackendCluster
+      DesiredCount: 0
+      LaunchType: EC2
+      TaskDefinition: !Ref BackendTaskDefinition
+      DeploymentConfiguration:
+        MaximumPercent: 100
+        MinimumHealthyPercent: 0
+
+  ECSInstanceAutoScalingGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    DependsOn:
+      - GatewayAttachment
+    Properties:
+      LaunchTemplate:
+        LaunchTemplateId: !Ref ECSInstanceLaunchTemplate
+        Version: !GetAtt ECSInstanceLaunchTemplate.LatestVersionNumber
+      DesiredCapacity: 0
+      MinSize: 0
+      MaxSize: 1
+      HealthCheckType: EBS
+      VPCZoneIdentifier:
+        - !Ref PublicSubnet
+
+  ECSInstanceLaunchTemplate:
+    Type: AWS::EC2::LaunchTemplate
+    Properties:
+      LaunchTemplateName: !Sub ${AWS::StackName}-launch-template
+      LaunchTemplateData:
+        ImageId: !Sub "{{resolve:ssm:/aws/service/ecs/optimized-ami/amazon-linux-2023/arm64/recommended/image_id}}"
         InstanceType: !Ref InstanceType
-        PublicKeyMaterial: !Ref PublicKeyMaterial
-        MyIPAddress: !Ref MyIPAddress
-  DNSRecords:
-    Type: AWS::CloudFormation::Stack
+        KeyName: !Ref KeyPair
+        SecurityGroupIds:
+          - !GetAtt APISecurityGroup.GroupId
+          - !GetAtt SSHSecurityGroup.GroupId
+        IamInstanceProfile:
+          Arn: !GetAtt IAMInstanceProfile.Arn
+        UserData:
+          Fn::Base64:
+            !Sub |
+            #!/bin/bash -ex
+
+            handle_error() {
+              shutdown -h now
+            }
+
+            trap 'handle_error' ERR
+
+            # Get the instance ID
+            TOKEN=$(curl -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 10")
+            INSTANCE_ID=$(curl -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/instance-id)
+
+            # Create the grafana data directory
+            mkdir -p /opt/grafana
+            chown -R 472:472 /opt/grafana
+
+            # Attach the EBS volume
+            aws ec2 attach-volume --volume-id ${PersistentVolume} --instance-id $INSTANCE_ID --device /dev/xvdf
+            while [ ! -e /dev/nvme1n1 ]; do sleep 1; done
+            mkdir -p /ebs/persistent
+            mount /dev/nvme1n1 /ebs/persistent
+
+            # Associate the ECS instance with the cluster
+            echo ECS_CLUSTER=${BackendCluster} >> /etc/ecs/ecs.config
+
+            # Associate the instance with the Elastic IP address
+            aws ec2 associate-address --public-ip ${ElasticIP} --instance-id $INSTANCE_ID
+
+  InstanceProfileRole:
+    Type: AWS::IAM::Role
     Properties:
-      StackName: !Sub ${AWS::StackName}-dns
-      Parameters:
-        PublicIPAddress: !GetAtt Compute.Outputs.PublicIPAddress
-        HostedZoneName: !Ref HostedZoneName
-        APIDomainName: !Ref APIDomainName
-        InfluxDomainName: !Ref InfluxDomainName
-        GrafanaDomainName: !Ref GrafanaDomainName
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceforEC2Role
+      Policies:
+        - PolicyName: EC2AddressAssociation
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ec2:AssociateAddress
+                Resource: "*"
+        - PolicyName: EC2VolumeAttachment
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ec2:AttachVolume
+                Resource: "*"
+        - PolicyName: ECRPush
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ecr:GetAuthorizationToken
+                  - ecr:BatchCheckLayerAvailability
+                  - ecr:InitiateLayerUpload
+                  - ecr:UploadLayerPart
+                  - ecr:CompleteLayerUpload
+                  - ecr:PutImage
+                Resource: "*"
+
+  IAMInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - !Ref InstanceProfileRole
+
+  APISecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for the API server
+      VpcId: !Ref BackendVPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+
+  SSHSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for the SSH server
+      VpcId: !Ref BackendVPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: !Ref MyIPAddress
+
+  KeyPair:
+    Type: AWS::EC2::KeyPair
+    Properties:
+      KeyName: !Sub ${AWS::StackName}-keypair
+      PublicKeyMaterial: !Ref PublicKeyMaterial
+
+  ElasticIP:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+
+  BackendVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+
+  GatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref BackendVPC
+      InternetGatewayId: !Ref InternetGateway
+
+  PublicSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref BackendVPC
+      CidrBlock: 10.0.1.0/24
+      MapPublicIpOnLaunch: true
+      AvailabilityZone: !Select [ 0, !GetAZs "" ]
+
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref BackendVPC
+
+  PublicRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  PublicSubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet
+      RouteTableId: !Ref PublicRouteTable
+
+  TaskExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: TaskExecutionPolicy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Sid: PullDockerImage
+                Effect: Allow
+                Action:
+                  - ecr:GetAuthorizationToken
+                  - ecr:BatchCheckLayerAvailability
+                  - ecr:GetDownloadUrlForLayer
+                  - ecr:BatchGetImage
+                Resource: "*"
+              - Sid: ReadSecrets
+                Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                Resource:
+                  - !Ref BackendEncryptionKey
+                  - !Ref InfluxAdminPassword
+                  - !Ref GrafanaAdminPassword
+
+  BackendTaskRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: BackendTaskPolicy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Sid: TraefikECSReadAccess
+                Effect: Allow
+                Action:
+                  - ecs:ListClusters
+                  - ecs:DescribeClusters
+                  - ecs:ListTasks
+                  - ecs:DescribeTasks
+                  - ecs:DescribeContainerInstances
+                  - ecs:DescribeTaskDefinition
+                  - ec2:DescribeInstances
+                Resource: "*"
+
+  InfluxAdminPassword:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: !Sub ${AWS::StackName}-influx-password
+      GenerateSecretString: {}
+
+  GrafanaAdminPassword:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: !Sub ${AWS::StackName}-grafana-password
+      GenerateSecretString: {}
+  
+  BackendEncryptionKey:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: !Sub ${AWS::StackName}-encryption-key
+      GenerateSecretString:
+        PasswordLength: 32
+
+  BackendContainerRepository:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: !Sub ${AWS::StackName}-api
+      EmptyOnDelete: true
+
+  PersistentVolume:
+    Type: AWS::EC2::Volume
+    DeletionPolicy: Retain
+    Properties:
+      AvailabilityZone: !GetAtt PublicSubnet.AvailabilityZone
+      VolumeType: gp3
+      Size: 1
+      Iops: 3000
+
+  APIDNSRecord:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneName: !Ref HostedZoneName
+      Name: !Ref APIHostName
+      Type: A
+      TTL: '900'
+      ResourceRecords:
+        - !Ref ElasticIP
+
+  InfluxDNSRecord:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneName: !Ref HostedZoneName
+      Name: !Ref InfluxHostName
+      Type: A
+      TTL: '900'
+      ResourceRecords:
+        - !Ref ElasticIP
+
+  GrafanaDNSRecord:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneName: !Ref HostedZoneName
+      Name: !Ref GrafanaHostName
+      Type: A
+      TTL: '900'
+      ResourceRecords:
+        - !Ref ElasticIP
