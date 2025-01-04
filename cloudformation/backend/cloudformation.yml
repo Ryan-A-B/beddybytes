@@ -76,6 +76,8 @@ Resources:
               SourceVolume: traefik
             - ContainerPath: /opt/logs
               SourceVolume: traefik-logs
+          Links:
+            - influxdb
         - Name: api
           Image: !Sub ${BackendContainerRepository.RepositoryUri}:latest
           Essential: True
@@ -138,9 +140,9 @@ Resources:
             - Name: DOCKER_INFLUXDB_INIT_ORG
               Value: beddybytes
             - Name: DOCKER_INFLUXDB_INIT_BUCKET
-              Value: app
+              Value: traefik
             - Name: DOCKER_INFLUXDB_INIT_RETENTION
-              Value: 7d
+              Value: 3d
           Secrets:
             - Name: DOCKER_INFLUXDB_INIT_PASSWORD
               ValueFrom: !Ref InfluxAdminPassword
@@ -178,7 +180,7 @@ Resources:
     Type: AWS::ECS::Service
     Properties:
       Cluster: !Ref BackendCluster
-      DesiredCount: 0
+      DesiredCount: 1
       LaunchType: EC2
       TaskDefinition: !Ref BackendTaskDefinition
       DeploymentConfiguration:
@@ -193,7 +195,7 @@ Resources:
       LaunchTemplate:
         LaunchTemplateId: !Ref ECSInstanceLaunchTemplate
         Version: !GetAtt ECSInstanceLaunchTemplate.LatestVersionNumber
-      DesiredCapacity: 0
+      DesiredCapacity: 1
       MinSize: 0
       MaxSize: 1
       HealthCheckType: EBS
