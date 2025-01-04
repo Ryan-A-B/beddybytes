@@ -22,8 +22,8 @@ const getClient = (): InfluxDB => {
         token: 'w8f9vmyPZ91nv0NiFZ1VK7ZdFLFUXaDvHnNg0mQpVsXRmuYyaljSoc3b05LiQFCCBfw_ZFdLwLtvaMWou3Flxg==',
     })
     return new InfluxDB({
-        url: 'https://influx.beddybytes.com',
-        token: 'v8bGoYGG94D56UJP2uDVyxxNkynA72UQ2kyhUXRDP5JmwKlYJBHOlwUTKu4TX8q6XHuEa9PGMehx9CSvQxgJhg==',
+        url: 'https://influxdb.beddybytes.com',
+        token: 'LgpjMj50B3_ZkFV2Nt21q_TNmWvT8fZYc9v8rMYoWcYYS577SGyBexebhhU2cq9Pz0LwcL9f98nc8SxRpyzfxg==',
     })
 }
 
