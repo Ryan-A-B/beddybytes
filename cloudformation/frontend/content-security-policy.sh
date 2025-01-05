@@ -4,7 +4,7 @@ set -e
 policies=(
     "default-src 'none'"
     "script-src 'self'"
-    "connect-src 'self' https://api.beddybytes.com wss://api.beddybytes.com https://influx.beddybytes.com https://api.dev.beddybytes.com wss://api.dev.beddybytes.com https://influxdb.dev.beddybytes.com"
+    "connect-src 'self' https://api.beddybytes.com wss://api.beddybytes.com https://influxdb.beddybytes.com"
     "img-src 'self' data:"
     "style-src 'self'"
     "manifest-src 'self'"
