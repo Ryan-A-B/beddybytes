@@ -3,6 +3,9 @@ Parameters:
   InstanceType:
     Type: String
     Description: EC2 instance type for the API server
+  APIImageDigest:
+    Type: String
+    Description: Digest of the API server image
   PublicKeyMaterial:
     Type: String
     Description: Public key material for the EC2 key pair
@@ -79,7 +82,7 @@ Resources:
           Links:
             - influxdb
         - Name: api
-          Image: !Sub ${BackendContainerRepository.RepositoryUri}:latest
+          Image: !Sub ${BackendContainerRepository.RepositoryUri}@${APIImageDigest}
           Essential: True
           RestartPolicy:
             Enabled: True
