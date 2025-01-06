@@ -33,6 +33,16 @@ const Pricing: React.FunctionComponent = () => (
                         Get to know us
                     </h5>
                     <DiscountedPrice price={35} discount={0.7} />
+                    <ul>
+                        <li>
+                            One account
+                            <ul>
+                                <li>unlimited baby/parent stations</li>
+                                <li>bring your own devices</li>
+                            </ul>
+                        </li>
+                        <li>30 day trial</li>
+                    </ul>
                     <CallToAction product="one_year" />
                 </div>
             </section>
@@ -49,6 +59,16 @@ const Pricing: React.FunctionComponent = () => (
                         Buy once, use forever
                     </h5>
                     <DiscountedPrice price={55} discount={0.7} />
+                    <ul>
+                        <li>
+                            One account
+                            <ul>
+                                <li>unlimited baby/parent stations</li>
+                                <li>bring your own devices</li>
+                            </ul>
+                        </li>
+                        <li>30 day trial</li>
+                    </ul>
                     <CallToAction product="lifetime" />
                 </div>
             </section>
