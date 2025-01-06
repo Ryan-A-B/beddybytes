@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
+	"io"
 	"log"
 	"os"
 	"path/filepath"
@@ -68,7 +69,8 @@ func (log *FileEventLog) GetEventIterator(ctx context.Context, input *GetEventIt
 	filePath := filepath.Join(log.folderPath, EventsFileName)
 	file, err := os.Open(filePath)
 	fatal.OnError(err)
-	scanner := bufio.NewScanner(file)
+	reader := bufio.NewReaderSize(file, 256*1024)
+	scanner := bufio.NewScanner(reader)
 	for i := int64(0); i < input.FromCursor; i++ {
 		ok := scanner.Scan()
 		if !ok {
@@ -76,13 +78,13 @@ func (log *FileEventLog) GetEventIterator(ctx context.Context, input *GetEventIt
 		}
 	}
 	return &FileEventIterator{
-		file:    file,
+		closer:  file,
 		scanner: scanner,
 	}
 }
 
 type FileEventIterator struct {
-	file    *os.File
+	closer  io.Closer
 	scanner *bufio.Scanner
 
 	event *Event
@@ -96,7 +98,7 @@ func (iterator *FileEventIterator) Next(ctx context.Context) bool {
 	}
 	ok := iterator.scanner.Scan()
 	if !ok {
-		err := iterator.file.Close()
+		err := iterator.closer.Close()
 		fatal.OnError(err)
 		return false
 	}
