@@ -11,8 +11,11 @@ import (
 
 	"github.com/Ryan-A-B/beddybytes/backend/internal"
 	"github.com/Ryan-A-B/beddybytes/backend/internal/eventlog"
+	"github.com/Ryan-A-B/beddybytes/backend/internal/mqttx"
 	"github.com/Ryan-A-B/beddybytes/backend/internal/store2"
 	"github.com/Ryan-A-B/beddybytes/internal/fatal"
+
+	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 	uuid "github.com/satori/go.uuid"
@@ -108,6 +111,14 @@ func (handlers *Handlers) HandleConnection(responseWriter http.ResponseWriter, r
 		return
 	}
 	defer conn.Close()
+
+	mqttClient := handlers.NewMQTTClient(connectionID)
+	err = mqttx.Wait(mqttClient.Connect())
+	if err != nil {
+		log.Println(err)
+		return
+	}
+
 	requestID := uuid.NewV4().String()
 	// TODO this is causing a delay
 	_, err = handlers.EventLog.Append(ctx, &eventlog.AppendInput{
@@ -161,6 +172,14 @@ func (handlers *Handlers) HandleConnection(responseWriter http.ResponseWriter, r
 			return
 		}
 	}
+}
+
+func (handlers *Handlers) NewMQTTClient(connectionID string) (client mqtt.Client) {
+	// TODO ClientFactory
+	options := mqtt.NewClientOptions()
+	options.AddBroker("wss://mosquitto.beddybytes.local")
+	options.SetClientID(connectionID)
+	return mqtt.NewClient(options)
 }
 
 type ConnectionFactory struct {

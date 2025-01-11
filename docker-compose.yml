@@ -21,6 +21,7 @@ services:
         aliases:
           - app.beddybytes.local
           - api.beddybytes.local
+          - mosquitto.beddybytes.local
           - influx.beddybytes.local
           - grafana.beddybytes.local
   api:
@@ -63,6 +64,17 @@ services:
       - "traefik.http.routers.app.rule=Host(`app.beddybytes.local`)"
       - "traefik.http.routers.app.entrypoints=websecure"
       - "traefik.http.routers.app.tls=true"
+  mosquitto:
+    image: eclipse-mosquitto:2
+    restart: always
+    ports:
+      - 1883
+    volumes:
+      - ./mosquitto/config/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+    labels:
+      - "traefik.http.routers.mosquitto.rule=Host(`mosquitto.beddybytes.local`)"
+      - "traefik.http.routers.mosquitto.entrypoints=websecure"
+      - "traefik.http.routers.mosquitto.tls=true"
   marketing:
     image: node:18
     command: npm run develop
