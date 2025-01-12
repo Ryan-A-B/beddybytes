@@ -74,6 +74,7 @@ func (log *FileEventLog) GetEventIterator(ctx context.Context, input *GetEventIt
 	for i := int64(0); i < input.FromCursor; i++ {
 		ok := scanner.Scan()
 		if !ok {
+			fatal.OnError(scanner.Err())
 			return new(NullEventIterator)
 		}
 	}
@@ -96,15 +97,18 @@ func (iterator *FileEventIterator) Next(ctx context.Context) bool {
 		return false
 	default:
 	}
+	var err error
 	ok := iterator.scanner.Scan()
 	if !ok {
-		err := iterator.closer.Close()
+		err = iterator.scanner.Err()
+		fatal.OnError(err)
+		err = iterator.closer.Close()
 		fatal.OnError(err)
 		return false
 	}
 	data := iterator.scanner.Bytes()
 	var event Event
-	err := json.Unmarshal(data, &event)
+	err = json.Unmarshal(data, &event)
 	fatal.OnError(err)
 	iterator.event = &event
 	return true
