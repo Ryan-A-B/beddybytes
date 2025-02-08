@@ -18,7 +18,7 @@ class TestSession(unittest.TestCase):
         pass
 
     def allow_time_for_video_to_display(self):
-        time.sleep(0.1)
+        time.sleep(0.5)
 
     def test_audio_session(self):
         email = f'{generate_random_string(10)}@integrationtests.com'
@@ -177,6 +177,7 @@ class TestSession(unittest.TestCase):
             driver_2.find_element(By.ID, "nav-link-parent").click()
 
             driver_2_wait = WebDriverWait(driver_2, 1)
+            driver_2_video_element = driver_2_wait.until(lambda driver: driver.find_element(By.ID, "video-parent-station"))
             session_dropdown_element = driver_2_wait.until(lambda driver: driver.find_element(By.ID, "session-dropdown"))
             session_dropdown = Select(session_dropdown_element)
             self.assertEqual(len(session_dropdown.options), 2)
@@ -189,6 +190,7 @@ class TestSession(unittest.TestCase):
             driver_3.find_element(By.ID, "nav-link-parent").click()
 
             driver_3_wait = WebDriverWait(driver_3, 1)
+            driver_3_video_element = driver_3_wait.until(lambda driver: driver.find_element(By.ID, "video-parent-station"))
             session_dropdown_element = driver_3_wait.until(lambda driver: driver.find_element(By.ID, "session-dropdown"))
             session_dropdown = Select(session_dropdown_element)
             self.assertEqual(len(session_dropdown.options), 2)
@@ -196,9 +198,8 @@ class TestSession(unittest.TestCase):
             self.assertNotEqual(session_dropdown.options[1].get_attribute("value"), "")
             session_dropdown.options[1].click()
 
-            driver_2_video_element = driver_2_wait.until(lambda driver: driver.find_element(By.ID, "video-parent-station"))
+            self.allow_time_for_video_to_display()
             self.assertTrue(driver_2_video_element.is_displayed())
-            driver_3_video_element = driver_3_wait.until(lambda driver: driver.find_element(By.ID, "video-parent-station"))
             self.assertTrue(driver_3_video_element.is_displayed())
 
             driver_1_logs = get_browser_logs(driver_1)

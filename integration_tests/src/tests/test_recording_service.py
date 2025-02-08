@@ -18,7 +18,7 @@ class TestRecordingService(unittest.TestCase):
         pass
 
     def allow_time_for_video_to_display(self):
-        time.sleep(0.1)
+        time.sleep(0.5)
 
     def test_recording(self):
         email = f'{generate_random_string(10)}@integrationtests.com'

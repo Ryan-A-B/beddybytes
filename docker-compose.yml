@@ -30,6 +30,8 @@ services:
       context: .
       dockerfile: scripts/backend/Dockerfile
     restart: always
+    depends_on:
+      - mosquitto
     ports:
       - 9000
     volumes:
@@ -47,7 +49,7 @@ services:
     develop:
       watch:
         - action: rebuild
-          path: ./backend
+          path: ./golang
   app:
     image: node:18
     command: yarn start
