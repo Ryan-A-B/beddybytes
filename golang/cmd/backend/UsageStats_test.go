@@ -38,7 +38,7 @@ func TestUsageStats(t *testing.T) {
 			}
 			data, err := json.Marshal(sessionStartedData)
 			So(err, ShouldBeNil)
-			_, err = log.Append(ctx, &eventlog.AppendInput{
+			_, err = log.Append(ctx, eventlog.AppendInput{
 				Type:      EventTypeSessionStarted,
 				AccountID: accountID,
 				Data:      data,
@@ -59,7 +59,7 @@ func TestUsageStats(t *testing.T) {
 				}
 				data, err := json.Marshal(sessionEndedData)
 				So(err, ShouldBeNil)
-				_, err = log.Append(ctx, &eventlog.AppendInput{
+				_, err = log.Append(ctx, eventlog.AppendInput{
 					Type:      EventTypeSessionEnded,
 					AccountID: accountID,
 					Data:      data,
@@ -81,7 +81,7 @@ func TestUsageStats(t *testing.T) {
 				}
 				data, err := json.Marshal(clientConnectedData)
 				So(err, ShouldBeNil)
-				_, err = log.Append(ctx, &eventlog.AppendInput{
+				_, err = log.Append(ctx, eventlog.AppendInput{
 					Type:      EventTypeClientConnected,
 					AccountID: accountID,
 					Data:      data,
@@ -99,7 +99,7 @@ func TestUsageStats(t *testing.T) {
 						}
 						data, err := json.Marshal(clientDisconnectedData)
 						So(err, ShouldBeNil)
-						_, err = log.Append(ctx, &eventlog.AppendInput{
+						_, err = log.Append(ctx, eventlog.AppendInput{
 							Type:      EventTypeClientDisconnected,
 							AccountID: accountID,
 							Data:      data,
@@ -122,7 +122,7 @@ func TestUsageStats(t *testing.T) {
 						}
 						data, err := json.Marshal(clientDisconnectedData)
 						So(err, ShouldBeNil)
-						_, err = log.Append(ctx, &eventlog.AppendInput{
+						_, err = log.Append(ctx, eventlog.AppendInput{
 							Type:      EventTypeClientDisconnected,
 							AccountID: accountID,
 							Data:      data,
@@ -143,7 +143,7 @@ func TestUsageStats(t *testing.T) {
 							}
 							data, err := json.Marshal(clientConnectedData)
 							So(err, ShouldBeNil)
-							_, err = log.Append(ctx, &eventlog.AppendInput{
+							_, err = log.Append(ctx, eventlog.AppendInput{
 								Type:      EventTypeClientConnected,
 								AccountID: accountID,
 								Data:      data,
@@ -162,7 +162,7 @@ func TestUsageStats(t *testing.T) {
 					})
 				})
 				Convey("server restarts", func() {
-					_, err = log.Append(ctx, &eventlog.AppendInput{
+					_, err = log.Append(ctx, eventlog.AppendInput{
 						Type:      EventTypeServerStarted,
 						AccountID: accountID,
 						Data:      nil,
@@ -183,7 +183,7 @@ func TestUsageStats(t *testing.T) {
 						}
 						data, err := json.Marshal(clientConnectedData)
 						So(err, ShouldBeNil)
-						_, err = log.Append(ctx, &eventlog.AppendInput{
+						_, err = log.Append(ctx, eventlog.AppendInput{
 							Type:      EventTypeClientConnected,
 							AccountID: accountID,
 							Data:      data,

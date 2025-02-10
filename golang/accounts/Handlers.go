@@ -192,7 +192,7 @@ func (handlers *Handlers) CreateAccount(responseWriter http.ResponseWriter, requ
 	}
 	data, err := json.Marshal(account)
 	fatal.OnError(err)
-	_, err = handlers.EventLog.Append(ctx, &eventlog.AppendInput{
+	_, err = handlers.EventLog.Append(ctx, eventlog.AppendInput{
 		Type: EventTypeAccountCreated,
 		Data: data,
 	})

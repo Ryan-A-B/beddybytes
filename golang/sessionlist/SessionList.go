@@ -56,7 +56,7 @@ func (sessionList *SessionList) List(ctx context.Context) (output ListOutput) {
 func (sessionList *SessionList) catchUp(ctx context.Context) {
 	sessionList.mutex.Lock()
 	defer sessionList.mutex.Unlock()
-	iterator := sessionList.log.GetEventIterator(ctx, &eventlog.GetEventIteratorInput{
+	iterator := sessionList.log.GetEventIterator(ctx, eventlog.GetEventIteratorInput{
 		FromCursor: sessionList.cursor,
 	})
 	for iterator.Next(ctx) {

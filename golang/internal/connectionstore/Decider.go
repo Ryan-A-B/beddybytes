@@ -67,7 +67,7 @@ func (decider *Decider) Put(ctx context.Context, connection Connection) error {
 		RequestID:    connection.RequestID,
 	})
 	fatal.OnError(err)
-	_, err = decider.eventLog.Append(ctx, &eventlog.AppendInput{
+	_, err = decider.eventLog.Append(ctx, eventlog.AppendInput{
 		Type:      connections.EventTypeConnected,
 		AccountID: connection.AccountID,
 		Data:      data,
@@ -93,7 +93,7 @@ func (decider *Decider) Delete(ctx context.Context, connection Connection) error
 		RequestID:    connection.RequestID,
 	})
 	fatal.OnError(err)
-	_, err = decider.eventLog.Append(ctx, &eventlog.AppendInput{
+	_, err = decider.eventLog.Append(ctx, eventlog.AppendInput{
 		Type:      connections.EventTypeDisconnected,
 		AccountID: connection.AccountID,
 		Data:      data,
@@ -102,7 +102,7 @@ func (decider *Decider) Delete(ctx context.Context, connection Connection) error
 }
 
 func (decider *Decider) catchUp(ctx context.Context) error {
-	iterator := decider.eventLog.GetEventIterator(ctx, &eventlog.GetEventIteratorInput{
+	iterator := decider.eventLog.GetEventIterator(ctx, eventlog.GetEventIteratorInput{
 		FromCursor: decider.cursor,
 	})
 	for iterator.Next(ctx) {

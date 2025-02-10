@@ -30,8 +30,9 @@ type GetEventIteratorInput struct {
 }
 
 type EventLog interface {
-	Append(ctx context.Context, input *AppendInput) (event *Event, err error)
-	GetEventIterator(ctx context.Context, input *GetEventIteratorInput) (iterator EventIterator)
+	Append(ctx context.Context, input AppendInput) (event *Event, err error)
+	GetEventIterator(ctx context.Context, input GetEventIteratorInput) (iterator EventIterator)
+	Wait(ctx context.Context) <-chan struct{}
 }
 
 type EventIterator interface {
@@ -46,8 +47,9 @@ type ProjectInput struct {
 	Apply      func(ctx context.Context, event *Event)
 }
 
-func Project(ctx context.Context, input *ProjectInput) {
-	iterator := input.EventLog.GetEventIterator(ctx, &GetEventIteratorInput{
+func Project(ctx context.Context, input ProjectInput) {
+	iterator := Follow(ctx, FollowInput{
+		EventLog:   input.EventLog,
 		FromCursor: input.FromCursor,
 	})
 	for iterator.Next(ctx) {
@@ -62,8 +64,8 @@ type StreamToChannelInput struct {
 	C          chan *Event
 }
 
-func StreamToChannel(ctx context.Context, input *StreamToChannelInput) {
-	iterator := input.EventLog.GetEventIterator(ctx, &GetEventIteratorInput{
+func StreamToChannel(ctx context.Context, input StreamToChannelInput) {
+	iterator := input.EventLog.GetEventIterator(ctx, GetEventIteratorInput{
 		FromCursor: input.FromCursor,
 	})
 	for iterator.Next(ctx) {

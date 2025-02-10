@@ -193,14 +193,12 @@ func main() {
 	ctx := context.Background()
 	key := []byte(internal.EnvStringOrFatal("ENCRYPTION_KEY"))
 	cookieDomain := internal.EnvStringOrFatal("COOKIE_DOMAIN")
-	fileEventLog := eventlog.NewThreadSafeDecorator(&eventlog.NewThreadSafeDecoratorInput{
-		Decorated: eventlog.NewFileEventLog(&eventlog.NewFileEventLogInput{
-			FolderPath: internal.EnvStringOrFatal("FILE_EVENT_LOG_FOLDER_PATH"),
+	eventLog := eventlog.NewThreadSafeDecorator(&eventlog.NewThreadSafeDecoratorInput{
+		Decorated: eventlog.NewCachingDecoratorOrFatal(ctx, eventlog.NewCachingDecoratorInput{
+			Decorated: eventlog.NewFileEventLog(&eventlog.NewFileEventLogInput{
+				FolderPath: internal.EnvStringOrFatal("FILE_EVENT_LOG_FOLDER_PATH"),
+			}),
 		}),
-	})
-	eventLog := eventlog.NewFollowingDecorator(&eventlog.NewFollowingDecoratorInput{
-		Decorated:  fileEventLog,
-		BufferSize: 32,
 	})
 	accountHandlers := accounts.Handlers{
 		CookieDomain: cookieDomain,
@@ -216,7 +214,7 @@ func main() {
 		AnonymousAccessTokenDuration: 10 * time.Second,
 	}
 	go func() {
-		eventlog.Project(ctx, &eventlog.ProjectInput{
+		eventlog.Project(ctx, eventlog.ProjectInput{
 			EventLog:   accountHandlers.EventLog,
 			FromCursor: 0,
 			Apply:      accountHandlers.ApplyEvent,
@@ -245,11 +243,11 @@ func main() {
 			}),
 		},
 		SessionList: sessionlist.New(ctx, sessionlist.NewInput{
-			Log: fileEventLog,
+			Log: eventLog,
 		}),
 		EventLog: eventLog,
 		UsageStats: NewUsageStats(ctx, NewUsageStatsInput{
-			Log: fileEventLog,
+			Log: eventLog,
 		}),
 		CreateMQTTClient: func(clientID string) mqtt.Client {
 			options := mqtt.NewClientOptions()
@@ -265,7 +263,7 @@ func main() {
 		Key: key,
 	}
 	go func() {
-		eventlog.Project(ctx, &eventlog.ProjectInput{
+		eventlog.Project(ctx, eventlog.ProjectInput{
 			EventLog:   handlers.EventLog,
 			FromCursor: 0,
 			Apply:      handlers.SessionProjection.ApplyEvent,
@@ -286,7 +284,7 @@ func main() {
 				return mqtt.NewClient(options)
 			},
 			ConnectionStore: connectionstore.NewDecider(connectionstore.NewDeciderInput{
-				EventLog: fileEventLog,
+				EventLog: eventLog,
 			}),
 		})
 	}()
@@ -305,7 +303,7 @@ func main() {
 }
 
 func appendServerStartedEvent(ctx context.Context, eventLog eventlog.EventLog) {
-	_, err := eventLog.Append(ctx, &eventlog.AppendInput{
+	_, err := eventLog.Append(ctx, eventlog.AppendInput{
 		Type: EventTypeServerStarted,
 		Data: fatal.UnlessMarshalJSON(nil),
 	})

@@ -43,7 +43,8 @@ func (handlers *Handlers) GetEvents(responseWriter http.ResponseWriter, request 
 	eventC := make(chan *eventlog.Event)
 	go func() {
 		defer close(eventC)
-		events := handlers.EventLog.GetEventIterator(ctx, &eventlog.GetEventIteratorInput{
+		events := eventlog.Follow(ctx, eventlog.FollowInput{
+			EventLog:   handlers.EventLog,
 			FromCursor: fromCursor,
 		})
 		for events.Next(ctx) {

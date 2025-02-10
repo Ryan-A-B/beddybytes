@@ -24,7 +24,7 @@ func TestProjection(t *testing.T) {
 				Store: store.NewMemoryStore(),
 			},
 		}
-		go eventlog.Project(ctx, &eventlog.ProjectInput{
+		go eventlog.Project(ctx, eventlog.ProjectInput{
 			EventLog:   handlers.EventLog,
 			FromCursor: 0,
 			Apply:      handlers.ApplyEvent,
@@ -40,7 +40,7 @@ func TestProjection(t *testing.T) {
 			}
 			data, err := json.Marshal(&expectedAccount)
 			So(err, ShouldBeNil)
-			_, err = handlers.EventLog.Append(ctx, &eventlog.AppendInput{
+			_, err = handlers.EventLog.Append(ctx, eventlog.AppendInput{
 				Type: accounts.EventTypeAccountCreated,
 				Data: data,
 			})
@@ -53,13 +53,10 @@ func TestProjection(t *testing.T) {
 	})
 }
 
-func newEventLog(ctx context.Context) *eventlog.FollowingDecorator {
+func newEventLog(ctx context.Context) eventlog.EventLog {
 	folderPath, err := os.MkdirTemp("testdata", "eventlog-*")
 	So(err, ShouldBeNil)
-	return eventlog.NewFollowingDecorator(&eventlog.NewFollowingDecoratorInput{
-		Decorated: eventlog.NewFileEventLog(&eventlog.NewFileEventLogInput{
-			FolderPath: folderPath,
-		}),
-		BufferSize: 128,
+	return eventlog.NewFileEventLog(&eventlog.NewFileEventLogInput{
+		FolderPath: folderPath,
 	})
 }

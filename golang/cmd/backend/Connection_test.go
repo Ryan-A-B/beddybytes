@@ -34,11 +34,8 @@ func TestConnection(t *testing.T) {
 			panic(err)
 		}
 		eventLog := eventlog.NewThreadSafeDecorator(&eventlog.NewThreadSafeDecoratorInput{
-			Decorated: eventlog.NewFollowingDecorator(&eventlog.NewFollowingDecoratorInput{
-				Decorated: eventlog.NewFileEventLog(&eventlog.NewFileEventLogInput{
-					FolderPath: folderPath,
-				}),
-				BufferSize: 32,
+			Decorated: eventlog.NewFileEventLog(&eventlog.NewFileEventLogInput{
+				FolderPath: folderPath,
 			}),
 		})
 		handlers := Handlers{
