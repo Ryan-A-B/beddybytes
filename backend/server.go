@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/ansel1/merry"
+	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
@@ -17,6 +18,8 @@ import (
 	"github.com/Ryan-A-B/beddybytes/backend/accounts"
 	"github.com/Ryan-A-B/beddybytes/backend/internal"
 	"github.com/Ryan-A-B/beddybytes/backend/internal/eventlog"
+	"github.com/Ryan-A-B/beddybytes/backend/internal/mailer"
+	"github.com/Ryan-A-B/beddybytes/backend/internal/resetpassword"
 	"github.com/Ryan-A-B/beddybytes/backend/internal/store"
 	"github.com/Ryan-A-B/beddybytes/backend/internal/store2"
 	"github.com/Ryan-A-B/beddybytes/backend/internal/xhttp"
@@ -200,6 +203,10 @@ func main() {
 		RefreshTokenDuration:         30 * 24 * time.Hour,
 		UsedTokens:                   accounts.NewUsedTokens(),
 		AnonymousAccessTokenDuration: 10 * time.Second,
+		PasswordResetTokens: resetpassword.NewTokens(resetpassword.NewTokensInput{
+			TTL: 15 * time.Minute,
+		}),
+		Mailer: newMailer(ctx),
 	}
 	go func() {
 		eventlog.Project(ctx, &eventlog.ProjectInput{
@@ -284,4 +291,24 @@ func appendServerStartedEvent(ctx context.Context, eventLog eventlog.EventLog) {
 		Data: fatal.UnlessMarshalJSON(nil),
 	})
 	fatal.OnError(err)
+}
+
+func newMailer(ctx context.Context) accounts.Mailer {
+	implementation := internal.EnvStringOrFatal("MAILER_IMPLEMENTATION")
+	switch implementation {
+	case "console":
+		return mailer.NewConsoleMailer(mailer.NewConsoleMailerInput{
+			AppHost: internal.EnvStringOrFatal("MAILER_CONSOLE_APP_HOST"),
+		})
+	case "ses":
+		cfg, err := config.LoadDefaultConfig(ctx)
+		fatal.OnError(err)
+		return mailer.NewSESMailer(mailer.NewSESMailerInput{
+			AWSConfig: cfg,
+			From:      internal.EnvStringOrFatal("MAILER_SES_FROM"),
+			AppHost:   internal.EnvStringOrFatal("MAILER_SES_APP_HOST"),
+		})
+	default:
+		panic("invalid MAILER_IMPLEMENTATION")
+	}
 }

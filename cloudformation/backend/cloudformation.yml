@@ -27,6 +27,9 @@ Parameters:
   CookieDomain:
     Type: String
     Description: The domain name for the cookie
+  EmailDomain:
+    Type: String
+    Description: The email domain for SES
 
 Resources:
   BackendCluster:
@@ -411,6 +414,14 @@ Resources:
                   - !Ref BackendEncryptionKey
                   - !Ref InfluxAdminPassword
                   - !Ref GrafanaAdminPassword
+              - Sid: SendPasswordResetEmail
+                Effect: Allow
+                Action:
+                  - ses:SendEmail
+                Resource: !Ref EmailIdentity
+                Condition:
+                  StringEquals:
+                    ses:FromAddress: !Sub noreply@${EmailDomain}
 
   BackendTaskRole:
     Type: AWS::IAM::Role
@@ -502,3 +513,40 @@ Resources:
       TTL: '900'
       ResourceRecords:
         - !Ref ElasticIP
+
+  EmailIdentity:
+    Type: AWS::SES::EmailIdentity
+    Properties:
+      EmailIdentity: !Ref EmailDomain
+      MailFromAttributes:
+        MailFromDomain: !Ref EmailDomain
+
+  DKIMRecord1:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneName: !Ref HostedZoneName
+      Name: !GetAtt EmailIdentity.DkimDNSTokenName1
+      Type: CNAME
+      TTL: '900'
+      ResourceRecords:
+        - !GetAtt EmailIdentity.DkimDNSTokenValue1
+
+  DKIMRecord2:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneName: !Ref HostedZoneName
+      Name: !GetAtt EmailIdentity.DkimDNSTokenName2
+      Type: CNAME
+      TTL: '900'
+      ResourceRecords:
+        - !GetAtt EmailIdentity.DkimDNSTokenValue2
+
+  DKIMRecord3:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneName: !Ref HostedZoneName
+      Name: !GetAtt EmailIdentity.DkimDNSTokenName3
+      Type: CNAME
+      TTL: '900'
+      ResourceRecords:
+        - !GetAtt EmailIdentity.DkimDNSTokenValue3

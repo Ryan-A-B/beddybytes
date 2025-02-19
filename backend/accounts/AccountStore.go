@@ -108,3 +108,27 @@ func calculatePasswordHash(password string, salt []byte) (passwordHash []byte) {
 	passwordHash = hash.Sum(nil)
 	return
 }
+
+type UpdatePasswordInput struct {
+	Email        string
+	PasswordSalt []byte
+	PasswordHash []byte
+}
+
+func (store *AccountStore) UpdatePassword(ctx context.Context, input *UpdatePasswordInput) (err error) {
+	account, err := store.GetByEmail(ctx, input.Email)
+	if err != nil {
+		return
+	}
+	account.User.PasswordSalt = input.PasswordSalt
+	account.User.PasswordHash = input.PasswordHash
+	data, err := json.Marshal(account)
+	if err != nil {
+		return
+	}
+	err = store.Store.Put(ctx, account.ID, data)
+	fatal.OnError(err)
+	err = store.Store.Put(ctx, account.User.Email, data)
+	fatal.OnError(err)
+	return nil
+}

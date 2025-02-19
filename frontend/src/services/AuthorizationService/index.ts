@@ -145,7 +145,7 @@ const remove_account_from_local_storage = (): void => {
     localStorage.removeItem(LocalStorageAccountKey);
 }
 
-const get_anonymous_token = async (): Promise<string> => {
+export const get_anonymous_token = async (): Promise<string> => {
     const tokenResponse = await fetch(`https://${settings.API.host}/anonymous_token`, {
         method: 'POST',
     })

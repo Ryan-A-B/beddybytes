@@ -1,6 +1,7 @@
 import React from "react";
 import Input from "../../components/Input";
 import { useAuthorizationService } from "../../services";
+import PasswordInput from "../../components/PasswordInput";
 
 interface Props {
     email: string;
@@ -42,9 +43,8 @@ const CreateAccountForm: React.FunctionComponent<Props> = ({ email, setEmail, pa
                 <label>
                     Password:
                 </label>
-                <Input
+                <PasswordInput
                     id="input-create-account-password"
-                    type="password"
                     name="password"
                     value={password}
                     onChange={setPassword}

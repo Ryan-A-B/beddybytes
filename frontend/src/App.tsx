@@ -17,6 +17,8 @@ import Footer from './components/Footer';
 import Errors from './components/Errors';
 
 import './App.scss';
+import RequestPasswordReset from './pages/Login/RequestPasswordReset';
+import ResetPassword from './pages/Login/ResetPassword';
 
 export const services: Services = {
   logging_service,
@@ -30,16 +32,23 @@ const App: React.FunctionComponent = () => {
       <div className="wrapper">
         <Navbar />
         <div className="position-relative">
-          <Login>
-            <Errors error_service={error_service} />
-            <div className="pt-3">
-              <Routes>
-                <Route path="/" element={<Instructions />} />
-                <Route path="/baby" element={<BabyStation />} />
-                <Route path="/parent" element={<ParentStation />} />
-              </Routes>
-            </div>
-          </Login>
+          <Routes>
+            <Route path="/request-password-reset" element={<RequestPasswordReset />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="*" element={
+              <Login>
+                <Errors error_service={error_service} />
+                <div className="pt-3">
+                  <Routes>
+                    <Route path="/" element={<Instructions />} />
+                    <Route path="/baby" element={<BabyStation />} />
+                    <Route path="/parent" element={<ParentStation />} />
+                  </Routes>
+                </div>
+              </Login>
+            }>
+            </Route>
+          </Routes>
         </div>
       </div>
       <Footer />

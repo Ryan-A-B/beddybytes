@@ -18,9 +18,15 @@ import (
 
 	"github.com/Ryan-A-B/beddybytes/backend/internal"
 	"github.com/Ryan-A-B/beddybytes/backend/internal/eventlog"
+	"github.com/Ryan-A-B/beddybytes/backend/internal/mailer"
+	"github.com/Ryan-A-B/beddybytes/backend/internal/resetpassword"
 	"github.com/Ryan-A-B/beddybytes/backend/internal/xhttp"
 	"github.com/Ryan-A-B/beddybytes/internal/fatal"
 )
+
+type Mailer interface {
+	mailer.PasswordResetMailer
+}
 
 type Handlers struct {
 	CookieDomain                 string
@@ -32,13 +38,16 @@ type Handlers struct {
 	RefreshTokenDuration         time.Duration
 	UsedTokens                   UsedTokens
 	AnonymousAccessTokenDuration time.Duration
+	PasswordResetTokens          *resetpassword.Tokens
+	Mailer                       Mailer
 }
 
 func (handlers *Handlers) AddRoutes(router *mux.Router) {
 	router.HandleFunc("/anonymous_token", handlers.AnonymousToken).Methods(http.MethodPost).Name("AnonymousToken")
 	router.HandleFunc("/token", handlers.Token).Methods(http.MethodPost).Name("Token")
 	router.HandleFunc("/accounts", handlers.CreateAccount).Methods(http.MethodPost).Name("CreateAccount")
-
+	router.HandleFunc("/request-password-reset", handlers.RequestPasswordReset).Methods(http.MethodPost).Name("RequestPasswordReset")
+	router.HandleFunc("/reset-password", handlers.ResetPassword).Methods(http.MethodPost).Name("ResetPassword")
 	authenticatedRouter := router.PathPrefix("/accounts/{account_id}").Subrouter()
 	authenticatedRouter.Use(internal.NewAuthorizationMiddleware(handlers.Key).Middleware)
 	authenticatedRouter.HandleFunc("", handlers.GetAccount).Methods(http.MethodGet).Name("GetAccount")
