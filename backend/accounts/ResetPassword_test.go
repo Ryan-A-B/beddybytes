@@ -61,7 +61,7 @@ func TestResetPassword(t *testing.T) {
 		Convey("ForgotPassword", func() {
 			Convey("valid request", func() {
 				Convey("known email", func() {
-					input := accounts.ForgotPasswordInput{
+					input := accounts.RequestPasswordResetInput{
 						Email: email,
 					}
 					data, err := json.Marshal(input)
@@ -74,7 +74,7 @@ func TestResetPassword(t *testing.T) {
 					So(mailer.Token, ShouldNotBeEmpty)
 				})
 				Convey("unknown email", func() {
-					input := accounts.ForgotPasswordInput{
+					input := accounts.RequestPasswordResetInput{
 						Email: "foo@example.com",
 					}
 					data, err := json.Marshal(input)
@@ -90,7 +90,7 @@ func TestResetPassword(t *testing.T) {
 			// TODO invalid requests? leave that for fuzzing?
 		})
 		Convey("ResetPassword", func() {
-			input := accounts.ForgotPasswordInput{
+			input := accounts.RequestPasswordResetInput{
 				Email: email,
 			}
 			data, err := json.Marshal(input)

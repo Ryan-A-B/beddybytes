@@ -14,7 +14,7 @@ import (
 	"github.com/ansel1/merry"
 )
 
-type ForgotPasswordInput struct {
+type RequestPasswordResetInput struct {
 	Email string `json:"email"`
 }
 
@@ -52,7 +52,7 @@ func (handlers *Handlers) RequestPasswordReset(responseWriter http.ResponseWrite
 		}
 	}()
 	// TODO require anonymous token
-	var input ForgotPasswordInput
+	var input RequestPasswordResetInput
 	err = json.NewDecoder(request.Body).Decode(&input)
 	if err != nil {
 		log.Println("Error decoding request body:", err)
