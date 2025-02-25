@@ -30,6 +30,9 @@ Parameters:
   EmailDomain:
     Type: String
     Description: The email domain for SES
+  AppHost:
+    Type: String
+    Description: The host name of the application
 
 Resources:
   BackendCluster:
@@ -101,6 +104,14 @@ Resources:
               Value: :9000
             - Name: FILE_EVENT_LOG_FOLDER_PATH
               Value: /opt/eventlog
+            - Name: MAILER_IMPLEMENTATION
+              Value: ses
+            - Name: MAILER_SES_FROM
+              Value: !Sub BeddyBytes <noreply@${EmailDomain}>
+            - Name: MAILER_SES_APP_HOST
+              Value: !Ref AppHost
+            - Name: AWS_REGION
+              Value: !Ref AWS::Region
           Secrets:
             - Name: ENCRYPTION_KEY
               ValueFrom: !Ref BackendEncryptionKey
@@ -414,14 +425,6 @@ Resources:
                   - !Ref BackendEncryptionKey
                   - !Ref InfluxAdminPassword
                   - !Ref GrafanaAdminPassword
-              - Sid: SendPasswordResetEmail
-                Effect: Allow
-                Action:
-                  - ses:SendEmail
-                Resource: !Ref EmailIdentity
-                Condition:
-                  StringEquals:
-                    ses:FromAddress: !Sub noreply@${EmailDomain}
 
   BackendTaskRole:
     Type: AWS::IAM::Role
@@ -449,6 +452,14 @@ Resources:
                   - ecs:DescribeTaskDefinition
                   - ec2:DescribeInstances
                 Resource: "*"
+              - Sid: SendPasswordResetEmail
+                Effect: Allow
+                Action:
+                  - ses:SendEmail
+                Resource: !Sub arn:aws:ses:${AWS::Region}:${AWS::AccountId}:identity/${EmailIdentity}
+                Condition:
+                  StringEquals:
+                    ses:FromAddress: !Sub noreply@${EmailDomain}
 
   InfluxAdminPassword:
     Type: AWS::SecretsManager::Secret
@@ -518,8 +529,6 @@ Resources:
     Type: AWS::SES::EmailIdentity
     Properties:
       EmailIdentity: !Ref EmailDomain
-      MailFromAttributes:
-        MailFromDomain: !Ref EmailDomain
 
   DKIMRecord1:
     Type: AWS::Route53::RecordSet
