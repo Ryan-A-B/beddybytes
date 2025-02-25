@@ -56,7 +56,7 @@ const RequestPasswordReset: React.FunctionComponent = () => {
 export default RequestPasswordReset;
 
 const request_password_reset = async (email: string) => {
-    const access_token = await get_anonymous_token();
+    const access_token = await get_anonymous_token("iam:RequestPasswordReset");
     const response = await fetch(`https://${settings.API.host}/request-password-reset`, {
         method: 'POST',
         headers: {

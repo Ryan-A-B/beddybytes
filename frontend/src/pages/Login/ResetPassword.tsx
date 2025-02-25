@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import PasswordInput from '../../components/PasswordInput';
 import settings from '../../settings';
+import { get_anonymous_token } from '../../services/AuthorizationService';
 
 const ResetPassword: React.FunctionComponent = () => {
     const [password, setPassword] = useState<string>("");
@@ -46,7 +47,7 @@ const ResetPassword: React.FunctionComponent = () => {
                                 <div className="form-group mb-3">
                                     <label>New Password:</label>
                                     <PasswordInput
-                                        id="input-reset-password"
+                                        id="input-reset-password-password"
                                         name="password"
                                         value={password}
                                         onChange={setPassword}
@@ -78,9 +79,13 @@ interface ResetPasswordInput {
 }
 
 const reset_password = async (input: ResetPasswordInput) => {
+    const access_token = await get_anonymous_token("iam:ResetPassword");
     const response = await fetch(`https://${settings.API.host}/reset-password`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${access_token}`,
+        },
         body: JSON.stringify(input),
     });
     if (!response.ok) {

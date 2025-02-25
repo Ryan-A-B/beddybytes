@@ -51,7 +51,10 @@ func (handlers *Handlers) RequestPasswordReset(responseWriter http.ResponseWrite
 			return
 		}
 	}()
-	// TODO require anonymous token
+	err = handlers.CheckAnonymousAuthorization(request, "iam:RequestPasswordReset")
+	if err != nil {
+		return
+	}
 	var input RequestPasswordResetInput
 	err = json.NewDecoder(request.Body).Decode(&input)
 	if err != nil {
@@ -100,7 +103,10 @@ func (handlers *Handlers) ResetPassword(responseWriter http.ResponseWriter, requ
 			return
 		}
 	}()
-	// TODO require anonymous token
+	err = handlers.CheckAnonymousAuthorization(request, "iam:ResetPassword")
+	if err != nil {
+		return
+	}
 	var input ResetPasswordInput
 	err = json.NewDecoder(request.Body).Decode(&input)
 	if err != nil {

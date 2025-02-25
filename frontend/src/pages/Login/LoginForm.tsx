@@ -65,7 +65,7 @@ const LoginForm: React.FunctionComponent<Props> = ({ email, setEmail, password, 
                     Don't have an account? <button type="button" className="btn btn-link p-0" onClick={switchToCreateAccount}>Create one</button>.
                 </p>
                 <p>
-                    Forgot your password? <Link to="/request-password-reset" className="btn btn-link p-0">Reset it</Link>.
+                    Forgot your password? <Link to="/request-password-reset" id="link-login-request-password-reset" className="btn btn-link p-0">Reset it</Link>.
                 </p>
                 {error && <div className="alert alert-danger">{error}</div>}
                 <button id="submit-button-login" type="submit" className="btn btn-primary w-100">
