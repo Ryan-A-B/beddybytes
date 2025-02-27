@@ -2,6 +2,7 @@ import React from 'react'
 import type { HeadFC } from "gatsby"
 import { StaticImage } from 'gatsby-plugin-image'
 import numeral from 'numeral'
+import { lifetime_price } from '../../services/price'
 import SEOHead from '../../components/SEOHead'
 import DefaultPageWrapper from '../../components/DefaultPageWrapper'
 import FAQSection from '../../components/LandingPage/FAQSection'
@@ -12,19 +13,11 @@ import DemoSection from '../../components/LandingPage/DemoSection'
 import SocialProofSection from '../../components/SocialProof/Section'
 import CallToAction from '../../components/CallToAction'
 import PricingCallToAction from '../../components/Pricing/CallToAction'
+import { DiscountFormat } from '../../components/CallToAction/types'
+import RedirectToPaymentProcessor from '../../components/Pricing/RedirectToPaymentProcessor'
+import promotion from './promotion'
 
 import "./style.scss"
-import { CouponCode, DiscountFormat } from '../../components/CallToAction/types'
-import RedirectToPaymentProcessor from '../../components/Pricing/RedirectToPaymentProcessor'
-
-const payment_link = {
-    "lifetime": "https://buy.stripe.com/bIY3fh6os9dp68o9AC?prefilled_promo_code=PAULGCONLON",
-    "one_year": "https://buy.stripe.com/bIY8zBbIM89lbsI9AD?prefilled_promo_code=PAULGCONLON",
-}
-
-const coupon_code: CouponCode = "PAULGCONLON"
-const discount = 0.8
-const formattedDiscount = numeral(discount).format(DiscountFormat)
 
 const CitizenOneLink: React.FunctionComponent = () => <a href="https://paulgconlon.com" target="_blank" className="link-secondary">Citizen One</a>
 
@@ -53,8 +46,8 @@ const PaulGConlon = () => (
                                 <CallToAction
                                     to="#pricing"
                                     color="light"
-                                    coupon_code={coupon_code}
-                                    discount={formattedDiscount}
+                                    coupon_code={promotion.code}
+                                    discount={promotion.discount}
                                     click_id="cta-hero-section"
                                 />
                             </div>
@@ -111,8 +104,8 @@ const PaulGConlon = () => (
                                 <CallToAction
                                     to="#pricing"
                                     color="light"
-                                    coupon_code={coupon_code}
-                                    discount={formattedDiscount}
+                                    coupon_code={promotion.code}
+                                    discount={promotion.discount}
                                     click_id="cta-solution-section"
                                 />
                             </div>
@@ -145,11 +138,11 @@ const PaulGConlon = () => (
                                     <h5 className="card-subtitle mb-3">
                                         Buy once, use forever
                                     </h5>
-                                    <DiscountedPrice price={55} discount={discount} />
+                                    <DiscountedPrice price={lifetime_price} discount={promotion.discount} />
                                     <PricingCallToAction
                                         product="lifetime"
-                                        coupon_code={coupon_code}
-                                        discount={formattedDiscount}
+                                        coupon_code={promotion.code}
+                                        discount={promotion.discount}
                                     />
                                 </div>
                             </section>
@@ -167,8 +160,8 @@ const PaulGConlon = () => (
                     <CallToAction
                         to="#pricing"
                         color="light"
-                        coupon_code={coupon_code}
-                        discount={formattedDiscount}
+                        coupon_code={promotion.code}
+                        discount={promotion.discount}
                         click_id="cta-cta-section"
                     />
                 </div>
