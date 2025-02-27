@@ -1,8 +1,8 @@
 import React from 'react'
 import type { HeadFC } from "gatsby"
 import { StaticImage } from 'gatsby-plugin-image'
-import numeral from 'numeral'
 import { lifetime_price } from '../../services/price'
+import { Promotion } from '../../services/promotion'
 import SEOHead from '../../components/SEOHead'
 import DefaultPageWrapper from '../../components/DefaultPageWrapper'
 import FAQSection from '../../components/LandingPage/FAQSection'
@@ -13,11 +13,17 @@ import DemoSection from '../../components/LandingPage/DemoSection'
 import SocialProofSection from '../../components/SocialProof/Section'
 import CallToAction from '../../components/CallToAction'
 import PricingCallToAction from '../../components/Pricing/CallToAction'
-import { DiscountFormat } from '../../components/CallToAction/types'
 import RedirectToPaymentProcessor from '../../components/Pricing/RedirectToPaymentProcessor'
-import promotion from './promotion'
 
 import "./style.scss"
+
+const promotion: Promotion = {
+    code: "PAULGCONLON",
+    discount: 0.8,
+    availibility: {
+        type: "indefinite",
+    },
+}
 
 const CitizenOneLink: React.FunctionComponent = () => <a href="https://paulgconlon.com" target="_blank" className="link-secondary">Citizen One</a>
 
