@@ -1,6 +1,6 @@
 import React from 'react';
 
-interface Props extends Omit<React.HTMLProps<HTMLInputElement>, "onChange"> {
+export interface Props extends Omit<React.HTMLProps<HTMLInputElement>, "onChange"> {
     value: string
     onChange: (value: string) => void
 }

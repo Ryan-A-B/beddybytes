@@ -18,9 +18,15 @@ import (
 
 	"github.com/Ryan-A-B/beddybytes/backend/internal"
 	"github.com/Ryan-A-B/beddybytes/backend/internal/eventlog"
+	"github.com/Ryan-A-B/beddybytes/backend/internal/mailer"
+	"github.com/Ryan-A-B/beddybytes/backend/internal/resetpassword"
 	"github.com/Ryan-A-B/beddybytes/backend/internal/xhttp"
 	"github.com/Ryan-A-B/beddybytes/internal/fatal"
 )
+
+type Mailer interface {
+	mailer.PasswordResetMailer
+}
 
 type Handlers struct {
 	CookieDomain                 string
@@ -32,13 +38,16 @@ type Handlers struct {
 	RefreshTokenDuration         time.Duration
 	UsedTokens                   UsedTokens
 	AnonymousAccessTokenDuration time.Duration
+	PasswordResetTokens          *resetpassword.Tokens
+	Mailer                       Mailer
 }
 
 func (handlers *Handlers) AddRoutes(router *mux.Router) {
 	router.HandleFunc("/anonymous_token", handlers.AnonymousToken).Methods(http.MethodPost).Name("AnonymousToken")
 	router.HandleFunc("/token", handlers.Token).Methods(http.MethodPost).Name("Token")
 	router.HandleFunc("/accounts", handlers.CreateAccount).Methods(http.MethodPost).Name("CreateAccount")
-
+	router.HandleFunc("/request-password-reset", handlers.RequestPasswordReset).Methods(http.MethodPost).Name("RequestPasswordReset")
+	router.HandleFunc("/reset-password", handlers.ResetPassword).Methods(http.MethodPost).Name("ResetPassword")
 	authenticatedRouter := router.PathPrefix("/accounts/{account_id}").Subrouter()
 	authenticatedRouter.Use(internal.NewAuthorizationMiddleware(handlers.Key).Middleware)
 	authenticatedRouter.HandleFunc("", handlers.GetAccount).Methods(http.MethodGet).Name("GetAccount")
@@ -67,11 +76,26 @@ func (usedRefreshTokens *UsedTokens) TryAdd(key string) bool {
 	return true
 }
 
+var allowedAnonymousScope = map[string]struct{}{
+	"iam:CreateAccount":        {},
+	"iam:RequestPasswordReset": {},
+	"iam:ResetPassword":        {},
+}
+
 func (handlers *Handlers) AnonymousToken(responseWriter http.ResponseWriter, request *http.Request) {
+	scope := request.FormValue("scope")
+	if scope == "" {
+		// Backwards compatibility
+		scope = "iam:CreateAccount"
+	}
+	if _, ok := allowedAnonymousScope[scope]; !ok {
+		xhttp.Error(responseWriter, merry.New("invalid scope").WithHTTPCode(http.StatusBadRequest))
+		return
+	}
 	remoteAddress := request.Header.Get("X-Forwarded-For")
 	output := AccessTokenOutput{
 		TokenType:   "Bearer",
-		AccessToken: handlers.createAnonymousAccessToken(remoteAddress),
+		AccessToken: handlers.createAnonymousAccessToken(remoteAddress, scope),
 		ExpiresIn:   int(handlers.AnonymousAccessTokenDuration.Seconds()),
 	}
 	responseWriter.Header().Set("Content-Type", "application/json")
@@ -109,7 +133,7 @@ func (input *CreateAccountInput) Validate() (err error) {
 	return
 }
 
-func (handlers *Handlers) CheckCreateAccountAuthorization(request *http.Request) (err error) {
+func (handlers *Handlers) CheckAnonymousAuthorization(request *http.Request, expectedScope string) (err error) {
 	defer func() {
 		if err != nil {
 			err = merry.WithUserMessage(err, "Unauthorized")
@@ -140,7 +164,7 @@ func (handlers *Handlers) CheckCreateAccountAuthorization(request *http.Request)
 		err = merry.New("invalid resource ID: " + claims.Subject.ResourceID).WithHTTPCode(http.StatusUnauthorized)
 		return
 	}
-	if claims.Scope != "iam:CreateAccount" {
+	if claims.Scope != expectedScope {
 		err = merry.New("invalid scope: " + claims.Scope).WithHTTPCode(http.StatusUnauthorized)
 		return
 	}
@@ -159,7 +183,7 @@ func (handlers *Handlers) CreateAccount(responseWriter http.ResponseWriter, requ
 			xhttp.Error(responseWriter, err)
 		}
 	}()
-	err = handlers.CheckCreateAccountAuthorization(request)
+	err = handlers.CheckAnonymousAuthorization(request, "iam:CreateAccount")
 	if err != nil {
 		return
 	}
@@ -371,7 +395,7 @@ func (handlers *Handlers) DeleteAccount(responseWriter http.ResponseWriter, requ
 	}
 }
 
-func (handlers *Handlers) createAnonymousAccessToken(remoteAddress string) (accessToken string) {
+func (handlers *Handlers) createAnonymousAccessToken(remoteAddress string, scope string) (accessToken string) {
 	expiry := time.Now().Add(handlers.AnonymousAccessTokenDuration)
 	claims := internal.Claims{
 		ID:       uuid.NewV4().String(),
@@ -384,7 +408,7 @@ func (handlers *Handlers) createAnonymousAccessToken(remoteAddress string) (acce
 			ResourceType: "remote_address",
 			ResourceID:   remoteAddress,
 		},
-		Scope:  "iam:CreateAccount",
+		Scope:  scope,
 		Expiry: expiry.Unix(),
 	}
 	accessToken, err := jwt.NewWithClaims(handlers.SigningMethod, &claims).SignedString(handlers.Key)

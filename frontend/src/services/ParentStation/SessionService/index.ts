@@ -66,6 +66,7 @@ class SessionService extends Service<SessionState> {
         const state = this.get_state();
         if (state.state === 'joining') throw new Error('Already joining');
         if (state.state === 'joined') throw new Error('Already joined');
+        this.set_state({ state: 'joining', session })
         const rtc_connection = new RTCConnection({
             logging_service: this.logging_service,
             signal_service: this.signal_service,

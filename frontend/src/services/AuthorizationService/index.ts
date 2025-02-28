@@ -53,7 +53,7 @@ class AuthorizationService extends EventTarget implements AuthorizationService {
     public create_account_and_login = async (email: string, password: string): Promise<void> => {
         if (this.state.state !== 'no_account')
             throw new Error('already have account');
-        const access_token = await get_anonymous_token();
+        const access_token = await get_anonymous_token("iam:CreateAccount");
         const response = await fetch(`https://${settings.API.host}/accounts`, {
             method: 'POST',
             headers: {
@@ -145,9 +145,11 @@ const remove_account_from_local_storage = (): void => {
     localStorage.removeItem(LocalStorageAccountKey);
 }
 
-const get_anonymous_token = async (): Promise<string> => {
+export const get_anonymous_token = async (scope: string): Promise<string> => {
     const tokenResponse = await fetch(`https://${settings.API.host}/anonymous_token`, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ scope }),
     })
     if (!tokenResponse.ok) {
         const payload = await tokenResponse.text()

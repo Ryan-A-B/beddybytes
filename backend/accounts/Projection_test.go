@@ -50,6 +50,49 @@ func TestProjection(t *testing.T) {
 			So(err, ShouldBeNil)
 			So(account, ShouldResemble, &expectedAccount)
 		})
+
+		Convey("reset password", func() {
+			// First create an account
+			user := accounts.NewUser(&accounts.NewUserInput{
+				Email:    "test@example.com",
+				Password: uuid.NewV4().String(),
+			})
+			account := accounts.Account{
+				ID:   uuid.NewV4().String(),
+				User: user,
+			}
+			data, err := json.Marshal(&account)
+			So(err, ShouldBeNil)
+			_, err = handlers.EventLog.Append(ctx, &eventlog.AppendInput{
+				Type: accounts.EventTypeAccountCreated,
+				Data: data,
+			})
+			So(err, ShouldBeNil)
+			time.Sleep(10 * time.Millisecond)
+
+			// Now reset the password
+			newSalt := []byte("newsalt")
+			newHash := []byte("newhash")
+			resetData := accounts.PasswordResetData{
+				Email:        account.User.Email,
+				PasswordSalt: newSalt,
+				PasswordHash: newHash,
+			}
+			data, err = json.Marshal(resetData)
+			So(err, ShouldBeNil)
+			_, err = handlers.EventLog.Append(ctx, &eventlog.AppendInput{
+				Type: accounts.EventTypeAccountPasswordReset,
+				Data: data,
+			})
+			So(err, ShouldBeNil)
+			time.Sleep(10 * time.Millisecond)
+
+			// Verify the password was updated
+			updatedAccount, err := handlers.AccountStore.GetByEmail(ctx, account.User.Email)
+			So(err, ShouldBeNil)
+			So(updatedAccount.User.PasswordSalt, ShouldResemble, newSalt)
+			So(updatedAccount.User.PasswordHash, ShouldResemble, newHash)
+		})
 	})
 }
 

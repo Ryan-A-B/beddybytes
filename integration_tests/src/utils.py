@@ -2,6 +2,7 @@ import subprocess
 import string
 import secrets
 import random
+import signal
 
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.wait import WebDriverWait
@@ -66,3 +67,18 @@ def start_backend_container():
 def get_random_bool(probability_of_true):
     """Return True with probability_of_true, False with 1 - probability_of_true."""
     return random.random() < probability_of_true
+
+def get_input(prompt, timeout=5):
+    def timeout_handler(signum, frame):
+        raise TimeoutError
+    signal.signal(signal.SIGALRM, timeout_handler)
+    signal.alarm(timeout)
+    try:
+        return input(prompt)
+    except TimeoutError:
+        return None
+    except EOFError:
+        return None
+    finally:
+        signal.alarm(0)
+        signal.signal(signal.SIGALRM, signal.SIG_DFL)

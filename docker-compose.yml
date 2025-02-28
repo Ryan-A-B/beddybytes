@@ -38,6 +38,8 @@ services:
       - COOKIE_DOMAIN=.beddybytes.local
       - SERVER_ADDR=:9000
       - FILE_EVENT_LOG_FOLDER_PATH=/opt/eventlog
+      - MAILER_IMPLEMENTATION=console
+      - MAILER_CONSOLE_APP_HOST=app.beddybytes.local
     labels:
       - "traefik.http.routers.api.rule=Host(`api.beddybytes.local`)"
       - "traefik.http.routers.api.entrypoints=websecure"

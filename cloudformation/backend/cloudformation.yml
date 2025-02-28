@@ -27,6 +27,12 @@ Parameters:
   CookieDomain:
     Type: String
     Description: The domain name for the cookie
+  EmailDomain:
+    Type: String
+    Description: The email domain for SES
+  AppHost:
+    Type: String
+    Description: The host name of the application
 
 Resources:
   BackendCluster:
@@ -98,6 +104,14 @@ Resources:
               Value: :9000
             - Name: FILE_EVENT_LOG_FOLDER_PATH
               Value: /opt/eventlog
+            - Name: MAILER_IMPLEMENTATION
+              Value: ses
+            - Name: MAILER_SES_FROM
+              Value: !Sub BeddyBytes <noreply@${EmailDomain}>
+            - Name: MAILER_SES_APP_HOST
+              Value: !Ref AppHost
+            - Name: AWS_REGION
+              Value: !Ref AWS::Region
           Secrets:
             - Name: ENCRYPTION_KEY
               ValueFrom: !Ref BackendEncryptionKey
@@ -438,6 +452,14 @@ Resources:
                   - ecs:DescribeTaskDefinition
                   - ec2:DescribeInstances
                 Resource: "*"
+              - Sid: SendPasswordResetEmail
+                Effect: Allow
+                Action:
+                  - ses:SendEmail
+                Resource: !Sub arn:aws:ses:${AWS::Region}:${AWS::AccountId}:identity/${EmailIdentity}
+                Condition:
+                  StringEquals:
+                    ses:FromAddress: !Sub noreply@${EmailDomain}
 
   InfluxAdminPassword:
     Type: AWS::SecretsManager::Secret
@@ -502,3 +524,38 @@ Resources:
       TTL: '900'
       ResourceRecords:
         - !Ref ElasticIP
+
+  EmailIdentity:
+    Type: AWS::SES::EmailIdentity
+    Properties:
+      EmailIdentity: !Ref EmailDomain
+
+  DKIMRecord1:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneName: !Ref HostedZoneName
+      Name: !GetAtt EmailIdentity.DkimDNSTokenName1
+      Type: CNAME
+      TTL: '900'
+      ResourceRecords:
+        - !GetAtt EmailIdentity.DkimDNSTokenValue1
+
+  DKIMRecord2:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneName: !Ref HostedZoneName
+      Name: !GetAtt EmailIdentity.DkimDNSTokenName2
+      Type: CNAME
+      TTL: '900'
+      ResourceRecords:
+        - !GetAtt EmailIdentity.DkimDNSTokenValue2
+
+  DKIMRecord3:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneName: !Ref HostedZoneName
+      Name: !GetAtt EmailIdentity.DkimDNSTokenName3
+      Type: CNAME
+      TTL: '900'
+      ResourceRecords:
+        - !GetAtt EmailIdentity.DkimDNSTokenValue3
