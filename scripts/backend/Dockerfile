@@ -1,12 +1,11 @@
 FROM golang:1.23-alpine AS builder
 WORKDIR /app
-COPY go.mod go.sum ./
+COPY go.mod go.sum .
 RUN go mod download
-COPY backend ./backend
-COPY internal ./internal
-RUN go build -o backend ./backend
+COPY golang ./golang
+RUN go build -o backend ./golang/cmd/backend
 
 FROM alpine:latest
 WORKDIR /opt
-COPY --from=builder /app/backend/backend backend
+COPY --from=builder /app/backend backend
 CMD [ "./backend" ]
