@@ -1,8 +1,12 @@
 import React from "react";
+import numeral from "numeral";
 import CallToAction from "./CallToAction";
 import DiscountedPrice from "./DiscountedPrice";
+import { DiscountFormat } from "../CallToAction/types";
+import promotion from "../../services/promotion";
 
 import "./style.scss";
+import { lifetime_price, one_year_price } from "../../services/price";
 
 const PopularBadge: React.FunctionComponent = () => {
     return (
@@ -12,12 +16,12 @@ const PopularBadge: React.FunctionComponent = () => {
     )
 }
 
-const LaunchSaleBadge: React.FunctionComponent = () => {
+const PromotionBadge: React.FunctionComponent = () => {
     return (
         <span className="badge text-bg-success position-absolute top-0 end-0">
-            Save 70%
+            Save {numeral(promotion.discount).format(DiscountFormat)}
             <br />
-            Launch Sale Offer
+            with code {promotion.code}
         </span>
     )
 }
@@ -26,13 +30,13 @@ const Pricing: React.FunctionComponent = () => (
     <div className="row justify-content-center">
         <div className="col-sm-auto my-3">
             <section className="card card-pricing">
-                <LaunchSaleBadge />
+                <PromotionBadge />
                 <div className="card-body">
                     <h3 className="card-title">1 year access</h3>
                     <h5 className="card-subtitle mb-3">
                         Get to know us
                     </h5>
-                    <DiscountedPrice price={35} discount={0.7} />
+                    <DiscountedPrice price={one_year_price} discount={promotion.discount} />
                     <ul>
                         <li>
                             One account
@@ -43,14 +47,14 @@ const Pricing: React.FunctionComponent = () => (
                         </li>
                         <li>30 day trial</li>
                     </ul>
-                    <CallToAction product="one_year" />
+                    <CallToAction product="one_year" coupon_code={promotion.code} discount={promotion.discount} />
                 </div>
             </section>
         </div>
         <div className="col-sm-auto my-3">
             <section className="card card-pricing">
                 <PopularBadge />
-                <LaunchSaleBadge />
+                <PromotionBadge />
                 <div className="card-body">
                     <h3 className="card-title">
                         Lifetime access
@@ -58,7 +62,7 @@ const Pricing: React.FunctionComponent = () => (
                     <h5 className="card-subtitle mb-3">
                         Buy once, use forever
                     </h5>
-                    <DiscountedPrice price={55} discount={0.7} />
+                    <DiscountedPrice price={lifetime_price} discount={promotion.discount} />
                     <ul>
                         <li>
                             One account
@@ -69,7 +73,7 @@ const Pricing: React.FunctionComponent = () => (
                         </li>
                         <li>30 day trial</li>
                     </ul>
-                    <CallToAction product="lifetime" />
+                    <CallToAction product="lifetime" coupon_code={promotion.code} discount={promotion.discount}/>
                 </div>
             </section>
         </div>
