@@ -18,8 +18,8 @@ import (
 	"github.com/Ryan-A-B/beddybytes/golang/internal/accounts"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/eventlog"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/fatal"
+	"github.com/Ryan-A-B/beddybytes/golang/internal/httpx"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/store"
-	"github.com/Ryan-A-B/beddybytes/golang/internal/xhttp"
 )
 
 func TestHandlers(t *testing.T) {
@@ -96,7 +96,7 @@ func TestHandlers(t *testing.T) {
 								response, err := client.Do(request)
 								So(err, ShouldBeNil)
 								So(response.StatusCode, ShouldEqual, 400)
-								var errorFrame xhttp.ErrorFrame
+								var errorFrame httpx.ErrorFrame
 								err = json.NewDecoder(response.Body).Decode(&errorFrame)
 								So(err, ShouldBeNil)
 								So(errorFrame.Code, ShouldEqual, "email_already_in_use")
@@ -118,7 +118,7 @@ func TestHandlers(t *testing.T) {
 						response, err := client.Do(request)
 						So(err, ShouldBeNil)
 						So(response.StatusCode, ShouldEqual, http.StatusUnauthorized)
-						var errorFrame xhttp.ErrorFrame
+						var errorFrame httpx.ErrorFrame
 						err = json.NewDecoder(response.Body).Decode(&errorFrame)
 						So(err, ShouldBeNil)
 						So(errorFrame.Code, ShouldEqual, "unauthorized")
@@ -139,7 +139,7 @@ func TestHandlers(t *testing.T) {
 					response, err := client.Do(request)
 					So(err, ShouldBeNil)
 					So(response.StatusCode, ShouldEqual, http.StatusBadRequest)
-					var errorFrame xhttp.ErrorFrame
+					var errorFrame httpx.ErrorFrame
 					err = json.NewDecoder(response.Body).Decode(&errorFrame)
 					So(err, ShouldBeNil)
 					So(errorFrame.Code, ShouldEqual, "invalid_input")

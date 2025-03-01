@@ -9,8 +9,8 @@ import (
 
 	"github.com/Ryan-A-B/beddybytes/golang/internal/eventlog"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/fatal"
+	"github.com/Ryan-A-B/beddybytes/golang/internal/httpx"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/mailer"
-	"github.com/Ryan-A-B/beddybytes/golang/internal/xhttp"
 	"github.com/ansel1/merry"
 )
 
@@ -26,7 +26,7 @@ type ResetPasswordInput struct {
 func (input *ResetPasswordInput) Validate() (err error) {
 	defer func() {
 		if err != nil {
-			err = xhttp.ErrorWithCode(err, "invalid_input")
+			err = httpx.ErrorWithCode(err, "invalid_input")
 		}
 	}()
 	if input.Token == "" {
@@ -47,7 +47,7 @@ func (handlers *Handlers) RequestPasswordReset(responseWriter http.ResponseWrite
 	defer func() {
 		if err != nil {
 			log.Println("Warn:", err)
-			xhttp.Error(responseWriter, err)
+			httpx.Error(responseWriter, err)
 			return
 		}
 	}()
@@ -61,19 +61,19 @@ func (handlers *Handlers) RequestPasswordReset(responseWriter http.ResponseWrite
 		log.Println("Error decoding request body:", err)
 		err = merry.WithHTTPCode(err, http.StatusBadRequest)
 		err = merry.WithUserMessage(err, "unable to parse request body")
-		err = xhttp.ErrorWithCode(err, "invalid_input")
+		err = httpx.ErrorWithCode(err, "invalid_input")
 		return
 	}
 	if input.Email == "" {
 		err = merry.New("email is required").WithHTTPCode(http.StatusBadRequest)
 		err = merry.WithUserMessage(err, "email is required")
-		err = xhttp.ErrorWithCode(err, "invalid_input")
+		err = httpx.ErrorWithCode(err, "invalid_input")
 		return
 	}
 	if !EmailPattern.MatchString(input.Email) {
 		err = merry.New("invalid email").WithHTTPCode(http.StatusBadRequest)
 		err = merry.WithUserMessage(err, "invalid email")
-		err = xhttp.ErrorWithCode(err, "invalid_input")
+		err = httpx.ErrorWithCode(err, "invalid_input")
 		return
 	}
 	ctx := request.Context()
@@ -99,7 +99,7 @@ func (handlers *Handlers) ResetPassword(responseWriter http.ResponseWriter, requ
 	defer func() {
 		if err != nil {
 			log.Println("Warn:", err)
-			xhttp.Error(responseWriter, err)
+			httpx.Error(responseWriter, err)
 			return
 		}
 	}()
@@ -113,7 +113,7 @@ func (handlers *Handlers) ResetPassword(responseWriter http.ResponseWriter, requ
 		log.Println("Error decoding request body:", err)
 		err = merry.WithHTTPCode(err, http.StatusBadRequest)
 		err = merry.WithUserMessage(err, "unable to parse request body")
-		err = xhttp.ErrorWithCode(err, "invalid_input")
+		err = httpx.ErrorWithCode(err, "invalid_input")
 		return
 	}
 	err = input.Validate()

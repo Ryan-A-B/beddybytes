@@ -13,7 +13,7 @@ import (
 	"github.com/Ryan-A-B/beddybytes/golang/internal"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/eventlog"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/fatal"
-	"github.com/Ryan-A-B/beddybytes/golang/internal/xhttp"
+	"github.com/Ryan-A-B/beddybytes/golang/internal/httpx"
 )
 
 const EventTypeSessionStarted = "session.started"
@@ -52,7 +52,7 @@ func (handlers *Handlers) StartSession(responseWriter http.ResponseWriter, reque
 	defer func() {
 		if err != nil {
 			log.Println(err)
-			xhttp.Error(responseWriter, err)
+			httpx.Error(responseWriter, err)
 		}
 	}()
 	ctx := request.Context()
@@ -92,7 +92,7 @@ func (handlers *Handlers) EndSession(responseWriter http.ResponseWriter, request
 	defer func() {
 		if err != nil {
 			log.Println(err)
-			xhttp.Error(responseWriter, err)
+			httpx.Error(responseWriter, err)
 		}
 	}()
 	ctx := request.Context()

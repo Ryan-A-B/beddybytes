@@ -6,14 +6,14 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/Ryan-A-B/beddybytes/golang/internal/xhttp"
+	"github.com/Ryan-A-B/beddybytes/golang/internal/httpx"
 )
 
 func (handlers *Handlers) GetTotalHours(responseWriter http.ResponseWriter, request *http.Request) {
 	var err error
 	defer func() {
 		if err != nil {
-			xhttp.Error(responseWriter, err)
+			httpx.Error(responseWriter, err)
 		}
 	}()
 	ctx := request.Context()

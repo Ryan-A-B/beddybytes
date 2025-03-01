@@ -19,12 +19,12 @@ import (
 	"github.com/Ryan-A-B/beddybytes/golang/internal/accounts"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/eventlog"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/fatal"
+	"github.com/Ryan-A-B/beddybytes/golang/internal/httpx"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/mailer"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/resetpassword"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/sessionlist"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/store"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/store2"
-	"github.com/Ryan-A-B/beddybytes/golang/internal/xhttp"
 )
 
 type IncomingMessageFrame struct {
@@ -80,7 +80,7 @@ func (handlers *Handlers) HandleWebsocket(responseWriter http.ResponseWriter, re
 	if !ok {
 		err := merry.Errorf("invalid client_type: %s", request.FormValue("client_type")).WithHTTPCode(http.StatusBadRequest)
 		log.Println("Warn: ", err)
-		xhttp.Error(responseWriter, err)
+		httpx.Error(responseWriter, err)
 		return
 	}
 	clientAlias := request.FormValue("client_alias")

@@ -1,4 +1,4 @@
-package xhttp_test
+package httpx_test
 
 import (
 	"encoding/json"
@@ -10,7 +10,7 @@ import (
 	uuid "github.com/satori/go.uuid"
 	. "github.com/smartystreets/goconvey/convey"
 
-	"github.com/Ryan-A-B/beddybytes/golang/internal/xhttp"
+	"github.com/Ryan-A-B/beddybytes/golang/internal/httpx"
 )
 
 func TestError(t *testing.T) {
@@ -20,8 +20,8 @@ func TestError(t *testing.T) {
 		Convey("error", func() {
 			Convey("with no user message or code", func() {
 				err = merry.New("bad request").WithHTTPCode(http.StatusBadRequest)
-				xhttp.Error(recorder, err)
-				var frame xhttp.ErrorFrame
+				httpx.Error(recorder, err)
+				var frame httpx.ErrorFrame
 				err = json.NewDecoder(recorder.Body).Decode(&frame)
 				So(err, ShouldBeNil)
 				So(frame.Code, ShouldEqual, "")
@@ -32,8 +32,8 @@ func TestError(t *testing.T) {
 				message := uuid.NewV4().String()
 				err = merry.New("bad request").WithHTTPCode(http.StatusBadRequest)
 				err = merry.WithUserMessage(err, message)
-				xhttp.Error(recorder, err)
-				var frame xhttp.ErrorFrame
+				httpx.Error(recorder, err)
+				var frame httpx.ErrorFrame
 				err = json.NewDecoder(recorder.Body).Decode(&frame)
 				So(err, ShouldBeNil)
 				So(frame.Code, ShouldEqual, "")
@@ -43,9 +43,9 @@ func TestError(t *testing.T) {
 			Convey("with code", func() {
 				code := uuid.NewV4().String()
 				err = merry.New("bad request").WithHTTPCode(http.StatusBadRequest)
-				err = xhttp.ErrorWithCode(err, code)
-				xhttp.Error(recorder, err)
-				var frame xhttp.ErrorFrame
+				err = httpx.ErrorWithCode(err, code)
+				httpx.Error(recorder, err)
+				var frame httpx.ErrorFrame
 				err = json.NewDecoder(recorder.Body).Decode(&frame)
 				So(err, ShouldBeNil)
 				So(frame.Code, ShouldEqual, code)
@@ -56,10 +56,10 @@ func TestError(t *testing.T) {
 				code := uuid.NewV4().String()
 				message := uuid.NewV4().String()
 				err = merry.New("bad request").WithHTTPCode(http.StatusBadRequest)
-				err = xhttp.ErrorWithCode(err, code)
+				err = httpx.ErrorWithCode(err, code)
 				err = merry.WithUserMessage(err, message)
-				xhttp.Error(recorder, err)
-				var frame xhttp.ErrorFrame
+				httpx.Error(recorder, err)
+				var frame httpx.ErrorFrame
 				err = json.NewDecoder(recorder.Body).Decode(&frame)
 				So(err, ShouldBeNil)
 				So(frame.Code, ShouldEqual, code)

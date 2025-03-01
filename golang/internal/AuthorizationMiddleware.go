@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/Ryan-A-B/beddybytes/golang/internal/xhttp"
+	"github.com/Ryan-A-B/beddybytes/golang/internal/httpx"
 	"github.com/ansel1/merry"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/gorilla/mux"
@@ -28,7 +28,7 @@ func (middleware *AuthorizationMiddleware) Middleware(next http.Handler) http.Ha
 		defer func() {
 			if err != nil {
 				log.Println("Warn: ", err)
-				xhttp.Error(responseWriter, err)
+				httpx.Error(responseWriter, err)
 				return
 			}
 		}()

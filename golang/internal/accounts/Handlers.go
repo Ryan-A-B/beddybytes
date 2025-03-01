@@ -19,9 +19,9 @@ import (
 	"github.com/Ryan-A-B/beddybytes/golang/internal"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/eventlog"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/fatal"
+	"github.com/Ryan-A-B/beddybytes/golang/internal/httpx"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/mailer"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/resetpassword"
-	"github.com/Ryan-A-B/beddybytes/golang/internal/xhttp"
 )
 
 type Mailer interface {
@@ -89,7 +89,7 @@ func (handlers *Handlers) AnonymousToken(responseWriter http.ResponseWriter, req
 		scope = "iam:CreateAccount"
 	}
 	if _, ok := allowedAnonymousScope[scope]; !ok {
-		xhttp.Error(responseWriter, merry.New("invalid scope").WithHTTPCode(http.StatusBadRequest))
+		httpx.Error(responseWriter, merry.New("invalid scope").WithHTTPCode(http.StatusBadRequest))
 		return
 	}
 	remoteAddress := request.Header.Get("X-Forwarded-For")
@@ -112,7 +112,7 @@ var EmailPattern = regexp.MustCompile(`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+(\.[a-zA
 func (input *CreateAccountInput) Validate() (err error) {
 	defer func() {
 		if err != nil {
-			err = xhttp.ErrorWithCode(err, "invalid_input")
+			err = httpx.ErrorWithCode(err, "invalid_input")
 		}
 	}()
 	if input.Email == "" {
@@ -137,7 +137,7 @@ func (handlers *Handlers) CheckAnonymousAuthorization(request *http.Request, exp
 	defer func() {
 		if err != nil {
 			err = merry.WithUserMessage(err, "Unauthorized")
-			err = xhttp.ErrorWithCode(err, "unauthorized")
+			err = httpx.ErrorWithCode(err, "unauthorized")
 		}
 	}()
 	const prefix = "Bearer "
@@ -180,7 +180,7 @@ func (handlers *Handlers) CreateAccount(responseWriter http.ResponseWriter, requ
 	defer func() {
 		if err != nil {
 			log.Println("Warn:", err)
-			xhttp.Error(responseWriter, err)
+			httpx.Error(responseWriter, err)
 		}
 	}()
 	err = handlers.CheckAnonymousAuthorization(request, "iam:CreateAccount")
@@ -193,7 +193,7 @@ func (handlers *Handlers) CreateAccount(responseWriter http.ResponseWriter, requ
 	if err != nil {
 		err = merry.WithHTTPCode(err, http.StatusBadRequest)
 		err = merry.WithUserMessage(err, "unable to parse request body")
-		err = xhttp.ErrorWithCode(err, "invalid_input")
+		err = httpx.ErrorWithCode(err, "invalid_input")
 		return
 	}
 	err = input.Validate()
@@ -203,7 +203,7 @@ func (handlers *Handlers) CreateAccount(responseWriter http.ResponseWriter, requ
 	err = handlers.AccountStore.checkEmail(ctx, input.Email)
 	if err != nil {
 		err = merry.WithUserMessage(err, "email already in use")
-		err = xhttp.ErrorWithCode(err, "email_already_in_use")
+		err = httpx.ErrorWithCode(err, "email_already_in_use")
 		return
 	}
 	user := NewUser(&NewUserInput{
@@ -237,7 +237,7 @@ func (handlers *Handlers) Token(responseWriter http.ResponseWriter, request *htt
 	defer func() {
 		if err != nil {
 			log.Println("Warn:", err)
-			xhttp.Error(responseWriter, err)
+			httpx.Error(responseWriter, err)
 			return
 		}
 	}()
@@ -258,7 +258,7 @@ func (handlers *Handlers) TokenUsingPasswordGrant(responseWriter http.ResponseWr
 	defer func() {
 		if err != nil {
 			log.Println("Warn:", err)
-			xhttp.Error(responseWriter, err)
+			httpx.Error(responseWriter, err)
 			return
 		}
 	}()
@@ -298,7 +298,7 @@ func (handlers *Handlers) TokenUsingRefreshTokenGrant(responseWriter http.Respon
 	defer func() {
 		if err != nil {
 			log.Println("Warn:", err)
-			xhttp.Error(responseWriter, err)
+			httpx.Error(responseWriter, err)
 			return
 		}
 	}()
@@ -348,7 +348,7 @@ func (handlers *Handlers) Logout(responseWriter http.ResponseWriter, request *ht
 	defer func() {
 		if err != nil {
 			log.Println("Warn:", err)
-			xhttp.Error(responseWriter, err)
+			httpx.Error(responseWriter, err)
 			return
 		}
 	}()
@@ -371,7 +371,7 @@ func (handlers *Handlers) GetAccount(responseWriter http.ResponseWriter, request
 	defer func() {
 		if err != nil {
 			log.Println("Warn:", err)
-			xhttp.Error(responseWriter, err)
+			httpx.Error(responseWriter, err)
 			return
 		}
 	}()
@@ -390,7 +390,7 @@ func (handlers *Handlers) DeleteAccount(responseWriter http.ResponseWriter, requ
 	err := handlers.AccountStore.Remove(ctx, accountID)
 	if err != nil {
 		log.Println("Warn:", err)
-		xhttp.Error(responseWriter, err)
+		httpx.Error(responseWriter, err)
 		return
 	}
 }

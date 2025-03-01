@@ -1,4 +1,4 @@
-package xhttp
+package httpx
 
 import (
 	"encoding/json"
