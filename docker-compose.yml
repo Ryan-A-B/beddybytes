@@ -48,7 +48,7 @@ services:
     develop:
       watch:
         - action: rebuild
-          path: ./backend
+          path: ./golang
   app:
     image: node:18
     command: yarn start
