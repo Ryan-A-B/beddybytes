@@ -61,7 +61,7 @@ func (stats *UsageStats) GetCountOfActiveSessions(ctx context.Context) int {
 func (stats *UsageStats) catchUp(ctx context.Context) {
 	stats.mutex.Lock()
 	defer stats.mutex.Unlock()
-	iterator := stats.log.GetEventIterator(ctx, &eventlog.GetEventIteratorInput{
+	iterator := stats.log.GetEventIterator(ctx, eventlog.GetEventIteratorInput{
 		FromCursor: stats.cursor,
 	})
 	for iterator.Next(ctx) {

@@ -22,6 +22,7 @@ type FileEventLog struct {
 	folderPath string
 	file       *os.File
 	cursor     int64
+	waitC      chan struct{}
 }
 
 type NewFileEventLogInput struct {
@@ -38,10 +39,11 @@ func NewFileEventLog(input *NewFileEventLogInput) *FileEventLog {
 		folderPath: input.FolderPath,
 		file:       file,
 		cursor:     metadata.Cursor,
+		waitC:      make(chan struct{}),
 	}
 }
 
-func (log *FileEventLog) Append(ctx context.Context, input *AppendInput) (event *Event, err error) {
+func (log *FileEventLog) Append(ctx context.Context, input AppendInput) (event *Event, err error) {
 	log.cursor++
 	event = &Event{
 		ID:            uuid.NewV4().String(),
@@ -59,10 +61,12 @@ func (log *FileEventLog) Append(ctx context.Context, input *AppendInput) (event 
 	writeFileEventLogMetadata(metadataFilePath, &FileEventLogMetadata{
 		Cursor: log.cursor,
 	})
+	close(log.waitC)
+	log.waitC = make(chan struct{})
 	return
 }
 
-func (log *FileEventLog) GetEventIterator(ctx context.Context, input *GetEventIteratorInput) EventIterator {
+func (log *FileEventLog) GetEventIterator(ctx context.Context, input GetEventIteratorInput) EventIterator {
 	if input.FromCursor < 0 {
 		return new(NullEventIterator)
 	}
@@ -82,6 +86,10 @@ func (log *FileEventLog) GetEventIterator(ctx context.Context, input *GetEventIt
 		closer:  file,
 		scanner: scanner,
 	}
+}
+
+func (log *FileEventLog) Wait(ctx context.Context) <-chan struct{} {
+	return log.waitC
 }
 
 type FileEventIterator struct {

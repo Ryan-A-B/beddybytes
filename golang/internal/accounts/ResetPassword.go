@@ -135,7 +135,7 @@ func (handlers *Handlers) ResetPassword(responseWriter http.ResponseWriter, requ
 			PasswordSalt: salt,
 			PasswordHash: passwordHash,
 		}
-		_, err = handlers.EventLog.Append(ctx, &eventlog.AppendInput{
+		_, err = handlers.EventLog.Append(ctx, eventlog.AppendInput{
 			Type: EventTypeAccountPasswordReset,
 			Data: fatal.UnlessMarshalJSON(payload),
 		})

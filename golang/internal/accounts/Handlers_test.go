@@ -37,7 +37,7 @@ func TestHandlers(t *testing.T) {
 			UsedTokens:                   accounts.NewUsedTokens(),
 			AnonymousAccessTokenDuration: 10 * time.Second,
 		}
-		go eventlog.Project(ctx, &eventlog.ProjectInput{
+		go eventlog.Project(ctx, eventlog.ProjectInput{
 			EventLog:   handlers.EventLog,
 			FromCursor: 0,
 			Apply:      handlers.ApplyEvent,

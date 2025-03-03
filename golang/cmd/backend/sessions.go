@@ -72,7 +72,7 @@ func (handlers *Handlers) StartSession(responseWriter http.ResponseWriter, reque
 		err = merry.Errorf("session id in path does not match session id in body").WithHTTPCode(http.StatusBadRequest)
 		return
 	}
-	_, err = handlers.EventLog.Append(ctx, &eventlog.AppendInput{
+	_, err = handlers.EventLog.Append(ctx, eventlog.AppendInput{
 		Type:      EventTypeSessionStarted,
 		AccountID: contextx.GetAccountID(ctx),
 		Data:      fatal.UnlessMarshalJSON(session),
@@ -100,7 +100,7 @@ func (handlers *Handlers) EndSession(responseWriter http.ResponseWriter, request
 	sessionID := vars["session_id"]
 	// TODO check we know about the session?
 	// expect a header with the logical clock of the start event
-	_, err = handlers.EventLog.Append(ctx, &eventlog.AppendInput{
+	_, err = handlers.EventLog.Append(ctx, eventlog.AppendInput{
 		Type:      EventTypeSessionEnded,
 		AccountID: contextx.GetAccountID(ctx),
 		Data:      fatal.UnlessMarshalJSON(&EndSessionEventData{ID: sessionID}),

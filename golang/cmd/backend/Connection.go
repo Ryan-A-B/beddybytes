@@ -110,7 +110,7 @@ func (handlers *Handlers) HandleConnection(responseWriter http.ResponseWriter, r
 	defer conn.Close()
 	requestID := uuid.NewV4().String()
 	// TODO this is causing a delay
-	_, err = handlers.EventLog.Append(ctx, &eventlog.AppendInput{
+	_, err = handlers.EventLog.Append(ctx, eventlog.AppendInput{
 		Type:      EventTypeClientConnected,
 		AccountID: accountID,
 		Data: fatal.UnlessMarshalJSON(&ClientConnectedEventData{
@@ -122,7 +122,7 @@ func (handlers *Handlers) HandleConnection(responseWriter http.ResponseWriter, r
 	fatal.OnError(err)
 	webSocketCloseCode := websocket.CloseNoStatusReceived
 	defer func() {
-		_, err = handlers.EventLog.Append(ctx, &eventlog.AppendInput{
+		_, err = handlers.EventLog.Append(ctx, eventlog.AppendInput{
 			Type:      EventTypeClientDisconnected,
 			AccountID: accountID,
 			Data: fatal.UnlessMarshalJSON(&ClientDisconnectedEventData{

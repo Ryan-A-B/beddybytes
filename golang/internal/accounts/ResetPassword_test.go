@@ -53,12 +53,12 @@ func TestResetPassword(t *testing.T) {
 		}
 		data, err := json.Marshal(&account)
 		So(err, ShouldBeNil)
-		_, err = handlers.EventLog.Append(ctx, &eventlog.AppendInput{
+		_, err = handlers.EventLog.Append(ctx, eventlog.AppendInput{
 			Type: accounts.EventTypeAccountCreated,
 			Data: data,
 		})
 		So(err, ShouldBeNil)
-		go eventlog.Project(ctx, &eventlog.ProjectInput{
+		go eventlog.Project(ctx, eventlog.ProjectInput{
 			EventLog:   handlers.EventLog,
 			FromCursor: 0,
 			Apply:      handlers.ApplyEvent,

@@ -1,6 +1,7 @@
 package eventlog_test
 
 import (
+	"context"
 	"os"
 	"testing"
 
@@ -9,7 +10,7 @@ import (
 
 type ThreadSafeDecoratorFactory struct{}
 
-func (factory *ThreadSafeDecoratorFactory) Create() eventlog.EventLog {
+func (factory *ThreadSafeDecoratorFactory) Create(ctx context.Context) eventlog.EventLog {
 	folderPath, err := os.MkdirTemp("testdata", "TestThreadSafeDecorator-*")
 	if err != nil {
 		panic(err)

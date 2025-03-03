@@ -1,6 +1,7 @@
 package eventlog_test
 
 import (
+	"context"
 	"os"
 	"testing"
 
@@ -11,7 +12,7 @@ type FileEventLogFactory struct {
 	pattern string
 }
 
-func (factory *FileEventLogFactory) Create() eventlog.EventLog {
+func (factory *FileEventLogFactory) Create(ctx context.Context) eventlog.EventLog {
 	folderPath, err := os.MkdirTemp("testdata", factory.pattern)
 	if err != nil {
 		panic(err)
@@ -28,8 +29,14 @@ func TestFileEventLog(t *testing.T) {
 	})
 }
 
-func BenchmarkFileEventLog(b *testing.B) {
-	benchmarkEventLog(b, &FileEventLogFactory{
+func BenchmarkFileEventLogAppend(b *testing.B) {
+	benchmarkAppend(b, &FileEventLogFactory{
+		pattern: "BenchmarkFileEventLog-*",
+	})
+}
+
+func BenchmarkFileEventLogEventIterator(b *testing.B) {
+	benchmarkEventIterator(b, &FileEventLogFactory{
 		pattern: "BenchmarkFileEventLog-*",
 	})
 }

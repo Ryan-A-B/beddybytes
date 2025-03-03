@@ -44,7 +44,7 @@ func TestSessionList(t *testing.T) {
 			}
 			data, err := json.Marshal(sessionStartedEventData)
 			So(err, ShouldBeNil)
-			_, err = log.Append(ctx, &eventlog.AppendInput{
+			_, err = log.Append(ctx, eventlog.AppendInput{
 				Type:      sessionlist.EventTypeSessionStarted,
 				AccountID: accountID,
 				Data:      data,
@@ -66,7 +66,7 @@ func TestSessionList(t *testing.T) {
 						}
 						data, err := json.Marshal(sessionStartedEventData)
 						So(err, ShouldBeNil)
-						_, err = log.Append(ctx, &eventlog.AppendInput{
+						_, err = log.Append(ctx, eventlog.AppendInput{
 							Type:      sessionlist.EventTypeSessionStarted,
 							AccountID: accountID,
 							Data:      data,
@@ -81,7 +81,7 @@ func TestSessionList(t *testing.T) {
 								}
 								data, err := json.Marshal(sessionEndedEventData)
 								So(err, ShouldBeNil)
-								_, err = log.Append(ctx, &eventlog.AppendInput{
+								_, err = log.Append(ctx, eventlog.AppendInput{
 									Type:      sessionlist.EventTypeSessionEnded,
 									AccountID: accountID,
 									Data:      data,
@@ -98,7 +98,7 @@ func TestSessionList(t *testing.T) {
 								}
 								data, err := json.Marshal(sessionEndedEventData)
 								So(err, ShouldBeNil)
-								_, err = log.Append(ctx, &eventlog.AppendInput{
+								_, err = log.Append(ctx, eventlog.AppendInput{
 									Type:      sessionlist.EventTypeSessionEnded,
 									AccountID: accountID,
 									Data:      data,
@@ -123,7 +123,7 @@ func TestSessionList(t *testing.T) {
 						}
 						data, err := json.Marshal(sessionStartedEventData)
 						So(err, ShouldBeNil)
-						_, err = log.Append(ctx, &eventlog.AppendInput{
+						_, err = log.Append(ctx, eventlog.AppendInput{
 							Type:      sessionlist.EventTypeSessionStarted,
 							AccountID: accountID,
 							Data:      data,
@@ -138,7 +138,7 @@ func TestSessionList(t *testing.T) {
 								}
 								data, err := json.Marshal(sessionEndedEventData)
 								So(err, ShouldBeNil)
-								_, err = log.Append(ctx, &eventlog.AppendInput{
+								_, err = log.Append(ctx, eventlog.AppendInput{
 									Type:      sessionlist.EventTypeSessionEnded,
 									AccountID: accountID,
 									Data:      data,
@@ -155,7 +155,7 @@ func TestSessionList(t *testing.T) {
 								}
 								data, err := json.Marshal(sessionEndedEventData)
 								So(err, ShouldBeNil)
-								_, err = log.Append(ctx, &eventlog.AppendInput{
+								_, err = log.Append(ctx, eventlog.AppendInput{
 									Type:      sessionlist.EventTypeSessionEnded,
 									AccountID: accountID,
 									Data:      data,
@@ -184,7 +184,7 @@ func TestSessionList(t *testing.T) {
 						}
 						data, err := json.Marshal(sessionStartedEventData)
 						So(err, ShouldBeNil)
-						_, err = log.Append(ctx, &eventlog.AppendInput{
+						_, err = log.Append(ctx, eventlog.AppendInput{
 							Type:      sessionlist.EventTypeSessionStarted,
 							AccountID: otherAccountID,
 							Data:      data,
@@ -212,7 +212,7 @@ func TestSessionList(t *testing.T) {
 						}
 						data, err := json.Marshal(sessionStartedEventData)
 						So(err, ShouldBeNil)
-						_, err = log.Append(ctx, &eventlog.AppendInput{
+						_, err = log.Append(ctx, eventlog.AppendInput{
 							Type:      sessionlist.EventTypeSessionStarted,
 							AccountID: otherAccountID,
 							Data:      data,
@@ -234,7 +234,7 @@ func TestSessionList(t *testing.T) {
 				}
 				data, err := json.Marshal(sessionEndedEventData)
 				So(err, ShouldBeNil)
-				_, err = log.Append(ctx, &eventlog.AppendInput{
+				_, err = log.Append(ctx, eventlog.AppendInput{
 					Type:      sessionlist.EventTypeSessionEnded,
 					AccountID: accountID,
 					Data:      data,

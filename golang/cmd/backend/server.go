@@ -190,7 +190,13 @@ func main() {
 	ctx := context.Background()
 	key := []byte(internal.EnvStringOrFatal("ENCRYPTION_KEY"))
 	cookieDomain := internal.EnvStringOrFatal("COOKIE_DOMAIN")
-	eventLog := newEventLog(ctx)
+	eventLog := eventlog.NewThreadSafeDecorator(&eventlog.NewThreadSafeDecoratorInput{
+		Decorated: eventlog.NewCachingDecoratorOrFatal(ctx, eventlog.NewCachingDecoratorInput{
+			Decorated: eventlog.NewFileEventLog(&eventlog.NewFileEventLogInput{
+				FolderPath: internal.EnvStringOrFatal("FILE_EVENT_LOG_FOLDER_PATH"),
+			}),
+		}),
+	})
 	accountHandlers := accounts.Handlers{
 		CookieDomain: cookieDomain,
 		EventLog:     eventLog,
@@ -209,7 +215,7 @@ func main() {
 		Mailer: newMailer(ctx),
 	}
 	go func() {
-		eventlog.Project(ctx, &eventlog.ProjectInput{
+		eventlog.Project(ctx, eventlog.ProjectInput{
 			EventLog:   accountHandlers.EventLog,
 			FromCursor: 0,
 			Apply:      accountHandlers.ApplyEvent,
@@ -240,20 +246,16 @@ func main() {
 			}),
 		},
 		SessionList: sessionlist.New(ctx, sessionlist.NewInput{
-			Log: eventlog.NewFileEventLog(&eventlog.NewFileEventLogInput{
-				FolderPath: internal.EnvStringOrFatal("FILE_EVENT_LOG_FOLDER_PATH"),
-			}),
+			Log: eventLog,
 		}),
 		EventLog: eventLog,
 		UsageStats: NewUsageStats(ctx, NewUsageStatsInput{
-			Log: eventlog.NewFileEventLog(&eventlog.NewFileEventLogInput{
-				FolderPath: internal.EnvStringOrFatal("FILE_EVENT_LOG_FOLDER_PATH"),
-			}),
+			Log: eventLog,
 		}),
 		Key: key,
 	}
 	go func() {
-		eventlog.Project(ctx, &eventlog.ProjectInput{
+		eventlog.Project(ctx, eventlog.ProjectInput{
 			EventLog:   handlers.EventLog,
 			FromCursor: 0,
 			Apply:      handlers.SessionProjection.ApplyEvent,
@@ -274,19 +276,8 @@ func main() {
 	log.Fatal(server.ListenAndServe())
 }
 
-func newEventLog(ctx context.Context) eventlog.EventLog {
-	return eventlog.NewThreadSafeDecorator(&eventlog.NewThreadSafeDecoratorInput{
-		Decorated: eventlog.NewFollowingDecorator(&eventlog.NewFollowingDecoratorInput{
-			Decorated: eventlog.NewFileEventLog(&eventlog.NewFileEventLogInput{
-				FolderPath: internal.EnvStringOrFatal("FILE_EVENT_LOG_FOLDER_PATH"),
-			}),
-			BufferSize: 32,
-		}),
-	})
-}
-
 func appendServerStartedEvent(ctx context.Context, eventLog eventlog.EventLog) {
-	_, err := eventLog.Append(ctx, &eventlog.AppendInput{
+	_, err := eventLog.Append(ctx, eventlog.AppendInput{
 		Type: EventTypeServerStarted,
 		Data: fatal.UnlessMarshalJSON(nil),
 	})
