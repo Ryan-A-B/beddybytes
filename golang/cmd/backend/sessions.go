@@ -10,7 +10,7 @@ import (
 	"github.com/ansel1/merry"
 	"github.com/gorilla/mux"
 
-	"github.com/Ryan-A-B/beddybytes/golang/internal"
+	"github.com/Ryan-A-B/beddybytes/golang/internal/contextx"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/eventlog"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/fatal"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/httpx"
@@ -74,7 +74,7 @@ func (handlers *Handlers) StartSession(responseWriter http.ResponseWriter, reque
 	}
 	_, err = handlers.EventLog.Append(ctx, &eventlog.AppendInput{
 		Type:      EventTypeSessionStarted,
-		AccountID: internal.GetAccountIDFromContext(ctx),
+		AccountID: contextx.GetAccountID(ctx),
 		Data:      fatal.UnlessMarshalJSON(session),
 	})
 	if err != nil {
@@ -102,7 +102,7 @@ func (handlers *Handlers) EndSession(responseWriter http.ResponseWriter, request
 	// expect a header with the logical clock of the start event
 	_, err = handlers.EventLog.Append(ctx, &eventlog.AppendInput{
 		Type:      EventTypeSessionEnded,
-		AccountID: internal.GetAccountIDFromContext(ctx),
+		AccountID: contextx.GetAccountID(ctx),
 		Data:      fatal.UnlessMarshalJSON(&EndSessionEventData{ID: sessionID}),
 	})
 	if err != nil {

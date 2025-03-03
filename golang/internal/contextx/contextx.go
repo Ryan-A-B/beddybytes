@@ -1,4 +1,4 @@
-package internal
+package contextx
 
 import (
 	"context"
@@ -12,11 +12,11 @@ const (
 	ContextKeyAccountID ContextKey = "accountID"
 )
 
-func ContextWithAccountID(ctx context.Context, accountID string) context.Context {
+func WithAccountID(ctx context.Context, accountID string) context.Context {
 	return context.WithValue(ctx, ContextKeyAccountID, accountID)
 }
 
-func GetAccountIDFromContext(ctx context.Context) (accountID string) {
+func GetAccountID(ctx context.Context) (accountID string) {
 	accountID, ok := ctx.Value(ContextKeyAccountID).(string)
 	fatal.Unless(ok, "accountID not found in context")
 	return

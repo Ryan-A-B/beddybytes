@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Ryan-A-B/beddybytes/golang/internal"
+	"github.com/Ryan-A-B/beddybytes/golang/internal/contextx"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/eventlog"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/store2"
 	"github.com/gorilla/mux"
@@ -23,7 +23,7 @@ import (
 func MockAuthorizationMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(responseWriter http.ResponseWriter, request *http.Request) {
 		ctx := request.Context()
-		ctx = internal.ContextWithAccountID(ctx, uuid.Nil.String())
+		ctx = contextx.WithAccountID(ctx, uuid.Nil.String())
 		next.ServeHTTP(responseWriter, request.Clone(ctx))
 	})
 }

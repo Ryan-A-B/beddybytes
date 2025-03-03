@@ -8,12 +8,11 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/ansel1/merry"
-
-	"github.com/Ryan-A-B/beddybytes/golang/internal"
+	"github.com/Ryan-A-B/beddybytes/golang/internal/contextx"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/eventlog"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/fatal"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/httpx"
+	"github.com/ansel1/merry"
 )
 
 const EventTypeServerStarted = "server.started"
@@ -34,7 +33,7 @@ func (handlers *Handlers) GetEvents(responseWriter http.ResponseWriter, request 
 		}
 	}()
 	ctx := request.Context()
-	accountID := internal.GetAccountIDFromContext(ctx)
+	accountID := contextx.GetAccountID(ctx)
 	fromCursor, err := Int64FormValue(request, "from_cursor", 0)
 	if err != nil {
 		return

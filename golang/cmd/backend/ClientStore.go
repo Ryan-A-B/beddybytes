@@ -5,7 +5,7 @@ import (
 	"log"
 	"sync"
 
-	"github.com/Ryan-A-B/beddybytes/golang/internal"
+	"github.com/Ryan-A-B/beddybytes/golang/internal/contextx"
 )
 
 type PutClientInput struct {
@@ -35,7 +35,7 @@ func (store *ClientStoreInMemory) getClientsByAccountID(accountID string) (clien
 }
 
 func (store *ClientStoreInMemory) Put(ctx context.Context, input PutClientInput) (client *Client) {
-	accountID := internal.GetAccountIDFromContext(ctx)
+	accountID := contextx.GetAccountID(ctx)
 	clients := store.getClientsByAccountID(accountID)
 	client = &Client{
 		ID:       input.ID,
@@ -48,7 +48,7 @@ func (store *ClientStoreInMemory) Put(ctx context.Context, input PutClientInput)
 }
 
 func (store *ClientStoreInMemory) List(ctx context.Context) (clientSlice []*Client) {
-	accountID := internal.GetAccountIDFromContext(ctx)
+	accountID := contextx.GetAccountID(ctx)
 	clients := store.getClientsByAccountID(accountID)
 	for _, client := range clients {
 		clientSlice = append(clientSlice, client)
@@ -57,13 +57,13 @@ func (store *ClientStoreInMemory) List(ctx context.Context) (clientSlice []*Clie
 }
 
 func (store *ClientStoreInMemory) Get(ctx context.Context, clientID string) (client *Client) {
-	accountID := internal.GetAccountIDFromContext(ctx)
+	accountID := contextx.GetAccountID(ctx)
 	clients := store.getClientsByAccountID(accountID)
 	return clients[clientID]
 }
 
 func (store *ClientStoreInMemory) Remove(ctx context.Context, clientID string) {
-	accountID := internal.GetAccountIDFromContext(ctx)
+	accountID := contextx.GetAccountID(ctx)
 	clients := store.getClientsByAccountID(accountID)
 	delete(clients, clientID)
 	if len(clients) == 0 {
@@ -105,25 +105,25 @@ type LoggingDecorator struct {
 }
 
 func (store *LoggingDecorator) Put(ctx context.Context, input PutClientInput) (client *Client) {
-	accountID := internal.GetAccountIDFromContext(ctx)
+	accountID := contextx.GetAccountID(ctx)
 	log.Printf("putting client %s for %s", input.ID, accountID)
 	return store.decorated.Put(ctx, input)
 }
 
 func (store *LoggingDecorator) List(ctx context.Context) (clients []*Client) {
-	accountID := internal.GetAccountIDFromContext(ctx)
+	accountID := contextx.GetAccountID(ctx)
 	log.Printf("listing clients for %s", accountID)
 	return store.decorated.List(ctx)
 }
 
 func (store *LoggingDecorator) Get(ctx context.Context, clientID string) (client *Client) {
-	accountID := internal.GetAccountIDFromContext(ctx)
+	accountID := contextx.GetAccountID(ctx)
 	log.Printf("getting client %s for %s", clientID, accountID)
 	return store.decorated.Get(ctx, clientID)
 }
 
 func (store *LoggingDecorator) Remove(ctx context.Context, clientID string) {
-	accountID := internal.GetAccountIDFromContext(ctx)
+	accountID := contextx.GetAccountID(ctx)
 	log.Printf("removing client %s for %s", clientID, accountID)
 	store.decorated.Remove(ctx, clientID)
 }

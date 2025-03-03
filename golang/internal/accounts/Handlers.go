@@ -17,6 +17,7 @@ import (
 	uuid "github.com/satori/go.uuid"
 
 	"github.com/Ryan-A-B/beddybytes/golang/internal"
+	"github.com/Ryan-A-B/beddybytes/golang/internal/contextx"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/eventlog"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/fatal"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/httpx"
@@ -376,7 +377,7 @@ func (handlers *Handlers) GetAccount(responseWriter http.ResponseWriter, request
 		}
 	}()
 	ctx := request.Context()
-	accountID := internal.GetAccountIDFromContext(ctx)
+	accountID := contextx.GetAccountID(ctx)
 	account, err := handlers.AccountStore.Get(ctx, accountID)
 	if err != nil {
 		return
@@ -386,7 +387,7 @@ func (handlers *Handlers) GetAccount(responseWriter http.ResponseWriter, request
 
 func (handlers *Handlers) DeleteAccount(responseWriter http.ResponseWriter, request *http.Request) {
 	ctx := request.Context()
-	accountID := internal.GetAccountIDFromContext(ctx)
+	accountID := contextx.GetAccountID(ctx)
 	err := handlers.AccountStore.Remove(ctx, accountID)
 	if err != nil {
 		log.Println("Warn:", err)

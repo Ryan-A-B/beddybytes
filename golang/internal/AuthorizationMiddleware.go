@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/Ryan-A-B/beddybytes/golang/internal/contextx"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/httpx"
 	"github.com/ansel1/merry"
 	"github.com/dgrijalva/jwt-go"
@@ -57,7 +58,7 @@ func (middleware *AuthorizationMiddleware) Middleware(next http.Handler) http.Ha
 			return
 		}
 		ctx := request.Context()
-		ctx = ContextWithAccountID(ctx, claims.Subject.AccountID)
+		ctx = contextx.WithAccountID(ctx, claims.Subject.AccountID)
 		next.ServeHTTP(responseWriter, request.Clone(ctx))
 	})
 }

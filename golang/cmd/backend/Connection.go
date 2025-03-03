@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Ryan-A-B/beddybytes/golang/internal"
+	"github.com/Ryan-A-B/beddybytes/golang/internal/contextx"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/eventlog"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/fatal"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/store2"
@@ -98,7 +98,7 @@ type ConnectionStoreKey struct {
 
 func (handlers *Handlers) HandleConnection(responseWriter http.ResponseWriter, request *http.Request) {
 	ctx := request.Context()
-	accountID := internal.GetAccountIDFromContext(ctx)
+	accountID := contextx.GetAccountID(ctx)
 	vars := mux.Vars(request)
 	clientID := vars["client_id"]
 	connectionID := vars["connection_id"]

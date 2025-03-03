@@ -10,7 +10,7 @@ import (
 	uuid "github.com/satori/go.uuid"
 	. "github.com/smartystreets/goconvey/convey"
 
-	"github.com/Ryan-A-B/beddybytes/golang/internal"
+	"github.com/Ryan-A-B/beddybytes/golang/internal/contextx"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/eventlog"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/sessionlist"
 )
@@ -19,7 +19,7 @@ func TestSessionList(t *testing.T) {
 	Convey("TestSessionList", t, func() {
 		ctx := context.Background()
 		accountID := uuid.NewV4().String()
-		ctx = internal.ContextWithAccountID(ctx, accountID)
+		ctx = contextx.WithAccountID(ctx, accountID)
 		folderPath, err := os.MkdirTemp("testdata", "TestSessionList-*")
 		So(err, ShouldBeNil)
 		log := eventlog.NewFileEventLog(&eventlog.NewFileEventLogInput{
@@ -172,7 +172,7 @@ func TestSessionList(t *testing.T) {
 				Convey("Different account", func() {
 					Convey("Smaller Account ID", func() {
 						otherAccountID := "00000000"
-						ctx := internal.ContextWithAccountID(ctx, otherAccountID)
+						ctx := contextx.WithAccountID(ctx, otherAccountID)
 						sessionID := uuid.NewV4().String()
 						sessionName := uuid.NewV4().String()
 						hostConnectionID := uuid.NewV4().String()
@@ -193,14 +193,14 @@ func TestSessionList(t *testing.T) {
 						output := sessionList.List(ctx)
 						So(output.Sessions, ShouldHaveLength, 1)
 						Convey("List original account", func() {
-							ctx := internal.ContextWithAccountID(ctx, accountID)
+							ctx := contextx.WithAccountID(ctx, accountID)
 							output = sessionList.List(ctx)
 							So(output.Sessions, ShouldHaveLength, 1)
 						})
 					})
 					Convey("Larger Account ID", func() {
 						otherAccountID := "ffffffff"
-						ctx := internal.ContextWithAccountID(ctx, otherAccountID)
+						ctx := contextx.WithAccountID(ctx, otherAccountID)
 						sessionID := uuid.NewV4().String()
 						sessionName := uuid.NewV4().String()
 						hostConnectionID := uuid.NewV4().String()
@@ -221,7 +221,7 @@ func TestSessionList(t *testing.T) {
 						output := sessionList.List(ctx)
 						So(output.Sessions, ShouldHaveLength, 1)
 						Convey("List original account", func() {
-							ctx := internal.ContextWithAccountID(ctx, accountID)
+							ctx := contextx.WithAccountID(ctx, accountID)
 							output = sessionList.List(ctx)
 							So(output.Sessions, ShouldHaveLength, 1)
 						})

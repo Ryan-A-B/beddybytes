@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Ryan-A-B/beddybytes/golang/internal"
+	"github.com/Ryan-A-B/beddybytes/golang/internal/contextx"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/eventlog"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/fatal"
 	"github.com/gorilla/websocket"
@@ -39,7 +39,7 @@ type ListOutput struct {
 
 func (sessionList *SessionList) List(ctx context.Context) (output ListOutput) {
 	sessionList.catchUp(ctx)
-	accountID := internal.GetAccountIDFromContext(ctx)
+	accountID := contextx.GetAccountID(ctx)
 	index := sort.Search(len(sessionList.sessions), func(i int) bool {
 		return sessionList.sessions[i].AccountID >= accountID
 	})
