@@ -17,6 +17,7 @@ func Follow(ctx context.Context, input FollowInput) EventIterator {
 		eventLog:      input.EventLog,
 		eventIterator: eventIterator,
 		waitC:         input.EventLog.Wait(ctx),
+		cursor:        input.FromCursor,
 	}
 }
 
