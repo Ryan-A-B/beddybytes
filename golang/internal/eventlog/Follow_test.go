@@ -121,7 +121,7 @@ func TestFollow(t *testing.T) {
 					So(event.LogicalClock, ShouldEqual, 2)
 				})
 			})
-			Convey("tail", func() {
+			Convey("read from end", func() {
 				ctx, cancel := context.WithCancel(ctx)
 				iterator := eventlog.Follow(ctx, eventlog.FollowInput{
 					EventLog:   eventLog,
