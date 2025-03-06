@@ -136,12 +136,12 @@ const ParentStation: React.FunctionComponent = () => {
             )}
             <ConnectionStateAlert />
             {session_state.state === 'joined' && <SessionDuration startedAt={session_state.session.started_at} />}
-            {recording_state.state === 'not_recording' && (
+            {recording_state.name === 'not_recording' && (
                 <button id="button-start-recording" onClick={parent_station.recording_service.start} className='btn btn-outline-danger'>
                     <FontAwesomeIcon icon={faCircle} /> Start Recording
                 </button>
             )}
-            {recording_state.state === 'recording' && (
+            {recording_state.name === 'recording' && (
                 <button id="button-stop-recording" onClick={parent_station.recording_service.stop} className='btn btn-outline-success'>
                     <FontAwesomeIcon icon={faStop} /> Stop Recording
                 </button>

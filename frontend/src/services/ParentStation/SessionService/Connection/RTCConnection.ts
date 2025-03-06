@@ -44,6 +44,7 @@ interface NewRTCConnectionInput {
 }
 
 class RTCConnection extends Service<ConnectionState> implements Connection {
+    protected readonly name = 'RTCConnection';
     private signal_service: SignalService;
     private session: Session;
     private media_stream: MediaStream;
@@ -52,8 +53,6 @@ class RTCConnection extends Service<ConnectionState> implements Connection {
     constructor(input: NewRTCConnectionInput) {
         super({
             logging_service: input.logging_service,
-            name: 'RTCConnection',
-            to_string: (state: ConnectionState) => state.state,
             initial_state: InitialState,
         });
         this.signal_service = input.signal_service;
@@ -62,6 +61,10 @@ class RTCConnection extends Service<ConnectionState> implements Connection {
         this.send_description()
         this.signal_service.addEventListener("signal", this.handle_signal);
         this.media_stream = input.parent_station_media_stream;
+    }
+
+    protected to_string = (state: ConnectionState): string => {
+        return state.state;
     }
 
     private create_peer_connection = (): RTCPeerConnection => {

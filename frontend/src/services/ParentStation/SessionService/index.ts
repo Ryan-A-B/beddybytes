@@ -45,6 +45,7 @@ interface NewSessionServiceInput {
 }
 
 class SessionService extends Service<SessionState> {
+    protected readonly name = 'SessionService';
     private signal_service: SignalService;
     private session_list_service: SessionListService;
     private parent_station_media_stream: MediaStream;
@@ -52,14 +53,16 @@ class SessionService extends Service<SessionState> {
     constructor(input: NewSessionServiceInput) {
         super({
             logging_service: input.logging_service,
-            name: 'SessionService',
-            to_string: (state: SessionState) => state.state,
             initial_state: InitialState,
         });
         this.signal_service = input.signal_service;
         this.session_list_service = input.session_list_service;
         this.session_list_service.addEventListener(EventTypeSessionListChanged, this.handle_session_list_changed);
         this.parent_station_media_stream = input.parent_station_media_stream;
+    }
+
+    protected to_string = (state: SessionState): string => {
+        return state.state;
     }
 
     public join_session(session: Session) {

@@ -38,14 +38,18 @@ interface NewMediaDevicePermissionServiceInput {
 }
 
 class MediaDevicePermissionService extends Service<MediaDevicePermissionStatus> {
+    protected readonly name = 'MediaDevicePermissionService';
+
     constructor(input: NewMediaDevicePermissionServiceInput) {
         super({
             logging_service: input.logging_service,
-            name: 'MediaDevicePermissionService',
-            to_string: (state: MediaDevicePermissionStatus) => state.state,
             initial_state: InitialState,
         });
         this.query_permission_state();
+    }
+
+    protected to_string = (state: MediaDevicePermissionStatus): string => {
+        return state.state;
     }
 
     private query_permission_state = async (): Promise<void> => {

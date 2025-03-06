@@ -45,14 +45,13 @@ interface NewMediaDeviceService {
 }
 
 class MediaDeviceService extends Service<MediaDeviceState> {
+    protected readonly name = 'MediaDevicePermissionService';
     private static LocalStorageAudioDeviceIDKey = 'audio_device_id';
     private static LocalStorageVideoDeviceIDKey = 'video_device_id';
 
     constructor(input: NewMediaDeviceService) {
         super({
             logging_service: input.logging_service,
-            name: 'MediaDevicePermissionService',
-            to_string: (state: MediaDeviceState) => `active:${state.active}, device_count:${state.devices.length}, audio_device_id:${state.audio_device_id}, video_device_id:${state.video_device_id}`,
             initial_state: {
                 ...InitialState,
                 audio_device_id: MediaDeviceService.get_device_id_from_localstorage(MediaDeviceService.LocalStorageAudioDeviceIDKey),
@@ -60,6 +59,10 @@ class MediaDeviceService extends Service<MediaDeviceState> {
             },
         });
         navigator.mediaDevices.addEventListener('devicechange', this.handle_devicechange);
+    }
+
+    protected to_string = (state: MediaDeviceState): string => {
+        return `active:${state.active}, device_count:${state.devices.length}, audio_device_id:${state.audio_device_id}, video_device_id:${state.video_device_id}`;
     }
 
     public start = () => {

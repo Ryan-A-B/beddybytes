@@ -14,13 +14,17 @@ interface NewMockSessionServiceInput {
 }
 
 class MockSessionService extends Service<SessionState> {
+    protected readonly name = 'MockSessionService';
+
     constructor(input: NewMockSessionServiceInput) {
         super({
             logging_service: input.logging_service,
-            name: 'MockSessionService',
-            to_string: (state: SessionState) => state.state,
             initial_state: InitialState,
         });
+    }
+
+    protected to_string = (state: SessionState): string => {
+        return state.state;
     }
 
     public join_session(session: Session) {
@@ -50,16 +54,19 @@ interface NewMockClientConnectionInput {
 }
 
 class MockClientConnection extends Service<ConnectionState> implements Connection {
+    protected readonly name = 'MockClientConnection';
     private static InitialState: ConnectionState = { state: 'connecting' };
     private media_stream: MediaStream = new MockMediaStream(uuid());
 
     constructor(input: NewMockClientConnectionInput) {
         super({
             logging_service: input.logging_service,
-            name: 'MockClientConnection',
-            to_string: (state: ConnectionState) => state.state,
             initial_state: MockClientConnection.InitialState,
         })
+    }
+
+    protected to_string = (state: ConnectionState): string => {
+        return state.state;
     }
 
     public get_rtc_peer_connection_state = (): RTCPeerConnectionState => {

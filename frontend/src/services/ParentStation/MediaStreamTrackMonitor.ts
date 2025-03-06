@@ -15,18 +15,21 @@ interface NewMediaStreamTrackMonitorInput {
 }
 
 class MediaStreamTrackMonitor extends Service<MediaStreamTrackState> {
+    protected readonly name = 'MediaStreamTrackMonitor';
     private media_stream: MediaStream;
 
     constructor(input: NewMediaStreamTrackMonitorInput) {
         super({
             logging_service: input.logging_service,
-            name: 'MediaStreamTrackMonitor',
-            to_string: (state: MediaStreamTrackState) => state,
             initial_state: InitialState,
         });
         this.media_stream = input.media_stream;
         this.media_stream.addEventListener('addtrack', this.handle_add_track);
         this.media_stream.addEventListener('removetrack', this.handle_remove_track);
+    }
+
+    protected to_string = (state: MediaStreamTrackState): string => {
+        return state;
     }
 
     private handle_add_track = (event: MediaStreamTrackEvent) => {
