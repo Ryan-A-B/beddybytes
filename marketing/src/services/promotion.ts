@@ -73,7 +73,7 @@ const promotion_frames: List<PromotionFrame> = List([
                 type: "indefinite",
             },
         },
-        weight: 10,
+        weight: 11,
     }
 ])
 
