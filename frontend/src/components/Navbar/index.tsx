@@ -10,8 +10,24 @@ const Navbar: React.FunctionComponent = () => {
         () => setShow(!show),
         [show, setShow]
     );
+    const navElementRef = React.useRef<HTMLElement>(null);
+    React.useLayoutEffect(() => {
+        const navElement = navElementRef.current;
+        if (navElement === null) return;
+        const hide = (event: MouseEvent) => {
+            if (event.target === null) return;
+            const target = event.target as Node;
+            if (navElement.contains(target)) return;
+            setShow(false);
+        };
+        window.addEventListener('click', hide);
+        return () => window.removeEventListener('click', hide);
+    }, [show, setShow]);
+    const onNavLinkClick = React.useCallback(() => {
+        setShow(false);
+    }, [setShow]);
     return (
-        <nav className="navbar navbar-expand-md bg-body-tertiary">
+        <nav className="navbar navbar-expand-md bg-body-tertiary" ref={navElementRef}>
             <div className="container">
                 <Link to="/" className="navbar-brand">
                     BeddyBytes
@@ -28,12 +44,12 @@ const Navbar: React.FunctionComponent = () => {
                 <div className={collapseClassName} id="navbarSupportedContent">
                     <ul className="navbar-nav me-auto mb-2 mb-lg-0">
                         <li className="nav-item">
-                            <NavLink id="nav-link-baby" to="/baby">
+                            <NavLink id="nav-link-baby" to="/baby" onClick={onNavLinkClick}>
                                 Baby Station
                             </NavLink>
                         </li>
                         <li className="nav-item">
-                            <NavLink id="nav-link-parent" to="/parent">
+                            <NavLink id="nav-link-parent" to="/parent" onClick={onNavLinkClick}>
                                 Parent Station
                             </NavLink>
                         </li>
