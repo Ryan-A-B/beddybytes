@@ -12,6 +12,11 @@ import sleep from '../../utils/sleep';
 import MockSessionService from '../../services/ParentStation/SessionService/MockSessionService';
 import { Session } from '../../services/ParentStation/SessionListService/types';
 
+jest.mock('../../utils/build_info', () => ({
+    build_hash: 'mocked_build_hash',
+    build_timestamp: 'mocked_build_timestamp',
+}));
+
 describe('Monitor', () => {
     describe('when there are no sessions', () => {
         it('should not show stream', () => {

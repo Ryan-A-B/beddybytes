@@ -3,34 +3,64 @@
     flex-direction: column;
     height: 100%;
 
-    #button-start-recording,
-    #button-stop-recording {
-        display: none;
-    }
+    // .video {
+    //     display: none;
+    // }
 
-    .video {
-        display: none;
-    }
+    // &.audio-and-video {
+    //     #button-start-recording,
+    //     #button-stop-recording {
+    //         display: block;
+    //         align-self: center;
+    //     }
 
-    &.audio-and-video {
-        #button-start-recording,
-        #button-stop-recording {
-            display: block;
-            align-self: center;
-        }
-
-        .video {
-            display: block;
-            flex-grow: 1;
-            object-fit: contain;
-            max-height: calc(100vh - 250px);
-            background-color: #000000;
-        }
-    }
+    //     .video {
+    //         display: block;
+    //         flex-grow: 1;
+    //         object-fit: contain;
+    //         max-height: calc(100vh - 250px);
+    //         background-color: #000000;
+    //     }
+    // }
 
     canvas.audio-visualiser {
         width: 100%;
         height: 30vh;
         margin-top: 20vh;
+    }
+
+    .video-container {
+        display: none;
+        position: relative;
+
+        video {
+            flex-grow: 1;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .video-controls {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background-color: rgba(0, 0, 0, 0.5);
+
+            .volume-slider {
+                width: 100px;
+            }
+        }
+    }
+
+    &.audio-and-video {
+        .video-container {
+            display: flex;
+            flex-grow: 1;
+            flex-direction: column;
+            min-width: 420px;
+            max-height: calc(100vh - 250px);
+            background-color: #000000;
+        }
     }
 }
