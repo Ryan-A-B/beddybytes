@@ -1,11 +1,13 @@
-import React, { useRef } from "react";
+import React, { useRef, useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faCircle, faStop, faVolumeMute, faVolumeUp, faExpand, faCompress, faWindowRestore } from "@fortawesome/free-solid-svg-icons";
+import { faCircle, faStop, faVolumeMute, faVolumeUp, faExpand, faCompress, faWindowRestore, faPlayCircle } from "@fortawesome/free-solid-svg-icons";
 import logging_service from "../../services/instances/logging_service";
 import { Severity } from "../../services/LoggingService";
 import parent_station from "../../services/instances/parent_station";
 import useServiceState from "../../hooks/useServiceState";
-import { exit_fullscreen, request_fullscreen } from "../../utils/fullscreen";
+import { add_fullscreen_change_listener, exit_fullscreen, is_fullscreen, remove_fullscreen_change_listener, request_fullscreen } from "../../utils/fullscreen";
+
+// TODO finishing recording causes iOS to redirect to a download page
 
 const pictureInPictureSupported = document.pictureInPictureEnabled === true;
 
@@ -14,7 +16,8 @@ const Video: React.ForwardRefRenderFunction<HTMLVideoElement> = (props, ref) => 
     const recording_state = useServiceState(parent_station.recording_service);
     const [isMuted, setIsMuted] = React.useState(false);
     const [volume, setVolume] = React.useState(1);
-    const [isFullScreen, setIsFullScreen] = React.useState(false);
+    const [isFullScreen, setIsFullScreen] = React.useState(is_fullscreen());
+    const [isPlaying, setIsPlaying] = useState(false);
 
     React.useLayoutEffect(() => {
         const video_element = video_element_ref.current;
@@ -22,6 +25,35 @@ const Video: React.ForwardRefRenderFunction<HTMLVideoElement> = (props, ref) => 
         setIsMuted(video_element.muted);
         setVolume(video_element.volume);
         video_element.srcObject = parent_station.media_stream;
+        setIsPlaying(!video_element.paused);
+
+        const handle_fullscreen_change = () => {
+            setIsFullScreen(is_fullscreen());
+        }
+
+        add_fullscreen_change_listener(video_element, handle_fullscreen_change);
+
+        const handlePlay = () => setIsPlaying(true);
+        const handlePause = async () => {
+            setIsPlaying(false);
+            try {
+                await video_element.play()
+            } catch (error) {
+                logging_service.log({
+                    severity: Severity.Warning,
+                    message: "Failed to automatically resume video playback after pause",
+                });
+            }
+        }
+
+        video_element.addEventListener('play', handlePlay);
+        video_element.addEventListener('pause', handlePause);
+
+        return () => {
+            remove_fullscreen_change_listener(video_element, handle_fullscreen_change);
+            video_element.removeEventListener('play', handlePlay);
+            video_element.removeEventListener('pause', handlePause);
+        };
     }, [video_element_ref]);
 
     usePlay(video_element_ref);
@@ -68,13 +100,29 @@ const Video: React.ForwardRefRenderFunction<HTMLVideoElement> = (props, ref) => 
         }
     }, []);
 
+    const handlePlayButtonClick = () => {
+        const video_element = video_element_ref.current;
+        if (video_element === null) return;
+        video_element.play();
+    };
+
     return (
         <div className="video-container">
             <video
                 id="video-parent-station"
                 ref={video_element_ref}
                 controls={false}
+                playsInline
+                autoPlay
             />
+            {!isPlaying && (
+                <button
+                    className="btn btn-lg btn-outline-secondary btn-play-overlay"
+                    onClick={handlePlayButtonClick}
+                >
+                    <FontAwesomeIcon icon={faPlayCircle} />
+                </button>
+            )}
             <div className="video-controls p-2">
                 <div className="row align-items-center g-2">
                     <div className="col-auto">
