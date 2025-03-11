@@ -12,6 +12,7 @@ const EggHoneyCustard: React.FunctionComponent = () => (
             aspectRatio={28 / 9}
             className="mb-4"
         />
+        <h1>Egg-Honey Custard</h1>
         <h2>Ingredients</h2>
         <ul>
             <li>600 ml cream</li>
