@@ -1,11 +1,17 @@
 import React from 'react';
 import type { HeadFC } from "gatsby"
+import { StaticImage } from 'gatsby-plugin-image';
 import DefaultBlogWrapper from '../../components/DefaultBlogWrapper';
 import SEOHead from '../../components/SEOHead'
 
 const EggHoneyCustard: React.FunctionComponent = () => (
     <DefaultBlogWrapper>
-        <h1>Egg-Honey Custard</h1>
+        <StaticImage
+            src="../../images/EggHoneyCustard.jpg"
+            alt="Egg-Honey Custard"
+            aspectRatio={28 / 9}
+            className="mb-4"
+        />
         <h2>Ingredients</h2>
         <ul>
             <li>600 ml cream</li>
