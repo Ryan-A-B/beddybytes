@@ -27,7 +27,15 @@ const BlogIndexPage: React.FunctionComponent<PageProps> = () => {
                                     Egg-Honey Custard
                                 </h2>
                                 <p>
-                                    Learn how to make a delicious Egg-Honey Custard with this easy-to-follow recipe.
+                                    Discover the simple joy of crafting a Egg-Honey Custard with this
+                                    straightforward, beginner-friendly recipe. This luscious, creamy
+                                    custard combines the wholesome richness of eggs, velvety cream, and
+                                    a subtle sweetness from honey. Gently baked in a soothing water bath,
+                                    it emerges as a high-fat delight that's as nutritious as it is 
+                                    satisfying—perfect for a comforting dessert or a hearty snack. 
+                                    Packed with the natural goodness of eggs, often hailed as nature's
+                                    multivitamin, this custard is a treat that nourishes both body and
+                                    soul.
                                 </p>
                                 <ReadMoreLink to="/blog/egg-honey-custard/" />
                             </div>

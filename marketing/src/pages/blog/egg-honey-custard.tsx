@@ -11,7 +11,7 @@ const EggHoneyCustard: React.FunctionComponent = () => (
             <li>600 ml cream</li>
             <li>300 ml milk</li>
             <li>8 eggs</li>
-            <li>3/4 cup honey</li>
+            <li>2/3 cup honey</li>
             <li>9 g salt</li>
         </ul>
         <h2>Method</h2>
@@ -30,6 +30,7 @@ const EggHoneyCustard: React.FunctionComponent = () => (
         <ul>
             <li>This recipe is quite forgiving and easy to alter. You can adjust the sweetness by varying the amount of honey, swap out some cream for milk for a lighter texture, or even add flavors like vanilla, cinnamon, or nutmeg to suit your taste.</li>
             <li>If the milk and cream mixture accidentally boils, the custard will still work, but the texture may not be as smooth and creamy because the cream can begin to separate.</li>
+            <li>The goal of this recipe is to create a relatively high-fat dish that's nutritious and filling. The generous use of eggs—nature's multivitamin—along with cream provides a rich source of protein and healthy fats to keep you satisfied.</li>
         </ul>
     </DefaultBlogWrapper>
 )
@@ -39,6 +40,7 @@ export default EggHoneyCustard;
 export const Head: HeadFC = () => (
     <SEOHead
         title="Egg-Honey Custard"
-        description="Learn how to make a delicious Egg-Honey Custard with this easy-to-follow recipe."
+        description="Easy Egg-Honey Custard recipe: creamy, rich with eggs and cream, honey-sweetened, baked in a water bath. High-fat, nutritious, and filling."
     />
 )
+
