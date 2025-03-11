@@ -24,6 +24,19 @@ const BlogIndexPage: React.FunctionComponent<PageProps> = () => {
                         <article className="card card-blog">
                             <div className="card-body">
                                 <h2 className="card-title">
+                                    Egg-Honey Custard
+                                </h2>
+                                <p>
+                                    Learn how to make a delicious Egg-Honey Custard with this easy-to-follow recipe.
+                                </p>
+                                <ReadMoreLink to="/blog/egg-honey-custard/" />
+                            </div>
+                        </article>
+                    </div>
+                    <div className="col-auto col-lg-6 col-xl-4 mb-3">
+                        <article className="card card-blog">
+                            <div className="card-body">
+                                <h2 className="card-title">
                                     Do I Need a Baby Monitor?
                                 </h2>
                                 <p>
