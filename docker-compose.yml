@@ -21,6 +21,7 @@ services:
         aliases:
           - app.beddybytes.local
           - api.beddybytes.local
+          - mosquitto.beddybytes.local
           - influx.beddybytes.local
           - grafana.beddybytes.local
   api:
@@ -29,6 +30,8 @@ services:
       context: .
       dockerfile: scripts/backend/Dockerfile
     restart: always
+    depends_on:
+      - mosquitto
     ports:
       - 9000
     volumes:
@@ -49,6 +52,17 @@ services:
       watch:
         - action: rebuild
           path: ./golang
+  mosquitto:
+    image: eclipse-mosquitto:2
+    restart: always
+    ports:
+      - 1883
+    volumes:
+      - ./mosquitto/config/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+    labels:
+      - "traefik.http.routers.mosquitto.rule=Host(`mosquitto.beddybytes.local`)"
+      - "traefik.http.routers.mosquitto.entrypoints=websecure"
+      - "traefik.http.routers.mosquitto.tls=true"
   app:
     image: node:18
     command: yarn start
