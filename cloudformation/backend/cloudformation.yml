@@ -6,6 +6,9 @@ Parameters:
   APIImageDigest:
     Type: String
     Description: Digest of the API server image
+  APIImageDigestQA:
+    Type: String
+    Description: Digest of the API server image for QA
   PublicKeyMaterial:
     Type: String
     Description: Public key material for the EC2 key pair
@@ -16,6 +19,9 @@ Parameters:
     Type: String
     Description: The name of the Route 53 hosted zone
   APIHostName:
+    Type: String
+    Description: The hostname of the API server
+  APIHostNameQA:
     Type: String
     Description: The hostname of the API server
   InfluxHostName:
@@ -135,6 +141,51 @@ Resources:
             traefik.http.routers.api.tls: "true"
             traefik.http.routers.api.tls.certresolver: "letsencrypt"
             traefik.http.routers.api.middlewares: headers-cors@file,rate-limit-api@file
+        - Name: api-qa
+          Image: !Sub ${BackendContainerRepository.RepositoryUri}@${APIImageDigestQA}
+          Essential: False
+          RestartPolicy:
+            Enabled: True
+          PortMappings:
+            - ContainerPort: 9000
+          Environment:
+            - Name: COOKIE_DOMAIN
+              Value: !Ref CookieDomain
+            - Name: SERVER_ADDR
+              Value: :9000
+            - Name: FILE_EVENT_LOG_FOLDER_PATH
+              Value: /opt/eventlog
+            - Name: MAILER_IMPLEMENTATION
+              Value: ses
+            - Name: MAILER_SES_FROM
+              Value: !Sub BeddyBytes <noreply@${EmailDomain}>
+            - Name: MAILER_SES_APP_HOST
+              Value: !Ref AppHost
+            - Name: AWS_REGION
+              Value: !Ref AWS::Region
+          Secrets:
+            - Name: ENCRYPTION_KEY
+              ValueFrom: !Ref BackendEncryptionKey
+          DockerLabels:
+            traefik.enable: "true"
+
+            traefik.http.routers.anonymous-token.rule: !Sub "Host(`${APIHostNameQA}`) && Path(`/anonymous_token`) && Method(`POST`)"
+            traefik.http.routers.anonymous-token.entrypoints: "websecure"
+            traefik.http.routers.anonymous-token.tls: "true"
+            traefik.http.routers.anonymous-token.tls.certresolver: "letsencrypt"
+            traefik.http.routers.anonymous-token.middlewares: headers-cors@file,rate-limit-anonymous-token@file
+
+            traefik.http.routers.create-account.rule: !Sub "Host(`${APIHostNameQA}`) && Path(`/accounts`) && Method(`POST`)"
+            traefik.http.routers.create-account.entrypoints: "websecure"
+            traefik.http.routers.create-account.tls: "true"
+            traefik.http.routers.create-account.tls.certresolver: "letsencrypt"
+            traefik.http.routers.create-account.middlewares: headers-cors@file,rate-limit-create-account@file
+
+            traefik.http.routers.api-qa.rule: !Sub "Host(`${APIHostNameQA}`)"
+            traefik.http.routers.api-qa.entrypoints: "websecure"
+            traefik.http.routers.api-qa.tls: "true"
+            traefik.http.routers.api-qa.tls.certresolver: "letsencrypt"
+            traefik.http.routers.api-qa.middlewares: headers-cors@file,rate-limit-api@file
         - Name: influxdb
           Image: influxdb:2.7-alpine
           Essential: False
