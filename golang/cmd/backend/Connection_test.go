@@ -13,7 +13,6 @@ import (
 
 	"github.com/Ryan-A-B/beddybytes/golang/internal/contextx"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/eventlog"
-	"github.com/Ryan-A-B/beddybytes/golang/internal/store2"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 	uuid "github.com/satori/go.uuid"
@@ -40,10 +39,8 @@ func TestConnection(t *testing.T) {
 			}),
 		})
 		handlers := Handlers{
-			EventLog: eventLog,
-			ConnectionFactory: ConnectionFactory{
-				ConnectionStore: make(store2.StoreInMemory[ConnectionStoreKey, *Connection]),
-			},
+			EventLog:          eventLog,
+			ConnectionFactory: ConnectionFactory{},
 		}
 		router := mux.NewRouter()
 		router.Use(MockAuthorizationMiddleware)

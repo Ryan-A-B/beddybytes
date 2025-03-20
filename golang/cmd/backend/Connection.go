@@ -20,7 +20,6 @@ import (
 	"github.com/Ryan-A-B/beddybytes/golang/internal/logx"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/messages"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/mqttx"
-	"github.com/Ryan-A-B/beddybytes/golang/internal/store2"
 )
 
 const inboxTopicFormat = "accounts/%s/connections/%s/inbox"
@@ -117,7 +116,7 @@ func (handlers *Handlers) HandleConnection(responseWriter http.ResponseWriter, r
 		return
 	}
 	defer conn.Close()
-	mqttClient := handlers.CreateMQTTClient(connectionID)
+	mqttClient := handlers.CreateMQTTClient(connectionID) // TODO set will
 	err = mqttx.Wait(mqttClient.Connect())
 	if err != nil {
 		logx.Errorln(err)
@@ -238,9 +237,7 @@ func (handlers *Handlers) sendDisconnectedMessage(ctx context.Context, input sen
 	return mqttx.Wait(input.client.Publish(topic, 1, false, payload))
 }
 
-type ConnectionFactory struct {
-	ConnectionStore store2.Store[ConnectionStoreKey, *Connection]
-}
+type ConnectionFactory struct{}
 
 type CreateConnectionInput struct {
 	AccountID    string

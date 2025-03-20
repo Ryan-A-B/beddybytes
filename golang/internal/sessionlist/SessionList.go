@@ -7,10 +7,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Ryan-A-B/beddybytes/golang/internal/connections"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/contextx"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/eventlog"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/fatal"
-	"github.com/gorilla/websocket"
 )
 
 type SessionList struct {
@@ -25,11 +25,9 @@ type NewInput struct {
 }
 
 func New(ctx context.Context, input NewInput) *SessionList {
-	sessionList := &SessionList{
+	return &SessionList{
 		log: input.Log,
 	}
-	go sessionList.catchUp(ctx)
-	return sessionList
 }
 
 type ListOutput struct {
@@ -138,15 +136,13 @@ type applyFunc func(ctx context.Context, sessionList *SessionList, event *eventl
 const EventTypeServerStarted = "server.started"
 const EventTypeSessionStarted = "session.started"
 const EventTypeSessionEnded = "session.ended"
-const EventTypeClientConnected = "client.connected"
-const EventTypeClientDisconnected = "client.disconnected"
 
 var applyByType = map[string]applyFunc{
-	EventTypeServerStarted:      applyServerStartedEvent,
-	EventTypeSessionStarted:     applySessionStartedEvent,
-	EventTypeSessionEnded:       applySessionEndedEvent,
-	EventTypeClientConnected:    applyClientConnectedEvent,
-	EventTypeClientDisconnected: applyClientDisconnectedEvent,
+	EventTypeServerStarted:            applyServerStartedEvent,
+	EventTypeSessionStarted:           applySessionStartedEvent,
+	EventTypeSessionEnded:             applySessionEndedEvent,
+	connections.EventTypeConnected:    applyClientConnectedEvent,
+	connections.EventTypeDisconnected: applyClientDisconnectedEvent,
 }
 
 type SessionStartedEventData struct {
@@ -191,18 +187,11 @@ func applySessionEndedEvent(ctx context.Context, sessionList *SessionList, event
 	sessionList.delete(event.AccountID, sessionEndedEventData.ID)
 }
 
-type ClientDisconnectedEventData struct {
-	ClientID           string `json:"client_id"`
-	ConnectionID       string `json:"connection_id"`
-	RequestID          string `json:"request_id"`
-	WebSocketCloseCode int    `json:"web_socket_close_code"`
-}
-
 func applyClientDisconnectedEvent(ctx context.Context, sessionList *SessionList, event *eventlog.Event) {
-	var clientDisconnectedEventData ClientDisconnectedEventData
-	err := json.Unmarshal(event.Data, &clientDisconnectedEventData)
+	var data connections.EventDisconnected
+	err := json.Unmarshal(event.Data, &data)
 	fatal.OnError(err)
-	session, ok := sessionList.getSessionByConnectionID(event.AccountID, clientDisconnectedEventData.ConnectionID)
+	session, ok := sessionList.getSessionByConnectionID(event.AccountID, data.ConnectionID)
 	if !ok {
 		return
 	}
@@ -210,33 +199,22 @@ func applyClientDisconnectedEvent(ctx context.Context, sessionList *SessionList,
 		return
 	}
 	hostConnectionState := session.HostConnectionState.(HostConnectionStateConnected)
-	if hostConnectionState.RequestID != clientDisconnectedEventData.RequestID {
+	if hostConnectionState.RequestID != data.RequestID {
 		return
 	}
-	switch clientDisconnectedEventData.WebSocketCloseCode {
-	case websocket.CloseNormalClosure, websocket.CloseGoingAway:
-		sessionList.delete(event.AccountID, session.ID)
-	default:
-		session.HostConnectionState = HostConnectionStateDisconnected{
-			HostConnectionStateBase: HostConnectionStateBase{
-				State: ConnectionStateDisconnected,
-				Since: event.UnixTimestamp,
-			},
-		}
+	session.HostConnectionState = HostConnectionStateDisconnected{
+		HostConnectionStateBase: HostConnectionStateBase{
+			State: ConnectionStateDisconnected,
+			Since: event.UnixTimestamp,
+		},
 	}
-}
-
-type ClientConnectedEventData struct {
-	ClientID     string `json:"client_id"`
-	ConnectionID string `json:"connection_id"`
-	RequestID    string `json:"request_id"`
 }
 
 func applyClientConnectedEvent(ctx context.Context, sessionList *SessionList, event *eventlog.Event) {
-	var clientConnectedEventData ClientConnectedEventData
-	err := json.Unmarshal(event.Data, &clientConnectedEventData)
+	var data connections.EventConnected
+	err := json.Unmarshal(event.Data, &data)
 	fatal.OnError(err)
-	session, ok := sessionList.getSessionByConnectionID(event.AccountID, clientConnectedEventData.ConnectionID)
+	session, ok := sessionList.getSessionByConnectionID(event.AccountID, data.ConnectionID)
 	if !ok {
 		return
 	}
@@ -245,7 +223,7 @@ func applyClientConnectedEvent(ctx context.Context, sessionList *SessionList, ev
 			State: ConnectionStateConnected,
 			Since: event.UnixTimestamp,
 		},
-		RequestID: clientConnectedEventData.RequestID,
+		RequestID: data.RequestID,
 	}
 }
 

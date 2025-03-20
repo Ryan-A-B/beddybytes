@@ -22,12 +22,12 @@ import (
 	"github.com/Ryan-A-B/beddybytes/golang/internal/eventlog"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/fatal"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/httpx"
+	"github.com/Ryan-A-B/beddybytes/golang/internal/logx"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/mailer"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/resetpassword"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/sessionlist"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/sessionstore"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/store"
-	"github.com/Ryan-A-B/beddybytes/golang/internal/store2"
 )
 
 type IncomingMessageFrame struct {
@@ -190,7 +190,7 @@ func (handlers *Handlers) AddRoutes(router *mux.Router) {
 }
 
 func main() {
-	log.SetFlags(log.LstdFlags | log.Llongfile)
+	logx.SetFlags(log.LstdFlags | log.Llongfile)
 	ctx := context.Background()
 	key := []byte(internal.EnvStringOrFatal("ENCRYPTION_KEY"))
 	cookieDomain := internal.EnvStringOrFatal("COOKIE_DOMAIN")
@@ -234,9 +234,7 @@ func main() {
 				return true
 			},
 		},
-		ConnectionFactory: ConnectionFactory{
-			ConnectionStore: make(store2.StoreInMemory[ConnectionStoreKey, *Connection]),
-		},
+		ConnectionFactory: ConnectionFactory{},
 		ClientStore: &LoggingDecorator{
 			decorated: &LockingDecorator{
 				decorated: &ClientStoreInMemory{

@@ -52,7 +52,6 @@ func handleMessage(client mqtt.Client, message mqtt.Message) {
 	}
 	var accountID string
 	var connectionID string
-	// TODO why wouldn't it match? seems redundant
 	matches := topicRegex.FindStringSubmatch(message.Topic())
 	fatal.Unless(len(matches) == 3, "failed to parse topic: "+message.Topic())
 	accountID, connectionID = matches[1], matches[2]
