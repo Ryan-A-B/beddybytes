@@ -1,4 +1,4 @@
-package main
+package sessionstore_test
 
 import (
 	"testing"
@@ -6,16 +6,19 @@ import (
 
 	uuid "github.com/satori/go.uuid"
 	. "github.com/smartystreets/goconvey/convey"
+
+	"github.com/Ryan-A-B/beddybytes/golang/internal/sessions"
+	"github.com/Ryan-A-B/beddybytes/golang/internal/sessionstore"
 )
 
 func TestSessionStore(t *testing.T) {
 	Convey("TestSessionStore", t, func() {
-		var store SessionStoreInMemory
+		var store sessionstore.InMemory
 		Convey("Put", func() {
 			Convey("One account", func() {
 				accountID := uuid.NewV4().String()
 				Convey("One session", func() {
-					session := &Session{
+					session := &sessions.Session{
 						AccountID:        accountID,
 						ID:               uuid.NewV4().String(),
 						Name:             uuid.NewV4().String(),
@@ -36,7 +39,7 @@ func TestSessionStore(t *testing.T) {
 				})
 				Convey("Two sessions", func() {
 					accountID := uuid.NewV4().String()
-					var session = [2]*Session{
+					var session = [2]*sessions.Session{
 						{
 							AccountID:        accountID,
 							ID:               "aaaaa",
@@ -87,9 +90,9 @@ func TestSessionStore(t *testing.T) {
 				})
 				Convey("Many sessions", func() {
 					accountID := uuid.NewV4().String()
-					sessionByID := map[string]*Session{}
+					sessionByID := map[string]*sessions.Session{}
 					for i := 0; i < 100; i++ {
-						session := &Session{
+						session := &sessions.Session{
 							AccountID:        accountID,
 							ID:               uuid.NewV4().String(),
 							Name:             uuid.NewV4().String(),
@@ -112,7 +115,7 @@ func TestSessionStore(t *testing.T) {
 				})
 				Convey("Duplicate session", func() {
 					accountID := uuid.NewV4().String()
-					session := &Session{
+					session := &sessions.Session{
 						AccountID:        accountID,
 						ID:               uuid.NewV4().String(),
 						Name:             uuid.NewV4().String(),
@@ -139,7 +142,7 @@ func TestSessionStore(t *testing.T) {
 					uuid.NewV4().String(),
 				}
 				Convey("One session per account", func() {
-					var session = [2]*Session{
+					var session = [2]*sessions.Session{
 						{
 							AccountID:        accountIDs[0],
 							ID:               uuid.NewV4().String(),
@@ -175,7 +178,7 @@ func TestSessionStore(t *testing.T) {
 					})
 				})
 				Convey("Two sessions per account", func() {
-					var session = [4]*Session{
+					var session = [4]*sessions.Session{
 						{
 							AccountID:        accountIDs[0],
 							ID:               "aaaaa",
@@ -265,9 +268,9 @@ func TestSessionStore(t *testing.T) {
 					})
 				})
 				Convey("Many sessions per account", func() {
-					sessionByID := map[string]*Session{}
+					sessionByID := map[string]*sessions.Session{}
 					for i := 0; i < 200; i++ {
-						session := &Session{
+						session := &sessions.Session{
 							AccountID:        accountIDs[i%2],
 							ID:               uuid.NewV4().String(),
 							Name:             uuid.NewV4().String(),
@@ -301,9 +304,9 @@ func TestSessionStore(t *testing.T) {
 					accountIDs = append(accountIDs, uuid.NewV4().String())
 				}
 				Convey("One session per account", func() {
-					sessionByAccountID := make(map[string]*Session)
+					sessionByAccountID := make(map[string]*sessions.Session)
 					for _, accountID := range accountIDs {
-						session := &Session{
+						session := &sessions.Session{
 							AccountID:        accountID,
 							ID:               uuid.NewV4().String(),
 							Name:             uuid.NewV4().String(),
@@ -322,9 +325,9 @@ func TestSessionStore(t *testing.T) {
 					})
 				})
 				Convey("Two sessions per account", func() {
-					sessionsByAccountID := make(map[string][2]*Session)
+					sessionsByAccountID := make(map[string][2]*sessions.Session)
 					for _, accountID := range accountIDs {
-						sessions := [2]*Session{
+						sessions := [2]*sessions.Session{
 							{
 								AccountID:        accountID,
 								ID:               "aaaaa",
@@ -354,11 +357,11 @@ func TestSessionStore(t *testing.T) {
 					})
 				})
 				Convey("Many sessions per account", func() {
-					sessionByIDByAccountID := make(map[string]map[string]*Session)
+					sessionByIDByAccountID := make(map[string]map[string]*sessions.Session)
 					for _, accountID := range accountIDs {
-						sessionByID := make(map[string]*Session)
+						sessionByID := make(map[string]*sessions.Session)
 						for i := 0; i < 100; i++ {
-							session := &Session{
+							session := &sessions.Session{
 								AccountID:        accountID,
 								ID:               uuid.NewV4().String(),
 								Name:             uuid.NewV4().String(),

@@ -4,19 +4,27 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
-	"sync"
 	"time"
 
-	"github.com/Ryan-A-B/beddybytes/golang/internal/contextx"
-	"github.com/Ryan-A-B/beddybytes/golang/internal/eventlog"
-	"github.com/Ryan-A-B/beddybytes/golang/internal/fatal"
-	"github.com/Ryan-A-B/beddybytes/golang/internal/store2"
+	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 	uuid "github.com/satori/go.uuid"
+
+	"github.com/Ryan-A-B/beddybytes/golang/internal/connections"
+	"github.com/Ryan-A-B/beddybytes/golang/internal/contextx"
+	"github.com/Ryan-A-B/beddybytes/golang/internal/fatal"
+	"github.com/Ryan-A-B/beddybytes/golang/internal/logx"
+	"github.com/Ryan-A-B/beddybytes/golang/internal/messages"
+	"github.com/Ryan-A-B/beddybytes/golang/internal/mqttx"
+	"github.com/Ryan-A-B/beddybytes/golang/internal/store2"
 )
+
+const inboxTopicFormat = "accounts/%s/connections/%s/inbox"
+const statusTopicFormat = "accounts/%s/connections/%s/status"
 
 const EventTypeClientConnected = "client.connected"
 const EventTypeClientDisconnected = "client.disconnected"
@@ -102,42 +110,66 @@ func (handlers *Handlers) HandleConnection(responseWriter http.ResponseWriter, r
 	vars := mux.Vars(request)
 	clientID := vars["client_id"]
 	connectionID := vars["connection_id"]
+	requestID := uuid.NewV4().String()
 	conn, err := handlers.Upgrader.Upgrade(responseWriter, request, nil)
 	if err != nil {
-		log.Println(err)
+		logx.Errorln(err)
 		return
 	}
 	defer conn.Close()
-	requestID := uuid.NewV4().String()
-	// TODO this is causing a delay
-	_, err = handlers.EventLog.Append(ctx, eventlog.AppendInput{
-		Type:      EventTypeClientConnected,
-		AccountID: accountID,
-		Data: fatal.UnlessMarshalJSON(&ClientConnectedEventData{
-			ClientID:     clientID,
-			ConnectionID: connectionID,
-			RequestID:    requestID,
-		}),
-	})
-	fatal.OnError(err)
-	webSocketCloseCode := websocket.CloseNoStatusReceived
-	defer func() {
-		_, err = handlers.EventLog.Append(ctx, eventlog.AppendInput{
-			Type:      EventTypeClientDisconnected,
-			AccountID: accountID,
-			Data: fatal.UnlessMarshalJSON(&ClientDisconnectedEventData{
-				ClientID:           clientID,
-				ConnectionID:       connectionID,
-				RequestID:          requestID,
-				WebSocketCloseCode: webSocketCloseCode,
-			}),
-		})
+	mqttClient := handlers.CreateMQTTClient(connectionID)
+	err = mqttx.Wait(mqttClient.Connect())
+	if err != nil {
+		logx.Errorln(err)
+		return
+	}
+	defer mqttClient.Disconnect(250)
+	inboxTopic := fmt.Sprintf(inboxTopicFormat, accountID, connectionID)
+	token := mqttClient.Subscribe(inboxTopic, 1, func(client mqtt.Client, message mqtt.Message) {
+		signal := new(OutgoingSignal)
+		err := json.Unmarshal(message.Payload(), signal)
 		fatal.OnError(err)
+
+		err = conn.WriteJSON(OutgoingMessage{
+			Type:   MessageTypeSignal,
+			Signal: signal,
+		})
+		if err != nil {
+			logx.Errorln(err)
+			return
+		}
+		message.Ack()
+	})
+	err = mqttx.Wait(token)
+	if err != nil {
+		logx.Errorln(err)
+		return
+	}
+	err = handlers.sendConnectedMessage(ctx, sendConnectedMessageInput{
+		client:       mqttClient,
+		accountID:    accountID,
+		clientID:     clientID,
+		connectionID: connectionID,
+		requestID:    requestID,
+	})
+	if err != nil {
+		logx.Errorln(err)
+		return
+	}
+	defer func() {
+		handlers.sendDisconnectedMessage(ctx, sendDisconnectedMessageInput{
+			client:       mqttClient,
+			accountID:    accountID,
+			clientID:     clientID,
+			connectionID: connectionID,
+			requestID:    requestID,
+		})
 	}()
 	connection := handlers.ConnectionFactory.CreateConnection(ctx, &CreateConnectionInput{
 		AccountID:    accountID,
 		ConnectionID: connectionID,
 		conn:         conn,
+		client:       mqttClient,
 	})
 	errC := make(chan error, 1)
 	go func() {
@@ -152,15 +184,58 @@ func (handlers *Handlers) HandleConnection(responseWriter http.ResponseWriter, r
 	case err = <-errC:
 		if err != nil {
 			if closeError, ok := err.(*websocket.CloseError); ok {
-				webSocketCloseCode = closeError.Code
 				if closeError.Code == websocket.CloseNormalClosure {
 					return
 				}
 			}
-			log.Println(err)
+			logx.Errorln(err)
 			return
 		}
 	}
+}
+
+type sendConnectedMessageInput struct {
+	client       mqtt.Client
+	accountID    string
+	clientID     string
+	connectionID string
+	requestID    string
+}
+
+func (handlers *Handlers) sendConnectedMessage(ctx context.Context, input sendConnectedMessageInput) (err error) {
+	topic := fmt.Sprintf(statusTopicFormat, input.accountID, input.connectionID)
+	payload := fatal.UnlessMarshalJSON(connections.MessageFrame{
+		MessageFrameBase: messages.MessageFrameBase{
+			Type: connections.MessageTypeConnected,
+		},
+		Connected: &connections.MessageConnected{
+			ClientID:  input.clientID,
+			RequestID: input.requestID,
+		},
+	})
+	return mqttx.Wait(input.client.Publish(topic, 1, false, payload))
+}
+
+type sendDisconnectedMessageInput struct {
+	client       mqtt.Client
+	accountID    string
+	clientID     string
+	connectionID string
+	requestID    string
+}
+
+func (handlers *Handlers) sendDisconnectedMessage(ctx context.Context, input sendDisconnectedMessageInput) (err error) {
+	topic := fmt.Sprintf(statusTopicFormat, input.accountID, input.connectionID)
+	payload := fatal.UnlessMarshalJSON(connections.MessageFrame{
+		MessageFrameBase: messages.MessageFrameBase{
+			Type: connections.MessageTypeDisconnected,
+		},
+		Disconnected: &connections.MessageDisconnected{
+			ClientID:  input.clientID,
+			RequestID: input.requestID,
+		},
+	})
+	return mqttx.Wait(input.client.Publish(topic, 1, false, payload))
 }
 
 type ConnectionFactory struct {
@@ -171,32 +246,27 @@ type CreateConnectionInput struct {
 	AccountID    string
 	ConnectionID string
 	conn         *websocket.Conn
+	client       mqtt.Client
+}
+
+type Connection struct {
+	AccountID string
+	ID        string
+	conn      *websocket.Conn
+	client    mqtt.Client
+	pongC     chan struct{}
 }
 
 func (factory *ConnectionFactory) CreateConnection(ctx context.Context, input *CreateConnectionInput) (connection *Connection) {
 	connection = &Connection{
-		connectionStore: factory.ConnectionStore,
-		AccountID:       input.AccountID,
-		ID:              input.ConnectionID,
-		conn:            input.conn,
-		pongC:           make(chan struct{}),
+		AccountID: input.AccountID,
+		ID:        input.ConnectionID,
+		conn:      input.conn,
+		client:    input.client,
+		pongC:     make(chan struct{}),
 	}
 	connection.conn.SetPongHandler(connection.handlePong)
-	err := factory.ConnectionStore.Put(ctx, ConnectionStoreKey{
-		AccountID:    input.AccountID,
-		ConnectionID: input.ConnectionID,
-	}, connection)
-	fatal.OnError(err)
 	return
-}
-
-type Connection struct {
-	connectionStore store2.Store[ConnectionStoreKey, *Connection]
-	AccountID       string
-	ID              string
-	mutex           sync.Mutex
-	conn            *websocket.Conn
-	pongC           chan struct{}
 }
 
 func (connection *Connection) handleMessages(ctx context.Context) (err error) {
@@ -235,26 +305,14 @@ func (connection *Connection) handleNextMessage(ctx context.Context) (err error)
 	}
 }
 
-func (connection *Connection) handleSignal(ctx context.Context, signal *IncomingSignal) (err error) {
-	other, err := connection.connectionStore.Get(ctx, ConnectionStoreKey{
-		AccountID:    connection.AccountID,
-		ConnectionID: signal.ToConnectionID,
+func (connection *Connection) handleSignal(ctx context.Context, incomingSignal *IncomingSignal) (err error) {
+	inboxTopic := fmt.Sprintf(inboxTopicFormat, connection.AccountID, incomingSignal.ToConnectionID)
+	data, err := json.Marshal(OutgoingSignal{
+		FromConnectionID: connection.ID,
+		Data:             incomingSignal.Data,
 	})
-	if err != nil {
-		// TODO return error in the 4000-4999 range
-		log.Println(err)
-		return
-	}
-	other.mutex.Lock()
-	defer other.mutex.Unlock()
-	other.conn.WriteJSON(OutgoingMessage{
-		Type: MessageTypeSignal,
-		Signal: &OutgoingSignal{
-			FromConnectionID: connection.ID,
-			Data:             signal.Data,
-		},
-	})
-	return
+	fatal.OnError(err)
+	return mqttx.Wait(connection.client.Publish(inboxTopic, 1, false, []byte(data)))
 }
 
 func (connection *Connection) handlePong(appData string) (err error) {

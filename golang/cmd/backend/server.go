@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -12,6 +13,7 @@ import (
 	"github.com/ansel1/merry"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/dgrijalva/jwt-go"
+	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 
@@ -23,6 +25,7 @@ import (
 	"github.com/Ryan-A-B/beddybytes/golang/internal/mailer"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/resetpassword"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/sessionlist"
+	"github.com/Ryan-A-B/beddybytes/golang/internal/sessionstore"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/store"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/store2"
 )
@@ -63,6 +66,7 @@ type Handlers struct {
 	SessionProjection SessionProjection
 	SessionList       *sessionlist.SessionList
 	EventLog          eventlog.EventLog
+	CreateMQTTClient  func(clientID string) mqtt.Client
 	UsageStats        *UsageStats
 
 	Key interface{}
@@ -241,14 +245,25 @@ func main() {
 			},
 		},
 		SessionProjection: SessionProjection{
-			SessionStore: NewThreadSafeDecorator(&NewThreadSafeDecoratorInput{
-				Decorated: new(SessionStoreInMemory),
+			SessionStore: sessionstore.NewThreadSafeDecorator(&sessionstore.NewThreadSafeDecoratorInput{
+				Decorated: new(sessionstore.InMemory),
 			}),
 		},
 		SessionList: sessionlist.New(ctx, sessionlist.NewInput{
 			Log: eventLog,
 		}),
 		EventLog: eventLog,
+		CreateMQTTClient: func(clientID string) mqtt.Client {
+			options := mqtt.NewClientOptions()
+			options.AddBroker("wss://mosquitto.beddybytes.local")
+			options.SetClientID(clientID)
+			options.SetResumeSubs(true)
+			options.SetCleanSession(false)
+			options.SetTLSConfig(&tls.Config{
+				InsecureSkipVerify: true,
+			})
+			return mqtt.NewClient(options)
+		},
 		UsageStats: NewUsageStats(ctx, NewUsageStatsInput{
 			Log: eventLog,
 		}),

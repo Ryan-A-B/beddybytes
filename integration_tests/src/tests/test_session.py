@@ -18,7 +18,7 @@ class TestSession(unittest.TestCase):
         pass
 
     def allow_time_for_video_to_display(self):
-        time.sleep(0.1)
+        time.sleep(0.5)
 
     def test_audio_session(self):
         email = f'{generate_random_string(10)}@integrationtests.com'
@@ -46,6 +46,7 @@ class TestSession(unittest.TestCase):
             self.assertNotEqual(session_dropdown.options[1].get_attribute("value"), "")
 
             session_dropdown.options[1].click()
+            self.allow_time_for_video_to_display()
 
             driver_2_wait = WebDriverWait(driver_2, 1)
             audio_only_message = driver_2_wait.until(lambda driver: driver.find_element(By.ID, "audio-only-message"))
@@ -183,6 +184,7 @@ class TestSession(unittest.TestCase):
             self.assertEqual(session_dropdown.options[0].get_attribute("value"), "")
             self.assertNotEqual(session_dropdown.options[1].get_attribute("value"), "")
             session_dropdown.options[1].click()
+            self.allow_time_for_video_to_display()
 
             driver_3.get(f"{app_base_url}")
             login(driver_3, email, password)
@@ -195,6 +197,7 @@ class TestSession(unittest.TestCase):
             self.assertEqual(session_dropdown.options[0].get_attribute("value"), "")
             self.assertNotEqual(session_dropdown.options[1].get_attribute("value"), "")
             session_dropdown.options[1].click()
+            self.allow_time_for_video_to_display()
 
             driver_2_video_element = driver_2_wait.until(lambda driver: driver.find_element(By.ID, "video-parent-station"))
             self.assertTrue(driver_2_video_element.is_displayed())

@@ -14,6 +14,8 @@ import (
 	"github.com/Ryan-A-B/beddybytes/golang/internal/eventlog"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/fatal"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/httpx"
+	"github.com/Ryan-A-B/beddybytes/golang/internal/sessions"
+	"github.com/Ryan-A-B/beddybytes/golang/internal/sessionstore"
 )
 
 const EventTypeSessionStarted = "session.started"
@@ -111,26 +113,24 @@ func (handlers *Handlers) EndSession(responseWriter http.ResponseWriter, request
 }
 
 type SessionProjection struct {
-	SessionStore SessionStore
+	SessionStore sessionstore.SessionStore
 	Head         int64
 }
 
 func (projection *SessionProjection) ApplyEvent(ctx context.Context, event *eventlog.Event) {
 	switch event.Type {
 	case EventTypeSessionStarted:
-		projection.ApplySessionStartedEvent(event)
+		projection.applySessionStartedEvent(event)
 	case EventTypeSessionEnded:
-		projection.ApplySessionEndedEvent(event)
-	case EventTypeClientDisconnected:
-		projection.ApplyClientDisconnectedEvent(event)
+		projection.applySessionEndedEvent(event)
 	}
 	projection.Head = event.LogicalClock
 }
 
-func (projection *SessionProjection) ApplySessionStartedEvent(event *eventlog.Event) {
+func (projection *SessionProjection) applySessionStartedEvent(event *eventlog.Event) {
 	var session StartSessionEventData
 	fatal.UnlessUnmarshalJSON(event.Data, &session)
-	projection.SessionStore.Put(&Session{
+	projection.SessionStore.Put(&sessions.Session{
 		AccountID:        event.AccountID,
 		ID:               session.ID,
 		Name:             session.Name,
@@ -139,19 +139,8 @@ func (projection *SessionProjection) ApplySessionStartedEvent(event *eventlog.Ev
 	})
 }
 
-func (projection *SessionProjection) ApplySessionEndedEvent(event *eventlog.Event) {
+func (projection *SessionProjection) applySessionEndedEvent(event *eventlog.Event) {
 	var data EndSessionEventData
 	fatal.UnlessUnmarshalJSON(event.Data, &data)
 	projection.SessionStore.Remove(event.AccountID, data.ID)
-}
-
-func (projection *SessionProjection) ApplyClientDisconnectedEvent(event *eventlog.Event) {
-	var data ClientDisconnectedEventData
-	fatal.UnlessUnmarshalJSON(event.Data, &data)
-	sessions := projection.SessionStore.List(event.AccountID)
-	for _, session := range sessions {
-		if session.HostConnectionID == data.ConnectionID {
-			projection.SessionStore.Remove(event.AccountID, session.ID)
-		}
-	}
 }
