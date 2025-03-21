@@ -12,6 +12,7 @@ export interface SessionState {
     name: string;
     start_session: (set_state: SetStateFunction<SessionState>, input: StartSessionInput) => Promise<void>;
     end_session: (set_state: SetStateFunction<SessionState>) => Promise<void>;
+    handle_visibilitychange: (set_state: SetStateFunction<SessionState>) => Promise<void>;
 }
 
 interface NewNoSessionRunningInput {
@@ -67,6 +68,10 @@ class NoSessionRunning implements SessionState {
     end_session = async (set_state: SetStateFunction<SessionState>) => {
         throw new Error('Cannot end session when not running');
     }
+
+    handle_visibilitychange = async (set_state: SetStateFunction<SessionState>) => {
+        // Do nothing
+    }
 }
 
 class SessionStarting implements SessionState {
@@ -78,6 +83,10 @@ class SessionStarting implements SessionState {
 
     end_session = async (set_state: SetStateFunction<SessionState>) => {
         throw new Error('Cannot end session when starting');
+    }
+
+    handle_visibilitychange = async (set_state: SetStateFunction<SessionState>) => {
+        // Do nothing
     }
 }
 
@@ -111,6 +120,7 @@ class SessionRunning implements SessionState {
             headers: {
                 Authorization: `Bearer ${access_token}`,
             },
+            keepalive: true,
         });
         if (!response.ok) {
             const payload = await response.text();
@@ -128,6 +138,10 @@ class SessionRunning implements SessionState {
             authorization_service: this.authorization_service,
         }));
     }
+
+    handle_visibilitychange = async (set_state: SetStateFunction<SessionState>) => {
+        if (document.hidden) await this.end_session(set_state);
+    }
 }
 
 class SessionEnding implements SessionState {
@@ -139,6 +153,10 @@ class SessionEnding implements SessionState {
 
     end_session = async (set_state: SetStateFunction<SessionState>) => {
         throw new Error('Cannot end session when ending');
+    }
+
+    handle_visibilitychange = async (set_state: SetStateFunction<SessionState>) => {
+        // Do nothing
     }
 }
 
@@ -163,6 +181,8 @@ class SessionService extends Service<SessionState> {
                 authorization_service: input.authorization_service,
             }),
         });
+
+        document.addEventListener('visibilitychange', this.handle_visibilitychange);
     }
 
     protected to_string(state: SessionState): string {
@@ -171,12 +191,17 @@ class SessionService extends Service<SessionState> {
 
     public start_session = async (input: StartSessionInput): Promise<void> => {
         const state = this.get_state();
-        state.start_session(this.set_state, input)
+        state.start_session(this.set_state, input);
     }
 
     public end_session = async (): Promise<void> => {
         const state = this.get_state();
         state.end_session(this.set_state);
+    }
+
+    private handle_visibilitychange = async (): Promise<void> => {
+        const state = this.get_state();
+        state.handle_visibilitychange(this.set_state);
     }
 }
 
