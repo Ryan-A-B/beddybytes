@@ -1,15 +1,13 @@
 import moment from 'moment';
-import Service from '../Service';
+import Service, { SetStateFunction } from '../Service';
 import SessionService from './SessionService';
 import LoggingService from '../LoggingService';
 
 interface RecordingServiceState {
     name: string;
-    start: (set_state: SetStateFunction) => void;
-    stop: (set_state: SetStateFunction) => void;
+    start: (set_state: SetStateFunction<RecordingServiceState>) => void;
+    stop: (set_state: SetStateFunction<RecordingServiceState>) => void;
 }
-
-type SetStateFunction = (state: RecordingServiceState) => void;
 
 interface NewNotRecordingInput {
     session_service: SessionService;
@@ -38,7 +36,7 @@ class NotRecording implements RecordingServiceState {
         set_state(new Recording(recorder));
     }
 
-    stop = (set_state: SetStateFunction) => {
+    stop = (set_state: SetStateFunction<RecordingServiceState>) => {
         throw new Error('Cannot stop recording when not recording');
     }
 }
@@ -51,11 +49,11 @@ class Recording implements RecordingServiceState {
         this.recorder = recorder;
     }
 
-    public start = (set_state: SetStateFunction) => {
+    public start = (set_state: SetStateFunction<RecordingServiceState>) => {
         throw new Error('Cannot start recording when already recording');
     }
 
-    public stop = (set_state: SetStateFunction) => {
+    public stop = (set_state: SetStateFunction<RecordingServiceState>) => {
         this.recorder.stop();
         // we don't call set_state here because NotRecording will call it when the recorder stops
     }
@@ -80,7 +78,7 @@ class RecordingService extends Service<RecordingServiceState> {
         });
     }
 
-    protected to_string = (state: RecordingServiceState) => {
+    protected to_string = (state: RecordingServiceState): string => {
         return state.name;
     }
 
