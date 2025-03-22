@@ -1,16 +1,17 @@
 import React from 'react';
+import { SessionState } from '../../services/BabyStation/SessionService';
 
 const id = 'session-toggle';
 
 interface Props {
-    host_session_status: HostSessionStatus;
+    baby_station_session_state: SessionState;
     startSession: () => any;
     endSession: () => any;
     disabled: boolean;
 }
 
-const SessionToggle: React.FunctionComponent<Props> = ({ host_session_status, startSession, endSession, disabled }) => {
-    switch (host_session_status.status) {
+const SessionToggle: React.FunctionComponent<Props> = ({ baby_station_session_state, startSession, endSession, disabled }) => {
+    switch (baby_station_session_state.name) {
         case 'no_session_running': return (
             <button id={id} onClick={startSession} className="btn btn-primary w-100" disabled={disabled}>
                 Start
@@ -31,6 +32,9 @@ const SessionToggle: React.FunctionComponent<Props> = ({ host_session_status, st
                 Stopping...
             </button>
         );
+        default: {
+            throw new Error(`Unknown session state: ${baby_station_session_state.name}`);
+        }
     }
 }
 

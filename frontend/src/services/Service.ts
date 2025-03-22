@@ -40,3 +40,5 @@ abstract class Service<T extends ServiceState> extends EventTarget {
 }
 
 export default Service;
+
+export type SetStateFunction<T> = (state: T) => void;

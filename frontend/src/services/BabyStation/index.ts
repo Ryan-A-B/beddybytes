@@ -11,7 +11,7 @@ interface NewBabyStationInput {
 class BabyStation {
     readonly media_device_permission_service: MediaDevicePermissionService;
     readonly media_device_service: MediaDeviceService;
-    readonly session_service: BabyStationSessionService;
+    readonly session_service: SessionService;
 
     constructor(input: NewBabyStationInput) {
         this.media_device_permission_service = new MediaDevicePermissionService({
