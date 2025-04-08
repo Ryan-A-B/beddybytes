@@ -19,6 +19,9 @@ import (
 
 	"github.com/Ryan-A-B/beddybytes/golang/internal"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/accounts"
+	"github.com/Ryan-A-B/beddybytes/golang/internal/babystationlist"
+	"github.com/Ryan-A-B/beddybytes/golang/internal/connectionstore"
+	"github.com/Ryan-A-B/beddybytes/golang/internal/connectionstoresync"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/eventlog"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/fatal"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/httpx"
@@ -65,6 +68,7 @@ type Handlers struct {
 	ConnectionFactory ConnectionFactory
 	SessionProjection SessionProjection
 	SessionList       *sessionlist.SessionList
+	BabyStationList   *babystationlist.BabyStationList
 	EventLog          eventlog.EventLog
 	CreateMQTTClient  func(clientID string) mqtt.Client
 	UsageStats        *UsageStats
@@ -164,6 +168,20 @@ func (handlers *Handlers) ListSessions(responseWriter http.ResponseWriter, reque
 	}
 }
 
+func (handlers *Handlers) GetBabyStationListSnapshot(responseWriter http.ResponseWriter, request *http.Request) {
+	ctx := request.Context()
+	output, err := handlers.BabyStationList.GetSnapshot(ctx)
+	if err != nil {
+		log.Panicln(err)
+		return
+	}
+	err = json.NewEncoder(responseWriter).Encode(output)
+	if err != nil {
+		log.Panicln(err)
+		return
+	}
+}
+
 func (handlers *Handlers) GetKey(token *jwt.Token) (interface{}, error) {
 	return handlers.Key, nil
 }
@@ -187,6 +205,10 @@ func (handlers *Handlers) AddRoutes(router *mux.Router) {
 	eventsRouter := router.PathPrefix("/events").Subrouter()
 	eventsRouter.Use(internal.NewAuthorizationMiddleware(handlers.Key).Middleware)
 	eventsRouter.HandleFunc("", handlers.GetEvents).Methods(http.MethodGet).Name("GetEvents")
+
+	babyStationRouter := router.PathPrefix("/baby_station_list_snapshot").Subrouter()
+	babyStationRouter.Use(internal.NewAuthorizationMiddleware(handlers.Key).Middleware)
+	babyStationRouter.HandleFunc("", handlers.GetBabyStationListSnapshot).Methods(http.MethodGet).Name("GetBabyStationListSnapshot")
 }
 
 func main() {
@@ -250,6 +272,9 @@ func main() {
 		SessionList: sessionlist.New(ctx, sessionlist.NewInput{
 			Log: eventLog,
 		}),
+		BabyStationList: babystationlist.New(babystationlist.NewInput{
+			EventLog: eventLog,
+		}),
 		EventLog: eventLog,
 		CreateMQTTClient: func(clientID string) mqtt.Client {
 			options := mqtt.NewClientOptions()
@@ -274,6 +299,24 @@ func main() {
 			Apply:      handlers.SessionProjection.ApplyEvent,
 		})
 		log.Fatal("eventlog.Project exited")
+	}()
+	go func() {
+		options := mqtt.NewClientOptions()
+		options.AddBroker("wss://mosquitto.beddybytes.local")
+		options.SetClientID("backend") // TODO environment variable
+		options.SetResumeSubs(true)
+		options.SetCleanSession(false)
+		options.SetTLSConfig(&tls.Config{
+			InsecureSkipVerify: true,
+		})
+		connectionstoresync.Run(ctx, connectionstoresync.RunInput{
+			CreateClient: func() mqtt.Client {
+				return mqtt.NewClient(options)
+			},
+			ConnectionStore: connectionstore.NewDecider(connectionstore.NewDeciderInput{
+				EventLog: eventLog,
+			}),
+		})
 	}()
 	router := mux.NewRouter()
 	router.Use(internal.LoggingMiddleware)

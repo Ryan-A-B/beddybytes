@@ -34,8 +34,8 @@ services:
       - mosquitto
     ports:
       - 9000
-    volumes:
-      - ./eventlog:/opt/eventlog
+    # volumes:
+    #   - ./eventlog:/opt/eventlog
     environment:
       - ENCRYPTION_KEY=${ENCRYPTION_KEY}
       - COOKIE_DOMAIN=.beddybytes.local

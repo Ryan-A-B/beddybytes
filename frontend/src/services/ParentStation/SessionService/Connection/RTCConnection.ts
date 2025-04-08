@@ -1,8 +1,9 @@
 import settings from "../../../../settings";
 import Service from "../../../Service";
 import LoggingService, { Severity } from '../../../LoggingService';
-import { Session } from "../../SessionListService/types";
 import Connection, { ConnectionState, InitiatedBy } from ".";
+import { Session } from "../../types";
+import WebSocketSignalService, { SignalEvent } from "../../../SignalService/WebSocketSignalService";
 
 interface IncomingSignalDescription {
     from_connection_id: string;
@@ -38,14 +39,14 @@ const InitialState: ConnectionState = { state: 'new' };
 
 interface NewRTCConnectionInput {
     logging_service: LoggingService;
-    signal_service: SignalService;
+    signal_service: WebSocketSignalService;
     session: Session;
     parent_station_media_stream: MediaStream;
 }
 
 class RTCConnection extends Service<ConnectionState> implements Connection {
     protected readonly name = 'RTCConnection';
-    private signal_service: SignalService;
+    private signal_service: WebSocketSignalService;
     private session: Session;
     private media_stream: MediaStream;
     private peer_connection: RTCPeerConnection;
@@ -127,16 +128,14 @@ class RTCConnection extends Service<ConnectionState> implements Connection {
         });
     }
 
-    private handle_signal = async (event: Event) => {
-        if (!(event instanceof CustomEvent)) throw new Error("invalid event");
-        const signal = event.detail as IncomingSignal;
-        if (signal.from_connection_id !== this.session.host_connection_id) return;
-        if (isDescriptionSignal(signal)) {
-            await this.handle_answer_signal(signal);
+    private handle_signal = async (event: SignalEvent) => {
+        if (event.signal.from_connection_id !== this.session.host_connection_id) return;
+        if (isDescriptionSignal(event.signal)) {
+            await this.handle_answer_signal(event.signal);
             return
         }
-        if (isCandidateSignal(signal)) {
-            await this.handle_candidate_signal(signal);
+        if (isCandidateSignal(event.signal)) {
+            await this.handle_candidate_signal(event.signal);
             return
         }
     }

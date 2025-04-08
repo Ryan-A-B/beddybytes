@@ -1,11 +1,12 @@
 import React from "react"
 
 import LoggingService from "./LoggingService"
+import WebSocketSignalService from "./SignalService/WebSocketSignalService";
 
 export type Services = {
     logging_service: LoggingService,
     authorization_service: AuthorizationService,
-    signal_service: SignalService,
+    signal_service: WebSocketSignalService,
 }
 
 export const context = React.createContext<Nullable<Services>>(null);

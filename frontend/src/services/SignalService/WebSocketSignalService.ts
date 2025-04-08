@@ -1,176 +1,243 @@
+import { List } from 'immutable';
 import { v4 as uuid } from 'uuid';
 import settings from "../../settings";
-import sleep from '../../utils/sleep';
+import Service, { SetStateFunction } from '../Service';
 import LoggingService, { Severity } from '../LoggingService';
-
-export const EventTypeSignalStateChange = 'signal_state_change';
+import sleep from '../../utils/sleep';
 
 const WebSocketCloseCodeNormalClosure = 1000;
 
-interface WebSocketSignalStateConnectPending extends SignalStateConnecting {
-    step: 'pending';
+const InitialRetryDelay = 1000;
+const MaxRetryDelay = 2 * 60 * 1000;
+
+interface SendSignalInput {
+    to_connection_id: string;
+    data: any;
 }
 
-interface WebSocketSignalStateConnectionOpening extends SignalStateConnecting {
-    step: 'opening';
-    ws: WebSocket;
-}
-
-interface WebSocketSignalStateConnected extends SignalStateConnected {
-    ws: WebSocket;
-}
-
-interface WebSocketSignalStateReconnectingPending extends SignalStateReconnecting {
-    step: 'pending';
-    retry_delay: number;
-}
-
-interface WebSocketSignalStateReconnectionOpening extends SignalStateReconnecting {
-    step: 'opening';
-    ws: WebSocket;
-    retry_delay: number;
-}
-
-type WebSocketSignalState =
-    SignalStateNotConnected |
-    WebSocketSignalStateConnectPending |
-    WebSocketSignalStateConnectionOpening |
-    WebSocketSignalStateConnected |
-    WebSocketSignalStateReconnectingPending |
-    WebSocketSignalStateReconnectionOpening;
-
-interface NewWebSocketSignalServiceInput {
+interface ServiceProxy {
     logging_service: LoggingService;
     authorization_service: AuthorizationService;
+    connection_id: string;
+    set_state: SetStateFunction<WebSocketSignalState>;
+    connect: (id: string, access_token: string) => void;
+    send_signal: (input: SendSignalInput) => void;
+    keep_alive: () => void;
+    reconnect_after_delay: (id: string, retry_delay: number) => void;
+    add_event_listeners: (ws: WebSocket) => void;
+    remove_event_listeners: (ws: WebSocket) => void;
+    dispatch_event: (event: Event) => void;
 }
 
-class WebSocketSignalService extends EventTarget implements SignalService {
-    private static InitialState: WebSocketSignalState = { state: 'not_connected' };
-    private static InitialRetryDelay = 1000;
-    private static MaxRetryDelay = 2 * 60 * 1000;
+abstract class AbstractState {
+    public abstract name: string;
 
-    private logging_service: LoggingService;
-    private authorization_service: AuthorizationService;
-    private state: WebSocketSignalState = WebSocketSignalService.InitialState;
-    private pong_event_target: EventTarget = new EventTarget();
+    public abstract start: (service: ServiceProxy) => void;
+    public abstract connect: (service: ServiceProxy, id: string, access_token: string) => void;
+    public abstract stop: (service: ServiceProxy) => void;
+    public abstract send_signal: (service: ServiceProxy, input: SendSignalInput) => void;
+    public abstract keep_alive: (service: ServiceProxy) => void;
 
-    public readonly connection_id: string;
+    public abstract handle_open: (serivce: ServiceProxy, event: Event) => void;
+    public abstract handle_message: (serivce: ServiceProxy, event: MessageEvent) => void;
+    public abstract handle_close: (serivce: ServiceProxy, event: CloseEvent) => void;
+}
 
-    constructor(input: NewWebSocketSignalServiceInput) {
+class NotConnected extends AbstractState {
+    public name = 'not_connected';
+
+    public start = async (service: ServiceProxy) => {
+        const id = uuid();
+        service.set_state(new PreparingToConnect(id));
+        const access_token = await service.authorization_service.get_access_token();
+        service.connect(id, access_token);
+    }
+
+    public connect = async (service: ServiceProxy, access_token: string) => {
+        // do nothing
+    }
+
+    public stop = (service: ServiceProxy) => {
+        // do nothing
+    }
+
+    public send_signal = (service: ServiceProxy, input: SendSignalInput) => {
+        throw new Error('Not connected');
+    }
+
+    public keep_alive = (service: ServiceProxy) => {
+        // do nothing
+    }
+
+    public handle_open = (service: ServiceProxy, event: Event) => {
+        throw new Error('there should be no active web socket');
+    }
+
+    public handle_message = (service: ServiceProxy, event: MessageEvent) => {
+        throw new Error('there should be no active web socket');
+    }
+
+    public handle_close = (service: ServiceProxy, event: CloseEvent) => {
+        throw new Error('there should be no active web socket');
+    }
+}
+
+class PreparingToConnect extends AbstractState {
+    public name = 'preparing_to_connect';
+    protected id: string;
+    protected signal_queue: List<SendSignalInput>;
+
+    constructor(id: string, signal_queue: List<SendSignalInput> = List()) {
         super();
-        this.logging_service = input.logging_service;
-        this.authorization_service = input.authorization_service;
-        this.connection_id = uuid(); // TODO this is more of a session id now
+        this.id = id;
+        this.signal_queue = signal_queue;
     }
 
-    public get_state = (): WebSocketSignalState => {
-        return this.state;
+    public start = (service: ServiceProxy) => {
+        // do nothing
     }
 
-    private set_state = (state: WebSocketSignalState) => {
-        this.logging_service.log({
-            severity: Severity.Debug,
-            message: `Signal state change: ${this.state.state} -> ${state.state}`
-        });
-        this.state = state;
-        this.dispatchEvent(new Event(EventTypeSignalStateChange));
+    public connect = async (service: ServiceProxy, id: string, access_token: string) => {
+        if (this.id !== id) return;
+        const ws = this.create_web_socket(service, access_token);
+        service.set_state(new Connecting(ws, this.signal_queue));
     }
 
-    public start = () => {
-        if (this.state.state !== 'not_connected') return;
-        this.set_state({
-            state: 'connecting',
-            step: 'pending',
-        })
-        this.connect()
-            .then((ws: WebSocket) => {
-                this.set_state({
-                    state: 'connecting',
-                    step: 'opening',
-                    ws: ws,
-                })
-            })
-            .catch((err: Error) => {
-                this.logging_service.log({
-                    severity: Severity.Error,
-                    message: `start: ${err.message}`
-                })
-                this.set_state(WebSocketSignalService.InitialState);
-            })
-    }
-
-    private connect = async (): Promise<WebSocket> => {
-        const access_token = await this.authorization_service.get_access_token();
-        if (!(this.state.state === 'connecting' || this.state.state === 'reconnecting'))
-            throw new Error(`Expected state to be connecting or reconnecting, but was ${this.state.state}`);
-        if (this.state.step !== 'pending')
-            throw new Error(`Expected step to be pending, but was ${this.state.step}`);
+    protected create_web_socket = (service: ServiceProxy, access_token: string): WebSocket => {
         const query_parameters = new URLSearchParams();
         query_parameters.set('access_token', access_token);
-        const ws = new WebSocket(`wss://${settings.API.host}/clients/${settings.API.clientID}/connections/${this.connection_id}?${query_parameters.toString()}`);
-        this.addEventListeners(ws);
+        const ws = new WebSocket(`wss://${settings.API.host}/clients/${settings.API.clientID}/connections/${service.connection_id}?${query_parameters.toString()}`);
+        service.add_event_listeners(ws);
         return ws;
     }
 
-    private on_open = () => {
-        if (!(this.state.state === 'connecting' || this.state.state === 'reconnecting')) return;
-        if (this.state.step !== 'opening') return;
-        this.set_state({
-            state: 'connected',
-            ws: this.state.ws,
+    public stop = (service: ServiceProxy) => {
+        service.set_state(new NotConnected());
+    }
+
+    public send_signal = (service: ServiceProxy, input: SendSignalInput) => {
+        this.signal_queue = this.signal_queue.push(input);
+    }
+
+    public keep_alive = (service: ServiceProxy) => {
+        // do nothing
+    }
+
+    public handle_open = (service: ServiceProxy, event: Event) => {
+        throw new Error('there should be no active web socket');
+    }
+
+    public handle_message = (service: ServiceProxy, event: MessageEvent) => {
+        throw new Error('there should be no active web socket');
+    }
+
+    public handle_close = (service: ServiceProxy, event: CloseEvent) => {
+        throw new Error('there should be no active web socket');
+    }
+}
+
+class Connecting extends AbstractState {
+    public name = 'connecting';
+    private ws: WebSocket;
+    protected signal_queue: List<SendSignalInput>;
+
+    constructor(ws: WebSocket, signal_queue: List<SendSignalInput>) {
+        super();
+        this.ws = ws;
+        this.signal_queue = signal_queue;
+    }
+
+    public start = (service: ServiceProxy) => {
+        // do nothing
+    }
+
+    public connect = async (service: ServiceProxy, access_token: string) => {
+        throw new Error('Already connecting');
+    }
+
+    public stop = (service: ServiceProxy) => {
+        service.remove_event_listeners(this.ws);
+        this.ws.close(WebSocketCloseCodeNormalClosure);
+        service.set_state(new NotConnected());
+    }
+
+    public send_signal = (service: ServiceProxy, input: SendSignalInput) => {
+        this.signal_queue = this.signal_queue.push(input);
+    }
+
+    public keep_alive = (service: ServiceProxy) => {
+        // do nothing
+    }
+
+    public handle_open = (service: ServiceProxy, event: Event) => {
+        service.set_state(new Connected(this.ws));
+        this.signal_queue.forEach((signal) => {
+            service.send_signal(signal);
+        })
+        service.keep_alive();
+    }
+
+    public handle_message = (service: ServiceProxy, event: MessageEvent) => {
+        throw new Error('there should be no active web socket');
+    }
+
+    public handle_close = (service: ServiceProxy, event: CloseEvent) => {
+        service.logging_service.log({
+            severity: Severity.Warning,
+            message: `WebSocket closed with code ${event.code}, reconnecting in ${InitialRetryDelay}ms`,
         });
-        this.keep_alive();
+        const id = uuid();
+        service.set_state(new PreparingToReconnect(id, InitialRetryDelay));
+        service.reconnect_after_delay(id, InitialRetryDelay);
+    }
+}
+
+class Connected extends AbstractState {
+    public name = 'connected';
+    private ws: WebSocket;
+    private pong_event_target: EventTarget = new EventTarget();
+
+    constructor(ws: WebSocket) {
+        super();
+        this.ws = ws;
     }
 
-    private on_message = (event: MessageEvent) => {
-        if (this.state.state !== 'connected') return;
-        const message = JSON.parse(event.data);
-        switch (message.type) {
-            case 'signal':
-                this.on_signal(message);
-                return;
-            case 'pong':
-                this.on_pong();
-                return;
-        }
+    public start = (service: ServiceProxy) => {
+        // do nothing
     }
 
-    private on_signal = (message: any) => {
-        this.dispatchEvent(new CustomEvent('signal', {
-            detail: message.signal,
-            bubbles: true
-        }));
+    public connect = async (service: ServiceProxy, access_token: string) => {
+        throw new Error('Already connected');
     }
 
-    private on_pong = () => {
-        this.pong_event_target.dispatchEvent(new Event('pong'));
+    public stop = (service: ServiceProxy) => {
+        service.remove_event_listeners(this.ws);
+        this.ws.close(WebSocketCloseCodeNormalClosure);
+        service.set_state(new NotConnected());
     }
 
-    public send_signal = (input: SendSignalInput) => {
-        // TODO wait for correct state? have a decorator to handle this?
-        if (this.state.state === 'not_connected')
-            throw new Error('Not connected');
-        if (this.state.state !== 'connected') return;
-        this.state.ws.send(JSON.stringify({
+    public send_signal = (service: ServiceProxy, input: SendSignalInput) => {
+        this.ws.send(JSON.stringify({
             type: 'signal',
             signal: input,
         }));
     }
 
-    private keep_alive = async () => {
+    public keep_alive = async (service: ServiceProxy) => {
         const pingInterval = 30000;
-        if (this.state.state !== 'connected') return;
         try {
-            this.send_ping(this.state.ws);
+            this.send_ping(this.ws);
             await this.wait_for_pong();
+            setTimeout(service.keep_alive, pingInterval);
         } catch (err: unknown) {
-            this.logging_service.log({
+            service.logging_service.log({
                 severity: Severity.Warning,
                 message: "WebSocket keep-alive failed"
             });
-            this.reconnect(WebSocketSignalService.InitialRetryDelay);
+            const id = uuid();
+            service.set_state(new PreparingToReconnect(id, InitialRetryDelay));
+            service.reconnect_after_delay(id, InitialRetryDelay);
         }
-        setTimeout(this.keep_alive, pingInterval);
     }
 
     private send_ping = (ws: WebSocket) => {
@@ -198,114 +265,233 @@ class WebSocketSignalService extends EventTarget implements SignalService {
         });
     }
 
-    private on_error = (event: Event) => {
+    public handle_open = (service: ServiceProxy, event: Event) => {
+        throw new Error('Already connected');
+    }
+
+    public handle_message = (service: ServiceProxy, event: MessageEvent) => {
+        const message = JSON.parse(event.data);
+        switch (message.type) {
+            case 'signal':
+                this.handle_signal(service, message);
+                return;
+            case 'pong':
+                this.handle_pong();
+                return;
+        }
+    }
+
+    private handle_signal = (service: ServiceProxy, message: any) => {
+        service.dispatch_event(new SignalEvent(message.signal));
+    }
+
+    private handle_pong = () => {
+        this.pong_event_target.dispatchEvent(new Event('pong'));
+    }
+
+    public handle_close = (service: ServiceProxy, event: CloseEvent) => {
+        service.logging_service.log({
+            severity: Severity.Warning,
+            message: `WebSocket closed with code ${event.code}, reconnecting in ${InitialRetryDelay}ms`,
+        });
+        const id = uuid();
+        service.set_state(new PreparingToReconnect(id, InitialRetryDelay));
+        service.reconnect_after_delay(id, InitialRetryDelay);
+    }
+}
+
+class PreparingToReconnect extends PreparingToConnect {
+    public name = 'preparing_to_reconnect';
+    private retry_delay: number;
+
+    constructor(id: string, retry_delay: number) {
+        super(id);
+        this.retry_delay = retry_delay;
+    }
+
+    public connect = async (service: ServiceProxy, access_token: string) => {
+        const ws = this.create_web_socket(service, access_token);
+        service.set_state(new Reconnecting(ws, this.signal_queue, this.retry_delay));
+    }
+}
+
+class Reconnecting extends Connecting {
+    public name = 'reconnecting';
+    private retry_delay: number;
+
+    constructor(ws: WebSocket, signal_queue: List<SendSignalInput>, retry_delay: number) {
+        super(ws, signal_queue);
+        this.retry_delay = retry_delay;
+    }
+
+    public handle_close = (service: ServiceProxy, event: CloseEvent) => {
+        service.logging_service.log({
+            severity: Severity.Warning,
+            message: `WebSocket closed with code ${event.code}, reconnecting in ${this.retry_delay}ms`,
+        });
+        const next_retry_delay = this.get_next_retry_delay();
+        const id = uuid();
+        service.set_state(new PreparingToReconnect(id, next_retry_delay));
+        service.reconnect_after_delay(id, next_retry_delay);
+    }
+
+    private get_next_retry_delay = () => {
+        const next_retry_delay = this.retry_delay * 2;
+        if (next_retry_delay > MaxRetryDelay) return MaxRetryDelay;
+        return next_retry_delay;
+    }
+}
+
+type WebSocketSignalState =
+    NotConnected |
+    PreparingToConnect |
+    Connecting |
+    Connected |
+    PreparingToReconnect |
+    Reconnecting;
+
+interface NewWebSocketSignalServiceInput {
+    logging_service: LoggingService;
+    authorization_service: AuthorizationService;
+}
+
+class WebSocketSignalService extends Service<WebSocketSignalState> {
+    public readonly name = 'WebSocketSignalService';
+    private authorization_service: AuthorizationService;
+
+    private proxy: ServiceProxy;
+
+    public readonly connection_id: string;
+
+    constructor(input: NewWebSocketSignalServiceInput) {
+        super({
+            logging_service: input.logging_service,
+            initial_state: new NotConnected(),
+        });
+        this.logging_service = input.logging_service;
+        this.authorization_service = input.authorization_service;
+        this.connection_id = uuid(); // TODO this is more of a session id now
+        this.proxy = {
+            logging_service: this.logging_service,
+            authorization_service: this.authorization_service,
+            connection_id: this.connection_id,
+            set_state: this.set_state,
+            connect: this.connect,
+            send_signal: this.send_signal,
+            keep_alive: this.keep_alive,
+            reconnect_after_delay: this.reconnect_after_delay,
+            add_event_listeners: this.add_event_listeners,
+            remove_event_listeners: this.remove_event_listeners,
+            dispatch_event: this.dispatch_event,
+        };
+    }
+
+    protected to_string = (state: WebSocketSignalState): string => {
+        return state.name;
+    }
+
+    public start = () => {
+        const state = this.get_state();
+        state.start(this.proxy);
+    }
+
+    private connect = async (id: string, access_token: string) => {
+        const state = this.get_state();
+        state.connect(this.proxy, id, access_token);
+    }
+
+    private handle_open = (event: Event) => {
+        const state = this.get_state();
+        state.handle_open(this.proxy, event);
+    }
+
+    private handle_message = (event: MessageEvent) => {
+        const state = this.get_state();
+        state.handle_message(this.proxy, event);
+    }
+
+    public send_signal = (input: SendSignalInput) => {
+        const state = this.get_state();
+        state.send_signal(this.proxy, input);
+    }
+
+    private dispatch_event = (event: Event) => {
+        this.dispatchEvent(event);
+    }
+
+    private keep_alive = async () => {
+        const state = this.get_state();
+        state.keep_alive(this.proxy);
+    }
+
+    private handle_error = (event: Event) => {
         this.logging_service.log({
             severity: Severity.Warning,
             message: `WebSocket error: event.type: ${event.type}`
         });
     }
 
-    private on_close = (event: CloseEvent) => {
-        switch (this.state.state) {
-            case 'not_connected':
-                return;
-            case 'connecting':
-                if (this.state.step === 'pending') return;
-                this.logging_service.log({
-                    severity: Severity.Warning,
-                    message: `WebSocket closed with code ${event.code}, reconnecting in ${WebSocketSignalService.InitialRetryDelay}ms`,
-                });
-                this.reconnect(WebSocketSignalService.InitialRetryDelay);
-                return;
-            case 'connected':
-                this.logging_service.log({
-                    severity: Severity.Warning,
-                    message: `WebSocket closed with code ${event.code}, reconnecting in ${WebSocketSignalService.InitialRetryDelay}ms`,
-                });
-                this.reconnect(WebSocketSignalService.InitialRetryDelay);
-                return;
-            case 'reconnecting':
-                if (this.state.step === 'pending') return;
-                this.logging_service.log({
-                    severity: Severity.Warning,
-                    message: `WebSocket closed with code ${event.code}, reconnecting in ${this.state.retry_delay}ms`,
-                });
-                this.reconnect(this.state.retry_delay);
-                return;
-        }
+    private handle_close = (event: CloseEvent) => {
+        const state = this.get_state();
+        state.handle_close(this.proxy, event);
     }
 
-    private reconnect = (retry_delay: number) => {
-        if (this.state.state === 'not_connected') return;
-        if (this.state.state === 'connecting' && this.state.step === 'pending') return;
-        if (this.state.state === 'reconnecting' && this.state.step === 'pending') return;
-        this.set_state({
-            state: 'reconnecting',
-            step: 'pending',
-            retry_delay,
-        });
-        this.reconnect_after_delay(retry_delay);
-    }
-
-    private reconnect_after_delay = async (retry_delay: number) => {
+    private reconnect_after_delay = async (id: string, retry_delay: number) => {
         await sleep(retry_delay);
-        retry_delay *= 2;
-        if (retry_delay > WebSocketSignalService.MaxRetryDelay)
-            retry_delay = WebSocketSignalService.MaxRetryDelay;
-        try {
-            const ws = await this.connect();
-            this.set_state({
-                state: 'reconnecting',
-                step: 'opening',
-                ws: ws,
-                retry_delay,
-            });
-        } catch (error: unknown) {
-            const is_error = error instanceof Error;
-            if (!is_error) {
-                this.logging_service.log({
-                    severity: Severity.Error,
-                    message: `reconnect_after_delay: unknown error`
-                })
-                return;
-            };
-            this.logging_service.log({
-                severity: Severity.Error,
-                message: `reconnect_after_delay: ${error.message} ${error.stack}`
-            })
-            this.set_state(WebSocketSignalService.InitialState);
-        }
+        const access_token = await this.authorization_service.get_access_token();
+        this.connect(id, access_token);
     }
 
     public stop = () => {
-        if (this.state.state === 'not_connected') return;
-        if (this.state.state === 'connecting' && this.state.step === 'pending') {
-            this.set_state(WebSocketSignalService.InitialState);
-            return;
-        }
-        if (this.state.state === 'reconnecting' && this.state.step === 'pending') {
-            this.set_state(WebSocketSignalService.InitialState);
-            return;
-        }
-        const ws = this.state.ws;
-        this.removeEventListeners(ws);
-        this.set_state(WebSocketSignalService.InitialState);
-        ws.close(WebSocketCloseCodeNormalClosure);
+        const state = this.get_state();
+        state.stop(this.proxy);
     }
 
-    private addEventListeners = (ws: WebSocket) => {
-        ws.addEventListener('open', this.on_open);
-        ws.addEventListener('message', this.on_message);
-        ws.addEventListener('error', this.on_error);
-        ws.addEventListener('close', this.on_close);
+    private add_event_listeners = (ws: WebSocket) => {
+        ws.addEventListener('open', this.handle_open);
+        ws.addEventListener('message', this.handle_message);
+        ws.addEventListener('error', this.handle_error);
+        ws.addEventListener('close', this.handle_close);
     }
 
-    private removeEventListeners = (ws: WebSocket) => {
-        ws.removeEventListener('open', this.on_open);
-        ws.removeEventListener('message', this.on_message);
-        ws.removeEventListener('error', this.on_error);
-        ws.removeEventListener('close', this.on_close);
+    private remove_event_listeners = (ws: WebSocket) => {
+        ws.removeEventListener('open', this.handle_open);
+        ws.removeEventListener('message', this.handle_message);
+        ws.removeEventListener('error', this.handle_error);
+        ws.removeEventListener('close', this.handle_close);
     }
 }
 
 export default WebSocketSignalService;
+
+export class SignalEvent extends Event {
+    public readonly signal: IncomingSignal;
+
+    constructor(signal: any) {
+        super('signal', { bubbles: true });
+        this.signal = signal;
+    }
+}
+
+export interface IncomingSignal {
+    from_connection_id: string;
+    data: {
+        description?: RTCSessionDescriptionInit;
+        candidate?: RTCIceCandidateInit;
+        close?: null;
+    }
+}
+
+interface WebSocketSignalService extends EventTarget {
+    addEventListener<K extends keyof EventMap>(type: K, listener: (this: EventSource, ev: EventMap[K]) => any, options?: boolean | AddEventListenerOptions): void;
+    addEventListener(type: string, listener: (this: EventSource, event: MessageEvent) => any, options?: boolean | AddEventListenerOptions): void;
+    addEventListener(type: string, listener: EventListenerOrEventListenerObject, options?: boolean | AddEventListenerOptions): void;
+
+    removeEventListener<K extends keyof EventMap>(type: K, listener: (this: EventSource, ev: EventMap[K]) => any, options?: boolean | EventListenerOptions): void;
+    removeEventListener(type: string, listener: (this: EventSource, event: MessageEvent) => any, options?: boolean | EventListenerOptions): void;
+    removeEventListener(type: string, listener: EventListenerOrEventListenerObject, options?: boolean | EventListenerOptions): void;
+}
+
+interface EventMap {
+    "signal": SignalEvent;
+}

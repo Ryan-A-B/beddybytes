@@ -1,9 +1,11 @@
-import { List } from "immutable";
+// import { List } from "immutable";
 import Service from "../../Service";
 import LoggingService from '../../LoggingService';
-import { EventTypeSessionListChanged, Session, SessionListService } from "../SessionListService/types";
+// import { EventTypeSessionListChanged, Session, SessionListService } from "../SessionListService/types";
 import RTCConnection from "./Connection/RTCConnection";
 import Connection, { InitiatedBy } from "./Connection";
+import { Session } from "../types";
+import WebSocketSignalService from "../../SignalService/WebSocketSignalService";
 
 interface SessionStateNotJoined {
     state: 'not_joined';
@@ -39,15 +41,15 @@ const InitialState: SessionState = { state: 'not_joined' };
 
 interface NewSessionServiceInput {
     logging_service: LoggingService;
-    signal_service: SignalService;
-    session_list_service: SessionListService;
+    signal_service: WebSocketSignalService;
+    // session_list_service: SessionListService;
     parent_station_media_stream: MediaStream;
 }
 
 class SessionService extends Service<SessionState> {
     protected readonly name = 'SessionService';
-    private signal_service: SignalService;
-    private session_list_service: SessionListService;
+    private signal_service: WebSocketSignalService;
+    // private session_list_service: SessionListService;
     private parent_station_media_stream: MediaStream;
 
     constructor(input: NewSessionServiceInput) {
@@ -56,8 +58,8 @@ class SessionService extends Service<SessionState> {
             initial_state: InitialState,
         });
         this.signal_service = input.signal_service;
-        this.session_list_service = input.session_list_service;
-        this.session_list_service.addEventListener(EventTypeSessionListChanged, this.handle_session_list_changed);
+        // this.session_list_service = input.session_list_service;
+        // this.session_list_service.addEventListener(EventTypeSessionListChanged, this.handle_session_list_changed);
         this.parent_station_media_stream = input.parent_station_media_stream;
     }
 
@@ -92,17 +94,17 @@ class SessionService extends Service<SessionState> {
         this.set_state(state);
     }
 
-    private handle_session_list_changed = () => {
-        const state = this.get_state();
-        if (state.state !== 'joined')
-            return;
-        const session = state.session;
-        const session_list = this.session_list_service.get_session_list();
-        // TODO List in types.d.ts
-        const session_gone = (session_list as List<Session>).find((s) => s.id === session.id) === undefined;
-        if (session_gone)
-            return this.leave_session_with_state({ state: 'session_ended' });
-    }
+    // private handle_session_list_changed = () => {
+    //     const state = this.get_state();
+    //     if (state.state !== 'joined')
+    //         return;
+    //     const session = state.session;
+    //     const session_list = this.session_list_service.get_session_list();
+    //     // TODO List in types.d.ts
+    //     const session_gone = (session_list as List<Session>).find((s) => s.id === session.id) === undefined;
+    //     if (session_gone)
+    //         return this.leave_session_with_state({ state: 'session_ended' });
+    // }
 }
 
 export default SessionService;

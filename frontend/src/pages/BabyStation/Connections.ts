@@ -1,5 +1,6 @@
 import { Map } from "immutable";
 import settings from "../../settings";
+import WebSocketSignalService, { IncomingSignal, SignalEvent } from "../../services/SignalService/WebSocketSignalService";
 
 interface IncomingSignalDescription {
     from_connection_id: string;
@@ -22,15 +23,6 @@ interface IncomingSignalClose {
     }
 }
 
-interface IncomingSignal {
-    from_connection_id: string;
-    data: {
-        description?: RTCSessionDescriptionInit;
-        candidate?: RTCIceCandidateInit;
-        close?: null;
-    }
-}
-
 const isDescriptionSignal = (signal: IncomingSignal): signal is IncomingSignalDescription => {
     return signal.data.description !== undefined;
 }
@@ -44,29 +36,27 @@ const isCloseSignal = (signal: IncomingSignal): signal is IncomingSignalClose =>
 }
 
 class Connections {
-    private signal_service: SignalService;
+    private signal_service: WebSocketSignalService;
     private stream: MediaStream;
     private peer_connections: Map<string, RTCPeerConnection> = Map();
-    constructor(signal_service: SignalService, stream: MediaStream) {
+    constructor(signal_service: WebSocketSignalService, stream: MediaStream) {
         this.signal_service = signal_service;
         this.stream = stream;
         this.signal_service.start();
-        this.signal_service.addEventListener("signal", this.onSignal);
+        this.signal_service.addEventListener("signal", this.handle_signal);
     }
 
-    private onSignal = async (event: Event) => {
-        if (!(event instanceof CustomEvent)) throw new Error("invalid event");
-        const signal = event.detail as IncomingSignal;
-        if (isDescriptionSignal(signal)) {
-            await this.handleOffer(signal);
+    private handle_signal = async (event: SignalEvent) => {
+        if (isDescriptionSignal(event.signal)) {
+            await this.handleOffer(event.signal);
             return
         }
-        if (isCandidateSignal(signal)) {
-            await this.handleCandidateSignal(signal);
+        if (isCandidateSignal(event.signal)) {
+            await this.handleCandidateSignal(event.signal);
             return
         }
-        if (isCloseSignal(signal)) {
-            this.handleCloseSignal(signal);
+        if (isCloseSignal(event.signal)) {
+            this.handleCloseSignal(event.signal);
             return
         }
     }
@@ -119,7 +109,7 @@ class Connections {
             peer_connection.close()
         });
         this.signal_service.stop();
-        this.signal_service.removeEventListener("signal", this.onSignal);
+        this.signal_service.removeEventListener("signal", this.handle_signal);
     }
 }
 

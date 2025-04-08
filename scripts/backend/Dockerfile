@@ -7,5 +7,7 @@ RUN go build -o backend ./golang/cmd/backend
 
 FROM alpine:latest
 WORKDIR /opt
+RUN mkdir eventlog
 COPY --from=builder /app/backend backend
+
 CMD [ "./backend" ]

@@ -1,14 +1,13 @@
 import React from "react";
-import { useSignalService } from "../../services";
 import parent_station from "../../services/instances/parent_station";
-import { Session } from "../../services/ParentStation/SessionListService/types";
-import SessionService, { SessionState } from "../../services/ParentStation/SessionService";
 import { EventTypeStateChanged } from "../../services/Service";
+import SessionService, { SessionState } from "../../services/ParentStation/SessionService";
+import WebSocketSignalService from "../../services/SignalService/WebSocketSignalService";
+import { Session } from "../../services/ParentStation/types";
 import useWakeLock from "../../hooks/useWakeLock";
-import useSessionList from "../../hooks/useSessionList";
 import useServiceState from "../../hooks/useServiceState";
 import ConnectionStateAlert from "../../components/ConnectionStateAlert";
-import SessionDropdown from "../../components/SessionDropdown";
+// import SessionDropdown from "../../components/SessionDropdown";
 import AudioVisualiserComponent from "../../components/AudioVisualiser";
 import SessionDuration from "./SessionDuration";
 import Video from "./Video";
@@ -29,7 +28,7 @@ const isClientSessionActive = (client_session_status: SessionState["state"]) => 
 
 type UseSignalServiceStopperInput = {
     session_service: SessionService;
-    signal_service: SignalService;
+    signal_service: WebSocketSignalService;
 }
 
 // TODO this shouldn't be a hook
@@ -51,11 +50,33 @@ const useStopper = (input: UseSignalServiceStopperInput) => {
     }, [signal_service, session_service]);
 }
 
+const useSignalService = () => {
+    const signal_service = parent_station.signal_service;
+    React.useEffect(() => {
+        signal_service.start();
+        return () => {
+            signal_service.stop();
+        }
+    }, [signal_service]);
+    return signal_service;
+}
+
+const useBabyStationList = () => {
+    React.useEffect(() => {
+        parent_station.baby_station_list_service.start();
+        return () => {
+            parent_station.baby_station_list_service.stop();
+        }
+    }, []);
+    const baby_station_list_state = useServiceState(parent_station.baby_station_list_service);
+    return baby_station_list_state.get_baby_station_list();
+}
+
 const ParentStation: React.FunctionComponent = () => {
     const session_service = parent_station.session_service;
-    const signal_service = useSignalService();
     const session_state = useServiceState(session_service);
-    const session_list = useSessionList();
+    const signal_service = useSignalService();
+    const baby_station_list = useBabyStationList();
     const media_stream_track_state = useServiceState(parent_station.media_stream_track_monitor);
     // const rtc_peer_connection_state = useClientRTCConnectionState(client_session_state);
     // const should_show_stream = client_session_state.state === "joined" && !isBadRTCPeerConnectionState(rtc_peer_connection_state);
@@ -82,14 +103,14 @@ const ParentStation: React.FunctionComponent = () => {
 
     return (
         <main className={`container wrapper-content parent-station ${media_stream_track_state}`}>
-            <SessionDropdown session_list={session_list} value={getSessionIfActive(session_state)} onChange={onSessionChange} />
+            {/* <SessionDropdown session_list={session_list} value={getSessionIfActive(session_state)} onChange={onSessionChange} /> */}
             {session_state.state === 'session_ended' && (
                 <div id="alert-session-ended" className="alert alert-danger" role="alert">
                     Session Ended
                 </div>
             )}
             <ConnectionStateAlert />
-            {session_state.state === 'joined' && <SessionDuration startedAt={session_state.session.started_at} />}
+            {session_state.state === 'joined' && <SessionDuration started_at={session_state.session.started_at} />}
             {media_stream_track_state === "audio-only" && (
                 <React.Fragment>
                     <p id="audio-only-message">Audio only</p>

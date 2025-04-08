@@ -38,7 +38,13 @@ func (handlers *Handlers) GetEvents(responseWriter http.ResponseWriter, request 
 	if err != nil {
 		return
 	}
+	flusher, ok := responseWriter.(http.Flusher)
+	fatal.Unless(ok, "responseWriter does not support flushing")
 	responseWriter.Header().Set("Content-Type", "text/event-stream")
+	responseWriter.Header().Set("Cache-Control", "no-cache")
+	responseWriter.Header().Set("Connection", "keep-alive")
+	io.WriteString(responseWriter, ": hello\n\n")
+	flusher.Flush()
 	eventC := make(chan *eventlog.Event)
 	go func() {
 		defer close(eventC)
@@ -63,8 +69,10 @@ func (handlers *Handlers) GetEvents(responseWriter http.ResponseWriter, request 
 				return
 			}
 			WriteEvent(responseWriter, event)
+			flusher.Flush()
 		case <-ticker.C:
 			io.WriteString(responseWriter, ": keep-alive\n\n")
+			flusher.Flush()
 		}
 	}
 }
