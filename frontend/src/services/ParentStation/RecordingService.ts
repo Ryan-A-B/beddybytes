@@ -27,7 +27,7 @@ class NotRecording implements RecordingServiceState {
 
     start = (set_state: (state: RecordingServiceState) => void) => {
         const session_state = this.session_service.get_state();
-        if (session_state.state !== 'joined')
+        if (session_state.name !== 'joined')
             throw new Error('Cannot start recording when not joined to a session');
         const recorder = new Recorder(this.media_stream);
         recorder.addEventListener('stop', () => {

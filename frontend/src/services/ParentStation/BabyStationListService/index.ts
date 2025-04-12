@@ -21,7 +21,12 @@ abstract class AbstractState {
     public abstract name: string;
     public abstract start: (service: ForFriends) => Promise<void>;
     public abstract stop: (service: ForFriends) => Promise<void>;
-    public abstract get_baby_station_list: () => List<BabyStation>;
+    public abstract get_snapshot: () => Snapshot;
+
+    public get_baby_station_list = (): List<BabyStation> => {
+        return get_baby_station_list(this.get_snapshot());
+    }
+
     public abstract load_snapshot: (service: ForFriends, snapshot: Snapshot) => void;
 
     public handle_session_started = (service: ForFriends, event: SessionStartedEvent): void => {
@@ -50,7 +55,7 @@ class NotStarted extends AbstractState {
 
     public start = async (service: ForFriends): Promise<void> => {
         service.set_state(new LoadingSnapshot());
-        const snapshot = await this.get_snapshot(service);
+        const snapshot = await this.fetch_snapshot(service);
         service.load_snapshot(snapshot);
     }
 
@@ -62,11 +67,11 @@ class NotStarted extends AbstractState {
         throw new Error("load_snapshot should not be called when not started");
     }
 
-    public get_baby_station_list = (): List<BabyStation> => {
-        return List();
+    public get_snapshot = (): Snapshot => {
+        return EmptySnapshot;
     }
 
-    private get_snapshot = async (service: ForFriends): Promise<Snapshot> => {
+    private fetch_snapshot = async (service: ForFriends): Promise<Snapshot> => {
         const access_token = await service.authorization_service.get_access_token();
         const endpoint = `https://${settings.API.host}/baby_station_list_snapshot`;
         const response = await fetch(endpoint, {
@@ -84,7 +89,7 @@ class NotStarted extends AbstractState {
                 message: `Failed to list sessions: ${payload}`,
             });
             await sleep(5000);
-            return this.get_snapshot(service);
+            return this.fetch_snapshot(service);
         }
         const output = await response.json() as GetSnapshotOutput;
         const session_by_id = Map<string, Session>(
@@ -125,8 +130,8 @@ class LoadingSnapshot extends Running {
         service.set_state(new Projecting(snapshot));
     }
 
-    public get_baby_station_list = (): List<BabyStation> => {
-        return List();
+    public get_snapshot = (): Snapshot => {
+        return EmptySnapshot;
     }
 }
 
@@ -148,8 +153,8 @@ class Projecting extends Running {
         throw new Error("load_snapshot should not be called when projecting");
     }
 
-    public get_baby_station_list = (): List<BabyStation> => {
-        return get_baby_station_list(this.snapshot);
+    public get_snapshot = (): Snapshot => {
+        return this.snapshot;
     }
 
     public handle_session_started = (service: ForFriends, event: SessionStartedEvent): void => {
@@ -229,8 +234,8 @@ class Paused extends AbstractState {
         service.set_state(new Paused(snapshot));
     }
 
-    public get_baby_station_list = (): List<BabyStation> => {
-        return get_baby_station_list(this.snapshot);
+    public get_snapshot = (): Snapshot => {
+        return this.snapshot;
     }
 }
 
@@ -249,8 +254,8 @@ class PausedWaitingForSnapshot extends AbstractState {
         service.set_state(new Paused(snapshot));
     }
 
-    public get_baby_station_list = (): List<BabyStation> => {
-        return List();
+    public get_snapshot = (): Snapshot => {
+        return EmptySnapshot;
     }
 }
 
@@ -303,9 +308,14 @@ class BabyStationListService extends Service<BabyStationListState> {
         state.stop(this.proxy);
     }
 
+    public get_snapshot = (): Snapshot => {
+        const state = this.get_state();
+        return state.get_snapshot();
+    }
+
     public get_baby_station_list = (): List<BabyStation> => {
         const state = this.get_state();
-        return state.get_baby_station_list();
+        return get_baby_station_list(state.get_snapshot());
     }
 
     private load_snapshot = async (snapshot: Snapshot): Promise<void> => {
@@ -346,6 +356,13 @@ interface Snapshot {
     session_by_id: Map<string, Session>;
     session_id_by_connection_id: Map<string, string>;
     connection_by_id: Map<string, Connection>;
+}
+
+const EmptySnapshot: Snapshot = {
+    cursor: 0,
+    session_by_id: Map(),
+    session_id_by_connection_id: Map(),
+    connection_by_id: Map(),
 }
 
 const get_baby_station_list = (snapshot: Snapshot): List<BabyStation> => {

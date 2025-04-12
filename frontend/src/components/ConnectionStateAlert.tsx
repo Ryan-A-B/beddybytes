@@ -4,10 +4,10 @@ import parent_station from "../services/instances/parent_station";
 import useServiceState from "../hooks/useServiceState";
 
 const SessionStateRouter: React.FunctionComponent = () => {
-    const session_state = useServiceState(parent_station.session_service);
-    if (session_state.state !== 'joined') return null;
+    const connection = parent_station.session_service.get_active_connection();
+    if (connection === null) return null;
     return (
-        <ConnectionStateAlert connection={session_state.connection} />
+        <ConnectionStateAlert connection={connection} />
     )
 }
 

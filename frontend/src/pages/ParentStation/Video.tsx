@@ -13,11 +13,18 @@ const pictureInPictureSupported = document.pictureInPictureEnabled === true;
 
 const Video: React.ForwardRefRenderFunction<HTMLVideoElement> = (props, ref) => {
     const video_element_ref = useRef<HTMLVideoElement>(null);
+    const session_state = useServiceState(parent_station.session_service);
     const recording_state = useServiceState(parent_station.recording_service);
     const [isMuted, setIsMuted] = React.useState(false);
     const [volume, setVolume] = React.useState(1);
     const [isFullScreen, setIsFullScreen] = React.useState(is_fullscreen());
     const [isPlaying, setIsPlaying] = useState(false);
+
+    const [session_id, session_name] = React.useMemo(() => {
+        const session = session_state.get_active_session();
+        if (session === null) return ["", ""];
+        return [session.id, session.name];
+    }, [session_state]);
 
     React.useLayoutEffect(() => {
         const video_element = video_element_ref.current;
@@ -112,6 +119,8 @@ const Video: React.ForwardRefRenderFunction<HTMLVideoElement> = (props, ref) => 
                 id="video-parent-station"
                 ref={video_element_ref}
                 controls={false}
+                data-session-id={session_id}
+                data-session-name={session_name}
                 playsInline
                 autoPlay
             />
@@ -208,8 +217,8 @@ const usePlay = (video_element_ref: React.RefObject<HTMLVideoElement>) => {
     React.useLayoutEffect(() => {
         const video_element = video_element_ref.current;
         if (video_element === null) return;
-        if (session_state.state !== "joined") return;
-        const connection = session_state.connection;
+        const connection = session_state.get_active_connection();
+        if (connection === null) return;
         const handle_connection_state_change = () => {
             const connection_state = connection.get_state();
             if (connection_state.state !== "connected") return;

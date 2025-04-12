@@ -58,7 +58,7 @@ const Alert: React.FunctionComponent<Props> = ({ error_service }) => {
     }, [errors])
 
     return (
-        <div className="container mt-3">
+        <div id="container-errors" className="container mt-3">
             <div className="alert alert-danger" role="alert">
                 <div className="d-flex align-items-center justify-content-between">
                     <h5>Hi there!</h5>
