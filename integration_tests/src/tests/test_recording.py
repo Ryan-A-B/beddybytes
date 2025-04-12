@@ -41,8 +41,6 @@ class TestRecording(unittest.TestCase):
             parent_station_driver.find_element(By.ID, "nav-link-parent").click()
 
             parent_station_driver_wait = WebDriverWait(parent_station_driver, 1)
-            session_dropdown = parent_station_driver_wait.until(lambda driver: Select(driver.find_element(By.ID, "session-dropdown")))
-            session_dropdown.options[1].click()
             self.allow_time_for_video_to_display()
 
             start_recording_button = parent_station_driver_wait.until(lambda driver: driver.find_element(By.ID, "button-start-recording"))
@@ -79,8 +77,6 @@ class TestRecording(unittest.TestCase):
             parent_station_driver.find_element(By.ID, "nav-link-parent").click()
 
             parent_station_driver_wait = WebDriverWait(parent_station_driver, 1)
-            session_dropdown = parent_station_driver_wait.until(lambda driver: Select(driver.find_element(By.ID, "session-dropdown")))
-            session_dropdown.options[1].click()
             self.allow_time_for_video_to_display()
 
             start_recording_button = parent_station_driver_wait.until(lambda driver: driver.find_element(By.ID, "button-start-recording"))
@@ -94,8 +90,6 @@ class TestRecording(unittest.TestCase):
             session_toggle.click()
 
             # Parent station joins the new session
-            session_dropdown = parent_station_driver_wait.until(lambda driver: Select(driver.find_element(By.ID, "session-dropdown")))
-            session_dropdown.options[1].click()
             self.allow_time_for_video_to_display()
 
             # Ensure parent station is showing the button to start recording
