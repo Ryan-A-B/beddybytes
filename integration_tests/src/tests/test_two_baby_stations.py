@@ -232,7 +232,6 @@ class TestTwoBabyStations(unittest.TestCase):
             for session in sessions:
                 for option in baby_station_dropdown.options:
                     if option.text == session["name"]:
-                        print(f"Option: {option.text}")
                         self.assertIsNone(session["option"])
                         session["option"] = option
                         break

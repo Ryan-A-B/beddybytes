@@ -66,11 +66,15 @@ class TestSession(unittest.TestCase):
             with self.assertRaises(NoSuchElementException):
                 driver_2.find_element(By.ID, "audio-only-message")
 
+            with self.assertRaises(NoSuchElementException):
+                driver_1.find_element(By.ID, "container-errors")
+            with self.assertRaises(NoSuchElementException):
+                driver_2.find_element(By.ID, "container-errors")
             driver_1_logs = get_browser_logs(driver_1)
             driver_2_logs = get_browser_logs(driver_2)
             self.assertEqual(len(driver_1_logs), 0)
             self.assertEqual(len(driver_2_logs), 0)
-            
+
     def test_video_session(self):
         email = f'{generate_random_string(10)}@integrationtests.com'
         password = generate_random_string(20)
@@ -116,6 +120,10 @@ class TestSession(unittest.TestCase):
             self.allow_time_for_video_to_display()
             self.assertFalse(video_element.is_displayed())
 
+            with self.assertRaises(NoSuchElementException):
+                driver_1.find_element(By.ID, "container-errors")
+            with self.assertRaises(NoSuchElementException):
+                driver_2.find_element(By.ID, "container-errors")
             driver_1_logs = get_browser_logs(driver_1)
             driver_2_logs = get_browser_logs(driver_2)
             self.assertEqual(len(driver_1_logs), 0)
@@ -154,6 +162,10 @@ class TestSession(unittest.TestCase):
             self.allow_time_for_video_to_display()
             self.assertTrue(video_element.is_displayed())
 
+            with self.assertRaises(NoSuchElementException):
+                driver_1.find_element(By.ID, "container-errors")
+            with self.assertRaises(NoSuchElementException):
+                driver_2.find_element(By.ID, "container-errors")
             driver_1_logs = get_browser_logs(driver_1)
             self.assertEqual(len(driver_1_logs), 0)
             driver_2_logs = get_browser_logs(driver_2)
@@ -214,6 +226,12 @@ class TestSession(unittest.TestCase):
             self.assertFalse(driver_2_video_element.is_displayed())
             self.assertFalse(driver_3_video_element.is_displayed())
 
+            with self.assertRaises(NoSuchElementException):
+                driver_1.find_element(By.ID, "container-errors")
+            with self.assertRaises(NoSuchElementException):
+                driver_2.find_element(By.ID, "container-errors")
+            with self.assertRaises(NoSuchElementException):
+                driver_3.find_element(By.ID, "container-errors")
             driver_1_logs = get_browser_logs(driver_1)
             self.assertEqual(len(driver_1_logs), 0)
             driver_2_logs = get_browser_logs(driver_2)
@@ -259,3 +277,12 @@ class TestSession(unittest.TestCase):
             session_toggle.click()
             self.allow_time_for_video_to_display()
             self.assertFalse(video_element.is_displayed())
+
+            with self.assertRaises(NoSuchElementException):
+                driver_1.find_element(By.ID, "container-errors")
+            with self.assertRaises(NoSuchElementException):
+                driver_2.find_element(By.ID, "container-errors")
+            driver_1_logs = get_browser_logs(driver_1)
+            self.assertEqual(len(driver_1_logs), 0)
+            driver_2_logs = get_browser_logs(driver_2)
+            self.assertEqual(len(driver_2_logs), 0)

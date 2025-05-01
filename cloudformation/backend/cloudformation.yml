@@ -15,6 +15,9 @@ Parameters:
   MyIPAddress:
     Description: The IP address of the client that will be allowed to SSH into the EC2 instance
     Type: String
+  HostedZoneId:
+    Type: String
+    Description: The ID of the Route 53 hosted zone
   HostedZoneName:
     Type: String
     Description: The name of the Route 53 hosted zone
@@ -39,6 +42,9 @@ Parameters:
   AppHost:
     Type: String
     Description: The host name of the application
+  MQTTHost:
+    Type: String
+    Description: The hostname of the MQTT server
 
 Resources:
   BackendCluster:
@@ -576,6 +582,16 @@ Resources:
       ResourceRecords:
         - !Ref ElasticIP
 
+  APIDNSRecordQA:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneName: !Ref HostedZoneName
+      Name: !Ref APIHostNameQA
+      Type: A
+      TTL: '900'
+      ResourceRecords:
+        - !Ref ElasticIP
+
   EmailIdentity:
     Type: AWS::SES::EmailIdentity
     Properties:
@@ -610,3 +626,80 @@ Resources:
       TTL: '900'
       ResourceRecords:
         - !GetAtt EmailIdentity.DkimDNSTokenValue3
+
+  # IoTCertificate:
+  #   Type: AWS::CertificateManager::Certificate
+  #   Properties:
+  #     DomainName: !Ref MQTTHost
+  #     ValidationMethod: DNS
+  #     DomainValidationOptions:
+  #       - DomainName: !Ref MQTTHost
+  #         HostedZoneId: !Ref HostedZoneId
+
+  # IoTCustomDomain:
+  #   Type: AWS::IoT::DomainConfiguration
+  #   Properties:
+  #     DomainName: !Ref MQTTHost
+  #     DomainConfigurationStatus: DISABLED
+  #     ServerCertificateArns:
+  #       - !Ref IoTCertificate
+
+  BackendPrivateKey:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: !Sub ${AWS::StackName}-backend-private-key
+      GenerateSecretString: {}
+
+  BackendThing:
+    Type: AWS::IoT::Thing
+    Properties:
+      ThingName: !Sub ${AWS::StackName}-backend
+
+  BackendCertificate:
+    Type: AWS::IoT::Certificate
+    Properties:
+      Status: ACTIVE
+      CertificateMode: DEFAULT
+      CertificateSigningRequest: !Sub |
+        -----BEGIN CERTIFICATE REQUEST-----
+        MIICVTCCAT0CAQAwEDEOMAwGA1UEAwwFbG9jYWwwggEiMA0GCSqGSIb3DQEBAQUA
+        A4IBDwAwggEKAoIBAQDARKEQMRcrxQ3xquBi2zpvnoiBGtrZk3myP2EbK7OZQBC8
+        uC4rTv8f9Qk2dlE2Iaakq70j0e7tFNP1I0BxTSWagh7jHw0yTghFKk71Q+rNZ5WV
+        v6BZk7fBUddXhMdyhvqdX7XS6O/MobJYJ0a1mO9+G/KsFeszi3Nt3HvG1G4zT8L2
+        aw/VkQNJLYMch+56gGh5XKDVP5nVrpzI5PeJNfgmyM9W3cMgbxaP0Tg/d16R+s8Z
+        tWwl9EbNSK48FMnsZpCKPfsOiDpzNwFz5MEwDO/r2di/43vF2tCkD/IGL2KJrDYm
+        dw7nV116Gi6Nmxh+SOpD6ileAyCVg0NK/NkitWMJAgMBAAGgADANBgkqhkiG9w0B
+        AQsFAAOCAQEAu2kNUEOG8+Pke5SpzKq+Hk43KjAiu+NtG2LhPbEFM2l9UqRRWtEf
+        iKqpnpQpBafFnUYyvJTkWjF1kfv1tJUqju/FKakWhMvWpWKlcArwmJsOmZzUARaZ
+        f2uXJPoHO30epB9IrQpid3VhT8+EdF/sZXffVogfLLwYS6hzVjMWazGqR6T11gUD
+        tagkTkwW44+Lun1DuZsKJk75UqBLKd7G+UqxyEu2VsKjQpcN5ZvVkn7+Q3ed7kwP
+        w3z5BpmD1uOCuLFC3v7DcETk8l4ujP6PwxTUp5w3oNw2oqZ4A2muplZS9ocW71u6
+        shHiYA4O4Z5gakkGBDglTZdkyrY1QyAp2w==
+        -----END CERTIFICATE REQUEST-----
+
+  BackendThingAttachment:
+    Type: AWS::IoT::ThingPrincipalAttachment
+    Properties:
+      Principal: !GetAtt BackendCertificate.Arn
+      ThingName: !Ref BackendThing
+
+  BackendPolicy:
+    Type: AWS::IoT::Policy
+    Properties:
+      PolicyName: !Sub ${AWS::StackName}-backend-policy
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action:
+              - iot:Connect
+              - iot:Publish
+              - iot:Receive
+              - iot:Subscribe
+            Resource: "*"
+            
+  BackendPolicyAttachment:
+    Type: AWS::IoT::PolicyPrincipalAttachment
+    Properties:
+      Principal: !GetAtt BackendCertificate.Arn
+      PolicyName: !Ref BackendPolicy

@@ -53,8 +53,9 @@ class TestRecording(unittest.TestCase):
 
             start_recording_button = parent_station_driver_wait.until(lambda driver: driver.find_element(By.ID, "button-start-recording"))
             self.assertTrue(start_recording_button.is_displayed())
-
             # TODO: Check that the recording is saved
+            with self.assertRaises(NoSuchElementException):
+                parent_station_driver.find_element(By.ID, "container-errors")
 
     def test_recording_stops_due_to_media_stream_ending(self):
         email = f'{generate_random_string(10)}@integrationtests.com'
@@ -95,4 +96,6 @@ class TestRecording(unittest.TestCase):
             # Ensure parent station is showing the button to start recording
             start_recording_button = parent_station_driver_wait.until(lambda driver: driver.find_element(By.ID, "button-start-recording"))
             self.assertTrue(start_recording_button.is_displayed())
+            with self.assertRaises(NoSuchElementException):
+                parent_station_driver.find_element(By.ID, "container-errors")
 

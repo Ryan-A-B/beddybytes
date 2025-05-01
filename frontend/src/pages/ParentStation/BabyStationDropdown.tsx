@@ -33,13 +33,15 @@ const BabyStationDropdown: React.FunctionComponent<Props> = ({ session_service, 
 
     const active_session_id = active_session?.id ?? "";
     return (
-        <select id="baby-station-dropdown" value={active_session_id} onChange={handle_change} className="form-select">
-            {baby_stations.map((baby_station) => (
-                <option value={baby_station.session.id} key={baby_station.session.id}>
-                    {baby_station.session.name}
-                </option>
-            ))}
-        </select>
+        <div className="mb-3">
+            <select id="baby-station-dropdown" value={active_session_id} onChange={handle_change} className="form-select">
+                {baby_stations.map((baby_station) => (
+                    <option value={baby_station.session.id} key={baby_station.session.id}>
+                        {baby_station.session.name}
+                    </option>
+                ))}
+            </select>
+        </div>
     );
 }
 

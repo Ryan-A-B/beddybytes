@@ -152,7 +152,7 @@ class Connecting extends AbstractState {
     }
 
     public connect = async (service: ServiceProxy, access_token: string) => {
-        throw new Error('Already connecting');
+        // do nothing
     }
 
     public stop = (service: ServiceProxy) => {
@@ -207,7 +207,7 @@ class Connected extends AbstractState {
     }
 
     public connect = async (service: ServiceProxy, access_token: string) => {
-        throw new Error('Already connected');
+        // do nothing
     }
 
     public stop = (service: ServiceProxy) => {
@@ -235,6 +235,7 @@ class Connected extends AbstractState {
                 message: "WebSocket keep-alive failed"
             });
             const id = uuid();
+            service.remove_event_listeners(this.ws);
             service.set_state(new PreparingToReconnect(id, InitialRetryDelay));
             service.reconnect_after_delay(id, InitialRetryDelay);
         }
@@ -309,7 +310,8 @@ class PreparingToReconnect extends PreparingToConnect {
         this.retry_delay = retry_delay;
     }
 
-    public connect = async (service: ServiceProxy, access_token: string) => {
+    public connect = async (service: ServiceProxy, id: string, access_token: string) => {
+        if (this.id !== id) return;
         const ws = this.create_web_socket(service, access_token);
         service.set_state(new Reconnecting(ws, this.signal_queue, this.retry_delay));
     }

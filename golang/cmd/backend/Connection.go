@@ -116,15 +116,8 @@ func (handlers *Handlers) HandleConnection(responseWriter http.ResponseWriter, r
 		return
 	}
 	defer conn.Close()
-	mqttClient := handlers.CreateMQTTClient(connectionID) // TODO set will
-	err = mqttx.Wait(mqttClient.Connect())
-	if err != nil {
-		logx.Errorln(err)
-		return
-	}
-	defer mqttClient.Disconnect(250)
 	inboxTopic := fmt.Sprintf(inboxTopicFormat, accountID, connectionID)
-	token := mqttClient.Subscribe(inboxTopic, 1, func(client mqtt.Client, message mqtt.Message) {
+	token := handlers.MQTTClient.Subscribe(inboxTopic, 1, func(client mqtt.Client, message mqtt.Message) {
 		signal := new(OutgoingSignal)
 		err := json.Unmarshal(message.Payload(), signal)
 		fatal.OnError(err)
@@ -144,8 +137,9 @@ func (handlers *Handlers) HandleConnection(responseWriter http.ResponseWriter, r
 		logx.Errorln(err)
 		return
 	}
+	// Wait for the subscription to propagate
+	readyC := time.After(500 * time.Millisecond)
 	err = handlers.sendConnectedMessage(ctx, sendConnectedMessageInput{
-		client:       mqttClient,
 		accountID:    accountID,
 		clientID:     clientID,
 		connectionID: connectionID,
@@ -156,25 +150,32 @@ func (handlers *Handlers) HandleConnection(responseWriter http.ResponseWriter, r
 		return
 	}
 	defer func() {
-		handlers.sendDisconnectedMessage(ctx, sendDisconnectedMessageInput{
-			client:       mqttClient,
+		err = handlers.sendDisconnectedMessage(ctx, sendDisconnectedMessageInput{
 			accountID:    accountID,
 			clientID:     clientID,
 			connectionID: connectionID,
 			requestID:    requestID,
 		})
+		if err != nil {
+			logx.Errorln(err)
+		}
+		err = mqttx.Wait(handlers.MQTTClient.Unsubscribe(inboxTopic))
+		if err != nil {
+			logx.Errorln(err)
+		}
 	}()
 	connection := handlers.ConnectionFactory.CreateConnection(ctx, &CreateConnectionInput{
 		AccountID:    accountID,
 		ConnectionID: connectionID,
 		conn:         conn,
-		client:       mqttClient,
+		client:       handlers.MQTTClient,
 	})
 	errC := make(chan error, 1)
 	go func() {
 		errC <- connection.runKeepAlive(ctx)
 	}()
 	go func() {
+		<-readyC
 		errC <- connection.handleMessages(ctx)
 	}()
 	select {
@@ -194,7 +195,6 @@ func (handlers *Handlers) HandleConnection(responseWriter http.ResponseWriter, r
 }
 
 type sendConnectedMessageInput struct {
-	client       mqtt.Client
 	accountID    string
 	clientID     string
 	connectionID string
@@ -212,11 +212,10 @@ func (handlers *Handlers) sendConnectedMessage(ctx context.Context, input sendCo
 			RequestID: input.requestID,
 		},
 	})
-	return mqttx.Wait(input.client.Publish(topic, 1, false, payload))
+	return mqttx.Wait(handlers.MQTTClient.Publish(topic, 1, false, payload))
 }
 
 type sendDisconnectedMessageInput struct {
-	client       mqtt.Client
 	accountID    string
 	clientID     string
 	connectionID string
@@ -234,7 +233,7 @@ func (handlers *Handlers) sendDisconnectedMessage(ctx context.Context, input sen
 			RequestID: input.requestID,
 		},
 	})
-	return mqttx.Wait(input.client.Publish(topic, 1, false, payload))
+	return mqttx.Wait(handlers.MQTTClient.Publish(topic, 1, false, payload))
 }
 
 type ConnectionFactory struct{}

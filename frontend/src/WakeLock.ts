@@ -11,7 +11,7 @@ class WakeLocker implements Locker {
     }
 
     lock = async () => {
-        if (this.isLocked()) throw new Error('Cannot lock when already locked');
+        if (this.isLocked()) return;
         this.wakeLock = await navigator.wakeLock.request('screen');
         document.addEventListener('visibilitychange', this.onVisibilityChange);
     }
@@ -26,7 +26,7 @@ class WakeLocker implements Locker {
     }
 
     unlock = () => {
-        if (this.wakeLock === null) throw new Error('Cannot unlock when not locked');
+        if (this.wakeLock === null) return;
         this.wakeLock.release();
         document.removeEventListener('visibilitychange', this.onVisibilityChange);
         this.wakeLock = null;

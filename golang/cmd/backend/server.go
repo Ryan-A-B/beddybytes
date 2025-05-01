@@ -3,11 +3,13 @@ package main
 import (
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/ansel1/merry"
@@ -27,6 +29,7 @@ import (
 	"github.com/Ryan-A-B/beddybytes/golang/internal/httpx"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/logx"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/mailer"
+	"github.com/Ryan-A-B/beddybytes/golang/internal/mqttx"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/resetpassword"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/sessionlist"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/sessionstore"
@@ -70,7 +73,7 @@ type Handlers struct {
 	SessionList       *sessionlist.SessionList
 	BabyStationList   *babystationlist.BabyStationList
 	EventLog          eventlog.EventLog
-	CreateMQTTClient  func(clientID string) mqtt.Client
+	MQTTClient        mqtt.Client
 	UsageStats        *UsageStats
 
 	Key interface{}
@@ -223,6 +226,7 @@ func main() {
 			}),
 		}),
 	})
+	mqttClient := newMQTTClient()
 	accountHandlers := accounts.Handlers{
 		CookieDomain: cookieDomain,
 		EventLog:     eventLog,
@@ -275,18 +279,8 @@ func main() {
 		BabyStationList: babystationlist.New(babystationlist.NewInput{
 			EventLog: eventLog,
 		}),
-		EventLog: eventLog,
-		CreateMQTTClient: func(clientID string) mqtt.Client {
-			options := mqtt.NewClientOptions()
-			options.AddBroker("wss://mosquitto.beddybytes.local")
-			options.SetClientID(clientID)
-			options.SetResumeSubs(true)
-			options.SetCleanSession(false)
-			options.SetTLSConfig(&tls.Config{
-				InsecureSkipVerify: true,
-			})
-			return mqtt.NewClient(options)
-		},
+		EventLog:   eventLog,
+		MQTTClient: mqttClient,
 		UsageStats: NewUsageStats(ctx, NewUsageStatsInput{
 			Log: eventLog,
 		}),
@@ -301,22 +295,13 @@ func main() {
 		log.Fatal("eventlog.Project exited")
 	}()
 	go func() {
-		options := mqtt.NewClientOptions()
-		options.AddBroker("wss://mosquitto.beddybytes.local")
-		options.SetClientID("backend") // TODO environment variable
-		options.SetResumeSubs(true)
-		options.SetCleanSession(false)
-		options.SetTLSConfig(&tls.Config{
-			InsecureSkipVerify: true,
-		})
 		connectionstoresync.Run(ctx, connectionstoresync.RunInput{
-			CreateClient: func() mqtt.Client {
-				return mqtt.NewClient(options)
-			},
+			MQTTClient: mqttClient,
 			ConnectionStore: connectionstore.NewDecider(connectionstore.NewDeciderInput{
 				EventLog: eventLog,
 			}),
 		})
+		log.Fatal("connectionstoresync.Run exited")
 	}()
 	router := mux.NewRouter()
 	router.Use(internal.LoggingMiddleware)
@@ -358,4 +343,53 @@ func newMailer(ctx context.Context) accounts.Mailer {
 	default:
 		panic("invalid MAILER_IMPLEMENTATION")
 	}
+}
+
+func newMQTTClient() (client mqtt.Client) {
+	broker := internal.EnvStringOrFatal("MQTT_BROKER")
+	clientID := internal.EnvStringOrFatal("MQTT_CLIENT_ID")
+	options := mqtt.NewClientOptions()
+	options.AddBroker(broker)
+	options.SetClientID(clientID)
+	options.SetResumeSubs(true)
+	options.SetCleanSession(false)
+	options.SetKeepAlive(60 * time.Second)
+	options.SetPingTimeout(10 * time.Second)
+	options.OnConnect = func(client mqtt.Client) {
+		log.Println("Connected to broker")
+	}
+	options.OnConnectionLost = func(client mqtt.Client, err error) {
+		log.Println("Connection lost:", err)
+	}
+	implementation := internal.EnvStringOrFatal("MQTT_IMPLEMENTATION")
+	switch implementation {
+	case "mosquitto":
+		options.SetTLSConfig(&tls.Config{
+			InsecureSkipVerify: true,
+		})
+	case "aws_iot":
+		rootCAFile := internal.EnvStringOrFatal("MQTT_AWS_IOT_ROOT_CA_FILE")
+		certFile := internal.EnvStringOrFatal("MQTT_AWS_IOT_CERT_FILE")
+		keyFile := internal.EnvStringOrFatal("MQTT_AWS_IOT_KEY_FILE")
+		rootCA, err := os.ReadFile(rootCAFile)
+		fatal.OnError(err)
+		rootCAs := x509.NewCertPool()
+		ok := rootCAs.AppendCertsFromPEM(rootCA)
+		fatal.Unless(ok, "failed to append root CA certificate")
+		cert, err := tls.LoadX509KeyPair(certFile, keyFile)
+		fatal.OnError(err)
+		tlsConfig := tls.Config{
+			RootCAs:            rootCAs,
+			Certificates:       []tls.Certificate{cert},
+			MinVersion:         tls.VersionTLS12,
+			InsecureSkipVerify: false,
+		}
+		options.SetTLSConfig(&tlsConfig)
+	default:
+		panic("invalid MQTT_IMPLEMENTATION")
+	}
+	client = mqtt.NewClient(options)
+	err := mqttx.Wait(client.Connect())
+	fatal.OnError(err)
+	return
 }

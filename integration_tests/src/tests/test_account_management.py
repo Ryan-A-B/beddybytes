@@ -40,6 +40,8 @@ class TestAccountManagement(unittest.TestCase):
 
             index_page_root_element = wait.until(lambda driver: driver.find_element(By.ID, "page-index"))
             self.assertTrue(index_page_root_element.is_displayed())
+            with self.assertRaises(NoSuchElementException):
+                driver.find_element(By.ID, "container-errors")
 
     def test_login(self):
         email = f'{generate_random_string(10)}@integrationtests.com'
@@ -71,6 +73,8 @@ class TestAccountManagement(unittest.TestCase):
 
             index_page_root_element = wait.until(lambda driver: driver.find_element(By.ID, "page-index"))
             self.assertTrue(index_page_root_element.is_displayed())
+            with self.assertRaises(NoSuchElementException):
+                driver.find_element(By.ID, "container-errors")
 
     def test_reset_password(self):
         email = f'{generate_random_string(10)}@integrationtests.com'
@@ -146,3 +150,5 @@ class TestAccountManagement(unittest.TestCase):
             submit_button_element = form_element.find_element(By.ID, "submit-button-login")
             submit_button_element.click()
             wait.until(lambda driver: driver.find_element(By.ID, "page-index"))
+            with self.assertRaises(NoSuchElementException):
+                driver.find_element(By.ID, "container-errors")

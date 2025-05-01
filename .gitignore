@@ -4,3 +4,7 @@ eventlog
 
 download_event_log.sh
 upload_event_log.sh
+
+*.pem
+*.csr
+*.crt

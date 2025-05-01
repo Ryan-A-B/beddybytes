@@ -34,8 +34,11 @@ services:
       - mosquitto
     ports:
       - 9000
-    # volumes:
-    #   - ./eventlog:/opt/eventlog
+    volumes:
+      - ./scripts/backend/AmazonRootCA1.pem:/opt/AmazonRootCA1.pem
+      - ./scripts/backend/certificate.crt:/opt/certificate.crt
+      - ./scripts/backend/private_key.pem:/opt/private_key.pem
+      # - ./eventlog:/opt/eventlog
     environment:
       - ENCRYPTION_KEY=${ENCRYPTION_KEY}
       - COOKIE_DOMAIN=.beddybytes.local
@@ -43,6 +46,14 @@ services:
       - FILE_EVENT_LOG_FOLDER_PATH=/opt/eventlog
       - MAILER_IMPLEMENTATION=console
       - MAILER_CONSOLE_APP_HOST=app.beddybytes.local
+      - MQTT_CLIENT_ID=beddybytes-backend-api
+      - MQTT_IMPLEMENTATION=mosquitto
+      - MQTT_BROKER=wss://mosquitto.beddybytes.local
+      # - MQTT_IMPLEMENTATION=aws_iot
+      # - MQTT_BROKER=ssl://a2g6cxhf9lu5os-ats.iot.us-east-1.amazonaws.com:8883
+      # - MQTT_AWS_IOT_ROOT_CA_FILE=AmazonRootCA1.pem
+      # - MQTT_AWS_IOT_CERT_FILE=certificate.crt
+      # - MQTT_AWS_IOT_KEY_FILE=private_key.pem
     labels:
       - "traefik.http.routers.api.rule=Host(`api.beddybytes.local`)"
       - "traefik.http.routers.api.entrypoints=websecure"

@@ -23,7 +23,7 @@ var handlers = map[messages.MessageType]func(ctx context.Context, input handlerI
 var topicRegex = regexp.MustCompile(`^accounts/([^/]+)/connections/([^/]+)/status$`)
 
 type RunInput struct {
-	CreateClient    func() mqtt.Client
+	MQTTClient      mqtt.Client
 	ConnectionStore *connectionstore.Decider
 }
 
@@ -32,14 +32,9 @@ func Run(ctx context.Context, input RunInput) {
 		panic("already running")
 	}
 	connectionStore = input.ConnectionStore
-	client := input.CreateClient()
-	token := client.Connect()
-	err := mqttx.Wait(token)
-	fatal.OnError(err)
-	err = mqttx.Wait(client.Subscribe("accounts/+/connections/+/status", 1, handleMessage))
+	err := mqttx.Wait(input.MQTTClient.Subscribe("accounts/+/connections/+/status", 1, handleMessage))
 	fatal.OnError(err)
 	<-ctx.Done()
-	// TODO unsubscribe? I don't expect the chan to be closed
 }
 
 func handleMessage(client mqtt.Client, message mqtt.Message) {
