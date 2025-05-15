@@ -17,6 +17,25 @@ esac
 region=us-east-1
 stack_name="beddybytes-backend"
 
+function upload_to_s3() {
+    local file_path=$1
+    local s3_bucket="beddybytes-backend-bucket"
+    local s3_key="cloudformation/backend/$file_path"
+
+    if [[ -z "$file_path" || -z "$s3_key" ]]; then
+        echo "Usage: upload_to_s3 <file_path> <s3_key>"
+        exit 1
+    fi
+
+    aws s3 cp "$file_path" "s3://$s3_bucket/$s3_key"
+    if [[ $? -ne 0 ]]; then
+        echo "Failed to upload $file_path to s3://$s3_bucket/$s3_key"
+        exit 1
+    fi
+}
+
+# upload_to_s3 "api.cloudformation.yml"
+
 case $action in
     create|update)
         parameters_file="parameters.json"
