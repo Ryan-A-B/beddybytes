@@ -2,7 +2,7 @@ import * as cdk from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 
 export const domain_name = 'beddybytes.com';
-export type DeployEnv = 'prod' | 'staging';
+export type DeployEnv = 'prod' | 'qa';
 
 export const env_string_or_throw = (key: string): string => {
     const value = process.env[key];
@@ -20,8 +20,6 @@ export const env_hosted_zone_or_throw = (scope: Construct): cdk.aws_route53.IHos
 export interface HostNames {
     app: string; // TODO this shouldn't be necessary. The BE needs to use info from the request instead
     api: string;
-    influxdb: string;
-    grafana: string;
 }
 
 export const get_host_names = (domain_name: string, deploy_env: string): HostNames => {
@@ -29,8 +27,6 @@ export const get_host_names = (domain_name: string, deploy_env: string): HostNam
     return {
         app: `app.${env_prefix}${domain_name}`,
         api: `api.${env_prefix}${domain_name}`,
-        influxdb: `influxdb.${env_prefix}${domain_name}`,
-        grafana: `grafana.${env_prefix}${domain_name}`,
     };
 };
 

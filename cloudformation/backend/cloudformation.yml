@@ -158,20 +158,6 @@ Resources:
           MountPoints:
             - ContainerPath: /var/lib/influxdb2
               SourceVolume: influxdb
-          Environment:
-            - Name: DOCKER_INFLUXDB_INIT_MODE
-              Value: setup
-            - Name: DOCKER_INFLUXDB_INIT_USERNAME
-              Value: admin
-            - Name: DOCKER_INFLUXDB_INIT_ORG
-              Value: beddybytes
-            - Name: DOCKER_INFLUXDB_INIT_BUCKET
-              Value: traefik
-            - Name: DOCKER_INFLUXDB_INIT_RETENTION
-              Value: 3d
-          Secrets:
-            - Name: DOCKER_INFLUXDB_INIT_PASSWORD
-              ValueFrom: !Ref InfluxAdminPassword
           DockerLabels:
             traefik.enable: "true"
             traefik.http.routers.influxdb.rule: !Sub "Host(`${InfluxHostName}`)"
@@ -194,9 +180,6 @@ Resources:
               SourceVolume: grafana
           Links:
             - influxdb
-          Secrets:
-            - Name: GF_SECURITY_ADMIN_PASSWORD
-              ValueFrom: !Ref GrafanaAdminPassword
           DockerLabels:
             traefik.enable: "true"
             traefik.http.routers.grafana.rule: !Sub "Host(`${GrafanaHostName}`)"
@@ -432,8 +415,6 @@ Resources:
                   - secretsmanager:GetSecretValue
                 Resource:
                   - !Ref BackendEncryptionKey
-                  - !Ref InfluxAdminPassword
-                  - !Ref GrafanaAdminPassword
 
   BackendTaskRole:
     Type: AWS::IAM::Role
@@ -465,22 +446,10 @@ Resources:
                 Effect: Allow
                 Action:
                   - ses:SendEmail
-                Resource: !Sub arn:aws:ses:${AWS::Region}:${AWS::AccountId}:identity/${EmailIdentity}
+                Resource: !Sub arn:aws:ses:${AWS::Region}:${AWS::AccountId}:identity/${EmailDomain}
                 Condition:
                   StringEquals:
                     ses:FromAddress: !Sub noreply@${EmailDomain}
-
-  InfluxAdminPassword:
-    Type: AWS::SecretsManager::Secret
-    Properties:
-      Name: !Sub ${AWS::StackName}-influx-password
-      GenerateSecretString: {}
-
-  GrafanaAdminPassword:
-    Type: AWS::SecretsManager::Secret
-    Properties:
-      Name: !Sub ${AWS::StackName}-grafana-password
-      GenerateSecretString: {}
   
   BackendEncryptionKey:
     Type: AWS::SecretsManager::Secret
@@ -510,7 +479,7 @@ Resources:
       HostedZoneName: !Ref HostedZoneName
       Name: !Ref APIHostName
       Type: A
-      TTL: '900'
+      TTL: '60'
       ResourceRecords:
         - !Ref ElasticIP
 
@@ -520,7 +489,7 @@ Resources:
       HostedZoneName: !Ref HostedZoneName
       Name: !Ref InfluxHostName
       Type: A
-      TTL: '900'
+      TTL: '60'
       ResourceRecords:
         - !Ref ElasticIP
 
@@ -530,41 +499,6 @@ Resources:
       HostedZoneName: !Ref HostedZoneName
       Name: !Ref GrafanaHostName
       Type: A
-      TTL: '900'
+      TTL: '60'
       ResourceRecords:
         - !Ref ElasticIP
-
-  EmailIdentity:
-    Type: AWS::SES::EmailIdentity
-    Properties:
-      EmailIdentity: !Ref EmailDomain
-
-  DKIMRecord1:
-    Type: AWS::Route53::RecordSet
-    Properties:
-      HostedZoneName: !Ref HostedZoneName
-      Name: !GetAtt EmailIdentity.DkimDNSTokenName1
-      Type: CNAME
-      TTL: '900'
-      ResourceRecords:
-        - !GetAtt EmailIdentity.DkimDNSTokenValue1
-
-  DKIMRecord2:
-    Type: AWS::Route53::RecordSet
-    Properties:
-      HostedZoneName: !Ref HostedZoneName
-      Name: !GetAtt EmailIdentity.DkimDNSTokenName2
-      Type: CNAME
-      TTL: '900'
-      ResourceRecords:
-        - !GetAtt EmailIdentity.DkimDNSTokenValue2
-
-  DKIMRecord3:
-    Type: AWS::Route53::RecordSet
-    Properties:
-      HostedZoneName: !Ref HostedZoneName
-      Name: !GetAtt EmailIdentity.DkimDNSTokenName3
-      Type: CNAME
-      TTL: '900'
-      ResourceRecords:
-        - !GetAtt EmailIdentity.DkimDNSTokenValue3
