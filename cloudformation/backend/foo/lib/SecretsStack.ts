@@ -3,6 +3,7 @@ import { Construct } from 'constructs';
 
 export class SecretsStack extends cdk.Stack {
     public readonly signing_key: cdk.aws_secretsmanager.ISecret;
+    public readonly docker_hub_credentials: cdk.aws_secretsmanager.ISecret;
 
     constructor(scope: Construct, id_prefix: string, props?: cdk.StackProps) {
         super(scope, id_prefix, props);

@@ -3,7 +3,12 @@
 
 import * as cdk from 'aws-cdk-lib';
 import { Construct } from 'constructs';
-import { DeployEnv, domain_name, env_hosted_zone_or_throw, get_host_names } from './config';
+import { DeployEnv, domain_name, env_hosted_zone_or_throw, env_string_or_throw, get_host_names } from './config';
+
+const memory_limit_by_env: Record<DeployEnv, number> = {
+    prod: 256,
+    qa: 128,
+};
 
 interface StackProps extends cdk.StackProps {
     deploy_env: DeployEnv;
@@ -20,7 +25,7 @@ export class BackendStack extends cdk.Stack {
         const host_names = get_host_names(domain_name, props.deploy_env);
         const traefik_router_prefix = `${props.deploy_env}-`;
 
-        const api_container_image = cdk.aws_ecs.ContainerImage.fromEcrRepository(props.docker_repository, "v1")
+        const api_container_image = cdk.aws_ecs.ContainerImage.fromEcrRepository(props.docker_repository, props.deploy_env)
 
         const execution_role = new cdk.aws_iam.Role(this, `execution-role`, {
             assumedBy: new cdk.aws_iam.ServicePrincipal('ecs-tasks.amazonaws.com'),
@@ -49,7 +54,7 @@ export class BackendStack extends cdk.Stack {
             image: api_container_image,
             essential: true,
             enableRestartPolicy: true,
-            memoryLimitMiB: 512,
+            memoryLimitMiB: memory_limit_by_env[props.deploy_env],
             portMappings: [{ containerPort: 9000 }],
             environment: {
                 'COOKIE_DOMAIN': `.${domain_name}`,
@@ -59,11 +64,12 @@ export class BackendStack extends cdk.Stack {
                 'MAILER_SES_FROM': `BeddyBytes <noreply@${domain_name}>`,
                 'MAILER_SES_APP_HOST': host_names.app,
                 'AWS_REGION': this.region,
-                // 'MQTT_IMPLEMENTATION': 'aws_iot',
-                // 'MQTT_BROKER': env_string_or_throw('MQTT_BROKER'),
-                // 'MQTT_AWS_IOT_ROOT_CA_FILE': 'AmazonRootCA1.pem',
-                // 'MQTT_AWS_IOT_CERT_FILE': 'certificate.crt',
-                // 'MQTT_AWS_IOT_KEY_FILE': 'private_key.pem',
+                'MQTT_IMPLEMENTATION': 'aws_iot',
+                'MQTT_CLIENT_ID': `backend-${props.deploy_env}`,
+                'MQTT_BROKER': env_string_or_throw('MQTT_BROKER'),
+                'MQTT_AWS_IOT_ROOT_CA_FILE': 'AmazonRootCA1.pem',
+                'MQTT_AWS_IOT_CERT_FILE': 'certificate.crt',
+                'MQTT_AWS_IOT_KEY_FILE': 'private_key.pem',
             },
             secrets: {
                 'ENCRYPTION_KEY': cdk.aws_ecs.Secret.fromSecretsManager(props.signing_key),
