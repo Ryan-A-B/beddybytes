@@ -1,5 +1,5 @@
-// import * as path from 'path';
-// import { readFileSync } from 'fs';
+import * as path from 'path';
+import { readFileSync } from 'fs';
 
 import * as cdk from 'aws-cdk-lib';
 import { Construct } from 'constructs';
@@ -35,7 +35,14 @@ export class BackendStack extends cdk.Stack {
             assumedBy: new cdk.aws_iam.ServicePrincipal('ecs-tasks.amazonaws.com'),
         });
 
-        const volumes: cdk.aws_ecs.Volume[] = [];
+        const volumes: cdk.aws_ecs.Volume[] = [
+            {
+                name: 'keys',
+                host: {
+                    sourcePath: `/ebs/persistent/keys/${props.deploy_env}`,
+                },
+            },
+        ];
         if (props.deploy_env === 'prod') {
             volumes.push({
                 name: 'eventlog',
@@ -67,9 +74,9 @@ export class BackendStack extends cdk.Stack {
                 'MQTT_IMPLEMENTATION': 'aws_iot',
                 'MQTT_CLIENT_ID': `backend-${props.deploy_env}`,
                 'MQTT_BROKER': env_string_or_throw('MQTT_BROKER'),
-                'MQTT_AWS_IOT_ROOT_CA_FILE': 'AmazonRootCA1.pem',
-                'MQTT_AWS_IOT_CERT_FILE': 'certificate.crt',
-                'MQTT_AWS_IOT_KEY_FILE': 'private_key.pem',
+                'MQTT_AWS_IOT_ROOT_CA_FILE': 'keys/AmazonRootCA1.pem',
+                'MQTT_AWS_IOT_CERT_FILE': 'keys/certificate.crt',
+                'MQTT_AWS_IOT_KEY_FILE': 'keys/private_key.pem',
             },
             secrets: {
                 'ENCRYPTION_KEY': cdk.aws_ecs.Secret.fromSecretsManager(props.signing_key),
@@ -96,6 +103,11 @@ export class BackendStack extends cdk.Stack {
                 [`traefik.http.routers.${traefik_router_prefix}api.middlewares`]: "headers-cors@file,rate-limit-api@file",
             },
         });
+        api_container.addMountPoints({
+            sourceVolume: 'keys',
+            containerPath: '/opt/keys',
+            readOnly: true,
+        });
         if (props.deploy_env === 'prod') {
             api_container.addMountPoints({
                 sourceVolume: 'eventlog',
@@ -119,42 +131,42 @@ export class BackendStack extends cdk.Stack {
             target: cdk.aws_route53.RecordTarget.fromIpAddresses(props.elastic_ip.ref as string),
         });
 
-        // const thing = new cdk.aws_iot.CfnThing(this, `thing`);
+        const thing = new cdk.aws_iot.CfnThing(this, `thing`);
 
-        // const csrPath = path.join('csr', `${props.deploy_env}.csr`);
-        // const csr = readFileSync(csrPath, 'utf8');
+        const csrPath = path.join('csr', `${props.deploy_env}.csr`);
+        const csr = readFileSync(csrPath, 'utf8');
 
-        // const certificate = new cdk.aws_iot.CfnCertificate(this, `thing-certificate`, {
-        //     status: 'ACTIVE',
-        //     certificateMode: 'DEFAULT',
-        //     certificateSigningRequest: csr,
-        // });
+        const certificate = new cdk.aws_iot.CfnCertificate(this, `thing-certificate`, {
+            status: 'ACTIVE',
+            certificateMode: 'DEFAULT',
+            certificateSigningRequest: csr,
+        });
 
-        // const principal_attachment = new cdk.aws_iot.CfnThingPrincipalAttachment(this, `thing-principal-attachment`, {
-        //     principal: certificate.attrArn,
-        //     thingName: thing.ref,
-        // });
+        const principal_attachment = new cdk.aws_iot.CfnThingPrincipalAttachment(this, `thing-principal-attachment`, {
+            principal: certificate.attrArn,
+            thingName: thing.ref,
+        });
 
-        // const policy = new cdk.aws_iot.CfnPolicy(this, `thing-policy`, {
-        //     policyDocument: new cdk.aws_iam.PolicyDocument({
-        //         statements: [
-        //             new cdk.aws_iam.PolicyStatement({
-        //                 effect: cdk.aws_iam.Effect.ALLOW,
-        //                 actions: [
-        //                     "iot:Connect",
-        //                     "iot:Publish",
-        //                     "iot:Subscribe",
-        //                     "iot:Receive",
-        //                 ],
-        //                 resources: ['*'],
-        //             }),
-        //         ],
-        //     }),
-        // });
+        const policy = new cdk.aws_iot.CfnPolicy(this, `thing-policy`, {
+            policyDocument: new cdk.aws_iam.PolicyDocument({
+                statements: [
+                    new cdk.aws_iam.PolicyStatement({
+                        effect: cdk.aws_iam.Effect.ALLOW,
+                        actions: [
+                            "iot:Connect",
+                            "iot:Publish",
+                            "iot:Subscribe",
+                            "iot:Receive",
+                        ],
+                        resources: ['*'],
+                    }),
+                ],
+            }),
+        });
 
-        // const policy_attachment = new cdk.aws_iot.CfnPolicyPrincipalAttachment(this, `thing-policy-attachment`, {
-        //     policyName: policy.ref,
-        //     principal: certificate.attrArn,
-        // });
+        const policy_attachment = new cdk.aws_iot.CfnPolicyPrincipalAttachment(this, `thing-policy-attachment`, {
+            policyName: policy.ref,
+            principal: certificate.attrArn,
+        });
     }
 }
