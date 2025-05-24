@@ -28,12 +28,20 @@ const load_balancer_stack = new LoadBalancerStack(app, 'beddybytes-load-balancer
 
 const ci_stack = new ContinuousIntegrationStack(app, 'beddybytes-ci');
 
+new BackendStack(app, 'beddybytes-backend-prod', {
+  deploy_env: 'prod',
+  docker_repository: ci_stack.docker_repository,
+  cluster: core_stack.cluster,
+  signing_key: secrets_stack.signing_key,
+  elastic_ip: core_stack.elastic_ip,
+});
+
 new BackendStack(app, 'beddybytes-backend-qa', {
   deploy_env: 'qa',
   docker_repository: ci_stack.docker_repository,
   cluster: core_stack.cluster,
   signing_key: secrets_stack.signing_key,
   elastic_ip: core_stack.elastic_ip,
-})
+});
 
 new EmailStack(app, 'beddybytes-email');

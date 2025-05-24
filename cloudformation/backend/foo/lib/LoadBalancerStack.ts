@@ -38,7 +38,7 @@ export class LoadBalancerStack extends cdk.Stack {
             },
         });
 
-        const task_definition = new cdk.aws_ecs.Ec2TaskDefinition(this, `load-balancer-task-definition`, {
+        const task_definition = new cdk.aws_ecs.Ec2TaskDefinition(this, `task-definition`, {
             executionRole: execution_role,
             taskRole: task_role,
             volumes: [
@@ -89,7 +89,6 @@ export class LoadBalancerStack extends cdk.Stack {
             containerPath: '/opt/logs',
             readOnly: false,
         });
-        traefik_container.addLink(props.influxdb_container, 'influxdb');
 
         const service = new cdk.aws_ecs.Ec2Service(this, `service`, {
             cluster: props.cluster,

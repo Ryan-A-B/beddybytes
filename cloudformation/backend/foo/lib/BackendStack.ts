@@ -1,5 +1,5 @@
-import * as path from 'path';
-import { readFileSync } from 'fs';
+// import * as path from 'path';
+// import { readFileSync } from 'fs';
 
 import * as cdk from 'aws-cdk-lib';
 import { Construct } from 'constructs';
@@ -18,7 +18,7 @@ export class BackendStack extends cdk.Stack {
         super(scope, id_prefix, props);
         const hosted_zone = env_hosted_zone_or_throw(this);
         const host_names = get_host_names(domain_name, props.deploy_env);
-        const traefik_router_prefix = props.deploy_env === 'prod' ? '' : `${props.deploy_env}-`;
+        const traefik_router_prefix = `${props.deploy_env}-`;
 
         const api_container_image = cdk.aws_ecs.ContainerImage.fromEcrRepository(props.docker_repository, "v1")
 
@@ -40,7 +40,7 @@ export class BackendStack extends cdk.Stack {
             });
         }
 
-        const task_definition = new cdk.aws_ecs.Ec2TaskDefinition(this, `load-balancer-task-definition`, {
+        const task_definition = new cdk.aws_ecs.Ec2TaskDefinition(this, `task-definition`, {
             executionRole: execution_role,
             taskRole: task_role,
             volumes,
@@ -101,7 +101,7 @@ export class BackendStack extends cdk.Stack {
         const service = new cdk.aws_ecs.Ec2Service(this, `service`, {
             cluster: props.cluster,
             taskDefinition: task_definition,
-            desiredCount: 0,
+            desiredCount: 1,
             minHealthyPercent: 0,
             maxHealthyPercent: 100,
         });

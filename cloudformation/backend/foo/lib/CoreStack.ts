@@ -13,12 +13,15 @@ const instance_type = cdk.aws_ec2.InstanceType.of(
 const my_ip_address = cdk.aws_ec2.Peer.ipv4(env_string_or_throw('MY_IP_ADDRESS'));
 
 export class CoreStack extends cdk.Stack {
+    public readonly bucket: cdk.aws_s3.IBucket;
     public readonly vpc: cdk.aws_ec2.IVpc;
     public readonly elastic_ip: cdk.aws_ec2.CfnEIP;
     public readonly cluster: cdk.aws_ecs.ICluster;
 
     constructor(scope: Construct, id_prefix: string, props?: cdk.StackProps) {
         super(scope, id_prefix, props);
+
+        this.bucket = new cdk.aws_s3.Bucket(this, `bucket`);
 
         this.vpc = new cdk.aws_ec2.Vpc(this, `vpc`, {
             vpcName: vpc_name,
@@ -37,6 +40,22 @@ export class CoreStack extends cdk.Stack {
         if (this.vpc.publicSubnets.length === 0) throw new Error('No public subnets found');
         const public_subnet = this.vpc.publicSubnets[0];
         const availability_zone = public_subnet.availabilityZone;
+
+        this.elastic_ip = new cdk.aws_ec2.CfnEIP(this, `elastic-ip`, {
+            domain: 'vpc',
+        });
+
+        const persistent_volume = new cdk.aws_ec2.Volume(this, "persistent-volume", {
+            availabilityZone: availability_zone,
+            volumeType: cdk.aws_ec2.EbsDeviceVolumeType.GP3,
+            snapshotId: snapshot_id,
+            removalPolicy: cdk.RemovalPolicy.RETAIN,
+        });
+
+        const instance_profile_role = add_instance_profile_role({
+            scope: this,
+        });
+        this.bucket.grantReadWrite(instance_profile_role, "backup/*");
 
         const api_security_group = new cdk.aws_ec2.SecurityGroup(this, `api_security_group`, {
             vpc: this.vpc,
@@ -70,21 +89,6 @@ export class CoreStack extends cdk.Stack {
         const key_pair = new cdk.aws_ec2.KeyPair(this, "key-pair", {
             keyPairName: `${id_prefix}-key-pair`,
             publicKeyMaterial: process.env.PUBLIC_KEY_MATERIAL!,
-        });
-
-        const persistent_volume = new cdk.aws_ec2.Volume(this, "persistent-volume", {
-            availabilityZone: availability_zone,
-            volumeType: cdk.aws_ec2.EbsDeviceVolumeType.GP3,
-            snapshotId: snapshot_id,
-            removalPolicy: cdk.RemovalPolicy.RETAIN,
-        });
-
-        this.elastic_ip = new cdk.aws_ec2.CfnEIP(this, `elastic-ip`, {
-            domain: 'vpc',
-        });
-
-        const instance_profile_role = add_instance_profile_role({
-            scope: this,
         });
 
         const launch_template = new cdk.aws_ec2.LaunchTemplate(this, `launch-template`, {

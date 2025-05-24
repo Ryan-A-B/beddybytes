@@ -27,7 +27,7 @@ export class MonitoringStack extends cdk.Stack {
             assumedBy: new cdk.aws_iam.ServicePrincipal('ecs-tasks.amazonaws.com'),
         });
 
-        const task_definition = new cdk.aws_ecs.Ec2TaskDefinition(this, `load-balancer-task-definition`, {
+        const task_definition = new cdk.aws_ecs.Ec2TaskDefinition(this, `task-definition`, {
             executionRole: execution_role,
             taskRole: task_role,
             volumes: [
@@ -47,6 +47,7 @@ export class MonitoringStack extends cdk.Stack {
         });
 
         this.influxdb_container = task_definition.addContainer(`influxdb`, {
+            containerName: 'influxdb',
             image: cdk.aws_ecs.ContainerImage.fromRegistry("influxdb:2.7-alpine"),
             essential: true,
             enableRestartPolicy: true,
