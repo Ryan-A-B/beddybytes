@@ -8,7 +8,7 @@ from selenium.webdriver.support.ui import Select
 from selenium.common.exceptions import NoSuchElementException
 
 from settings import hub_url, app_base_url, chrome_options
-from utils import create_account, login, generate_random_string
+from utils import allow_time_for_video_to_display, create_account, login, generate_random_string
 
 class TestRecording(unittest.TestCase):
     def setUp(self):
@@ -16,9 +16,6 @@ class TestRecording(unittest.TestCase):
 
     def tearDown(self):
         pass
-
-    def allow_time_for_video_to_display(self):
-        time.sleep(0.5)
 
     def test_start_and_stop(self):
         email = f'{generate_random_string(10)}@integrationtests.com'
@@ -41,7 +38,7 @@ class TestRecording(unittest.TestCase):
             parent_station_driver.find_element(By.ID, "nav-link-parent").click()
 
             parent_station_driver_wait = WebDriverWait(parent_station_driver, 1)
-            self.allow_time_for_video_to_display()
+            allow_time_for_video_to_display()
 
             start_recording_button = parent_station_driver_wait.until(lambda driver: driver.find_element(By.ID, "button-start-recording"))
             self.assertTrue(start_recording_button.is_displayed())
@@ -78,7 +75,7 @@ class TestRecording(unittest.TestCase):
             parent_station_driver.find_element(By.ID, "nav-link-parent").click()
 
             parent_station_driver_wait = WebDriverWait(parent_station_driver, 1)
-            self.allow_time_for_video_to_display()
+            allow_time_for_video_to_display()
 
             start_recording_button = parent_station_driver_wait.until(lambda driver: driver.find_element(By.ID, "button-start-recording"))
             self.assertTrue(start_recording_button.is_displayed())
@@ -91,7 +88,7 @@ class TestRecording(unittest.TestCase):
             session_toggle.click()
 
             # Parent station joins the new session
-            self.allow_time_for_video_to_display()
+            allow_time_for_video_to_display()
 
             # Ensure parent station is showing the button to start recording
             start_recording_button = parent_station_driver_wait.until(lambda driver: driver.find_element(By.ID, "button-start-recording"))

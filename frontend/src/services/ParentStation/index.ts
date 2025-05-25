@@ -5,6 +5,7 @@ import MediaStreamTrackMonitor from './MediaStreamTrackMonitor';
 import { EventTypeStateChanged } from '../Service';
 import BabyStationListService from './BabyStationListService';
 import WebSocketSignalService from '../SignalService/WebSocketSignalService';
+import get_wake_locker from '../../WakeLock';
 
 interface NewParentStationInput {
     logging_service: LoggingService;
@@ -50,11 +51,13 @@ class ParentStation {
     public start = () => {
         this.signal_service.start();
         this.baby_station_list_service.start();
+        get_wake_locker().lock();
     }
 
     public stop = () => {
         this.signal_service.stop();
         this.baby_station_list_service.stop();
+        get_wake_locker().unlock();
     }
 
     private handle_signal_state_changed = () => {

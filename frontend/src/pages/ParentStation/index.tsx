@@ -1,6 +1,5 @@
 import React from "react";
 import parent_station from "../../services/instances/parent_station";
-import useWakeLock from "../../hooks/useWakeLock";
 import useServiceState from "../../hooks/useServiceState";
 import ConnectionStateAlert from "../../components/ConnectionStateAlert";
 import AudioVisualiserComponent from "../../components/AudioVisualiser";
@@ -21,17 +20,12 @@ const useParentStation = () => {
 }
 
 const ParentStation: React.FunctionComponent = () => {
+    useParentStation();
     const session_service = parent_station.session_service;
     const session_state = useServiceState(session_service);
-    useParentStation();
     const media_stream_track_state = useServiceState(parent_station.media_stream_track_monitor);
-    // const rtc_peer_connection_state = useClientRTCConnectionState(client_session_state);
-    // const should_show_stream = client_session_state.state === "joined" && !isBadRTCPeerConnectionState(rtc_peer_connection_state);
 
-    const session = React.useMemo(() => session_service.get_active_session(), [session_service]);
-
-    // TODO this should be handled in parent station start and stop
-    useWakeLock(session_state.name === "joined");
+    const session = React.useMemo(() => session_state.get_active_session(), [session_state]);
 
     // TODO detect audio-only and empty streams
 

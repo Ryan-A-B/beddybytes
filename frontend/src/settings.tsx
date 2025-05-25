@@ -18,13 +18,10 @@ const try_get_item_from_local_storage = (key: string): string | null => {
 }
 
 const get_api_host = (): string => {
-    const host = try_get_item_from_local_storage("API_HOST")
-    if (host !== null)
-        return host
-    if (process.env.NODE_ENV === "development") {
-        return "api.beddybytes.local"
-    }
-    return "api.beddybytes.com"
+    const api_host = try_get_item_from_local_storage("API_HOST")
+    if (api_host !== null) return api_host
+    const app_host = window.location.hostname;
+    return app_host.replace("app.", "api.")
 }
 
 const get_client_id = (): string => {

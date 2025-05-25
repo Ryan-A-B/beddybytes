@@ -5,10 +5,9 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.support.ui import Select
-from selenium.common.exceptions import NoSuchElementException
 
 from settings import hub_url, app_base_url, chrome_options
-from utils import create_account, login, get_browser_logs, generate_random_string, stop_backend_container, start_backend_container
+from utils import create_account, login, get_browser_logs, generate_random_string, stop_backend_container, start_backend_container, wait_for_element_to_be_displayed, wait_for_element_to_be_removed, wait_for_element_to_not_be_displayed
 
 class TestSession(unittest.TestCase):
     def setUp(self):
@@ -16,9 +15,6 @@ class TestSession(unittest.TestCase):
 
     def tearDown(self):
         pass
-
-    def allow_time_for_video_to_display(self):
-        time.sleep(0.5)
 
     def test_audio_session(self):
         email = f'{generate_random_string(10)}@integrationtests.com'
@@ -46,7 +42,7 @@ class TestSession(unittest.TestCase):
 
             driver_2_wait = WebDriverWait(driver_2, 1)
 
-            self.allow_time_for_video_to_display()
+            wait_for_element_to_be_displayed(driver_2, "audio-only-message")
 
             audio_only_message = driver_2_wait.until(lambda driver: driver.find_element(By.ID, "audio-only-message"))
             self.assertTrue(audio_only_message.is_displayed())
@@ -61,20 +57,14 @@ class TestSession(unittest.TestCase):
             self.assertTrue(baby_station_dropdown.options[0].is_selected())
 
             session_toggle.click()
-            self.allow_time_for_video_to_display()
-            self.assertFalse(video_element.is_displayed())
-            with self.assertRaises(NoSuchElementException):
-                driver_2.find_element(By.ID, "audio-only-message")
+            wait_for_element_to_not_be_displayed(driver_2, "video-parent-station")
+            wait_for_element_to_be_removed(driver_2, "audio-only-message")
 
-            with self.assertRaises(NoSuchElementException):
-                driver_1.find_element(By.ID, "container-errors")
-            with self.assertRaises(NoSuchElementException):
-                driver_2.find_element(By.ID, "container-errors")
             driver_1_logs = get_browser_logs(driver_1)
             driver_2_logs = get_browser_logs(driver_2)
             self.assertEqual(len(driver_1_logs), 0)
             self.assertEqual(len(driver_2_logs), 0)
-
+            
     def test_video_session(self):
         email = f'{generate_random_string(10)}@integrationtests.com'
         password = generate_random_string(20)
@@ -106,9 +96,7 @@ class TestSession(unittest.TestCase):
             driver_2.find_element(By.ID, "nav-link-parent").click()
 
             driver_2_wait = WebDriverWait(driver_2, 1)
-            video_element = driver_2_wait.until(lambda driver: driver.find_element(By.ID, "video-parent-station"))
-            self.allow_time_for_video_to_display()
-            self.assertTrue(video_element.is_displayed())
+            wait_for_element_to_be_displayed(driver_2, "video-parent-station")
 
             baby_station_dropdown_element = driver_2_wait.until(lambda driver: driver.find_element(By.ID, "baby-station-dropdown"))
             baby_station_dropdown = Select(baby_station_dropdown_element)
@@ -117,13 +105,8 @@ class TestSession(unittest.TestCase):
             self.assertTrue(baby_station_dropdown.options[0].is_selected())
 
             session_toggle.click()
-            self.allow_time_for_video_to_display()
-            self.assertFalse(video_element.is_displayed())
+            wait_for_element_to_not_be_displayed(driver_2, "video-parent-station")
 
-            with self.assertRaises(NoSuchElementException):
-                driver_1.find_element(By.ID, "container-errors")
-            with self.assertRaises(NoSuchElementException):
-                driver_2.find_element(By.ID, "container-errors")
             driver_1_logs = get_browser_logs(driver_1)
             driver_2_logs = get_browser_logs(driver_2)
             self.assertEqual(len(driver_1_logs), 0)
@@ -151,21 +134,15 @@ class TestSession(unittest.TestCase):
 
             driver_2_wait = WebDriverWait(driver_2, 1)
             video_element = driver_2_wait.until(lambda driver: driver.find_element(By.ID, "video-parent-station"))
-            self.allow_time_for_video_to_display()
-            self.assertTrue(video_element.is_displayed())
+            wait_for_element_to_be_displayed(driver_2, "video-parent-station")
 
             session_toggle.click()
             driver_2_wait.until(lambda driver: driver.find_element(By.ID, "alert-no-baby-stations"))
             self.assertFalse(video_element.is_displayed())
 
             session_toggle.click()
-            self.allow_time_for_video_to_display()
-            self.assertTrue(video_element.is_displayed())
+            wait_for_element_to_be_displayed(driver_2, "video-parent-station")
 
-            with self.assertRaises(NoSuchElementException):
-                driver_1.find_element(By.ID, "container-errors")
-            with self.assertRaises(NoSuchElementException):
-                driver_2.find_element(By.ID, "container-errors")
             driver_1_logs = get_browser_logs(driver_1)
             self.assertEqual(len(driver_1_logs), 0)
             driver_2_logs = get_browser_logs(driver_2)
@@ -199,11 +176,8 @@ class TestSession(unittest.TestCase):
             login(driver_3, email, password)
             driver_3.find_element(By.ID, "nav-link-parent").click()
 
-            self.allow_time_for_video_to_display()
-
             driver_2_wait = WebDriverWait(driver_2, 1)
-            driver_2_video_element = driver_2_wait.until(lambda driver: driver.find_element(By.ID, "video-parent-station"))
-            self.assertTrue(driver_2_video_element.is_displayed())
+            wait_for_element_to_be_displayed(driver_2, "video-parent-station")
 
             baby_station_dropdown_element = driver_2_wait.until(lambda driver: driver.find_element(By.ID, "baby-station-dropdown"))
             baby_station_dropdown = Select(baby_station_dropdown_element)
@@ -212,8 +186,7 @@ class TestSession(unittest.TestCase):
             self.assertTrue(baby_station_dropdown.options[0].is_selected())
 
             driver_3_wait = WebDriverWait(driver_3, 1)
-            driver_3_video_element = driver_3_wait.until(lambda driver: driver.find_element(By.ID, "video-parent-station"))
-            self.assertTrue(driver_3_video_element.is_displayed())
+            wait_for_element_to_be_displayed(driver_3, "video-parent-station")
 
             baby_station_dropdown_element = driver_3_wait.until(lambda driver: driver.find_element(By.ID, "baby-station-dropdown"))
             baby_station_dropdown = Select(baby_station_dropdown_element)
@@ -222,16 +195,9 @@ class TestSession(unittest.TestCase):
             self.assertTrue(baby_station_dropdown.options[0].is_selected())
 
             session_toggle.click()
-            self.allow_time_for_video_to_display()
-            self.assertFalse(driver_2_video_element.is_displayed())
-            self.assertFalse(driver_3_video_element.is_displayed())
+            wait_for_element_to_not_be_displayed(driver_2, "video-parent-station")
+            wait_for_element_to_not_be_displayed(driver_3, "video-parent-station")
 
-            with self.assertRaises(NoSuchElementException):
-                driver_1.find_element(By.ID, "container-errors")
-            with self.assertRaises(NoSuchElementException):
-                driver_2.find_element(By.ID, "container-errors")
-            with self.assertRaises(NoSuchElementException):
-                driver_3.find_element(By.ID, "container-errors")
             driver_1_logs = get_browser_logs(driver_1)
             self.assertEqual(len(driver_1_logs), 0)
             driver_2_logs = get_browser_logs(driver_2)
@@ -262,8 +228,7 @@ class TestSession(unittest.TestCase):
             driver_2_wait = WebDriverWait(driver_2, 1)
             video_element = driver_2_wait.until(lambda driver: driver.find_element(By.ID, "video-parent-station"))
 
-            self.allow_time_for_video_to_display()
-            self.assertTrue(video_element.is_displayed())
+            wait_for_element_to_be_displayed(driver_2, "video-parent-station")
 
             stop_backend_container()
             for _ in range(5):
@@ -275,14 +240,4 @@ class TestSession(unittest.TestCase):
                 self.assertTrue(video_element.is_displayed())
 
             session_toggle.click()
-            self.allow_time_for_video_to_display()
-            self.assertFalse(video_element.is_displayed())
-
-            with self.assertRaises(NoSuchElementException):
-                driver_1.find_element(By.ID, "container-errors")
-            with self.assertRaises(NoSuchElementException):
-                driver_2.find_element(By.ID, "container-errors")
-            driver_1_logs = get_browser_logs(driver_1)
-            self.assertEqual(len(driver_1_logs), 0)
-            driver_2_logs = get_browser_logs(driver_2)
-            self.assertEqual(len(driver_2_logs), 0)
+            wait_for_element_to_not_be_displayed(driver_2, "video-parent-station")

@@ -3,6 +3,7 @@ import string
 import secrets
 import random
 import signal
+import time
 
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.wait import WebDriverWait
@@ -82,3 +83,18 @@ def get_input(prompt, timeout=5):
     finally:
         signal.alarm(0)
         signal.signal(signal.SIGALRM, signal.SIG_DFL)
+
+def allow_time_for_video_to_display():
+    time.sleep(1)
+
+def wait_for_element_to_be_displayed(driver, element_id):
+    wait = WebDriverWait(driver, timeout=1)
+    return wait.until(lambda driver: driver.find_element(By.ID, element_id).is_displayed())
+
+def wait_for_element_to_not_be_displayed(driver, element_id):
+    wait = WebDriverWait(driver, timeout=1)
+    wait.until(lambda driver: not driver.find_element(By.ID, element_id).is_displayed())
+
+def wait_for_element_to_be_removed(driver, element_id):
+    wait = WebDriverWait(driver, timeout=1)
+    wait.until(lambda driver: len(driver.find_elements(By.ID, element_id)) == 0)

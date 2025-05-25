@@ -1,4 +1,4 @@
-interface Locker {
+export interface Locker {
     lock: () => Promise<void>;
     unlock: () => void;
 }
@@ -39,19 +39,16 @@ class NullLocker implements Locker {
     unlock() { }
 }
 
-const createWakeLocker = (): Locker => {
-    if ('wakeLock' in navigator) {
-        return new WakeLocker();
-    }
+const create_wake_locker = (): Locker => {
+    if ('wakeLock' in navigator) return new WakeLocker();
     return new NullLocker();
 }
 
 let wakeLocker: Locker | null = null;
-const getWakeLocker = (): Locker => {
-    if (wakeLocker === null) {
-        wakeLocker = createWakeLocker();
-    }
+const get_wake_locker = (): Locker => {
+    if (wakeLocker === null)
+        wakeLocker = create_wake_locker();
     return wakeLocker;
 }
 
-export default getWakeLocker;
+export default get_wake_locker;

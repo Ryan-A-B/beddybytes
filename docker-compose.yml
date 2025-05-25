@@ -46,7 +46,7 @@ services:
       - FILE_EVENT_LOG_FOLDER_PATH=/opt/eventlog
       - MAILER_IMPLEMENTATION=console
       - MAILER_CONSOLE_APP_HOST=app.beddybytes.local
-      - MQTT_CLIENT_ID=beddybytes-backend-api
+      - MQTT_CLIENT_ID=backend-local
       - MQTT_IMPLEMENTATION=mosquitto
       - MQTT_BROKER=wss://mosquitto.beddybytes.local
       # - MQTT_IMPLEMENTATION=aws_iot

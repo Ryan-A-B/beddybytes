@@ -8,12 +8,9 @@ from selenium.webdriver.support.ui import Select
 from selenium.common.exceptions import NoSuchElementException
 
 from settings import hub_url, app_base_url, chrome_options
-from utils import create_account, login, get_browser_logs, generate_random_string
+from utils import create_account, login, get_browser_logs, generate_random_string, wait_for_element_to_be_displayed, wait_for_element_to_be_removed
 
 class TestTwoBabyStations(unittest.TestCase):
-    def allow_time_for_video_to_display(self):
-        time.sleep(0.5)
-
     def test_parent_station_first(self):
         email = f'{generate_random_string(10)}@integrationtests.com'
         password = generate_random_string(20)
@@ -54,12 +51,10 @@ class TestTwoBabyStations(unittest.TestCase):
             session_toggle_2 = driver_2_wait.until(lambda driver: driver.find_element(By.ID, "session-toggle"))
             session_toggle_2.click()
 
-            self.allow_time_for_video_to_display()
+            wait_for_element_to_be_displayed(driver_1, "video-parent-station")
+            wait_for_element_to_be_removed(driver_1, "alert-no-baby-stations")
             baby_station_dropdown_element = driver_1_wait.until(lambda driver: driver.find_element(By.ID, "baby-station-dropdown"))
             baby_station_dropdown = Select(baby_station_dropdown_element)
-            with self.assertRaises(NoSuchElementException):
-                driver_1.find_element(By.ID, "alert-no-baby-stations")
-            self.assertTrue(video_element.is_displayed())
             self.assertEqual(video_element.get_attribute("data-session-name"), sessions[0]["name"])
             self.assertEqual(len(baby_station_dropdown.options), 1)
 
@@ -81,10 +76,8 @@ class TestTwoBabyStations(unittest.TestCase):
             session_toggle_3 = driver_3_wait.until(lambda driver: driver.find_element(By.ID, "session-toggle"))
             session_toggle_3.click()
 
-            self.allow_time_for_video_to_display()
-            with self.assertRaises(NoSuchElementException):
-                driver_1.find_element(By.ID, "alert-no-baby-stations")
-            self.assertTrue(video_element.is_displayed())
+            wait_for_element_to_be_displayed(driver_1, "video-parent-station")
+            wait_for_element_to_be_removed(driver_1, "alert-no-baby-stations")
             self.assertEqual(video_element.get_attribute("data-session-name"), sessions[0]["name"])
             self.assertEqual(len(baby_station_dropdown.options), 2)
 
@@ -131,8 +124,7 @@ class TestTwoBabyStations(unittest.TestCase):
             driver_2_wait = WebDriverWait(driver_2, 1)
             video_element = driver_2_wait.until(lambda driver: driver.find_element(By.ID, "video-parent-station"))
 
-            self.allow_time_for_video_to_display()
-            self.assertTrue(video_element.is_displayed())
+            wait_for_element_to_be_displayed(driver_2, "video-parent-station")
             self.assertEqual(video_element.get_attribute("data-session-name"), sessions[0]["name"])
             baby_station_dropdown_element = driver_2_wait.until(lambda driver: driver.find_element(By.ID, "baby-station-dropdown"))
             baby_station_dropdown = Select(baby_station_dropdown_element)
@@ -152,10 +144,8 @@ class TestTwoBabyStations(unittest.TestCase):
             session_toggle_3 = driver_3_wait.until(lambda driver: driver.find_element(By.ID, "session-toggle"))
             session_toggle_3.click()
 
-            self.allow_time_for_video_to_display()
-            with self.assertRaises(NoSuchElementException):
-                driver_2.find_element(By.ID, "alert-no-baby-stations")
-            self.assertTrue(video_element.is_displayed())
+            wait_for_element_to_be_displayed(driver_2, "video-parent-station")
+            wait_for_element_to_be_removed(driver_2, "alert-no-baby-stations")
             self.assertEqual(video_element.get_attribute("data-session-name"), sessions[0]["name"])
             self.assertEqual(len(baby_station_dropdown.options), 2)
 
@@ -239,20 +229,17 @@ class TestTwoBabyStations(unittest.TestCase):
 
             video_element = driver_3_wait.until(lambda driver: driver.find_element(By.ID, "video-parent-station"))
             sessions[0]["option"].click()
-            self.allow_time_for_video_to_display()
-            self.assertTrue(video_element.is_displayed())
+            wait_for_element_to_be_displayed(driver_3, "video-parent-station")
             self.assertTrue(sessions[0]["option"].is_selected())
             self.assertEqual(video_element.get_attribute("data-session-name"), sessions[0]["name"])
 
             sessions[1]["option"].click()
-            self.allow_time_for_video_to_display()
-            self.assertTrue(video_element.is_displayed())
+            wait_for_element_to_be_displayed(driver_3, "video-parent-station")
             self.assertTrue(sessions[1]["option"].is_selected())
             self.assertEqual(video_element.get_attribute("data-session-name"), sessions[1]["name"])
 
             sessions[0]["option"].click()
-            self.allow_time_for_video_to_display()
-            self.assertTrue(video_element.is_displayed())
+            wait_for_element_to_be_displayed(driver_3, "video-parent-station")
             self.assertTrue(sessions[0]["option"].is_selected())
             self.assertEqual(video_element.get_attribute("data-session-name"), sessions[0]["name"])
 
@@ -327,15 +314,13 @@ class TestTwoBabyStations(unittest.TestCase):
             self.assertEqual(len(baby_station_dropdown.options), 2)
             
             video_element = driver_3_wait.until(lambda driver: driver.find_element(By.ID, "video-parent-station"))
-            self.allow_time_for_video_to_display()
-            self.assertTrue(video_element.is_displayed())
+            wait_for_element_to_be_displayed(driver_3, "video-parent-station")
 
             selected_option_text = baby_station_dropdown.first_selected_option.text
             [active_session, inactive_session] = sessions if selected_option_text == sessions[0]["name"] else sessions[::-1]
             active_session["toggle"].click()
-            self.allow_time_for_video_to_display()
+            wait_for_element_to_be_displayed(driver_3, "video-parent-station")
             self.assertEqual(len(baby_station_dropdown.options), 1)
-            self.assertTrue(video_element.is_displayed())
             self.assertEqual(baby_station_dropdown.options[0].text, inactive_session["name"])
 
             with self.assertRaises(NoSuchElementException):
@@ -408,16 +393,13 @@ class TestTwoBabyStations(unittest.TestCase):
             baby_station_dropdown = Select(baby_station_dropdown_element)
             self.assertEqual(len(baby_station_dropdown.options), 2)
             
-            video_element = driver_3_wait.until(lambda driver: driver.find_element(By.ID, "video-parent-station"))
-            self.allow_time_for_video_to_display()
-            self.assertTrue(video_element.is_displayed())
+            wait_for_element_to_be_displayed(driver_3, "video-parent-station")
 
             selected_option_text = baby_station_dropdown.first_selected_option.text
             [active_session, inactive_session] = sessions if selected_option_text == sessions[0]["name"] else sessions[::-1]
             inactive_session["toggle"].click()
-            self.allow_time_for_video_to_display()
+            wait_for_element_to_be_displayed(driver_3, "video-parent-station")
             self.assertEqual(len(baby_station_dropdown.options), 1)
-            self.assertTrue(video_element.is_displayed())
             self.assertEqual(baby_station_dropdown.options[0].text, active_session["name"])
 
             with self.assertRaises(NoSuchElementException):
