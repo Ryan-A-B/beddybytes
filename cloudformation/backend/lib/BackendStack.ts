@@ -6,8 +6,8 @@ import { Construct } from 'constructs';
 import { DeployEnv, domain_name, env_hosted_zone_or_throw, env_string_or_throw, get_host_names } from './config';
 
 const memory_limit_by_env: Record<DeployEnv, number> = {
-    prod: 256,
-    qa: 128,
+    prod: 128,
+    qa: 64,
 };
 
 interface StackProps extends cdk.StackProps {

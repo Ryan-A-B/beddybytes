@@ -61,7 +61,7 @@ export class LoadBalancerStack extends cdk.Stack {
             image: cdk.aws_ecs.ContainerImage.fromRegistry("traefik:3.2"),
             essential: true,
             enableRestartPolicy: true,
-            memoryLimitMiB: 256,
+            memoryLimitMiB: 128,
             portMappings: [
                 {
                     containerPort: 80,
