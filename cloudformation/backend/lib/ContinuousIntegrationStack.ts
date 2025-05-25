@@ -23,6 +23,7 @@ export class ContinuousIntegrationStack extends cdk.Stack {
             environment: {
                 buildImage: cdk.aws_codebuild.LinuxArmBuildImage.AMAZON_LINUX_2023_STANDARD_3_0,
                 privileged: true, // Required for Docker builds
+                computeType: cdk.aws_codebuild.ComputeType.SMALL,
                 environmentVariables: {
                     DOCKER_REPOSITORY_URI: {
                         value: docker_repository.repositoryUri,
