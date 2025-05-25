@@ -45,7 +45,7 @@ type Handlers struct {
 
 func (handlers *Handlers) AddRoutes(router *mux.Router) {
 	router.HandleFunc("/anonymous_token", handlers.AnonymousToken).Methods(http.MethodPost).Name("AnonymousToken")
-	router.HandleFunc("/token", handlers.Token).Methods(http.MethodPost).Name("Token")
+	router.HandleFunc("/token", handlers.GetToken).Methods(http.MethodPost).Name("Token")
 	router.HandleFunc("/accounts", handlers.CreateAccount).Methods(http.MethodPost).Name("CreateAccount")
 	router.HandleFunc("/request-password-reset", handlers.RequestPasswordReset).Methods(http.MethodPost).Name("RequestPasswordReset")
 	router.HandleFunc("/reset-password", handlers.ResetPassword).Methods(http.MethodPost).Name("ResetPassword")
@@ -232,7 +232,7 @@ type AccessTokenOutput struct {
 	ExpiresIn   int    `json:"expires_in"`
 }
 
-func (handlers *Handlers) Token(responseWriter http.ResponseWriter, request *http.Request) {
+func (handlers *Handlers) GetToken(responseWriter http.ResponseWriter, request *http.Request) {
 	// Note: uses concepts from https://tools.ietf.org/html/rfc6749 but is not an OAuth 2.0 implementation
 	var err error
 	defer func() {
@@ -245,16 +245,16 @@ func (handlers *Handlers) Token(responseWriter http.ResponseWriter, request *htt
 	grantType := request.FormValue("grant_type")
 	switch grantType {
 	case "password":
-		handlers.TokenUsingPasswordGrant(responseWriter, request)
+		handlers.GetTokenUsingPasswordGrant(responseWriter, request)
 	case "refresh_token":
-		handlers.TokenUsingRefreshTokenGrant(responseWriter, request)
+		handlers.GetTokenUsingRefreshTokenGrant(responseWriter, request)
 	default:
 		err = merry.New("invalid grant type").WithHTTPCode(http.StatusBadRequest)
 		return
 	}
 }
 
-func (handlers *Handlers) TokenUsingPasswordGrant(responseWriter http.ResponseWriter, request *http.Request) {
+func (handlers *Handlers) GetTokenUsingPasswordGrant(responseWriter http.ResponseWriter, request *http.Request) {
 	var err error
 	defer func() {
 		if err != nil {
@@ -294,7 +294,7 @@ func (handlers *Handlers) TokenUsingPasswordGrant(responseWriter http.ResponseWr
 	json.NewEncoder(responseWriter).Encode(output)
 }
 
-func (handlers *Handlers) TokenUsingRefreshTokenGrant(responseWriter http.ResponseWriter, request *http.Request) {
+func (handlers *Handlers) GetTokenUsingRefreshTokenGrant(responseWriter http.ResponseWriter, request *http.Request) {
 	var err error
 	defer func() {
 		if err != nil {
@@ -314,24 +314,20 @@ func (handlers *Handlers) TokenUsingRefreshTokenGrant(responseWriter http.Respon
 	var claims internal.Claims
 	_, err = jwt.ParseWithClaims(refreshToken, &claims, handlers.getKey)
 	if err != nil {
-		log.Println(err)
-		err = merry.New("unauthorized").WithHTTPCode(http.StatusUnauthorized)
+		err = merry.Prepend(err, "failed to parse refresh token").WithUserMessage("unauthorized").WithHTTPCode(http.StatusUnauthorized)
 		return
 	}
 	if claims.Scope != "refresh_token" {
-		log.Println(`claims.Scope != "refresh_token"`)
-		err = merry.New("unauthorized").WithHTTPCode(http.StatusUnauthorized)
+		err = merry.New(`claims.Scope != "refresh_token"`).WithUserMessage("unauthorized").WithHTTPCode(http.StatusUnauthorized)
 		return
 	}
 	if added := handlers.UsedTokens.TryAdd(claims.ID); !added {
-		log.Println("refresh token has already been used")
-		err = merry.New("unauthorized").WithHTTPCode(http.StatusUnauthorized)
+		err = merry.New("refresh token has already been used").WithUserMessage("unauthorized").WithHTTPCode(http.StatusUnauthorized)
 		return
 	}
 	account, err := handlers.AccountStore.Get(ctx, claims.Subject.AccountID)
 	if err != nil {
-		log.Println(err)
-		err = merry.New("unauthorized").WithHTTPCode(http.StatusUnauthorized)
+		err = merry.Prepend(err, "failed to get account: "+claims.Subject.AccountID).WithUserMessage("unauthorized").WithHTTPCode(http.StatusUnauthorized)
 		return
 	}
 	output := AccessTokenOutput{
