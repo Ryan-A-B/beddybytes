@@ -96,7 +96,10 @@ class RecordingService extends Service<RecordingServiceState> {
 export default RecordingService;
 
 class Recorder extends EventTarget {
+    public static readonly timeslice = 2000;
+    public static readonly default_mime_type = 'video/webm';
     private media_recorder: MediaRecorder;
+    private mime_type: Optional<string> = null;
     private t0 = moment();
     private chunks: Blob[] = [];
 
@@ -105,7 +108,7 @@ class Recorder extends EventTarget {
         this.media_recorder = new MediaRecorder(media_stream);
         this.media_recorder.addEventListener('dataavailable', this.handle_dataavailable);
         this.media_recorder.addEventListener('stop', this.handle_stop);
-        this.media_recorder.start();
+        this.media_recorder.start(Recorder.timeslice);
     }
 
     public stop = () => {
@@ -114,16 +117,22 @@ class Recorder extends EventTarget {
 
     private handle_dataavailable = (event: BlobEvent) => {
         this.chunks.push(event.data);
+        this.set_mime_type_if_not_set(event.data.type);
+    }
+    
+    private set_mime_type_if_not_set = (mime_type: string) => {
+        if (this.mime_type !== null) return;
+        if (mime_type === '') return;
+        this.mime_type = mime_type;
     }
 
     private handle_stop = () => {
-        const blob = new Blob(this.chunks, { type: 'video/webm' });
+        const blob = new Blob(this.chunks, { type: this.mime_type || Recorder.default_mime_type });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         document.body.appendChild(a);
         a.style.display = 'none';
         a.href = url;
-        a.target = '_blank';
         a.download = `BeddyBytes_${this.t0.format('YYYYMMDD_HHmmss')}.webm`;
         a.click();
         this.dispatchEvent(new Event('stop'));
