@@ -9,11 +9,13 @@ interface NewBabyStationInput {
 }
 
 class BabyStation {
+    readonly logging_service: LoggingService;
     readonly media_device_permission_service: MediaDevicePermissionService;
     readonly media_device_service: MediaDeviceService;
     readonly session_service: SessionService;
 
     constructor(input: NewBabyStationInput) {
+        this.logging_service = input.logging_service;
         this.media_device_permission_service = new MediaDevicePermissionService({
             logging_service: input.logging_service
         });

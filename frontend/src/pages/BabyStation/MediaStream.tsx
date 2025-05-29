@@ -27,7 +27,11 @@ const MediaStream: React.FunctionComponent<Props> = ({ sessionActive }) => {
         if (!sessionActive) return;
         if (media_device_state.media_stream_state.state !== 'available') return;
         const media_stream = add_audio_noise(media_device_state.media_stream_state.media_stream);
-        const connections = new Connections(signal_service, media_stream);
+        const connections = new Connections({
+            logging_service: baby_station.logging_service,
+            signal_service: signal_service,
+            stream: media_stream,
+        });
         return connections.close;
     }, [signal_service, sessionActive, media_device_state.media_stream_state]);
     if (media_device_state.media_stream_state.state === 'loading') return (<div>Getting stream...</div>)

@@ -1,39 +1,9 @@
-import settings from "../../../../settings";
 import Service from "../../../Service";
 import LoggingService, { Severity } from '../../../LoggingService';
-import Connection, { ConnectionState, InitiatedBy } from ".";
+import { ConnectionState, InitiatedBy } from ".";
 import { Session } from "../../types";
-import WebSocketSignalService, { SignalEvent } from "../../../SignalService/WebSocketSignalService";
-
-interface IncomingSignalDescription {
-    from_connection_id: string;
-    data: {
-        description: RTCSessionDescriptionInit;
-    }
-}
-
-interface IncomingSignalCandidate {
-    from_connection_id: string;
-    data: {
-        candidate: RTCIceCandidateInit;
-    }
-}
-
-interface IncomingSignal {
-    from_connection_id: string;
-    data: {
-        description?: RTCSessionDescriptionInit;
-        candidate?: RTCIceCandidateInit;
-    }
-}
-
-const isDescriptionSignal = (signal: IncomingSignal): signal is IncomingSignalDescription => {
-    return signal.data.description !== undefined;
-}
-
-const isCandidateSignal = (signal: IncomingSignal): signal is IncomingSignalCandidate => {
-    return signal.data.candidate !== undefined;
-}
+import WebSocketSignalService from "../../../SignalService/WebSocketSignalService";
+import Connection from "../../../Connection";
 
 const InitialState: ConnectionState = { state: 'new' };
 
@@ -44,12 +14,12 @@ interface NewRTCConnectionInput {
     parent_station_media_stream: MediaStream;
 }
 
-class RTCConnection extends Service<ConnectionState> implements Connection {
+class RTCConnection extends Service<ConnectionState> {
     protected readonly name = 'RTCConnection';
     private signal_service: WebSocketSignalService;
     private session: Session;
     private media_stream: MediaStream;
-    private peer_connection: RTCPeerConnection;
+    private connection: Connection;
 
     constructor(input: NewRTCConnectionInput) {
         super({
@@ -58,9 +28,7 @@ class RTCConnection extends Service<ConnectionState> implements Connection {
         });
         this.signal_service = input.signal_service;
         this.session = input.session;
-        this.peer_connection = this.create_peer_connection();
-        this.send_description()
-        this.signal_service.addEventListener("signal", this.handle_signal);
+        this.connection = this.create_connection();
         this.media_stream = input.parent_station_media_stream;
     }
 
@@ -68,9 +36,14 @@ class RTCConnection extends Service<ConnectionState> implements Connection {
         return state.state;
     }
 
-    private create_peer_connection = (): RTCPeerConnection => {
-        const peer_connection = new RTCPeerConnection(settings.RTC);
-        peer_connection.addEventListener("icecandidate", this.handle_icecandidate_event);
+    private create_connection = (): Connection => {
+        const connection = Connection.initiate({
+            logging_service: this.logging_service,
+            signal_service: this.signal_service,
+            other_connection_id: this.session.host_connection_id,
+        });
+
+        const peer_connection = connection.peer_connection;
         peer_connection.addEventListener("track", this.handle_track_event);
         peer_connection.addEventListener("connectionstatechange", this.handle_connectionstatechange_event);
 
@@ -111,54 +84,11 @@ class RTCConnection extends Service<ConnectionState> implements Connection {
             })
         });
 
-        return peer_connection;
+        return connection;
     }
 
     public get_rtc_peer_connection_state = (): RTCPeerConnectionState => {
-        return this.peer_connection.connectionState;
-    }
-
-    private send_description = async () => {
-        this.peer_connection.addTransceiver('video', { direction: 'recvonly' })
-        this.peer_connection.addTransceiver('audio', { direction: 'recvonly' })
-        await this.peer_connection.setLocalDescription();
-        this.signal_service.send_signal({
-            to_connection_id: this.session.host_connection_id,
-            data: { description: this.peer_connection.localDescription },
-        });
-    }
-
-    private handle_signal = async (event: SignalEvent) => {
-        if (event.signal.from_connection_id !== this.session.host_connection_id) return;
-        if (isDescriptionSignal(event.signal)) {
-            await this.handle_answer_signal(event.signal);
-            return
-        }
-        if (isCandidateSignal(event.signal)) {
-            await this.handle_candidate_signal(event.signal);
-            return
-        }
-    }
-
-    private handle_answer_signal = async (signal: IncomingSignalDescription) => {
-        if (signal.data.description.type !== "answer")
-            throw new Error("data.description.type is not answer");
-        const peer_connection = this.peer_connection;
-        await peer_connection.setRemoteDescription(signal.data.description);
-    }
-
-    private handle_candidate_signal = async (signal: IncomingSignalCandidate) => {
-        const candidate = new RTCIceCandidate(signal.data.candidate);
-        await this.peer_connection.addIceCandidate(candidate);
-    }
-
-    private handle_icecandidate_event = (event: RTCPeerConnectionIceEvent) => {
-        if (event.candidate === null)
-            return;
-        this.signal_service.send_signal({
-            to_connection_id: this.session.host_connection_id,
-            data: { candidate: event.candidate },
-        });
+        return this.connection.peer_connection.connectionState;
     }
 
     private handle_track_event = (event: RTCTrackEvent) => {
@@ -178,7 +108,7 @@ class RTCConnection extends Service<ConnectionState> implements Connection {
     }
 
     private handle_connectionstatechange_event = (event: Event) => {
-        const peer_connection_state = this.peer_connection.connectionState;
+        const peer_connection_state = this.connection.peer_connection.connectionState;
         switch (peer_connection_state) {
             case 'new':
                 this.set_state({ state: 'new' });
@@ -211,9 +141,8 @@ class RTCConnection extends Service<ConnectionState> implements Connection {
     }
 
     public reconnect = () => {
-        this.close_peer_connection();
-        this.peer_connection = this.create_peer_connection();
-        this.send_description();
+        this.close_connection();
+        this.connection = this.create_connection();
         this.set_state(InitialState);
     }
 
@@ -224,15 +153,13 @@ class RTCConnection extends Service<ConnectionState> implements Connection {
                 data: { close: null },
             });
         }
-        this.signal_service.removeEventListener("signal", this.handle_signal);
-        this.close_peer_connection();
+        this.close_connection();
     }
 
-    private close_peer_connection = () => {
-        this.peer_connection.removeEventListener("icecandidate", this.handle_icecandidate_event);
-        this.peer_connection.removeEventListener("track", this.handle_track_event);
-        this.peer_connection.removeEventListener("connectionstatechange", this.handle_connectionstatechange_event);
-        this.peer_connection.close();
+    private close_connection = () => {
+        this.connection.peer_connection.removeEventListener("track", this.handle_track_event);
+        this.connection.peer_connection.removeEventListener("connectionstatechange", this.handle_connectionstatechange_event);
+        this.connection.close();
     }
 }
 

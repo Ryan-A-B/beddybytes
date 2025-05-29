@@ -119,7 +119,7 @@ class Recorder extends EventTarget {
         this.chunks.push(event.data);
         this.set_mime_type_if_not_set(event.data.type);
     }
-    
+
     private set_mime_type_if_not_set = (mime_type: string) => {
         if (this.mime_type !== null) return;
         if (mime_type === '') return;
@@ -127,14 +127,19 @@ class Recorder extends EventTarget {
     }
 
     private handle_stop = () => {
-        const blob = new Blob(this.chunks, { type: this.mime_type || Recorder.default_mime_type });
+        const mime_type = this.mime_type || Recorder.default_mime_type;
+        const blob = new Blob(this.chunks, { type: mime_type });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         document.body.appendChild(a);
         a.style.display = 'none';
         a.href = url;
-        a.download = `BeddyBytes_${this.t0.format('YYYYMMDD_HHmmss')}.webm`;
-        a.click();
+        a.download = `BeddyBytes_${this.t0.format('YYYYMMDD_HHmmss')}`;
+        Promise.resolve().then(() => {
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        });
         this.dispatchEvent(new Event('stop'));
     }
 }

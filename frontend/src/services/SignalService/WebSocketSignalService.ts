@@ -10,7 +10,7 @@ const WebSocketCloseCodeNormalClosure = 1000;
 const InitialRetryDelay = 1000;
 const MaxRetryDelay = 2 * 60 * 1000;
 
-interface SendSignalInput {
+export interface SendSignalInput {
     to_connection_id: string;
     data: any;
 }
@@ -357,7 +357,7 @@ interface NewWebSocketSignalServiceInput {
     authorization_service: AuthorizationService;
 }
 
-class WebSocketSignalService extends Service<WebSocketSignalState> {
+class WebSocketSignalService extends Service<WebSocketSignalState> implements SignalService {
     public readonly name = 'WebSocketSignalService';
     private authorization_service: AuthorizationService;
 
@@ -496,4 +496,16 @@ interface WebSocketSignalService extends EventTarget {
 
 interface EventMap {
     "signal": SignalEvent;
+}
+
+export interface SignalService extends EventTarget {
+    send_signal: (input: SendSignalInput) => void;
+
+    addEventListener<K extends keyof EventMap>(type: K, listener: (this: EventSource, ev: EventMap[K]) => any, options?: boolean | AddEventListenerOptions): void;
+    addEventListener(type: string, listener: (this: EventSource, event: MessageEvent) => any, options?: boolean | AddEventListenerOptions): void;
+    addEventListener(type: string, listener: EventListenerOrEventListenerObject, options?: boolean | AddEventListenerOptions): void;
+
+    removeEventListener<K extends keyof EventMap>(type: K, listener: (this: EventSource, ev: EventMap[K]) => any, options?: boolean | EventListenerOptions): void;
+    removeEventListener(type: string, listener: (this: EventSource, event: MessageEvent) => any, options?: boolean | EventListenerOptions): void;
+    removeEventListener(type: string, listener: EventListenerOrEventListenerObject, options?: boolean | EventListenerOptions): void;
 }

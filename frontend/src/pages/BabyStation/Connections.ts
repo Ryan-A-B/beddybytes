@@ -1,18 +1,12 @@
 import { Map } from "immutable";
-import settings from "../../settings";
 import WebSocketSignalService, { IncomingSignal, SignalEvent } from "../../services/SignalService/WebSocketSignalService";
+import Connection from "../../services/Connection";
+import LoggingService from "../../services/LoggingService";
 
 interface IncomingSignalDescription {
     from_connection_id: string;
     data: {
         description: RTCSessionDescriptionInit;
-    }
-}
-
-interface IncomingSignalCandidate {
-    from_connection_id: string;
-    data: {
-        candidate: RTCIceCandidateInit;
     }
 }
 
@@ -27,19 +21,24 @@ const isDescriptionSignal = (signal: IncomingSignal): signal is IncomingSignalDe
     return signal.data.description !== undefined;
 }
 
-const isCandidateSignal = (signal: IncomingSignal): signal is IncomingSignalCandidate => {
-    return signal.data.candidate !== undefined;
-}
-
 const isCloseSignal = (signal: IncomingSignal): signal is IncomingSignalClose => {
     return signal.data.close !== undefined;
 }
 
+interface NewConnectionsInput {
+    logging_service: LoggingService;
+    signal_service: WebSocketSignalService;
+    stream: MediaStream;
+}
+
 class Connections {
+    private logging_service: LoggingService;
     private signal_service: WebSocketSignalService;
     private stream: MediaStream;
-    private peer_connections: Map<string, RTCPeerConnection> = Map();
-    constructor(signal_service: WebSocketSignalService, stream: MediaStream) {
+    private connections: Map<string, Connection> = Map();
+
+    constructor({ logging_service, signal_service, stream }: NewConnectionsInput) {
+        this.logging_service = logging_service;
         this.signal_service = signal_service;
         this.stream = stream;
         this.signal_service.start();
@@ -49,10 +48,6 @@ class Connections {
     private handle_signal = async (event: SignalEvent) => {
         if (isDescriptionSignal(event.signal)) {
             await this.handleOffer(event.signal);
-            return
-        }
-        if (isCandidateSignal(event.signal)) {
-            await this.handleCandidateSignal(event.signal);
             return
         }
         if (isCloseSignal(event.signal)) {
@@ -65,24 +60,14 @@ class Connections {
         if (signal.data.description.type !== "offer")
             throw new Error("data.description.type is not offer");
         this.closeExistingPeerConnectionIfAny(signal.from_connection_id);
-        const peer_connection = new RTCPeerConnection(settings.RTC);
-        peer_connection.onicecandidate = this.onICECandidate(signal.from_connection_id);
-        this.peer_connections = this.peer_connections.set(signal.from_connection_id, peer_connection);
-        await peer_connection.setRemoteDescription(signal.data.description);
-        this.stream.getTracks().forEach((track) => peer_connection.addTrack(track, this.stream));
-        const answer = await peer_connection.createAnswer();
-        await peer_connection.setLocalDescription(answer);
-        this.signal_service.send_signal({
-            to_connection_id: signal.from_connection_id,
-            data: { description: answer },
+        const connection = Connection.accept_offer({
+            logging_service: this.logging_service,
+            signal_service: this.signal_service,
+            other_connection_id: signal.from_connection_id,
+            offer: signal.data.description,
         });
-    }
-
-    private handleCandidateSignal = async (signal: IncomingSignalCandidate) => {
-        const peer_connection = this.peer_connections.get(signal.from_connection_id);
-        if (peer_connection === undefined) throw new Error(`PeerConnection is not found: ${signal.from_connection_id}`);
-        const candidate = new RTCIceCandidate(signal.data.candidate);
-        await peer_connection.addIceCandidate(candidate);
+        this.connections = this.connections.set(signal.from_connection_id, connection);
+        this.stream.getTracks().forEach((track) => connection.peer_connection.addTrack(track, this.stream));
     }
 
     private handleCloseSignal = (signal: IncomingSignalClose) => {
@@ -90,23 +75,14 @@ class Connections {
     }
 
     private closeExistingPeerConnectionIfAny(peerConnectionID: string) {
-        const peer_connection = this.peer_connections.get(peerConnectionID);
-        if (peer_connection === undefined) return;
-        peer_connection.onicecandidate = null;
-        peer_connection.close();
-    }
-
-    private onICECandidate = (peerConnectionID: string) => (event: RTCPeerConnectionIceEvent) => {
-        if (event.candidate === null) return;
-        this.signal_service.send_signal({
-            to_connection_id: peerConnectionID,
-            data: { candidate: event.candidate },
-        });
+        const connection = this.connections.get(peerConnectionID);
+        if (connection === undefined) return;
+        connection.close();
     }
 
     close = () => {
-        this.peer_connections.forEach((peer_connection) => {
-            peer_connection.close()
+        this.connections.forEach((connection) => {
+            connection.close()
         });
         this.signal_service.stop();
         this.signal_service.removeEventListener("signal", this.handle_signal);
