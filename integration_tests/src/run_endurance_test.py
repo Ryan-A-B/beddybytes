@@ -6,10 +6,9 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.support.ui import Select
-from selenium.common.exceptions import NoSuchElementException
 
 from settings import hub_url, app_base_url, chrome_options
-from utils import create_account, login, stop_backend_container, start_backend_container, generate_random_string, get_random_bool, print_browser_logs
+from utils import create_account, login, stop_backend_container, start_backend_container, generate_random_string, get_random_bool, print_browser_logs, wait_for_element_to_be_displayed
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -127,9 +126,6 @@ class ParentStation:
             logging.info(f"{self.name} quitting")
             self.driver.quit()
 
-    def allow_time_for_video_to_display(self):
-        time.sleep(1.5)
-
     def handle_disconnected(self):
         if self.backend_disruptor.status == "stopped":
             return
@@ -142,19 +138,11 @@ class ParentStation:
         self.driver.get(app_base_url)
         login(self.driver, self.email, self.password)
         self.driver.find_element(By.ID, "nav-link-parent").click()
-        driver_wait = WebDriverWait(self.driver, 1)
-        self.allow_time_for_video_to_display()
-        video_element = driver_wait.until(lambda driver: driver.find_element(By.ID, "video-parent-station"))
-        if not video_element.is_displayed():
-            raise Exception(f"{self.name} video element is not displayed")
+        wait_for_element_to_be_displayed(self.driver, "video-parent-station")
         self.status = "connected"
 
     def handle_connected(self):
-        driver_wait = WebDriverWait(self.driver, 1)
-        video_element = driver_wait.until(lambda driver: driver.find_element(By.ID, "video-parent-station"))
-        if not video_element.is_displayed():
-            raise Exception(f"{self.name} video element is not displayed")
-
+        wait_for_element_to_be_displayed(self.driver, "video-parent-station")
         if get_random_bool(self.probability_of_disconnecting):
             self.disconnect()
 
