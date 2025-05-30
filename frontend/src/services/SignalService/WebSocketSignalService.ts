@@ -8,7 +8,7 @@ import sleep from '../../utils/sleep';
 const WebSocketCloseCodeNormalClosure = 1000;
 
 const InitialRetryDelay = 1000;
-const MaxRetryDelay = 2 * 60 * 1000;
+const MaxRetryDelay = 10 * 1000;
 
 export interface SendSignalInput {
     to_connection_id: string;

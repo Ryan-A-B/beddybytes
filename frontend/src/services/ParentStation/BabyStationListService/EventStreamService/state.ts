@@ -3,7 +3,7 @@ import LoggingService, { Severity } from "../../../LoggingService";
 import sleep from "../../../../utils/sleep";
 import BeddyBytesEvent from "./event";
 
-const MaxReconnectDelay = 5 * 60 * 1000;
+const MaxReconnectDelay = 10 * 1000;
 const InitialReconnectDelay = 1000;
 
 abstract class AbstractState {
