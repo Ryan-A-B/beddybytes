@@ -13,6 +13,7 @@ const memory_limit_by_env: Record<DeployEnv, number> = {
 interface StackProps extends cdk.StackProps {
     deploy_env: DeployEnv;
     docker_repository: cdk.aws_ecr.IRepository;
+    docker_image_digest: string;
     cluster: cdk.aws_ecs.ICluster;
     signing_key: cdk.aws_secretsmanager.ISecret;
     elastic_ip: cdk.aws_ec2.CfnEIP;
@@ -25,7 +26,7 @@ export class BackendStack extends cdk.Stack {
         const host_names = get_host_names(domain_name, props.deploy_env);
         const traefik_router_prefix = `${props.deploy_env}-`;
 
-        const api_container_image = cdk.aws_ecs.ContainerImage.fromEcrRepository(props.docker_repository, props.deploy_env)
+        const api_container_image = cdk.aws_ecs.ContainerImage.fromEcrRepository(props.docker_repository, props.docker_image_digest);
 
         const execution_role = new cdk.aws_iam.Role(this, `execution-role`, {
             assumedBy: new cdk.aws_iam.ServicePrincipal('ecs-tasks.amazonaws.com'),

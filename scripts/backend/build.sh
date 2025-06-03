@@ -2,24 +2,20 @@
 
 source scripts/backend/init.sh
 
-case $1 in
-    qa|prod)
-        env=$1
-        ;;
-    *)
-        echo "Usage: $0 <qa|prod>"
-        exit 1
-        ;;
-esac
-
-if [ -n "$2" ]; then
-    branch=$2
+if [ -n "$1" ]; then
+    branch=$1
 else
-    branch=$env
+    branch=master
+fi
+
+if [ "$branch" = "master" ]; then
+    tag=latest
+else
+    tag=$branch
 fi
 
 aws codebuild start-build \
   --project-name $BUILD_PROJECT_NAME \
-  --environment-variables-override name=DOCKER_IMAGE_TAG,value=$env,type=PLAINTEXT \
+  --environment-variables-override name=DOCKER_IMAGE_TAG,value=$tag,type=PLAINTEXT \
   --source-version $branch \
   --region $AWS_REGION
