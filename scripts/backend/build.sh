@@ -12,11 +12,6 @@ case $1 in
         ;;
 esac
 
-if [ "$env" = "prod" ]; then
-    echo "Production builds are not supported yet."
-    exit 1
-fi
-
 if [ -n "$2" ]; then
     branch=$2
 else
