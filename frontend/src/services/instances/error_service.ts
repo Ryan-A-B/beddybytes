@@ -8,9 +8,9 @@ const error_service = new ErrorService({
 
 export default error_service;
 
+let last_authorization_state = authorization_service.get_state();
 authorization_service.addEventListener('statechange', (event) => {
     const state = authorization_service.get_state();
-    if (state.state === 'no_account') {
-        error_service.clear_errors();
-    }
+    if (last_authorization_state.state === 'no_account' && state.state === 'token_fetched') error_service.clear_errors();
+    last_authorization_state = state;
 });
