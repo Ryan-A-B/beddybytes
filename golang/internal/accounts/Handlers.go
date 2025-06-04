@@ -306,7 +306,7 @@ func (handlers *Handlers) GetTokenUsingRefreshTokenGrant(responseWriter http.Res
 	ctx := request.Context()
 	cookie, err := request.Cookie("refresh_token")
 	if err != nil {
-		logx.Warnln("refresh_token cookie missing. Request details: Method=%s, URL=%s, Headers=%v\n", request.Method, request.URL.String(), request.Header)
+		logx.Warnf("refresh_token cookie missing. Request details: Method=%s, URL=%s, Headers=%v\n", request.Method, request.URL.String(), request.Header)
 		err = merry.Prepend(err, "missing refresh token cookie").WithUserMessage("unauthorized").WithHTTPCode(http.StatusUnauthorized)
 		return
 	}
