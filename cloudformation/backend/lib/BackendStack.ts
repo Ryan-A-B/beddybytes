@@ -36,27 +36,21 @@ export class BackendStack extends cdk.Stack {
             assumedBy: new cdk.aws_iam.ServicePrincipal('ecs-tasks.amazonaws.com'),
         });
 
-        const volumes: cdk.aws_ecs.Volume[] = [
-            {
-                name: 'keys',
-                host: {
-                    sourcePath: `/ebs/persistent/keys/${props.deploy_env}`,
-                },
-            },
-        ];
-        if (props.deploy_env === 'prod') {
-            volumes.push({
-                name: 'eventlog',
-                host: {
-                    sourcePath: '/ebs/persistent/eventlog',
-                },
-            });
-        }
-
         const task_definition = new cdk.aws_ecs.Ec2TaskDefinition(this, `task-definition`, {
             executionRole: execution_role,
             taskRole: task_role,
-            volumes,
+            volumes: [
+                {
+                    name: 'keys',
+                    host: {
+                        sourcePath: `/ebs/persistent/keys/${props.deploy_env}`,
+                    },
+                },
+                {
+                    name: 'eventlog',
+                    host: get_eventlog_host_path(props.deploy_env),
+                }
+            ],
         });
         const api_container = task_definition.addContainer(`api`, {
             image: api_container_image,
@@ -109,13 +103,11 @@ export class BackendStack extends cdk.Stack {
             containerPath: '/opt/keys',
             readOnly: true,
         });
-        if (props.deploy_env === 'prod') {
-            api_container.addMountPoints({
-                sourceVolume: 'eventlog',
-                containerPath: '/opt/eventlog',
-                readOnly: false,
-            });
-        }
+        api_container.addMountPoints({
+            sourceVolume: 'eventlog',
+            containerPath: '/opt/eventlog',
+            readOnly: false,
+        });
 
         const service = new cdk.aws_ecs.Ec2Service(this, `service`, {
             cluster: props.cluster,
@@ -169,5 +161,12 @@ export class BackendStack extends cdk.Stack {
             policyName: policy.ref,
             principal: certificate.attrArn,
         });
+    }
+}
+
+const get_eventlog_host_path = (deploy_env: DeployEnv): cdk.aws_ecs.Host | undefined => {
+    if (deploy_env !== 'prod') return undefined;
+    return {
+        sourcePath: '/ebs/persistent/eventlog',
     }
 }
