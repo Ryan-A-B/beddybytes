@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"crypto/rsa"
 	"encoding/json"
-	"log"
 	"net/http"
 	"regexp"
 	"strings"
@@ -21,6 +20,7 @@ import (
 	"github.com/Ryan-A-B/beddybytes/golang/internal/eventlog"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/fatal"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/httpx"
+	"github.com/Ryan-A-B/beddybytes/golang/internal/logx"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/mailer"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/resetpassword"
 )
@@ -180,7 +180,7 @@ func (handlers *Handlers) CreateAccount(responseWriter http.ResponseWriter, requ
 	var err error
 	defer func() {
 		if err != nil {
-			log.Println("Warn:", err)
+			logx.Warnln(err)
 			httpx.Error(responseWriter, err)
 		}
 	}()
@@ -237,7 +237,7 @@ func (handlers *Handlers) GetToken(responseWriter http.ResponseWriter, request *
 	var err error
 	defer func() {
 		if err != nil {
-			log.Println("Warn:", err)
+			logx.Warnln(err)
 			httpx.Error(responseWriter, err)
 			return
 		}
@@ -258,7 +258,7 @@ func (handlers *Handlers) GetTokenUsingPasswordGrant(responseWriter http.Respons
 	var err error
 	defer func() {
 		if err != nil {
-			log.Println("Warn:", err)
+			logx.Warnln(err)
 			httpx.Error(responseWriter, err)
 			return
 		}
@@ -298,7 +298,7 @@ func (handlers *Handlers) GetTokenUsingRefreshTokenGrant(responseWriter http.Res
 	var err error
 	defer func() {
 		if err != nil {
-			log.Println("Warn:", err)
+			logx.Warnln(err)
 			httpx.Error(responseWriter, err)
 			return
 		}
@@ -306,7 +306,7 @@ func (handlers *Handlers) GetTokenUsingRefreshTokenGrant(responseWriter http.Res
 	ctx := request.Context()
 	cookie, err := request.Cookie("refresh_token")
 	if err != nil {
-		log.Println(err)
+		logx.Warnln("refresh_token cookie missing. Request details: Method=%s, URL=%s, Headers=%v\n", request.Method, request.URL.String(), request.Header)
 		err = merry.Prepend(err, "missing refresh token cookie").WithUserMessage("unauthorized").WithHTTPCode(http.StatusUnauthorized)
 		return
 	}
@@ -344,7 +344,7 @@ func (handlers *Handlers) Logout(responseWriter http.ResponseWriter, request *ht
 	var err error
 	defer func() {
 		if err != nil {
-			log.Println("Warn:", err)
+			logx.Warnln(err)
 			httpx.Error(responseWriter, err)
 			return
 		}
@@ -367,7 +367,7 @@ func (handlers *Handlers) GetAccount(responseWriter http.ResponseWriter, request
 	var err error
 	defer func() {
 		if err != nil {
-			log.Println("Warn:", err)
+			logx.Warnln(err)
 			httpx.Error(responseWriter, err)
 			return
 		}
@@ -386,7 +386,7 @@ func (handlers *Handlers) DeleteAccount(responseWriter http.ResponseWriter, requ
 	accountID := contextx.GetAccountID(ctx)
 	err := handlers.AccountStore.Remove(ctx, accountID)
 	if err != nil {
-		log.Println("Warn:", err)
+		logx.Warnln(err)
 		httpx.Error(responseWriter, err)
 		return
 	}
