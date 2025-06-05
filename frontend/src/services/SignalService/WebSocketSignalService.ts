@@ -70,15 +70,24 @@ class NotConnected extends AbstractState {
     }
 
     public handle_open = (service: ServiceProxy, event: Event) => {
-        throw new Error('there should be no active web socket');
+        service.logging_service.log({
+            severity: Severity.Warning,
+            message: 'handle_open called in NotConnected state',
+        })
     }
 
     public handle_message = (service: ServiceProxy, event: MessageEvent) => {
-        throw new Error('there should be no active web socket');
+        service.logging_service.log({
+            severity: Severity.Warning,
+            message: 'handle_message called in NotConnected state',
+        });
     }
 
     public handle_close = (service: ServiceProxy, event: CloseEvent) => {
-        throw new Error('there should be no active web socket');
+        service.logging_service.log({
+            severity: Severity.Warning,
+            message: `WebSocket closed with code ${event.code} in NotConnected state`,
+        });
     }
 }
 
@@ -124,15 +133,24 @@ class PreparingToConnect extends AbstractState {
     }
 
     public handle_open = (service: ServiceProxy, event: Event) => {
-        throw new Error('there should be no active web socket');
+        service.logging_service.log({
+            severity: Severity.Warning,
+            message: 'handle_open called in PreparingToConnect state',
+        });
     }
 
     public handle_message = (service: ServiceProxy, event: MessageEvent) => {
-        throw new Error('there should be no active web socket');
+        service.logging_service.log({
+            severity: Severity.Warning,
+            message: 'handle_message called in PreparingToConnect state',
+        });
     }
 
     public handle_close = (service: ServiceProxy, event: CloseEvent) => {
-        throw new Error('there should be no active web socket');
+        service.logging_service.log({
+            severity: Severity.Warning,
+            message: `WebSocket closed with code ${event.code} in PreparingToConnect state`,
+        });
     }
 }
 
@@ -178,7 +196,10 @@ class Connecting extends AbstractState {
     }
 
     public handle_message = (service: ServiceProxy, event: MessageEvent) => {
-        throw new Error('there should be no active web socket');
+        service.logging_service.log({
+            severity: Severity.Warning,
+            message: 'handle_message called in Connecting state',
+        });
     }
 
     public handle_close = (service: ServiceProxy, event: CloseEvent) => {
