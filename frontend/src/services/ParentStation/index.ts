@@ -5,12 +5,13 @@ import MediaStreamTrackMonitor from './MediaStreamTrackMonitor';
 import { EventTypeStateChanged } from '../Service';
 import BabyStationListService from './BabyStationListService';
 import WebSocketSignalService from '../SignalService/WebSocketSignalService';
-import get_wake_locker from '../../WakeLock';
+import WakeLockService from '../WakeLockService';
 
 interface NewParentStationInput {
     logging_service: LoggingService;
     authorization_service: AuthorizationService;
     signal_service: WebSocketSignalService;
+    wake_lock_service: WakeLockService;
 }
 
 class ParentStation {
@@ -20,8 +21,9 @@ class ParentStation {
     readonly session_service: SessionService;
     readonly media_stream_track_monitor: MediaStreamTrackMonitor;
     readonly recording_service: RecordingService;
+    readonly wake_lock_service: WakeLockService;
 
-    constructor({ logging_service, authorization_service, signal_service }: NewParentStationInput) {
+    constructor({ logging_service, authorization_service, signal_service, wake_lock_service }: NewParentStationInput) {
         this.signal_service = signal_service;
         this.baby_station_list_service = new BabyStationListService({
             logging_service,
@@ -41,6 +43,7 @@ class ParentStation {
             session_service: this.session_service,
             media_stream: this.media_stream,
         });
+        this.wake_lock_service = wake_lock_service;
 
         document.addEventListener('visibilitychange', this.handle_visibilitychange);
         this.signal_service.addEventListener(EventTypeStateChanged, this.handle_signal_state_changed);
@@ -51,13 +54,13 @@ class ParentStation {
     public start = () => {
         this.signal_service.start();
         this.baby_station_list_service.start();
-        get_wake_locker().lock();
+        this.wake_lock_service.lock();
     }
 
     public stop = () => {
         this.signal_service.stop();
         this.baby_station_list_service.stop();
-        get_wake_locker().unlock();
+        this.wake_lock_service.unlock();
     }
 
     private handle_signal_state_changed = () => {

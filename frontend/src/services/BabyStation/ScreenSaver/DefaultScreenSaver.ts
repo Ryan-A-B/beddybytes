@@ -1,3 +1,4 @@
+import wake_lock_service from "../../instances/wake_lock_service";
 import CanvasAnimation from "./CanvasAnimation";
 
 const run_screen_saver = async (): Promise<void> => {
@@ -6,7 +7,7 @@ const run_screen_saver = async (): Promise<void> => {
 
     document.body.appendChild(canvas_element);
     await canvas_element.requestFullscreen();
-    const wake_lock_sentinel = await navigator.wakeLock.request('screen');
+    wake_lock_service.lock();
 
     const exit_fullscreen = async () => {
         await document.exitFullscreen();
@@ -15,7 +16,7 @@ const run_screen_saver = async (): Promise<void> => {
     const handle_fullscreen_change = async (event: Event) => {
         if (document.fullscreenElement === canvas_element) return;
         document.body.removeChild(canvas_element);
-        await wake_lock_sentinel.release();
+        wake_lock_service.unlock();
         document.removeEventListener('fullscreenchange', handle_fullscreen_change);
     }
 
@@ -24,7 +25,7 @@ const run_screen_saver = async (): Promise<void> => {
 }
 
 run_screen_saver.can_i_use = (): boolean => {
-    const wait_lock_supported = 'wakeLock' in navigator;
+    const wait_lock_supported = wake_lock_service.get_state().name !== 'unavailable';
     if (!wait_lock_supported) return false;
     const fullscreen_supported = 'requestFullscreen' in HTMLCanvasElement.prototype;
     if (!fullscreen_supported) return false;

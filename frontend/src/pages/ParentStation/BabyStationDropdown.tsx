@@ -27,7 +27,7 @@ const BabyStationDropdown: React.FunctionComponent<Props> = ({ session_service, 
 
     if (baby_stations.size === 0) return (
         <div id="alert-no-baby-stations" className="alert alert-info" role="alert">
-            No baby stations found
+            No baby stations available
         </div>
     );
 
