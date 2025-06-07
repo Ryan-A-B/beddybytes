@@ -1,6 +1,7 @@
 import LoggingService from '../LoggingService';
 import MediaDevicePermissionService from "./MediaDevicePermissionService";
 import MediaDeviceService from "./MediaDeviceService";
+import ScreenSaverService from './ScreenSaverService';
 import SessionService from "./SessionService";
 
 interface NewBabyStationInput {
@@ -13,6 +14,7 @@ class BabyStation {
     readonly media_device_permission_service: MediaDevicePermissionService;
     readonly media_device_service: MediaDeviceService;
     readonly session_service: SessionService;
+    readonly screen_saver_service: ScreenSaverService;
 
     constructor(input: NewBabyStationInput) {
         this.logging_service = input.logging_service;
@@ -26,6 +28,9 @@ class BabyStation {
         this.session_service = new SessionService({
             logging_service: input.logging_service,
             authorization_service: input.authorization_service
+        });
+        this.screen_saver_service = new ScreenSaverService({
+            logging_service: input.logging_service
         });
     }
 }

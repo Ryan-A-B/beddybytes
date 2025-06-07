@@ -14,3 +14,9 @@ Is a React frontend created using gatsby.
 # Testing
 The local stack can be run by calling `run_local_stack.sh`. This will start a docker compose cluster.
 The integration tests require a running stack and can be run by calling `run_integration_tests.sh`.
+
+# Javascript
+Use arrow functions.
+Use `const` and `let` instead of `var`.
+Instead of using let prefer using a function that returns a value.
+Use `===` and `!==` instead of `==` and `!=`.

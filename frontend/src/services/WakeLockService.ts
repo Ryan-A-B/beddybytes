@@ -367,9 +367,8 @@ class WakeLockService extends Service<WakeLockState> {
     }
 
     private static get_initial_state = (): WakeLockState => {
-        const wake_lock_unavailable = navigator.wakeLock === undefined;
-        if (wake_lock_unavailable)
-            return new Unavailable();
+        const unavailable = navigator.wakeLock === undefined;
+        if (unavailable) return new Unavailable();
         return new Available();
     }
 }

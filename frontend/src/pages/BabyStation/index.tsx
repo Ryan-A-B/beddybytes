@@ -3,7 +3,6 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faTag, faMicrophone, faVideo } from '@fortawesome/free-solid-svg-icons';
 import { useSignalService } from '../../services';
 import baby_station from '../../services/instances/baby_station';
-import run_screen_saver from '../../services/BabyStation/ScreenSaver';
 import SessionService from '../../services/BabyStation/SessionService';
 import useMediaDevicesPermissionStatus from '../../hooks/useMediaDevicePermissionStatus';
 import useWakeLock from '../../hooks/useWakeLock';
@@ -117,7 +116,7 @@ const BabyStation: React.FunctionComponent = () => {
                     </div>
                 </div>
                 <button
-                    onClick={run_screen_saver}
+                    onClick={baby_station.screen_saver_service.start}
                     disabled={baby_station_session_state.name !== 'session_running'}
                     className='btn btn-secondary mb-3 mx-auto'
                 >

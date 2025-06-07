@@ -13,16 +13,18 @@ const MediaStream: React.FunctionComponent<Props> = ({ sessionActive }) => {
     const media_device_service = baby_station.media_device_service;
     const media_device_state = useServiceState(media_device_service);
     const signal_service = useSignalService();
+    const screen_saver_state = useServiceState(baby_station.screen_saver_service);
     const videoRef = React.useRef<HTMLVideoElement>(null);
     React.useLayoutEffect(() => {
-        if (media_device_state.media_stream_state.state !== 'available') return;
         if (videoRef.current === null) return;
+        if (media_device_state.media_stream_state.state !== 'available') return;
+        if (screen_saver_state.name === 'running') return;
         const video = videoRef.current;
         video.srcObject = media_device_state.media_stream_state.media_stream;
         return () => {
             video.srcObject = null;
         }
-    }, [media_device_state.media_stream_state]);
+    }, [media_device_state.media_stream_state, screen_saver_state.name]);
     React.useEffect(() => {
         if (!sessionActive) return;
         if (media_device_state.media_stream_state.state !== 'available') return;
