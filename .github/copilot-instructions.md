@@ -20,8 +20,10 @@ Use arrow functions.
 Use `const` and `let` instead of `var`.
 Instead of using let prefer using a function that returns a value.
 Use `===` and `!==` instead of `==` and `!=`.
+Use double quotes for strings.
 
 # React
 Use functional components and hooks instead of class components.
 Use React.FunctionComponent rather than React.FC
 Use <React.Fragment> instead of <>
+Use double quotes for attributes

@@ -8,12 +8,11 @@ import DefaultPageWrapper from '../../components/DefaultPageWrapper'
 import FAQSection from '../../components/LandingPage/FAQSection'
 import Features from '../../components/Features'
 import DiscountedPrice from '../../components/Pricing/DiscountedPrice'
-import TrialPeriod from '../../components/Pricing/TrialPeriod'
 import DemoSection from '../../components/LandingPage/DemoSection'
 import SocialProofSection from '../../components/SocialProof/Section'
 import CallToAction from '../../components/CallToAction'
 import PricingCallToAction from '../../components/Pricing/CallToAction'
-import RedirectToPaymentProcessor from '../../components/Pricing/RedirectToPaymentProcessor'
+import { RedirectToPaymentProcessor, TrialPeriod } from '../../components/Pricing/Messages'
 
 import "./style.scss"
 

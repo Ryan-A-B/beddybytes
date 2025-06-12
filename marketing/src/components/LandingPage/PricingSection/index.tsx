@@ -1,9 +1,8 @@
 import React from 'react'
 import Pricing from '../../Pricing'
-import TrialPeriod from '../../Pricing/TrialPeriod'
+import { RedirectToPaymentProcessor, TrialPeriod } from '../../Pricing/Messages'
 
 import "./style.scss"
-import RedirectToPaymentProcessor from '../../Pricing/RedirectToPaymentProcessor'
 
 const PricingSection: React.FunctionComponent = () => {
     return (

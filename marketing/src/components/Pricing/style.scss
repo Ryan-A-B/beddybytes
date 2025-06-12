@@ -1,3 +1,13 @@
+
+@import "../../scss/configuration";
+
 .card.card-pricing {
-    min-width: 350px;
+    width: 375px;
+}
+
+section#all-plans-include {
+    li {
+        padding-top: $spacer / 2;
+        min-width: 200px;
+    }
 }
