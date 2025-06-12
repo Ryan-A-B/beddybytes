@@ -7,7 +7,7 @@ export const onRenderBody: GatsbySSR["onRenderBody"] = ({ setHeadComponents }) =
         <script
             key="plausible"
             data-domain="beddybytes.com"
-            src="https://plausible.io/js/script.js"
+            src="https://plausible.io/js/script.outbound-links.js"
             defer
         />
     ])
