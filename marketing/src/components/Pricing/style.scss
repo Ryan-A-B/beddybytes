@@ -2,7 +2,13 @@
 @import "../../scss/configuration";
 
 .card.card-pricing {
-    width: 375px;
+    min-width: 335px;
+    max-width: 385px;
+    margin: {
+        bottom: $spacer;
+        left: $spacer;
+        right: $spacer;
+    }
 }
 
 section#all-plans-include {

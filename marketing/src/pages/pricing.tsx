@@ -7,19 +7,19 @@ import SocialProofSection from "../components/SocialProof/Section"
 import AllPlansInclude from "../components/Pricing/AllPlansInclude"
 import { OnePurchase, RedirectToPaymentProcessor, TrialPeriod } from "../components/Pricing/Messages"
 
-const maxWidth = 800
-
 const PricingPage: React.FunctionComponent<PageProps> = () => {
     return (
         <DefaultPageWrapper without_call_to_action>
             <main id="page-pricing" className="bg-primary text-bg-primary py-5">
-                <div className="container" style={{ maxWidth }}>
+                <div className="container">
                     <h1 className="text-center mt-3">Simple. Private. Yours.</h1>
-                    <p className="text-center">A monitor that minds its own business.</p>
-                    <AllPlansInclude />
-                    <Pricing />
-                    <OnePurchase />
-                    <RedirectToPaymentProcessor />
+                    <p className="fs-5 text-center">A monitor that minds its own business.</p>
+                    <div className="bg-light text-bg-light p-3 rounded">
+                        <AllPlansInclude />
+                        <Pricing />
+                        <OnePurchase />
+                        <RedirectToPaymentProcessor />
+                    </div>
                 </div>
             </main>
             <SocialProofSection />
