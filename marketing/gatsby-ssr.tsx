@@ -1,17 +1,12 @@
 import React from "react"
 import { GatsbySSR } from "gatsby"
 
-const domain = (() => {
-    if (process.env.NODE_ENV !== 'production')
-        return "beddybytes.local"
-    return "beddybytes.com"
-})()
-
 export const onRenderBody: GatsbySSR["onRenderBody"] = ({ setHeadComponents }) => {
+    if (process.env.NODE_ENV !== 'production') return;
     setHeadComponents([
         <script
             key="plausible"
-            data-domain={domain}
+            data-domain="beddybytes.com"
             src="https://plausible.io/js/script.js"
             defer
         />
