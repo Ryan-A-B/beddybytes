@@ -37,45 +37,15 @@ interface PromotionFrame {
 const promotion_frames: List<PromotionFrame> = List([
     {
         promotion: {
-            code: "LAUNCHSALE",
-            discount: 0.7,
-            availibility: {
-                type: "indefinite",
-            },
-        },
-        weight: 5,
-    },
-    {
-        promotion: {
-            code: "FIRSTSMILE",
-            discount: 0.6,
-            availibility: {
-                type: "indefinite",
-            },
-        },
-        weight: 15,
-    },
-    {
-        promotion: {
-            code: "NAPTIME",
-            discount: 0.5,
-            availibility: {
-                type: "indefinite",
-            },
-        },
-        weight: 10,
-    },
-    {
-        promotion: {
             code: "PEEKABOO",
             discount: 0.5,
             availibility: {
                 type: "indefinite",
             },
         },
-        weight: 12,
+        weight: 10,
     }
-])
+]);
 
 const available_promotion_frames = promotion_frames.filter((promotion_frame) => {
     if (promotion_frame === undefined) return false;
