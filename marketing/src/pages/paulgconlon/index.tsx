@@ -132,7 +132,7 @@ const PaulGConlon = () => (
                 <div className="container">
                     <h6 className="text-center">Pricing</h6>
                     <h2 className="text-center">No subscription</h2>
-                    <RedirectToPaymentProcessor />
+                    <TrialPeriod />
                     <div className="row justify-content-center">
                         <div className="col-sm-auto my-3">
                             <section className="card card-pricing">
@@ -153,7 +153,7 @@ const PaulGConlon = () => (
                             </section>
                         </div>
                     </div>
-                    <TrialPeriod />
+                    <RedirectToPaymentProcessor />
                 </div>
             </section>
             <DemoSection />

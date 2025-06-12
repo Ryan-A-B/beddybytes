@@ -5,7 +5,7 @@ import DefaultPageWrapper from "../components/DefaultPageWrapper"
 import Pricing from "../components/Pricing"
 import SocialProofSection from "../components/SocialProof/Section"
 import AllPlansInclude from "../components/Pricing/AllPlansInclude"
-import { OnePurchase, RedirectToPaymentProcessor, TrialPeriod } from "../components/Pricing/Messages"
+import { OnePurchase, RedirectToPaymentProcessor } from "../components/Pricing/Messages"
 
 const PricingPage: React.FunctionComponent<PageProps> = () => {
     return (
