@@ -1,4 +1,4 @@
-import LoggingService from '../LoggingService';
+import LoggingService, { Severity } from '../LoggingService';
 import RecordingService from "./RecordingService";
 import SessionService from "./SessionService";
 import MediaStreamTrackMonitor from './MediaStreamTrackMonitor';
@@ -15,6 +15,7 @@ interface NewParentStationInput {
 }
 
 class ParentStation {
+    readonly logging_service: LoggingService;
     readonly media_stream: MediaStream = new MediaStream();
     readonly signal_service: WebSocketSignalService;
     readonly baby_station_list_service: BabyStationListService;
@@ -24,6 +25,7 @@ class ParentStation {
     readonly wake_lock_service: WakeLockService;
 
     constructor({ logging_service, authorization_service, signal_service, wake_lock_service }: NewParentStationInput) {
+        this.logging_service = logging_service;
         this.signal_service = signal_service;
         this.baby_station_list_service = new BabyStationListService({
             logging_service,
@@ -63,14 +65,27 @@ class ParentStation {
         this.wake_lock_service.unlock();
     }
 
+    private remove_connection_event_listener: (() => void) | null = null;
     private handle_signal_state_changed = () => {
         this.reconnect_if_needed();
+        const session_state = this.session_service.get_state();
+        if (session_state.name !== "joined") {
+            if (this.remove_connection_event_listener === null) return;
+            this.remove_connection_event_listener();
+            this.remove_connection_event_listener = null;
+            return;
+        }
+        const active_connection = session_state.get_active_connection()
+        if (active_connection === null) throw new Error("No active connection but session is joined");
+        active_connection.addEventListener(EventTypeStateChanged, this.handle_connection_state_changed);
+        this.remove_connection_event_listener = () => active_connection.removeEventListener(EventTypeStateChanged, this.handle_connection_state_changed);
     }
 
     private handle_session_state_changed = () => {
         this.auto_connect_if_needed();
         this.reconnect_if_needed();
         this.auto_leave_session_if_needed();
+        this.try_exit_picture_in_picture_if_needed();
     }
 
     private handle_baby_station_list_changed = () => {
@@ -83,7 +98,10 @@ class ParentStation {
         this.auto_connect_if_needed();
     }
 
-    // TODO handle changes to connection
+    private handle_connection_state_changed = () => {
+        this.reconnect_if_needed();
+        this.try_exit_picture_in_picture_if_needed();
+    }
 
     private auto_connect_if_needed = () => {
         if (document.visibilityState !== 'visible') return;
@@ -108,6 +126,34 @@ class ParentStation {
         const snapshot = this.baby_station_list_service.get_snapshot();
         const session = snapshot.session_by_id.get(session_id);
         return session !== undefined;
+    }
+
+    private try_exit_picture_in_picture_if_needed = async () => {
+        try {
+            await this.exit_picture_in_picture_if_needed();
+        } catch (error) {
+            this.logging_service.log({
+                severity: Severity.Warning,
+                message: `Error exiting Picture-in-Picture: ${error instanceof Error ? error.message : String(error)}`,
+            });
+        }
+    }
+
+    private exit_picture_in_picture_if_needed = async () => {
+        if (!document.pictureInPictureEnabled) return;
+        if (!document.pictureInPictureElement) return;
+        const session_state = this.session_service.get_state();
+        if (session_state.name !== "joined") {
+            await document.exitPictureInPicture();
+            return;
+        }
+        const active_connection = session_state.get_active_connection();
+        if (active_connection === null) throw new Error("No active connection but session is joined");
+        const connection_state = active_connection.get_state();
+        if (connection_state.state !== 'connected') {
+            await document.exitPictureInPicture();
+            return;
+        }
     }
 }
 
