@@ -125,7 +125,7 @@ Resources:
         Name: !Sub ${AWS::StackName}-response-headers-policy
         SecurityHeadersConfig:
           ContentSecurityPolicy:
-            ContentSecurityPolicy: default-src 'none'; script-src 'self'; connect-src 'self' https://*.beddybytes.com wss://*.beddybytes.com; img-src 'self' data:; style-src 'self'; manifest-src 'self'; base-uri 'self'; form-action 'self'; frame-src https://www.youtube.com/embed/uQHlMu7m5us;
+            ContentSecurityPolicy: default-src 'none'; script-src 'self'; connect-src 'self' https://*.beddybytes.com wss://*.beddybytes.com; img-src 'self' data:; style-src 'self'; media-src 'self'; manifest-src 'self'; base-uri 'self'; form-action 'self'; frame-src https://www.youtube.com/embed/uQHlMu7m5us;
             Override: false
           StrictTransportSecurity:
             AccessControlMaxAgeSec: 63072000 # 2 years

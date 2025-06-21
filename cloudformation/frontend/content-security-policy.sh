@@ -7,6 +7,7 @@ policies=(
     "connect-src 'self' https://*.beddybytes.com wss://*.beddybytes.com"
     "img-src 'self' data:"
     "style-src 'self'"
+    "media-src 'self'"
     "manifest-src 'self'"
     "base-uri 'self'"
     "form-action 'self'"
