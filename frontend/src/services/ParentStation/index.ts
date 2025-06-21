@@ -96,6 +96,7 @@ class ParentStation {
 
     private handle_visibilitychange = () => {
         this.auto_connect_if_needed();
+        this.reacquire_wake_lock_if_needed();
     }
 
     private handle_connection_state_changed = () => {
@@ -154,6 +155,13 @@ class ParentStation {
             await document.exitPictureInPicture();
             return;
         }
+    }
+
+    private reacquire_wake_lock_if_needed = () => {
+        if (document.visibilityState !== 'visible') return;
+        const wake_lock_state = this.wake_lock_service.get_state();
+        if (wake_lock_state.name !== 'lock_lost') return;
+        this.wake_lock_service.lock();
     }
 }
 
