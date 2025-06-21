@@ -1,4 +1,4 @@
-import Service from "../../../Service";
+import Service, { ServiceStateChangedEvent } from "../../../Service";
 import LoggingService from "../../../LoggingService";
 import settings from "../../../../settings";
 import EventStreamState, { IEventStreamService, NotRunning } from "./state";
@@ -88,8 +88,12 @@ export default EventStreamService;
 
 interface EventStreamService extends EventTarget {
     addEventListener<K extends keyof EventMap>(type: K, listener: (this: EventSource, ev: EventMap[K]) => any, options?: boolean | AddEventListenerOptions): void;
-    addEventListener(type: string, listener: (this: EventSource, event: MessageEvent) => any, options?: boolean | AddEventListenerOptions): void;
+    addEventListener(type: 'state_changed', listener: (this: EventSource, ev: ServiceStateChangedEvent<EventStreamState>) => any, options?: boolean | AddEventListenerOptions): void;
     addEventListener(type: string, listener: EventListenerOrEventListenerObject, options?: boolean | AddEventListenerOptions): void;
+
+    removeEventListener<K extends keyof EventMap>(type: K, listener: (this: EventSource, ev: EventMap[K]) => any, options?: boolean | EventListenerOptions): void;
+    removeEventListener(type: 'state_changed', listener: (this: EventSource, ev: ServiceStateChangedEvent<EventStreamState>) => any, options?: boolean | EventListenerOptions): void;
+    removeEventListener(type: string, listener: EventListenerOrEventListenerObject, options?: boolean | EventListenerOptions): void;
 }
 
 interface EventMap {

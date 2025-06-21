@@ -1,7 +1,7 @@
 import { List } from 'immutable';
 import { v4 as uuid } from 'uuid';
 import settings from "../../settings";
-import Service, { SetStateFunction } from '../Service';
+import Service, { ServiceStateChangedEvent, SetStateFunction } from '../Service';
 import LoggingService, { Severity } from '../LoggingService';
 import sleep from '../../utils/sleep';
 
@@ -365,7 +365,7 @@ class Reconnecting extends Connecting {
     }
 }
 
-type WebSocketSignalState =
+export type WebSocketSignalState =
     NotConnected |
     PreparingToConnect |
     Connecting |
@@ -505,13 +505,13 @@ export interface IncomingSignal {
     }
 }
 
-interface WebSocketSignalService extends EventTarget {
+interface WebSocketSignalService extends Service<WebSocketSignalState> {
     addEventListener<K extends keyof EventMap>(type: K, listener: (this: EventSource, ev: EventMap[K]) => any, options?: boolean | AddEventListenerOptions): void;
-    addEventListener(type: string, listener: (this: EventSource, event: MessageEvent) => any, options?: boolean | AddEventListenerOptions): void;
+    addEventListener(type: 'state_changed', listener: (this: EventSource, ev: ServiceStateChangedEvent<WebSocketSignalState>) => any, options?: boolean | AddEventListenerOptions): void;
     addEventListener(type: string, listener: EventListenerOrEventListenerObject, options?: boolean | AddEventListenerOptions): void;
 
     removeEventListener<K extends keyof EventMap>(type: K, listener: (this: EventSource, ev: EventMap[K]) => any, options?: boolean | EventListenerOptions): void;
-    removeEventListener(type: string, listener: (this: EventSource, event: MessageEvent) => any, options?: boolean | EventListenerOptions): void;
+    removeEventListener(type: 'state_changed', listener: (this: EventSource, ev: ServiceStateChangedEvent<WebSocketSignalState>) => any, options?: boolean | EventListenerOptions): void;
     removeEventListener(type: string, listener: EventListenerOrEventListenerObject, options?: boolean | EventListenerOptions): void;
 }
 
@@ -519,14 +519,14 @@ interface EventMap {
     "signal": SignalEvent;
 }
 
-export interface SignalService extends EventTarget {
+export interface SignalService extends Service<WebSocketSignalState> {
     send_signal: (input: SendSignalInput) => void;
 
     addEventListener<K extends keyof EventMap>(type: K, listener: (this: EventSource, ev: EventMap[K]) => any, options?: boolean | AddEventListenerOptions): void;
-    addEventListener(type: string, listener: (this: EventSource, event: MessageEvent) => any, options?: boolean | AddEventListenerOptions): void;
+    addEventListener(type: 'state_changed', listener: (this: EventSource, ev: ServiceStateChangedEvent<WebSocketSignalState>) => any, options?: boolean | AddEventListenerOptions): void;
     addEventListener(type: string, listener: EventListenerOrEventListenerObject, options?: boolean | AddEventListenerOptions): void;
 
     removeEventListener<K extends keyof EventMap>(type: K, listener: (this: EventSource, ev: EventMap[K]) => any, options?: boolean | EventListenerOptions): void;
-    removeEventListener(type: string, listener: (this: EventSource, event: MessageEvent) => any, options?: boolean | EventListenerOptions): void;
+    removeEventListener(type: 'state_changed', listener: (this: EventSource, ev: ServiceStateChangedEvent<WebSocketSignalState>) => any, options?: boolean | EventListenerOptions): void;
     removeEventListener(type: string, listener: EventListenerOrEventListenerObject, options?: boolean | EventListenerOptions): void;
 }

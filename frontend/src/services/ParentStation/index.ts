@@ -1,11 +1,12 @@
 import LoggingService, { Severity } from '../LoggingService';
 import RecordingService from "./RecordingService";
-import SessionService from "./SessionService";
+import SessionService, { SessionState } from "./SessionService";
 import MediaStreamTrackMonitor from './MediaStreamTrackMonitor';
-import { EventTypeStateChanged } from '../Service';
-import BabyStationListService from './BabyStationListService';
-import WebSocketSignalService from '../SignalService/WebSocketSignalService';
+import { EventTypeStateChanged, ServiceStateChangedEvent } from '../Service';
+import BabyStationListService, { BabyStationListState } from './BabyStationListService';
+import WebSocketSignalService, { WebSocketSignalState } from '../SignalService/WebSocketSignalService';
 import WakeLockService from '../WakeLockService';
+import { ConnectionState } from './SessionService/Connection';
 
 interface NewParentStationInput {
     logging_service: LoggingService;
@@ -65,30 +66,36 @@ class ParentStation {
         this.wake_lock_service.unlock();
     }
 
-    private remove_connection_event_listener: (() => void) | null = null;
-    private handle_signal_state_changed = () => {
+    private handle_signal_state_changed = (event: ServiceStateChangedEvent<WebSocketSignalState>) => {
         this.reconnect_if_needed();
-        const session_state = this.session_service.get_state();
-        if (session_state.name !== "joined") {
-            if (this.remove_connection_event_listener === null) return;
-            this.remove_connection_event_listener();
-            this.remove_connection_event_listener = null;
-            return;
-        }
-        const active_connection = session_state.get_active_connection()
-        if (active_connection === null) throw new Error("No active connection but session is joined");
-        active_connection.addEventListener(EventTypeStateChanged, this.handle_connection_state_changed);
-        this.remove_connection_event_listener = () => active_connection.removeEventListener(EventTypeStateChanged, this.handle_connection_state_changed);
     }
 
-    private handle_session_state_changed = () => {
+    private remove_connection_event_listener: (() => void) | null = null;
+    private handle_session_state_changed = (event: ServiceStateChangedEvent<SessionState>) => {
         this.auto_connect_if_needed();
         this.reconnect_if_needed();
         this.auto_leave_session_if_needed();
         this.try_exit_picture_in_picture_if_needed();
+
+        const joined_session = event.previous_state.name !== "joined" && event.current_state.name === "joined";
+        if (joined_session) {
+            // We don't play connection established sound here because it will be played when the connection state changes to 'connected'.
+            const active_connection = event.current_state.get_active_connection();
+            if (active_connection === null) throw new Error("No active connection but session is joined");
+            active_connection.addEventListener(EventTypeStateChanged, this.handle_connection_state_changed);
+            this.remove_connection_event_listener = () => active_connection.removeEventListener(EventTypeStateChanged, this.handle_connection_state_changed);
+        }
+        const left_session = event.previous_state.name === "joined" && event.current_state.name !== "joined";
+        if (left_session) {
+            if (this.remove_connection_event_listener === null) return;
+            this.play_connection_lost_sound();
+            this.remove_connection_event_listener();
+            this.remove_connection_event_listener = null;
+            return;
+        }
     }
 
-    private handle_baby_station_list_changed = () => {
+    private handle_baby_station_list_changed = (event: ServiceStateChangedEvent<BabyStationListState>) => {
         this.auto_connect_if_needed();
         this.reconnect_if_needed();
         this.auto_leave_session_if_needed();
@@ -99,9 +106,14 @@ class ParentStation {
         this.reacquire_wake_lock_if_needed();
     }
 
-    private handle_connection_state_changed = () => {
+    private handle_connection_state_changed = (event: ServiceStateChangedEvent<ConnectionState>) => {
         this.reconnect_if_needed();
         this.try_exit_picture_in_picture_if_needed();
+
+        const connection_established = event.previous_state.state !== 'connected' && event.current_state.state === 'connected';
+        if (connection_established) this.play_connection_established_sound();
+        const connection_lost = event.previous_state.state === 'connected' && event.current_state.state !== 'connected';
+        if (connection_lost) this.play_connection_lost_sound();
     }
 
     private auto_connect_if_needed = () => {
@@ -162,6 +174,42 @@ class ParentStation {
         const wake_lock_state = this.wake_lock_service.get_state();
         if (wake_lock_state.name !== 'lock_lost') return;
         this.wake_lock_service.lock();
+    }
+
+    private play_connection_established_sound = () => {
+        const audio_element = document.querySelector<HTMLAudioElement>('audio#connection-established');
+        if (audio_element === null) {
+            this.logging_service.log({
+                severity: Severity.Warning,
+                message: "Audio element for connection established sound not found",
+            });
+            return;
+        }
+        audio_element.currentTime = 0;
+        audio_element.play().catch((error) => {
+            this.logging_service.log({
+                severity: Severity.Warning,
+                message: `Error playing connection established sound: ${error instanceof Error ? error.message : String(error)}`,
+            });
+        });
+    }
+
+    private play_connection_lost_sound = () => {
+        const audio_element = document.querySelector<HTMLAudioElement>('audio#connection-lost');
+        if (audio_element === null) {
+            this.logging_service.log({
+                severity: Severity.Warning,
+                message: "Audio element for connection lost sound not found",
+            });
+            return;
+        }
+        audio_element.currentTime = 0;
+        audio_element.play().catch((error) => {
+            this.logging_service.log({
+                severity: Severity.Warning,
+                message: `Error playing connection lost sound: ${error instanceof Error ? error.message : String(error)}`,
+            });
+        });
     }
 }
 

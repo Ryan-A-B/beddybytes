@@ -259,7 +259,7 @@ class PausedWaitingForSnapshot extends AbstractState {
     }
 }
 
-type BabyStationListState = NotStarted | LoadingSnapshot | Projecting | Paused | PausedWaitingForSnapshot;
+export type BabyStationListState = NotStarted | LoadingSnapshot | Projecting | Paused | PausedWaitingForSnapshot;
 
 interface NewBabyStationListServiceInput {
     logging_service: LoggingService;

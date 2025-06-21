@@ -9,7 +9,7 @@
   <meta name="description" content="BeddyBytes is a privacy first baby monitor." />
 
   <meta name="mobile-web-app-capable" content="yes">
-  
+
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-title" content="BeddyBytes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -39,6 +39,12 @@
 <body>
   <noscript>You need to enable JavaScript to run this app.</noscript>
   <div id="root"></div>
+  <audio id="connection-established" src="%PUBLIC_URL%/assets/sounds/330048__paulmorek__beep-04-positive.wav" preload="auto">
+    Beep 04 Positive by PaulMorek -- https://freesound.org/s/330048/ -- License: Creative Commons 0
+  </audio>
+  <audio id="connection-lost" src="%PUBLIC_URL%/assets/sounds/330049__paulmorek__beep-04-negative.wav" preload="auto">
+    Beep 04 Negative by PaulMorek -- https://freesound.org/s/330049/ -- License: Creative Commons 0
+  </audio>
 </body>
 
 </html>
