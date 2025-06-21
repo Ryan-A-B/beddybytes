@@ -218,7 +218,6 @@ class Paused extends AbstractState {
     constructor(snapshot: Snapshot) {
         super();
         this.snapshot = snapshot;
-        console.log(this.snapshot)
     }
 
     public start = async (service: ForFriends): Promise<void> => {
