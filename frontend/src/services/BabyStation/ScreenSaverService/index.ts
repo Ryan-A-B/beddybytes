@@ -334,6 +334,6 @@ export default ScreenSaverService;
 
 const is_decendant = (element: HTMLElement, target: HTMLElement): boolean => {
     if (element === target) return true;
-    if (element.parentElement === null) return false;
-    return is_decendant(element.parentElement, target);
+    if (target.parentElement === null) return false;
+    return is_decendant(element, target.parentElement);
 };
