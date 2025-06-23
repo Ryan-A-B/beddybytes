@@ -39,11 +39,17 @@
 <body>
   <noscript>You need to enable JavaScript to run this app.</noscript>
   <div id="root"></div>
-  <audio id="connection-established" src="%PUBLIC_URL%/static/sounds/330048__paulmorek__beep-04-positive.wav" preload="auto">
-    Beep 04 Positive by PaulMorek -- https://freesound.org/s/330048/ -- License: Creative Commons 0
+  <audio id="connection-established" preload="auto">
+    <!-- Beep 04 Positive by PaulMorek -- https://freesound.org/s/330048/ -- License: Creative Commons 0 -->
+    <source src="%PUBLIC_URL%/static/sounds/330048__paulmorek__beep-04-positive.m4a" type="audio/mp4">
+    <source src="%PUBLIC_URL%/static/sounds/330048__paulmorek__beep-04-positive.ogg" type="audio/ogg">
+    <source src="%PUBLIC_URL%/static/sounds/330048__paulmorek__beep-04-positive.wav" type="audio/wav">
   </audio>
-  <audio id="connection-lost" src="%PUBLIC_URL%/static/sounds/330049__paulmorek__beep-04-negative.wav" preload="auto">
-    Beep 04 Negative by PaulMorek -- https://freesound.org/s/330049/ -- License: Creative Commons 0
+  <audio id="connection-lost" preload="auto">
+    <!-- Beep 04 Negative by PaulMorek -- https://freesound.org/s/330049/ -- License: Creative Commons 0 -->
+    <source src="%PUBLIC_URL%/static/sounds/330049__paulmorek__beep-04-negative.m4a" type="audio/mp4">
+    <source src="%PUBLIC_URL%/static/sounds/330049__paulmorek__beep-04-negative.ogg" type="audio/ogg">
+    <source src="%PUBLIC_URL%/static/sounds/330049__paulmorek__beep-04-negative.wav" type="audio/wav">
   </audio>
 </body>
 
