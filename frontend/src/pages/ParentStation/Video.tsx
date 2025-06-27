@@ -227,13 +227,13 @@ const usePlay = (video_element_ref: React.RefObject<HTMLVideoElement>) => {
                 const is_error = error instanceof Error;
                 if (!is_error) {
                     logging_service.log({
-                        severity: Severity.Error,
+                        severity: Severity.Notice,
                         message: `Error playing video element in ParentStation usePlay: ${error}`,
                     })
                     return;
                 }
                 logging_service.log({
-                    severity: Severity.Error,
+                    severity: Severity.Notice,
                     message: `Error playing video element in ParentStation usePlay: ${error.message} ${error.stack}`,
                 })
             });
