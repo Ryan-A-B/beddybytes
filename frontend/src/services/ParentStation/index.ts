@@ -103,6 +103,7 @@ class ParentStation {
 
     private handle_visibilitychange = () => {
         this.auto_connect_if_needed();
+        this.reconnect_if_needed();
         this.reacquire_wake_lock_if_needed();
     }
 
