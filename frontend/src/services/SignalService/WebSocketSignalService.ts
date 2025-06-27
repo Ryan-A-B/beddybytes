@@ -23,6 +23,7 @@ interface ServiceProxy {
     connect: (id: string, access_token: string) => void;
     send_signal: (input: SendSignalInput) => void;
     keep_alive: () => void;
+    reconnect: (id: string) => void;
     reconnect_after_delay: (id: string, retry_delay: number) => void;
     add_event_listeners: (ws: WebSocket) => void;
     remove_event_listeners: (ws: WebSocket) => void;
@@ -257,8 +258,8 @@ class Connected extends AbstractState {
             });
             const id = uuid();
             service.remove_event_listeners(this.ws);
-            service.set_state(new PreparingToReconnect(id, InitialRetryDelay));
-            service.reconnect_after_delay(id, InitialRetryDelay);
+            service.set_state(new PreparingToReconnect(id, null));
+            service.reconnect(id);
         }
     }
 
@@ -318,15 +319,15 @@ class Connected extends AbstractState {
         });
         const id = uuid();
         service.set_state(new PreparingToReconnect(id, InitialRetryDelay));
-        service.reconnect_after_delay(id, InitialRetryDelay);
+        service.reconnect(id);
     }
 }
 
 class PreparingToReconnect extends PreparingToConnect {
     public name = 'preparing_to_reconnect';
-    private retry_delay: number;
+    private retry_delay: Optional<number>;
 
-    constructor(id: string, retry_delay: number) {
+    constructor(id: string, retry_delay: Optional<number>) {
         super(id);
         this.retry_delay = retry_delay;
     }
@@ -340,9 +341,9 @@ class PreparingToReconnect extends PreparingToConnect {
 
 class Reconnecting extends Connecting {
     public name = 'reconnecting';
-    private retry_delay: number;
+    private retry_delay: Optional<number>;
 
-    constructor(ws: WebSocket, signal_queue: List<SendSignalInput>, retry_delay: number) {
+    constructor(ws: WebSocket, signal_queue: List<SendSignalInput>, retry_delay: Optional<number>) {
         super(ws, signal_queue);
         this.retry_delay = retry_delay;
     }
@@ -359,6 +360,7 @@ class Reconnecting extends Connecting {
     }
 
     private get_next_retry_delay = () => {
+        if (this.retry_delay === null) return InitialRetryDelay;
         const next_retry_delay = this.retry_delay * 2;
         if (next_retry_delay > MaxRetryDelay) return MaxRetryDelay;
         return next_retry_delay;
@@ -402,6 +404,7 @@ class WebSocketSignalService extends Service<WebSocketSignalState> implements Si
             connect: this.connect,
             send_signal: this.send_signal,
             keep_alive: this.keep_alive,
+            reconnect: this.reconnect,
             reconnect_after_delay: this.reconnect_after_delay,
             add_event_listeners: this.add_event_listeners,
             remove_event_listeners: this.remove_event_listeners,
@@ -459,10 +462,14 @@ class WebSocketSignalService extends Service<WebSocketSignalState> implements Si
         state.handle_close(this.proxy, event);
     }
 
-    private reconnect_after_delay = async (id: string, retry_delay: number) => {
-        await sleep(retry_delay);
+    private reconnect = async (id: string) => {
         const access_token = await this.authorization_service.get_access_token();
         this.connect(id, access_token);
+    }
+
+    private reconnect_after_delay = async (id: string, retry_delay: number) => {
+        await sleep(retry_delay);
+        this.reconnect(id);
     }
 
     public stop = () => {
