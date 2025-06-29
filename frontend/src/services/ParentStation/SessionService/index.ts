@@ -21,6 +21,7 @@ abstract class AbstractState {
     public abstract join_session(service: ServiceProxy, session: Session): void;
     public abstract leave_session(service: ServiceProxy): void;
     public abstract leave_session_if_ended(service: ServiceProxy, session_exists: SessionExistsFunction): void;
+    public abstract reconnect(service: ServiceProxy): void;
     public abstract reconnect_if_needed(service: ServiceProxy, session_exists: SessionExistsFunction): void;
 }
 
@@ -53,6 +54,10 @@ class NotJoined extends AbstractState {
     }
 
     public leave_session_if_ended(service: ServiceProxy, session_exists: SessionExistsFunction): void {
+        // do nothing
+    }
+
+    public reconnect(service: ServiceProxy): void {
         // do nothing
     }
 
@@ -109,6 +114,10 @@ class Joined extends AbstractState {
     public leave_session_if_ended = (service: ServiceProxy, session_exists: SessionExistsFunction): void => {
         if (session_exists(this.session.id)) return;
         this.leave_session(service);
+    }
+
+    public reconnect(service: ServiceProxy): void {
+        this.rtc_connection.reconnect();
     }
 
     // TODO move state checking into respective classes
@@ -176,6 +185,10 @@ class SessionService extends Service<SessionState> {
     public leave_session_if_ended = (session_exists: SessionExistsFunction) => {
         const state = this.get_state();
         state.leave_session_if_ended(this.proxy, session_exists);
+    }
+
+    public reconnect = () => {
+        this.get_state().reconnect(this.proxy);
     }
 
     public reconnect_if_needed = (session_exists: SessionExistsFunction) => {

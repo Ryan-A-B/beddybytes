@@ -87,8 +87,8 @@ def get_input(prompt, timeout=5):
 def allow_time_for_video_to_display():
     time.sleep(1)
 
-def wait_for_element_to_be_displayed(driver, element_id):
-    wait = WebDriverWait(driver, timeout=1)
+def wait_for_element_to_be_displayed(driver, element_id, timeout=1):
+    wait = WebDriverWait(driver, timeout=timeout)
     return wait.until(lambda driver: driver.find_element(By.ID, element_id).is_displayed())
 
 def wait_for_element_to_not_be_displayed(driver, element_id):

@@ -315,10 +315,10 @@ class Connected extends AbstractState {
     public handle_close = (service: ServiceProxy, event: CloseEvent) => {
         service.logging_service.log({
             severity: Severity.Warning,
-            message: `WebSocket closed with code ${event.code}, reconnecting in ${InitialRetryDelay}ms`,
+            message: `WebSocket closed with code ${event.code}, reconnecting immediately`,
         });
         const id = uuid();
-        service.set_state(new PreparingToReconnect(id, InitialRetryDelay));
+        service.set_state(new PreparingToReconnect(id, null));
         service.reconnect(id);
     }
 }

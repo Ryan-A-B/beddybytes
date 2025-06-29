@@ -8,6 +8,13 @@ import WebSocketSignalService, { WebSocketSignalState } from '../SignalService/W
 import WakeLockService from '../WakeLockService';
 import { ConnectionState } from './SessionService/Connection';
 
+const RecentVisibilityChangeThresholdMillis = 2000;
+
+interface VisibilityChangeDetails {
+    timestamp_millis: number;
+    visibility_state: DocumentVisibilityState;
+}
+
 interface NewParentStationInput {
     logging_service: LoggingService;
     authorization_service: AuthorizationService;
@@ -24,6 +31,7 @@ class ParentStation {
     readonly media_stream_track_monitor: MediaStreamTrackMonitor;
     readonly recording_service: RecordingService;
     readonly wake_lock_service: WakeLockService;
+    private last_visibilitychange_details: Optional<VisibilityChangeDetails> = null;
 
     constructor({ logging_service, authorization_service, signal_service, wake_lock_service }: NewParentStationInput) {
         this.logging_service = logging_service;
@@ -66,8 +74,32 @@ class ParentStation {
         this.wake_lock_service.unlock();
     }
 
+    private handle_visibilitychange = () => {
+        this.logging_service.log({
+            severity: Severity.Debug,
+            message: `Document visibility changed: ${document.visibilityState}`,
+        });
+        this.auto_connect_if_needed();
+        this.reconnect_if_needed();
+        this.reacquire_wake_lock_if_needed();
+        this.last_visibilitychange_details = {
+            timestamp_millis: performance.now(),
+            visibility_state: document.visibilityState,
+        }
+    }
+
     private handle_signal_state_changed = (event: ServiceStateChangedEvent<WebSocketSignalState>) => {
         this.reconnect_if_needed();
+
+        // We're using signal service reconnecting plus visibility change as a proxy that the app is back in the foreground
+        if (event.previous_state.name !== 'reconnecting') return;
+        if (event.current_state.name !== 'connected') return;
+        if (this.last_visibilitychange_details === null) return;
+        if (document.visibilityState !== 'visible') return;
+        const visibility_change_dt = performance.now() - this.last_visibilitychange_details.timestamp_millis;
+        const visibility_change_was_not_recent = visibility_change_dt > RecentVisibilityChangeThresholdMillis;
+        if (visibility_change_was_not_recent) return;
+        this.session_service.reconnect();
     }
 
     private remove_connection_event_listener: (() => void) | null = null;
@@ -99,12 +131,6 @@ class ParentStation {
         this.auto_connect_if_needed();
         this.reconnect_if_needed();
         this.auto_leave_session_if_needed();
-    }
-
-    private handle_visibilitychange = () => {
-        this.auto_connect_if_needed();
-        this.reconnect_if_needed();
-        this.reacquire_wake_lock_if_needed();
     }
 
     private handle_connection_state_changed = (event: ServiceStateChangedEvent<ConnectionState>) => {

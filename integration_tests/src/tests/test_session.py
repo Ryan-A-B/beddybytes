@@ -41,8 +41,7 @@ class TestSession(unittest.TestCase):
             driver_2.find_element(By.ID, "nav-link-parent").click()
 
             driver_2_wait = WebDriverWait(driver_2, 1)
-
-            wait_for_element_to_be_displayed(driver_2, "audio-only-message")
+            wait_for_element_to_be_displayed(driver_2, "audio-only-message", 2)
 
             audio_only_message = driver_2_wait.until(lambda driver: driver.find_element(By.ID, "audio-only-message"))
             self.assertTrue(audio_only_message.is_displayed())
