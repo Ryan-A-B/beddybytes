@@ -42,7 +42,6 @@ func (handlers *Handlers) GetEvents(responseWriter http.ResponseWriter, request 
 	fatal.Unless(ok, "responseWriter does not support flushing")
 	responseWriter.Header().Set("Content-Type", "text/event-stream")
 	responseWriter.Header().Set("Cache-Control", "no-cache")
-	responseWriter.Header().Set("Connection", "keep-alive")
 	io.WriteString(responseWriter, ": hello\n\n")
 	flusher.Flush()
 	eventC := make(chan *eventlog.Event)

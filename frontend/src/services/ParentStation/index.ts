@@ -137,10 +137,10 @@ class ParentStation {
         this.reconnect_if_needed();
         this.try_exit_picture_in_picture_if_needed();
 
-        const connection_established = event.previous_state.state !== 'connected' && event.current_state.state === 'connected';
-        if (connection_established) this.play_connection_established_sound();
-        const connection_lost = event.previous_state.state === 'connected' && event.current_state.state !== 'connected';
-        if (connection_lost) this.play_connection_lost_sound();
+        // const connection_established = event.previous_state.state !== 'connected' && event.current_state.state === 'connected';
+        // if (connection_established) this.play_connection_established_sound();
+        // const connection_lost = event.previous_state.state === 'connected' && event.current_state.state !== 'connected';
+        // if (connection_lost) this.play_connection_lost_sound();
     }
 
     private auto_connect_if_needed = () => {

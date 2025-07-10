@@ -18,7 +18,7 @@ const MediaStream: React.FunctionComponent<Props> = ({ sessionActive }) => {
     React.useLayoutEffect(() => {
         if (videoRef.current === null) return;
         if (media_device_state.media_stream_state.state !== 'available') return;
-        if (screen_saver_state.name === 'running') return;
+        // if (screen_saver_state.name === 'running') return;
         const video = videoRef.current;
         video.srcObject = media_device_state.media_stream_state.media_stream;
         return () => {
