@@ -14,7 +14,6 @@ import BabyStation from './pages/BabyStation';
 import ParentStation from './pages/ParentStation';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
-import Errors from './components/Errors';
 
 import './App.scss';
 import RequestPasswordReset from './pages/Login/RequestPasswordReset';
@@ -37,7 +36,6 @@ const App: React.FunctionComponent = () => {
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="*" element={
               <Login>
-                <Errors error_service={error_service} />
                 <div className="pt-3">
                   <Routes>
                     <Route path="/" element={<Instructions />} />

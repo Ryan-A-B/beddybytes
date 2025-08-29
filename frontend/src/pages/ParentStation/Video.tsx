@@ -122,7 +122,6 @@ const Video: React.ForwardRefRenderFunction<HTMLVideoElement> = (props, ref) => 
                 data-session-id={session_id}
                 data-session-name={session_name}
                 playsInline
-                autoPlay
             />
             {!isPlaying && (
                 <button
