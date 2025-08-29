@@ -120,7 +120,7 @@ class ParentStation {
         const left_session = event.previous_state.name === "joined" && event.current_state.name !== "joined";
         if (left_session) {
             if (this.remove_connection_event_listener === null) return;
-            this.play_connection_lost_sound();
+            // this.play_connection_lost_sound();
             this.remove_connection_event_listener();
             this.remove_connection_event_listener = null;
             return;
