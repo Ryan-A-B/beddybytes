@@ -1,4 +1,4 @@
-
+@use "sass:math";
 @import "../../scss/configuration";
 
 .card.card-pricing {
@@ -21,7 +21,7 @@ section#all-plans-include {
     }
 
     li {
-        padding-top: $spacer / 2;
+        padding-top: math.div($spacer, 2);
         min-width: 200px;
     }
 }
