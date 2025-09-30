@@ -1,8 +1,6 @@
 import React from 'react'
 import Pricing from '../../Pricing'
 import { OnePurchase, RedirectToPaymentProcessor } from '../../Pricing/Messages'
-
-import "./style.scss"
 import AllPlansInclude from '../../Pricing/AllPlansInclude'
 
 const PricingSection: React.FunctionComponent = () => {

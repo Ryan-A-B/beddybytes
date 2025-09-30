@@ -12,6 +12,14 @@
 }
 
 section#all-plans-include {
+    ul {
+        margin: {
+            left: auto;
+            right: auto;
+        }
+        max-width: 800px;
+    }
+
     li {
         padding-top: $spacer / 2;
         min-width: 200px;
