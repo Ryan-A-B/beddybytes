@@ -51,7 +51,7 @@ export class MonitoringStack extends cdk.Stack {
             image: cdk.aws_ecs.ContainerImage.fromRegistry("influxdb:2.7-alpine"),
             essential: true,
             enableRestartPolicy: true,
-            memoryLimitMiB: 128,
+            memoryLimitMiB: 256,
             portMappings: [{ containerPort: 8086 }],
             healthCheck: {
                 command: [
@@ -77,7 +77,7 @@ export class MonitoringStack extends cdk.Stack {
             image: cdk.aws_ecs.ContainerImage.fromRegistry("grafana/grafana-oss:11.4.0"),
             essential: false,
             enableRestartPolicy: true,
-            memoryLimitMiB: 128,
+            memoryLimitMiB: 256,
             portMappings: [{ containerPort: 3000 }],
             healthCheck: {
                 command: [
