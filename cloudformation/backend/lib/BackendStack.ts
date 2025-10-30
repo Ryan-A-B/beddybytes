@@ -161,6 +161,36 @@ export class BackendStack extends cdk.Stack {
             policyName: policy.ref,
             principal: certificate.attrArn,
         });
+
+        const bucket = new cdk.aws_s3.Bucket(this, "bucket", {
+            removalPolicy: cdk.RemovalPolicy.DESTROY,
+            autoDeleteObjects: true,
+        });
+
+        const authorizer_function = new cdk.aws_lambda.Function(this, "authorizer-function", {
+            architecture: cdk.aws_lambda.Architecture.ARM_64,
+            runtime: cdk.aws_lambda.Runtime.PROVIDED_AL2023,
+            code: cdk.aws_lambda.Code.fromBucketV2(bucket, 'iot-authorizer.zip'),
+            handler: 'bootstrap',
+        });
+
+        authorizer_function.addEnvironment("AWS_ACCOUNT_ID", this.account);
+        authorizer_function.addEnvironment("ENCRYPTION_KEY_ARN", props.signing_key.secretArn);
+        props.signing_key.grantRead(authorizer_function);
+
+        const authorizer = new cdk.aws_iot.CfnAuthorizer(this, "authorizer", {
+            authorizerFunctionArn: authorizer_function.functionArn,
+            signingDisabled: true,
+            enableCachingForHttp: true,
+            status: 'ACTIVE',
+        });
+
+        authorizer_function.addPermission("allow-iot-invoke", {
+            principal: new cdk.aws_iam.ServicePrincipal("iot.amazonaws.com"),
+            action: "lambda:InvokeFunction",
+            sourceArn: authorizer.attrArn,
+        });
+
     }
 }
 
