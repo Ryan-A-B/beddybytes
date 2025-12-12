@@ -6,6 +6,7 @@ import AudioVisualiserComponent from "../../components/AudioVisualiser";
 import BabyStationDropdown from "./BabyStationDropdown";
 import SessionDuration from "./SessionDuration";
 import Video from "./Video";
+import StopWatchGroup from "./StopWatchGroup";
 
 import "./style.scss";
 
@@ -33,6 +34,7 @@ const ParentStation: React.FunctionComponent = () => {
         <main className={`container wrapper-content parent-station ${media_stream_track_state}`}>
             <BabyStationDropdown session_service={session_service} baby_station_list_service={parent_station.baby_station_list_service} />
             <ConnectionStateAlert />
+            <StopWatchGroup />
             {session !== null && <SessionDuration started_at={session.started_at} />}
             {media_stream_track_state === "audio-only" && (
                 <React.Fragment>
