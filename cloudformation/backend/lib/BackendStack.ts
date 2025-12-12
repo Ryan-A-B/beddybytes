@@ -6,7 +6,7 @@ import { Construct } from 'constructs';
 import { DeployEnv, domain_name, env_hosted_zone_or_throw, env_string_or_throw, get_host_names } from './config';
 
 const memory_limit_by_env: Record<DeployEnv, number> = {
-    prod: 128,
+    prod: 512,
     qa: 64,
 };
 
