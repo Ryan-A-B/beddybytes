@@ -1,0 +1,34 @@
+@import "bootstrap/scss/bootstrap-utilities";
+
+.stopwatch {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    margin: {
+        left: auto;
+        right: auto;
+    }
+
+    padding: {
+        left: $spacer / 2;
+        right: $spacer / 2;
+        top: $spacer / 4;
+        bottom: $spacer / 4;
+    }
+
+    border: 1px solid #ccc;
+    border-radius: $border-radius;
+
+    &.NotRunning {
+        background-color: $blue-900;
+    }
+
+    &.Running {
+        background-color: $green-700;
+    }
+
+    &.Paused {
+        background-color: $yellow-800;
+    }
+}

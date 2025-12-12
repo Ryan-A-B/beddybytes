@@ -1,13 +1,9 @@
 import React from "react";
-import moment from "moment";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faPause, faPlay, faRotateRight } from "@fortawesome/free-solid-svg-icons";
-import CountUpTimer, { EventTypeStateChanged } from "../../../../services/ParentStation/CountUpTimer";
+import { faPause, faPlay, faRotateRight, faStopwatch } from "@fortawesome/free-solid-svg-icons";
+import CountUpTimer, { EventTypeStateChanged } from "../../../services/ParentStation/CountUpTimer";
 
-interface Props {
-    timer: CountUpTimer;
-    remove: () => void;
-}
+import "./style.scss";
 
 const useTimerState = (timer: CountUpTimer) => {
     const [timerState, setTimerState] = React.useState<string>(timer.get_state());
@@ -41,17 +37,19 @@ const useElapsedTime = (timer: CountUpTimer) => {
     return elapsedTime;
 }
 
-const StopWatch: React.FunctionComponent<Props> = ({ timer, remove }) => {
+const StopWatch: React.FunctionComponent = () => {
+    const timer = React.useMemo(() => new CountUpTimer(), []);
     const timer_state = useTimerState(timer);
     const elapsed_time = useElapsedTime(timer);
     const restart = React.useCallback(() => {
         timer.reset();
         timer.start();
     }, [timer]);
-    const className = `stopwatch ${timer_state === 'Running' ? 'active' : ''}`;
-    if (timer_state === 'NotRunning') throw new Error('Timer is not running');
+    const className = `stopwatch ${timer_state}`;
     return (
         <span className={className}>
+            <FontAwesomeIcon icon={faStopwatch} className="mx-1" />
+
             <span className="fs-3 mx-1">
                 {elapsed_time.hours().toString()}:{elapsed_time.minutes().toString().padStart(2, '0')}:{elapsed_time.seconds().toString().padStart(2, '0')}
             </span>
@@ -60,7 +58,7 @@ const StopWatch: React.FunctionComponent<Props> = ({ timer, remove }) => {
                     <FontAwesomeIcon icon={faPause} />
                 </button>
             )}
-            {timer_state === 'Paused' && (
+            {timer_state !== 'Running' && (
                 <button type="button" onClick={timer.start} className="btn btn-link mx-1">
                     <FontAwesomeIcon icon={faPlay} />
                 </button>
@@ -68,7 +66,6 @@ const StopWatch: React.FunctionComponent<Props> = ({ timer, remove }) => {
             <button type="button" onClick={restart} className="btn btn-link mx-1">
                 <FontAwesomeIcon icon={faRotateRight} />
             </button>
-            <button type="button" onClick={remove} className="btn-close" />
         </span>
     );
 }
