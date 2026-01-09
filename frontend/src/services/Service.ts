@@ -61,3 +61,13 @@ interface Service<T> extends EventTarget {
     removeEventListener(type: 'state_changed', listener: (this: EventSource, ev: ServiceStateChangedEvent<T>) => any, options?: boolean | EventListenerOptions): void;
     removeEventListener(type: string, listener: EventListenerOrEventListenerObject, options?: boolean | EventListenerOptions): void;
 }
+
+export const wait_for_state_change = async <T extends ServiceState>(service: Service<T>): Promise<T> => {
+    return new Promise((resolve) => {
+        const handle = (event: ServiceStateChangedEvent<T>) => {
+            resolve(event.current_state);
+            service.removeEventListener(EventTypeStateChanged, handle);
+        };
+        service.addEventListener(EventTypeStateChanged, handle);
+    });
+}

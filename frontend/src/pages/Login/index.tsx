@@ -1,16 +1,20 @@
 import React from "react";
+import { useAuthorizationService } from "../../services";
 import LoginOrCreateAccount from "./LoginOrCreateAccount";
-import useAccountStatus from "../../hooks/useAccountStatus";
+import useServiceState from "../../hooks/useServiceState";
 
 interface Props {
     children: React.ReactNode
 }
 
 const Login: React.FunctionComponent<Props> = ({ children }) => {
-    const account_status = useAccountStatus();
-    if (account_status.status === 'no_account') return (
-        <LoginOrCreateAccount/>
-    )
+    const authorization_service = useAuthorizationService();
+    const authorization_state = useServiceState(authorization_service);
+    if (!authorization_state.access_token_available) {
+        return (
+            <LoginOrCreateAccount/>
+        )
+    }
     return (
         <React.Fragment>
             {children}

@@ -2,6 +2,7 @@ import React from "react";
 import Input from "../../components/Input";
 import { useAuthorizationService } from "../../services";
 import PasswordInput from "../../components/PasswordInput";
+import { create_account_and_login } from "../../services/AuthorizationService/login";
 
 interface Props {
     email: string;
@@ -15,11 +16,11 @@ const CreateAccountForm: React.FunctionComponent<Props> = ({ email, setEmail, pa
     const authorization_service = useAuthorizationService();
     const [error, setError] = React.useState<string | null>(null)
     const handleSubmit = React.useCallback((event: React.FormEvent<HTMLFormElement>) => {
-        event.preventDefault()
-        authorization_service.create_account_and_login(email, password)
-            .catch((error) => {
-                setError(error.message)
-            })
+        event.preventDefault();
+        setError(null);
+        create_account_and_login(authorization_service, email, password).catch((error) => {
+            setError(error.message)
+        });
     }, [authorization_service, email, password])
     return (
         <form id='form-create-account' onSubmit={handleSubmit} className="was-validated">

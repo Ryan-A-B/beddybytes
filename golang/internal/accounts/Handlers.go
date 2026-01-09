@@ -56,24 +56,27 @@ func (handlers *Handlers) AddRoutes(router *mux.Router) {
 }
 
 type UsedTokens struct {
-	mutex sync.Mutex
-	cache map[string]struct{}
+	mutex       sync.Mutex
+	cache       map[string]time.Time
+	gracePeriod time.Duration
 }
 
-func NewUsedTokens() UsedTokens {
+func NewUsedTokens(gracePeriod time.Duration) UsedTokens {
 	return UsedTokens{
-		cache: make(map[string]struct{}),
+		cache:       make(map[string]time.Time),
+		gracePeriod: gracePeriod,
 	}
 }
 
 func (usedRefreshTokens *UsedTokens) TryAdd(key string) bool {
 	usedRefreshTokens.mutex.Lock()
 	defer usedRefreshTokens.mutex.Unlock()
-	_, ok := usedRefreshTokens.cache[key]
-	if ok {
-		return false
+	timestamp, exists := usedRefreshTokens.cache[key]
+	if exists {
+		withinGracePeriod := timestamp.Add(usedRefreshTokens.gracePeriod).After(time.Now())
+		return withinGracePeriod
 	}
-	usedRefreshTokens.cache[key] = struct{}{}
+	usedRefreshTokens.cache[key] = time.Now()
 	return true
 }
 

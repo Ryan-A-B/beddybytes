@@ -4,6 +4,8 @@ import settings from "../../settings";
 import Service, { ServiceStateChangedEvent, SetStateFunction } from '../Service';
 import LoggingService, { Severity } from '../LoggingService';
 import sleep from '../../utils/sleep';
+import AuthorizationService from '../AuthorizationService';
+import get_access_token_asap from '../AuthorizationService/get_access_token_asap';
 
 const WebSocketCloseCodeNormalClosure = 1000;
 
@@ -50,7 +52,7 @@ class NotConnected extends AbstractState {
     public start = async (service: ServiceProxy) => {
         const id = uuid();
         service.set_state(new PreparingToConnect(id));
-        const access_token = await service.authorization_service.get_access_token();
+        const access_token = await get_access_token_asap(service.authorization_service);
         service.connect(id, access_token);
     }
 
@@ -463,7 +465,7 @@ class WebSocketSignalService extends Service<WebSocketSignalState> implements Si
     }
 
     private reconnect = async (id: string) => {
-        const access_token = await this.authorization_service.get_access_token();
+        const access_token = await get_access_token_asap(this.authorization_service);
         this.connect(id, access_token);
     }
 

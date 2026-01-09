@@ -1,8 +1,10 @@
 import Service, { ServiceStateChangedEvent } from "../../../Service";
 import LoggingService from "../../../LoggingService";
 import settings from "../../../../settings";
-import EventStreamState, { IEventStreamService, NotRunning } from "./state";
+import EventStreamState, { ServiceProxy, NotRunning } from "./state";
 import { EventConnectedEvent, EventDisconnectedEvent, ServerStartedEvent, SessionEndedEvent, SessionStartedEvent } from "./event";
+import get_access_token_asap from "../../../AuthorizationService/get_access_token_asap";
+import AuthorizationService from "../../../AuthorizationService";
 
 interface NewEventStreamServiceInput {
     logging_service: LoggingService;
@@ -12,7 +14,7 @@ interface NewEventStreamServiceInput {
 class EventStreamService extends Service<EventStreamState> {
     public readonly name: string = 'EventStreamService';
     private readonly authorization_service: AuthorizationService;
-    private readonly proxy: IEventStreamService;
+    private readonly proxy: ServiceProxy;
     private cursor: number = 0;
 
     constructor(input: NewEventStreamServiceInput) {
@@ -50,7 +52,7 @@ class EventStreamService extends Service<EventStreamState> {
     }
 
     private connect = async (): Promise<EventSource> => {
-        const access_token = await this.authorization_service.get_access_token();
+        const access_token = await get_access_token_asap(this.authorization_service);
         const query_parameters = new URLSearchParams();
         query_parameters.set('from_cursor', this.cursor.toString());
         query_parameters.set('access_token', access_token);

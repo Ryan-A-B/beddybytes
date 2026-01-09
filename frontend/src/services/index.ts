@@ -2,6 +2,7 @@ import React from "react"
 
 import LoggingService from "./LoggingService"
 import WebSocketSignalService from "./SignalService/WebSocketSignalService";
+import AuthorizationService from "./AuthorizationService";
 
 export type Services = {
     logging_service: LoggingService,
