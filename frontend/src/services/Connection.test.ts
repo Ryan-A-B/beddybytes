@@ -51,11 +51,10 @@ describe('Connection', () => {
     describe('accept_offer', () => {
         test('happy path', async () => {
             const other_connection_id = uuid();
-            const logging_service = new ConsoleLoggingService();
             const signal_service = new MockSignalService();
             const offer = { "type": "offer", sdp: "dummy_sdp" };
             const connection = Connection.accept_offer({
-                logging_service: logging_service,
+                logging_service: new ConsoleLoggingService(),
                 // @ts-ignore
                 signal_service: signal_service,
                 other_connection_id,

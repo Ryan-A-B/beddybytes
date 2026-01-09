@@ -6,7 +6,6 @@ import LoggingService, { Severity } from '../LoggingService';
 import sleep from '../../utils/sleep';
 import AuthorizationService from '../AuthorizationService';
 import get_access_token_asap from '../AuthorizationService/get_access_token_asap';
-import authorization_service from '../instances/authorization_service';
 
 const WebSocketCloseCodeNormalClosure = 1000;
 
@@ -53,7 +52,7 @@ class NotConnected extends AbstractState {
     public start = async (service: ServiceProxy) => {
         const id = uuid();
         service.set_state(new PreparingToConnect(id));
-        const access_token = await get_access_token_asap(authorization_service);
+        const access_token = await get_access_token_asap(service.authorization_service);
         service.connect(id, access_token);
     }
 
