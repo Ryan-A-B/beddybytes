@@ -3,7 +3,6 @@ import WebSocketSignalService from "./WebSocketSignalService"
 import Service, { EventTypeStateChanged, ServiceState } from "../Service";
 import { AuthorizationClient, TokenOutput } from "../AuthorizationService/AuthorizationClient";
 import { Account } from "../AuthorizationService/Account";
-import LoggingService from "../LoggingService/ConsoleLoggingService";
 import AuthorizationService from "../AuthorizationService";
 
 const default_account: Account = {
@@ -44,7 +43,7 @@ const make_default_authorization_client: () => AuthorizationClient = () => ({
 
 const new_authorization_service = (authorization_client: AuthorizationClient = make_default_authorization_client()) => {
     return new AuthorizationService({
-        logging_service: new LoggingService(),
+        logging_service: new ConsoleLoggingService(),
         authorization_client: authorization_client,
     });
 }

@@ -1,17 +1,16 @@
 import { v4 as uuid } from 'uuid';
 import Connection from "./Connection";
-import { LogInput } from "./LoggingService";
 import { SignalEvent, SignalService } from "./SignalService/WebSocketSignalService";
 import Service, { EventTypeStateChanged, ServiceState } from './Service';
+import ConsoleLoggingService from './LoggingService/ConsoleLoggingService';
 
 describe('Connection', () => {
     describe('initiate', () => {
         test('happy path', async () => {
             const other_connection_id = uuid();
-            const logging_service = new MockLoggingService();
             const signal_service = new MockSignalService();
             const connection = Connection.initiate({
-                logging_service: logging_service,
+                logging_service: new ConsoleLoggingService(),
                 // @ts-ignore
                 signal_service: signal_service,
                 other_connection_id,
@@ -52,7 +51,7 @@ describe('Connection', () => {
     describe('accept_offer', () => {
         test('happy path', async () => {
             const other_connection_id = uuid();
-            const logging_service = new MockLoggingService();
+            const logging_service = new ConsoleLoggingService();
             const signal_service = new MockSignalService();
             const offer = { "type": "offer", sdp: "dummy_sdp" };
             const connection = Connection.accept_offer({
@@ -80,16 +79,6 @@ describe('Connection', () => {
 // @ts-ignore
 class MockSignalService extends EventTarget implements SignalService {
     send_signal = jest.fn();
-}
-
-class MockLoggingService {
-    set_account_id(account_id: string): void {
-        // do nothing
-    }
-
-    log(input: LogInput): void {
-        // do nothing
-    }
 }
 
 class MockRTCPeerConnection extends EventTarget {
