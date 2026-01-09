@@ -5,6 +5,7 @@ import LoggingService, { Severity } from '../../LoggingService';
 import settings from "../../../settings";
 import isClientError from '../../../utils/isClientError';
 import sleep from '../../../utils/sleep';
+import AuthorizationService from '../../AuthorizationService';
 
 const RFC3339 = 'YYYY-MM-DDTHH:mm:ssZ';
 
@@ -33,7 +34,7 @@ class NoSessionRunning implements SessionState {
         set_state(new SessionStarting());
 
         const session_id = uuid();
-        const access_token = await this.authorization_service.get_access_token();
+        const access_token = this.authorization_service.get_access_token();
         const response = await fetch(`https://${settings.API.host}/sessions/${session_id}`, {
             method: 'PUT',
             headers: {
@@ -105,7 +106,7 @@ class SessionRunning implements SessionState {
 
     end_session = async (set_state: SetStateFunction<SessionState>): Promise<void> => {
         set_state(new SessionEnding());
-        const access_token = await this.authorization_service.get_access_token();
+        const access_token = this.authorization_service.get_access_token();
         const response = await fetch(`https://${settings.API.host}/sessions/${this.session_id}`, {
             method: 'DELETE',
             headers: {

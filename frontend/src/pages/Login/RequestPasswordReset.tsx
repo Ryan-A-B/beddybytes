@@ -1,15 +1,16 @@
 import React, { useState } from 'react';
 import Input from '../../components/Input';
-import { get_anonymous_token } from '../../services/AuthorizationService';
-import settings from '../../settings';
+import { useAuthorizationService } from '../../services';
 
 const RequestPasswordReset: React.FunctionComponent = () => {
+    const authorization_service = useAuthorizationService();
     const [email, setEmail] = useState<string>("");
     const [message, setMessage] = useState<string | null>(null);
     const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
+        setMessage(null);
         try {
-            await request_password_reset(email);
+            await authorization_service.authorization_client.request_password_reset(email);
             setMessage("Password reset email sent. Please check your inbox.");
         } catch (error) {
             if (error instanceof Error)
@@ -54,19 +55,3 @@ const RequestPasswordReset: React.FunctionComponent = () => {
 };
 
 export default RequestPasswordReset;
-
-const request_password_reset = async (email: string) => {
-    const access_token = await get_anonymous_token("iam:RequestPasswordReset");
-    const response = await fetch(`https://${settings.API.host}/request-password-reset`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${access_token}`,
-        },
-        body: JSON.stringify({ email }),
-    });
-    if (!response.ok) {
-        const payload = await response.text();
-        throw new Error(`Failed to request password reset: ${payload}`);
-    }
-}

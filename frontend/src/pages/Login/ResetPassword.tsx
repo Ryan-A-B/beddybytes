@@ -1,16 +1,17 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import PasswordInput from '../../components/PasswordInput';
-import settings from '../../settings';
-import { get_anonymous_token } from '../../services/AuthorizationService';
+import { useAuthorizationService } from '../../services';
 
 const ResetPassword: React.FunctionComponent = () => {
+    const authorization_service = useAuthorizationService();
     const [password, setPassword] = useState<string>("");
     const [message, setMessage] = useState<JSX.Element | null>(null);
     const location = useLocation();
 
     const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
+        setMessage(null);
         const params = new URLSearchParams(location.search);
         const token = params.get('token');
         if (!token) {
@@ -18,7 +19,7 @@ const ResetPassword: React.FunctionComponent = () => {
             return;
         }
         try {
-            await reset_password({
+            await authorization_service.authorization_client.reset_password({
                 token,
                 password
             });
@@ -73,23 +74,3 @@ const ResetPassword: React.FunctionComponent = () => {
 
 export default ResetPassword;
 
-interface ResetPasswordInput {
-    token: string;
-    password: string;
-}
-
-const reset_password = async (input: ResetPasswordInput) => {
-    const access_token = await get_anonymous_token("iam:ResetPassword");
-    const response = await fetch(`https://${settings.API.host}/reset-password`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${access_token}`,
-        },
-        body: JSON.stringify(input),
-    });
-    if (!response.ok) {
-        const payload = await response.text();
-        throw new Error(`Failed to reset password: ${payload}`);
-    }
-}

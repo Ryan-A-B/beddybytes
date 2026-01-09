@@ -1,9 +1,10 @@
-import moment from 'moment';
 import settings from '../../../settings';
 import Service, { EventTypeStateChanged, ServiceState } from '../../Service';
-import MockAuthorizationService from '../../AuthorizationService/MockAuthorizationService';
 import ConsoleLoggingService from '../../LoggingService/ConsoleLoggingService';
 import BabyStationListService from './index';
+import { Account } from '../../AuthorizationService/Account';
+import { AuthorizationClient, TokenOutput } from '../../AuthorizationService/AuthorizationClient';
+import AuthorizationService from '../../AuthorizationService';
 
 global.fetch = jest.fn().mockName('fetch');
 
@@ -22,6 +23,49 @@ class MockEventSource extends EventTarget {
 
 // @ts-ignore
 global.EventSource = MockEventSource;
+
+const default_account: Account = {
+    id: 'test_id',
+    user: {
+        id: 'user_id',
+        email: 'test@example.com',
+        password_salt: 'salt',
+        password_hash: 'hash',
+    },
+};
+
+const default_token_output: TokenOutput = {
+    token_type: 'Bearer',
+    access_token: 'test_access_token',
+    expires_in: 60 * 60,
+};
+
+const make_default_authorization_client: () => AuthorizationClient = () => ({
+    login: jest.fn((email: string, password: string): Promise<TokenOutput> => {
+        return Promise.resolve(default_token_output);
+    }),
+    refresh_token: jest.fn(() => {
+        return Promise.resolve(default_token_output);
+    }),
+    refresh_token_with_retry: jest.fn(() => {
+        return Promise.resolve(default_token_output);
+    }),
+    create_account: jest.fn((email: string, password: string): Promise<Account> => {
+        return Promise.resolve(default_account);
+    }),
+    get_current_account: jest.fn((access_token: string): Promise<Account> => {
+        return Promise.resolve(default_account);
+    }),
+    request_password_reset: jest.fn(),
+    reset_password: jest.fn(),
+});
+
+const new_authorization_service = (authorization_client: AuthorizationClient = make_default_authorization_client()) => {
+    return new AuthorizationService({
+        logging_service: new ConsoleLoggingService(),
+        authorization_client: authorization_client,
+    });
+}
 
 describe('BabyStationListService', () => {
     const mockSnapshot = {
@@ -42,23 +86,8 @@ describe('BabyStationListService', () => {
 
     test('start service', async () => {
         const logging_service = new ConsoleLoggingService();
-        const authorization_service = new MockAuthorizationService({
-            logging_service,
-            initial_state: {
-                state: 'token_fetched',
-                account: {
-                    id: 'test_account_id',
-                    user: {
-                        'id': 'test_user_id',
-                        'email': 'test@example.com',
-                        'password_hash': 'test_password_hash',
-                        'password_salt': 'test_password_salt',
-                    }
-                },
-                access_token: 'mock_access_token',
-                expiry: moment().add(1, 'hour'),
-            }
-        });
+        const authorization_service = new_authorization_service();
+        authorization_service.apply_token_output(default_token_output);
         const baby_station_list_service = new BabyStationListService({
             logging_service,
             authorization_service,
@@ -76,23 +105,8 @@ describe('BabyStationListService', () => {
 
     test('stop service after snapshot resolved', async () => {
         const logging_service = new ConsoleLoggingService();
-        const authorization_service = new MockAuthorizationService({
-            logging_service,
-            initial_state: {
-                state: 'token_fetched',
-                account: {
-                    id: 'test_account_id',
-                    user: {
-                        'id': 'test_user_id',
-                        'email': 'test@example.com',
-                        'password_hash': 'test_password_hash',
-                        'password_salt': 'test_password_salt',
-                    }
-                },
-                access_token: 'mock_access_token',
-                expiry: moment().add(1, 'hour'),
-            }
-        });
+        const authorization_service = new_authorization_service();
+        authorization_service.apply_token_output(default_token_output);
         const baby_station_list_service = new BabyStationListService({
             logging_service,
             authorization_service,
@@ -115,23 +129,8 @@ describe('BabyStationListService', () => {
 
     test('stop service before snapshot fetched', async () => {
         const logging_service = new ConsoleLoggingService();
-        const authorization_service = new MockAuthorizationService({ 
-            logging_service,
-            initial_state: {
-                state: 'token_fetched',
-                account: {
-                    id: 'test_account_id',
-                    user: {
-                        'id': 'test_user_id',
-                        'email': 'test@example.com',
-                        'password_hash': 'test_password_hash',
-                        'password_salt': 'test_password_salt',
-                    }
-                },
-                access_token: 'mock_access_token',
-                expiry: moment().add(1, 'hour'),
-            }
-        });
+        const authorization_service = new_authorization_service();
+        authorization_service.apply_token_output(default_token_output);
         const baby_station_list_service = new BabyStationListService({
             logging_service,
             authorization_service,
@@ -154,30 +153,15 @@ describe('BabyStationListService', () => {
 
     test('start and stop twice before snapshot resolves', async () => {
         const logging_service = new ConsoleLoggingService();
-        const authorization_service = new MockAuthorizationService({ 
-            logging_service,
-            initial_state: {
-                state: 'token_fetched',
-                account: {
-                    id: 'test_account_id',
-                    user: {
-                        'id': 'test_user_id',
-                        'email': 'test@example.com',
-                        'password_hash': 'test_password_hash',
-                        'password_salt': 'test_password_salt',
-                    }
-                },
-                access_token: 'mock_access_token',
-                expiry: moment().add(1, 'hour'),
-            }
-        });
+        const authorization_service = new_authorization_service();
+        authorization_service.apply_token_output(default_token_output);
         const baby_station_list_service = new BabyStationListService({
             logging_service,
             authorization_service,
         });
-    
+
         mockFetchSnapshot();
-    
+
         baby_station_list_service.start();
         let state = baby_station_list_service.get_state();
         expect(state.name).toBe('loading_snapshot');
