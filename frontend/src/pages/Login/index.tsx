@@ -10,7 +10,7 @@ interface Props {
 const Login: React.FunctionComponent<Props> = ({ children }) => {
     const authorization_service = useAuthorizationService();
     const authorization_state = useServiceState(authorization_service);
-    if (!authorization_state.access_token_available) {
+    if (authorization_state.login_required) {
         return (
             <LoginOrCreateAccount/>
         )

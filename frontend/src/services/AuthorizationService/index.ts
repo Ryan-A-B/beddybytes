@@ -20,6 +20,7 @@ interface ServiceProxy {
 abstract class AbstractState {
     public abstract readonly name: string;
     public abstract readonly access_token_available: boolean;
+    public abstract readonly login_required: boolean;
 
     public get_access_token = (): string => {
         throw new Error(`can not get access token in ${this.name} state`);
@@ -51,6 +52,7 @@ abstract class AbstractState {
 class Unauthorized extends AbstractState {
     public readonly name = 'Unauthorized';
     public readonly access_token_available = false;
+    public readonly login_required = true;
 
     apply_token_output = (proxy: ServiceProxy, token_output: TokenOutput): void => {
         proxy.set_state(new Authorized(token_output.access_token));
@@ -61,6 +63,7 @@ class Unauthorized extends AbstractState {
 class RefreshingForNewSession extends AbstractState {
     public readonly name = 'RefreshingForNewSession';
     public readonly access_token_available = false;
+    public readonly login_required = false;
 
     handle_refresh_token_success = (proxy: ServiceProxy, token_output: TokenOutput) => {
         proxy.set_state(new Authorized(token_output.access_token));
@@ -77,6 +80,7 @@ class RefreshingForNewSession extends AbstractState {
 class Authorized extends AbstractState {
     public readonly name = 'Authorized';
     public readonly access_token_available = true;
+    public readonly login_required = false;
     private readonly access_token: string;
 
     constructor(access_token: string) {
@@ -102,6 +106,7 @@ class Authorized extends AbstractState {
 class RefreshingToContinueSession extends AbstractState {
     public readonly name = 'RefreshingToContinueSession';
     public readonly access_token_available = true;
+    public readonly login_required = false;
     private readonly access_token: string;
 
     constructor(access_token: string) {
@@ -142,7 +147,7 @@ class AuthorizationService extends Service<AuthorizationServiceState> {
     public readonly authorization_client: AuthorizationClient;
     private proxy: ServiceProxy;
 
-    private static get_initial_state(authorization_client: AuthorizationClient): AuthorizationServiceState {
+    private static get_initial_state(): AuthorizationServiceState {
         const account = load_account_from_local_storage();
         if (account === null) {
             return new Unauthorized();
@@ -151,7 +156,8 @@ class AuthorizationService extends Service<AuthorizationServiceState> {
     }
 
     constructor(input: NewAuthorizationServiceInput) {
-        const initial_state = AuthorizationService.get_initial_state(input.authorization_client);
+        const initial_state = AuthorizationService.get_initial_state();
+        console.log(`AuthorizationService: initial state is ${initial_state.name}`);
         super({
             logging_service: input.logging_service,
             initial_state,
@@ -180,6 +186,10 @@ class AuthorizationService extends Service<AuthorizationServiceState> {
 
     get access_token_available(): boolean {
         return this.get_state().access_token_available;
+    }
+
+    get login_required(): boolean {
+        return this.get_state().login_required;
     }
 
     public get_access_token = (): string => {

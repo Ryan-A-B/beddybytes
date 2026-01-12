@@ -11,5 +11,5 @@ const error_service = new ErrorService({
 export default error_service;
 
 authorization_service.addEventListener(EventTypeStateChanged, (event: ServiceStateChangedEvent<AuthorizationServiceState>) => {
-    if (!event.previous_state.access_token_available && event.current_state.access_token_available) error_service.clear_errors();
+    if (event.previous_state.login_required && !event.current_state.login_required) error_service.clear_errors();
 });

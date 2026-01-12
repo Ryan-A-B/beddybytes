@@ -33,7 +33,7 @@ abstract class Service<T extends ServiceState> extends EventTarget {
         this.logging_service.log({
             severity: Severity.Debug,
             message: `${this.name}: state changed from ${this.to_string(previous_state)} to ${this.to_string(state)}`
-        })
+        });
     }
 
     protected abstract to_string(state: T): string;

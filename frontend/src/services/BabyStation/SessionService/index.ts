@@ -6,6 +6,7 @@ import settings from "../../../settings";
 import isClientError from '../../../utils/isClientError';
 import sleep from '../../../utils/sleep';
 import AuthorizationService from '../../AuthorizationService';
+import get_access_token_asap from '../../AuthorizationService/get_access_token_asap';
 
 const RFC3339 = 'YYYY-MM-DDTHH:mm:ssZ';
 
@@ -34,7 +35,7 @@ class NoSessionRunning implements SessionState {
         set_state(new SessionStarting());
 
         const session_id = uuid();
-        const access_token = this.authorization_service.get_access_token();
+        const access_token = await get_access_token_asap(this.authorization_service);
         const response = await fetch(`https://${settings.API.host}/sessions/${session_id}`, {
             method: 'PUT',
             headers: {

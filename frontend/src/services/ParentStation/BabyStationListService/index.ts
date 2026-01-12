@@ -9,6 +9,7 @@ import EventStreamService from './EventStreamService';
 import { EventConnectedEvent, EventDisconnectedEvent, ServerStartedEvent, SessionEndedEvent, SessionStartedEvent } from './EventStreamService/event';
 import { BabyStation, Connection, Session } from '../types';
 import AuthorizationService from '../../AuthorizationService';
+import get_access_token_asap from '../../AuthorizationService/get_access_token_asap';
 
 interface ForFriends {
     logging_service: LoggingService;
@@ -73,7 +74,7 @@ class NotStarted extends AbstractState {
     }
 
     private fetch_snapshot = async (service: ForFriends): Promise<Snapshot> => {
-        const access_token = service.authorization_service.get_access_token();
+        const access_token = await get_access_token_asap(service.authorization_service);
         const endpoint = `https://${settings.API.host}/baby_station_list_snapshot`;
         const response = await fetch(endpoint, {
             method: 'GET',
