@@ -2,6 +2,7 @@ import moment from "moment";
 import LoggingService, { Severity } from '../LoggingService';
 import { AuthorizationClient, load_account_from_local_storage, remove_account_from_local_storage, TokenOutput } from "./AuthorizationClient";
 import Service from "../Service";
+import { get } from "http";
 
 const InitialRetryDelay = 1000;
 
@@ -53,7 +54,7 @@ class Unauthorized extends AbstractState {
 
     apply_token_output = (proxy: ServiceProxy, token_output: TokenOutput): void => {
         proxy.set_state(new Authorized(token_output.access_token));
-        const refresh_in = (token_output.expires_in * 1000) - GracePeriod.asMilliseconds();
+        const refresh_in = get_refresh_in(token_output.expires_in);
         setTimeout(proxy.refresh_token, refresh_in);
     }
 }
@@ -64,7 +65,7 @@ class RefreshingForNewSession extends AbstractState {
 
     handle_refresh_token_success = (proxy: ServiceProxy, token_output: TokenOutput) => {
         proxy.set_state(new Authorized(token_output.access_token));
-        const refresh_in = (token_output.expires_in * 1000) - GracePeriod.asMilliseconds();
+        const refresh_in = get_refresh_in(token_output.expires_in);
         setTimeout(proxy.refresh_token, refresh_in);
     }
 
@@ -116,7 +117,7 @@ class RefreshingToContinueSession extends AbstractState {
 
     handle_refresh_token_success = (proxy: ServiceProxy, token_output: TokenOutput) => {
         proxy.set_state(new Authorized(token_output.access_token));
-        const refresh_in = (token_output.expires_in * 1000) - GracePeriod.asMilliseconds();
+        const refresh_in = get_refresh_in(token_output.expires_in);
         setTimeout(proxy.refresh_token, refresh_in);
     }
 
@@ -205,3 +206,11 @@ class AuthorizationService extends Service<AuthorizationServiceState> {
 }
 
 export default AuthorizationService;
+
+const get_refresh_in = (expires_in: number): number => {
+    const refresh_in = (expires_in * 1000) - GracePeriod.asMilliseconds();
+    if (refresh_in <= 0) {
+        return expires_in / 2 * 1000;
+    }
+    return refresh_in;
+}
