@@ -2,7 +2,6 @@ import moment from "moment";
 import LoggingService, { Severity } from '../LoggingService';
 import { AuthorizationClient, load_account_from_local_storage, remove_account_from_local_storage, TokenOutput } from "./AuthorizationClient";
 import Service from "../Service";
-import { get } from "http";
 
 const InitialRetryDelay = 1000;
 
@@ -13,6 +12,7 @@ interface ServiceProxy {
     authorization_client: AuthorizationClient;
     set_state(state: AuthorizationServiceState): void;
     refresh_token(): void;
+    schedule_refresh(expires_in: number): void;
     handle_refresh_token_success(token_output: TokenOutput): void;
     handle_refresh_token_failure(): void;
 }
@@ -54,8 +54,7 @@ class Unauthorized extends AbstractState {
 
     apply_token_output = (proxy: ServiceProxy, token_output: TokenOutput): void => {
         proxy.set_state(new Authorized(token_output.access_token));
-        const refresh_in = get_refresh_in(token_output.expires_in);
-        setTimeout(proxy.refresh_token, refresh_in);
+        proxy.schedule_refresh(token_output.expires_in);
     }
 }
 
@@ -65,8 +64,7 @@ class RefreshingForNewSession extends AbstractState {
 
     handle_refresh_token_success = (proxy: ServiceProxy, token_output: TokenOutput) => {
         proxy.set_state(new Authorized(token_output.access_token));
-        const refresh_in = get_refresh_in(token_output.expires_in);
-        setTimeout(proxy.refresh_token, refresh_in);
+        proxy.schedule_refresh(token_output.expires_in);
     }
 
     handle_refresh_token_failure = (proxy: ServiceProxy): void => {
@@ -117,8 +115,7 @@ class RefreshingToContinueSession extends AbstractState {
 
     handle_refresh_token_success = (proxy: ServiceProxy, token_output: TokenOutput) => {
         proxy.set_state(new Authorized(token_output.access_token));
-        const refresh_in = get_refresh_in(token_output.expires_in);
-        setTimeout(proxy.refresh_token, refresh_in);
+        proxy.schedule_refresh(token_output.expires_in)
     }
 
     handle_refresh_token_failure = (proxy: ServiceProxy) => {
@@ -171,6 +168,7 @@ class AuthorizationService extends Service<AuthorizationServiceState> {
             authorization_client: input.authorization_client,
             set_state: this.set_state,
             refresh_token: this.refresh_token,
+            schedule_refresh: this.schedule_refresh,
             handle_refresh_token_success: this.handle_refresh_token_success,
             handle_refresh_token_failure: this.handle_refresh_token_failure,
         }
@@ -202,6 +200,11 @@ class AuthorizationService extends Service<AuthorizationServiceState> {
 
     private handle_refresh_token_failure = (): void => {
         this.get_state().handle_refresh_token_failure(this.proxy);
+    }
+
+    private schedule_refresh = (expires_in: number): void => {
+        const refresh_in = get_refresh_in(expires_in);
+        setTimeout(this.refresh_token, refresh_in);
     }
 }
 

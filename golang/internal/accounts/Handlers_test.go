@@ -34,7 +34,7 @@ func TestHandlers(t *testing.T) {
 			SigningMethod:                jwt.SigningMethodHS256,
 			Key:                          generateKey(),
 			AccessTokenDuration:          1 * time.Hour,
-			UsedTokens:                   accounts.NewUsedTokens(5 * time.Second),
+			UsedTokens:                   accounts.NewUsedTokens(),
 			AnonymousAccessTokenDuration: 10 * time.Second,
 		}
 		go eventlog.Project(ctx, eventlog.ProjectInput{

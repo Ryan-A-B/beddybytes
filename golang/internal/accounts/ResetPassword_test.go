@@ -34,7 +34,7 @@ func TestResetPassword(t *testing.T) {
 			},
 			SigningMethod:                jwt.SigningMethodHS256,
 			Key:                          generateKey(),
-			UsedTokens:                   accounts.NewUsedTokens(5 * time.Second),
+			UsedTokens:                   accounts.NewUsedTokens(),
 			AnonymousAccessTokenDuration: 10 * time.Second,
 			PasswordResetTokens: resetpassword.NewTokens(resetpassword.NewTokensInput{
 				TTL: 100 * time.Millisecond,

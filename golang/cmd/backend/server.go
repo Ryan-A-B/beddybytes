@@ -237,7 +237,7 @@ func main() {
 		Key:                          key,
 		AccessTokenDuration:          1 * time.Hour,
 		RefreshTokenDuration:         30 * 24 * time.Hour,
-		UsedTokens:                   accounts.NewUsedTokens(5 * time.Second),
+		UsedTokens:                   accounts.NewUsedTokens(),
 		AnonymousAccessTokenDuration: 10 * time.Second,
 		PasswordResetTokens: resetpassword.NewTokens(resetpassword.NewTokensInput{
 			TTL: 15 * time.Minute,

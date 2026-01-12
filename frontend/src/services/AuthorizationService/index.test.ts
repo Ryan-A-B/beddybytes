@@ -1,4 +1,4 @@
-import Service, { EventTypeStateChanged, ServiceState } from "../Service";
+import Service, { EventTypeStateChanged, ServiceState, wait_for_state_change } from "../Service";
 import LoggingService from "../LoggingService/ConsoleLoggingService";
 import { AuthorizationClient, TokenOutput } from "./AuthorizationClient";
 import AuthorizationService from "."
@@ -176,11 +176,3 @@ describe('AuthorizationService', () => {
         });
     });
 });
-
-async function wait_for_state_change<T extends ServiceState>(service: Service<T>): Promise<T> {
-    return new Promise((resolve) => {
-        service.addEventListener(EventTypeStateChanged, () => {
-            resolve(service.get_state());
-        });
-    });
-}
