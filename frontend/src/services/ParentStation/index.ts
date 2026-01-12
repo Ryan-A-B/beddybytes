@@ -7,6 +7,7 @@ import BabyStationListService, { BabyStationListState } from './BabyStationListS
 import WebSocketSignalService, { WebSocketSignalState } from '../SignalService/WebSocketSignalService';
 import WakeLockService from '../WakeLockService';
 import { ConnectionState } from './SessionService/Connection';
+import AuthorizationService from '../AuthorizationService';
 
 const RecentVisibilityChangeThresholdMillis = 2000;
 

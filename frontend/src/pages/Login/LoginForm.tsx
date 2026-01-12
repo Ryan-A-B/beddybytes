@@ -4,6 +4,7 @@ import { Severity } from "../../services/LoggingService";
 import { useAuthorizationService, useLoggingService } from "../../services";
 import { Link } from "react-router-dom";
 import PasswordInput from "../../components/PasswordInput";
+import { login } from "../../services/AuthorizationService/login";
 
 interface Props {
     email: string;
@@ -19,14 +20,14 @@ const LoginForm: React.FunctionComponent<Props> = ({ email, setEmail, password, 
     const [error, setError] = React.useState<string | null>(null)
     const handleSubmit = React.useCallback((event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault()
-        authorization_service.login(email, password)
-            .catch((error) => {
-                logging_service.log({
-                    severity: Severity.Error,
-                    message: error.message,
-                })
-                setError(error.message)
+        setError(null);
+        login(authorization_service, email, password).catch((error) => {
+            logging_service.log({
+                severity: Severity.Error,
+                message: error.message,
             })
+            setError(error.message)
+        })
     }, [logging_service, authorization_service, email, password])
     return (
         <React.Fragment>
