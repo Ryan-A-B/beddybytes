@@ -107,7 +107,7 @@ class SessionRunning implements SessionState {
 
     end_session = async (set_state: SetStateFunction<SessionState>): Promise<void> => {
         set_state(new SessionEnding());
-        const access_token = this.authorization_service.get_access_token();
+        const access_token = await get_access_token_asap(this.authorization_service);
         const response = await fetch(`https://${settings.API.host}/sessions/${this.session_id}`, {
             method: 'DELETE',
             headers: {
