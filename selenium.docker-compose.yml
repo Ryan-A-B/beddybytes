@@ -1,0 +1,94 @@
+services:
+  selenium_hub:
+    image: selenium/hub:4.11.0-20230801
+    restart: always
+    ports:
+      - "4442:4442"
+      - "4443:4443"
+      - "4444:4444"
+  # selenium_firefox_node:
+  #   image: selenium/node-firefox:4.11.0-20230801
+  #   restart: always
+  #   depends_on:
+  #     - selenium_hub
+  #   environment:
+  #     - SE_EVENT_BUS_HOST=selenium_hub
+  #     - SE_EVENT_BUS_PUBLISH_PORT=4442
+  #     - SE_EVENT_BUS_SUBSCRIBE_PORT=4443
+  selenium_chrome_node_1:
+    # port 7900 for VNC password is "secret"
+    image: selenium/node-chrome:4.11.0-20230801
+    restart: always
+    shm_size: 2gb
+    depends_on:
+      - selenium_hub
+    environment:
+      - SE_EVENT_BUS_HOST=selenium_hub
+      - SE_EVENT_BUS_PUBLISH_PORT=4442
+      - SE_EVENT_BUS_SUBSCRIBE_PORT=4443
+  selenium_chrome_node_2:
+    image: selenium/node-chrome:4.11.0-20230801
+    restart: always
+    shm_size: 2gb
+    depends_on:
+      - selenium_hub
+    environment:
+      - SE_EVENT_BUS_HOST=selenium_hub
+      - SE_EVENT_BUS_PUBLISH_PORT=4442
+      - SE_EVENT_BUS_SUBSCRIBE_PORT=4443
+  selenium_chrome_node_3:
+    image: selenium/node-chrome:4.11.0-20230801
+    restart: always
+    shm_size: 2gb
+    depends_on:
+      - selenium_hub
+    environment:
+      - SE_EVENT_BUS_HOST=selenium_hub
+      - SE_EVENT_BUS_PUBLISH_PORT=4442
+      - SE_EVENT_BUS_SUBSCRIBE_PORT=4443
+  selenium_chrome_node_4:
+    image: selenium/node-chrome:4.11.0-20230801
+    restart: always
+    shm_size: 2gb
+    depends_on:
+      - selenium_hub
+    environment:
+      - SE_EVENT_BUS_HOST=selenium_hub
+      - SE_EVENT_BUS_PUBLISH_PORT=4442
+      - SE_EVENT_BUS_SUBSCRIBE_PORT=4443
+  chrome_video_1:
+    image: selenium/video:ffmpeg-4.3.1-20230801
+    depends_on:
+      - selenium_chrome_node_1
+    environment:
+      - DISPLAY_CONTAINER_NAME=selenium_chrome_node_1
+      - FILE_NAME=chrome_node_1.mp4
+    volumes:
+      - ./integration_tests/recordings:/videos
+  chrome_video_2:
+    image: selenium/video:ffmpeg-4.3.1-20230801
+    depends_on:
+      - selenium_chrome_node_2
+    environment:
+      - DISPLAY_CONTAINER_NAME=selenium_chrome_node_2
+      - FILE_NAME=chrome_node_2.mp4
+    volumes:
+      - ./integration_tests/recordings:/videos
+  chrome_video_3:
+    image: selenium/video:ffmpeg-4.3.1-20230801
+    depends_on:
+      - selenium_chrome_node_3
+    environment:
+      - DISPLAY_CONTAINER_NAME=selenium_chrome_node_3
+      - FILE_NAME=chrome_node_3.mp4
+    volumes:
+      - ./integration_tests/recordings:/videos
+  chrome_video_4:
+    image: selenium/video:ffmpeg-4.3.1-20230801
+    depends_on:
+      - selenium_chrome_node_4
+    environment:
+      - DISPLAY_CONTAINER_NAME=selenium_chrome_node_4
+      - FILE_NAME=chrome_node_4.mp4
+    volumes:
+      - ./integration_tests/recordings:/videos
