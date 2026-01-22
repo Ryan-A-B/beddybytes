@@ -12,7 +12,6 @@ interface ServiceProxy {
     authorization_client: AuthorizationClient;
     set_state(state: AuthorizationServiceState): void;
     refresh_token(): void;
-    schedule_refresh(expires_in: number): void;
     handle_refresh_token_success(token_output: TokenOutput): void;
     handle_refresh_token_failure(): void;
 }
@@ -31,6 +30,10 @@ abstract class AbstractState {
             severity: Severity.Error,
             message: `Attempted to apply token output in ${this.name} state`
         });
+    }
+
+    public refresh_token_if_needed = (proxy: ServiceProxy): void => {
+        // default is to do nothing
     }
 
     public refresh_token = async (proxy: ServiceProxy): Promise<void> => {
@@ -55,8 +58,8 @@ class Unauthorized extends AbstractState {
     public readonly login_required = true;
 
     apply_token_output = (proxy: ServiceProxy, token_output: TokenOutput): void => {
-        proxy.set_state(new Authorized(token_output.access_token));
-        proxy.schedule_refresh(token_output.expires_in);
+        const access_token_expiry = moment().add(token_output.expires_in, 'seconds').add(-GracePeriod);
+        proxy.set_state(new Authorized(token_output.access_token, access_token_expiry));
     }
 }
 
@@ -66,8 +69,8 @@ class RefreshingForNewSession extends AbstractState {
     public readonly login_required = false;
 
     handle_refresh_token_success = (proxy: ServiceProxy, token_output: TokenOutput) => {
-        proxy.set_state(new Authorized(token_output.access_token));
-        proxy.schedule_refresh(token_output.expires_in);
+        const access_token_expiry = moment().add(token_output.expires_in, 'seconds').add(-GracePeriod);
+        proxy.set_state(new Authorized(token_output.access_token, access_token_expiry));
     }
 
     handle_refresh_token_failure = (proxy: ServiceProxy): void => {
@@ -82,10 +85,12 @@ class Authorized extends AbstractState {
     public readonly access_token_available = true;
     public readonly login_required = false;
     private readonly access_token: string;
+    private readonly access_token_expiry: moment.Moment;
 
-    constructor(access_token: string) {
+    constructor(access_token: string, access_token_expiry: moment.Moment) {
         super();
         this.access_token = access_token;
+        this.access_token_expiry = access_token_expiry;
     }
 
     get_access_token = (): string => {
@@ -100,6 +105,16 @@ class Authorized extends AbstractState {
         } catch (error) {
             proxy.handle_refresh_token_failure();
         }
+    }
+
+    refresh_token_if_needed = (proxy: ServiceProxy): void => {
+        const now = moment();
+        if (now.isBefore(this.access_token_expiry)) {
+            // token is still valid
+            return;
+        }
+        // token has expired, refresh it
+        proxy.refresh_token();
     }
 }
 
@@ -119,8 +134,8 @@ class RefreshingToContinueSession extends AbstractState {
     }
 
     handle_refresh_token_success = (proxy: ServiceProxy, token_output: TokenOutput) => {
-        proxy.set_state(new Authorized(token_output.access_token));
-        proxy.schedule_refresh(token_output.expires_in)
+        const access_token_expiry = get_access_token_expiry(token_output.expires_in);
+        proxy.set_state(new Authorized(token_output.access_token, access_token_expiry));
     }
 
     handle_refresh_token_failure = (proxy: ServiceProxy) => {
@@ -174,10 +189,17 @@ class AuthorizationService extends Service<AuthorizationServiceState> {
             authorization_client: input.authorization_client,
             set_state: this.set_state,
             refresh_token: this.refresh_token,
-            schedule_refresh: this.schedule_refresh,
             handle_refresh_token_success: this.handle_refresh_token_success,
             handle_refresh_token_failure: this.handle_refresh_token_failure,
         }
+        setInterval(this.refresh_token_if_needed, 60 * 1000);
+        window.addEventListener('focus', this.refresh_token_if_needed);
+        window.addEventListener('online', this.refresh_token_if_needed);
+        window.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') {
+                this.refresh_token_if_needed();
+            }
+        });
     }
 
     protected to_string = (state: AuthorizationServiceState): string => {
@@ -212,18 +234,13 @@ class AuthorizationService extends Service<AuthorizationServiceState> {
         this.get_state().handle_refresh_token_failure(this.proxy);
     }
 
-    private schedule_refresh = (expires_in: number): void => {
-        const refresh_in = get_refresh_in(expires_in);
-        setTimeout(this.refresh_token, refresh_in);
+    private refresh_token_if_needed = (): void => {
+        this.get_state().refresh_token_if_needed(this.proxy);
     }
 }
 
 export default AuthorizationService;
 
-const get_refresh_in = (expires_in: number): number => {
-    const refresh_in = (expires_in * 1000) - GracePeriod.asMilliseconds();
-    if (refresh_in <= 0) {
-        return expires_in / 2 * 1000;
-    }
-    return refresh_in;
+const get_access_token_expiry = (expires_in: number): moment.Moment => {
+    return moment().add(expires_in, 'seconds').add(-GracePeriod);
 }
