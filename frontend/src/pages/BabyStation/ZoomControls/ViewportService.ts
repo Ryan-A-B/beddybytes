@@ -1,4 +1,4 @@
-import { PanEvent, Vec2, ZoomEvent } from "./GestureHandler";
+import { PanEvent, ZoomEvent } from "./GestureHandler";
 
 class ViewportService extends EventTarget {
     private max_width: number;

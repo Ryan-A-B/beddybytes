@@ -79,7 +79,6 @@ export class CanvasRenderer implements ICanvasRenderer {
         }
 
         const now = performance.now();
-        const deltaTime = now - this.lastFrameTime;
         this.lastFrameTime = now;
 
         // Render frame
@@ -109,9 +108,6 @@ export class CanvasRenderer implements ICanvasRenderer {
         if (this.sourceVideo.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) return;
         if (this.sourceVideo.videoWidth === 0) return;
         if (this.sourceVideo.videoHeight === 0) return;
-
-        const videoWidth = this.sourceVideo.videoWidth;
-        const videoHeight = this.sourceVideo.videoHeight;
 
         // Calculate source rectangle based on viewport
         const sourceWidth = this.viewport.width;

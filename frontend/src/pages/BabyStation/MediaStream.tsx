@@ -65,7 +65,7 @@ const MediaStream: React.FunctionComponent<Props> = ({ sessionActive }) => {
         const canvas = canvasRef.current;
         if (!video || !canvas) return;
 
-        const handleLoadedMetadata = () => {
+        const handle_loadedmetadata = () => {
             // Match canvas size to video dimensions
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
@@ -77,17 +77,16 @@ const MediaStream: React.FunctionComponent<Props> = ({ sessionActive }) => {
         };
 
         if (video.readyState >= HTMLMediaElement.HAVE_METADATA) {
-            handleLoadedMetadata();
+            handle_loadedmetadata();
         } else {
-            video.addEventListener("loadedmetadata", handleLoadedMetadata);
+            video.addEventListener("loadedmetadata", handle_loadedmetadata);
         }
 
         return () => {
-            video.removeEventListener("loadedmetadata", handleLoadedMetadata);
-            if (rendererRef.current) {
-                rendererRef.current.stop();
-                rendererRef.current = null;
-            }
+            video.removeEventListener("loadedmetadata", handle_loadedmetadata);
+            if (rendererRef.current === null) return;
+            rendererRef.current.stop();
+            rendererRef.current = null;
         };
     }, [media_device_state.media_stream_state, media_device_state.video_device_id]);
 
