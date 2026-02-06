@@ -2,16 +2,14 @@
 =============================================================================
 SYNC IMPACT REPORT
 =============================================================================
-- Version change: 1.1.0 → 1.2.0 (MINOR: Reliability principle added)
-- Added Principle VI: Reliability & Resilience
-- Modified title: "Core Principles" principles are now explicitly numbered I-VI
-- Rationale: Baby monitors require absolute reliability - parents must trust 
-  the system to work when needed
-- Ratified: 2026-01-17 | Last Amended: 2026-01-18
-- Templates requiring updates: 
-  - ✅ plan-template.md (add Reliability to Constitution Check)
-  - ⚠ No other template changes needed (spec/tasks already reference constitution)
-- Follow-up TODOs: None
+- Version change: 1.2.0 → 1.2.1 (PATCH: Clarify JS null/undefined checks)
+- Modified Development Standards: JavaScript/TypeScript explicit null/undefined checks
+- Ratified: 2026-01-17 | Last Amended: 2026-02-06
+- Templates requiring updates:
+  - ✅ .github/copilot-instructions.md (align JS guidance)
+  - ✅ .specify/templates/plan-template.md (remove stale commands path reference)
+- Follow-up TODOs:
+  - TODO(SPECKIT_COMMAND_TEMPLATES): `.specify/templates/commands/*` referenced in templates but folder is absent.
 =============================================================================
 -->
 
@@ -126,6 +124,8 @@ Backend uses event sourcing: all state changes recorded as immutable events. Eve
 **JavaScript/TypeScript**:
 - Use arrow functions.
 - Use `const` and `let`; never `var`.
+- Null and undefined checks MUST be explicit (e.g., `foo === null`, `foo === undefined`).
+  Do not use falsy checks like `if (!foo)` unless you truly mean *all* falsy values.
 - Use `===` and `!==`; never `==` or `!=`.
 - Use double quotes for strings.
 - Prefer returning values from functions over reassigning `let` variables.
@@ -188,4 +188,4 @@ Backend uses event sourcing: all state changes recorded as immutable events. Eve
 
 ---
 
-**Version**: 1.2.0 | **Ratified**: 2026-01-17 | **Last Amended**: 2026-01-18
+**Version**: 1.2.1 | **Ratified**: 2026-01-17 | **Last Amended**: 2026-02-06

@@ -19,6 +19,7 @@ The integration tests require a running stack and can be run by calling `run_int
 Use arrow functions.
 Use `const` and `let` instead of `var`.
 Instead of using let prefer using a function that returns a value.
+When checking for null or undefined, use explicit checks (e.g. `foo === null`, `foo === undefined`), not truthy/falsy checks like `if (!foo)`.
 Use `===` and `!==` instead of `==` and `!=`.
 Use double quotes for strings.
 
