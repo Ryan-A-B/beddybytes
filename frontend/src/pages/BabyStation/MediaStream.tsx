@@ -1,7 +1,6 @@
 import React from "react";
 import Connections from "./Connections";
 import { useSignalService } from "../../services";
-import add_audio_noise from "../../utils/add_audio_noise";
 import baby_station from "../../services/instances/baby_station";
 import useServiceState from "../../hooks/useServiceState";
 import { CanvasRenderer } from "./ZoomControls/CanvasRenderer";
@@ -94,31 +93,31 @@ const MediaStream: React.FunctionComponent<Props> = ({ sessionActive }) => {
 
     // Update renderer viewport when zoom/pan changes
     React.useEffect(() => {
-        if (rendererRef.current) {
-            rendererRef.current.setViewport(viewport);
-        }
+        if (rendererRef.current === null) return;
+        rendererRef.current.setViewport(viewport);
     }, [viewport]);
 
     // Set up WebRTC connections using canvas stream
     React.useEffect(() => {
         if (!sessionActive) return;
         if (media_device_state.media_stream_state.state !== 'available') return;
-        if (!rendererRef.current) return;
 
-        // Get canvas stream (video only) and add audio from original stream
-        const canvas_stream = rendererRef.current.getCaptureStream();
-        const original_stream = media_device_state.media_stream_state.media_stream;
-
-        // Add audio tracks from original stream to canvas stream
-        original_stream.getAudioTracks().forEach((track) => {
-            canvas_stream.addTrack(track);
+        const audio_tracks: MediaStreamTrack[] = [];
+        media_device_state.media_stream_state.media_stream.getAudioTracks().forEach((track) => {
+            audio_tracks.push(track);
         });
 
-        const media_stream = add_audio_noise(canvas_stream);
+        const video_tracks: MediaStreamTrack[] = [];
+        if (rendererRef.current !== null) {
+            const canvas_stream = rendererRef.current.getCaptureStream();
+            canvas_stream.getVideoTracks().forEach((track) => video_tracks.push(track));
+        }
+
         const connections = new Connections({
             logging_service: baby_station.logging_service,
             signal_service: signal_service,
-            stream: media_stream,
+            audio_tracks,
+            video_tracks,
         });
         return connections.close;
     }, [signal_service, sessionActive, media_device_state.media_stream_state]);

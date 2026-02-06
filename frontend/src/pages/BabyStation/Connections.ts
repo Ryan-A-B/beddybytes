@@ -28,19 +28,22 @@ const isCloseSignal = (signal: IncomingSignal): signal is IncomingSignalClose =>
 interface NewConnectionsInput {
     logging_service: LoggingService;
     signal_service: WebSocketSignalService;
-    stream: MediaStream;
+    audio_tracks: MediaStreamTrack[];
+    video_tracks: MediaStreamTrack[];
 }
 
 class Connections {
     private logging_service: LoggingService;
     private signal_service: WebSocketSignalService;
-    private stream: MediaStream;
+    private audio_tracks: MediaStreamTrack[];
+    private video_tracks: MediaStreamTrack[];
     private connections: Map<string, Connection> = Map();
 
-    constructor({ logging_service, signal_service, stream }: NewConnectionsInput) {
-        this.logging_service = logging_service;
-        this.signal_service = signal_service;
-        this.stream = stream;
+    constructor(input: NewConnectionsInput) {
+        this.logging_service = input.logging_service;
+        this.signal_service = input.signal_service;
+        this.audio_tracks = input.audio_tracks;
+        this.video_tracks = input.video_tracks;
         this.signal_service.start();
         this.signal_service.addEventListener("signal", this.handle_signal);
     }
@@ -67,7 +70,8 @@ class Connections {
             offer: signal.data.description,
         });
         this.connections = this.connections.set(signal.from_connection_id, connection);
-        this.stream.getTracks().forEach((track) => connection.peer_connection.addTrack(track, this.stream));
+        this.audio_tracks.forEach((track) => connection.peer_connection.addTrack(track));
+        this.video_tracks.forEach((track) => connection.peer_connection.addTrack(track));
     }
 
     private handleCloseSignal = (signal: IncomingSignalClose) => {
