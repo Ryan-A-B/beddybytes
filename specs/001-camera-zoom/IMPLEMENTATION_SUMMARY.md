@@ -36,7 +36,6 @@ Successfully implemented pinch-to-zoom and pan camera controls for the baby stat
 - Enabled pan only when zoomed in
 
 ### ✅ Phase 5: Polish & Features (T028-T039)
-- Implemented double-tap to reset zoom
 - Added frame rate monitoring with warnings
 - Created error boundary for graceful error handling
 - Handle video device changes (reinitialize canvas)
@@ -95,7 +94,6 @@ getUserMedia() → <video> (hidden) → Canvas (drawImage crop)
 - Native Touch Events API (no external libraries)
 - Pinch: Distance between two touch points
 - Pan: Single touch delta tracking
-- Double-tap: Time + distance thresholds
 
 ## Performance Characteristics
 
@@ -129,7 +127,6 @@ getUserMedia() → <video> (hidden) → Canvas (drawImage crop)
 | SC-004: Maintain 15-30 fps | ✅ Implemented | Monitoring with warnings |
 | SC-005: 95% gesture accuracy | ⏳ Needs validation | Manual testing required |
 | SC-006: 3+ parent stations | ✅ Implemented | WebRTC handles multiple peers |
-| SC-007: Reset <300ms | ✅ Implemented | Instant reset on double-tap |
 
 ## Validation Checklist
 
@@ -155,7 +152,6 @@ Complete the following manual validation tasks:
 - [ ] V015: Simultaneous pinch and pan handled correctly
 
 **Polish Features**:
-- [ ] V016: Double-tap resets zoom within 300ms
 - [ ] V019: Reset transmitted to parents
 - [ ] V022: Frame rate 15-30 fps at all zoom levels
 - [ ] V023: Touch latency <50ms

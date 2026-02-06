@@ -10,7 +10,6 @@ The baby station now supports pinch-to-zoom and pan gestures for camera position
 - **Pinch out** (two fingers apart): Zoom in up to 300%
 - **Pinch in** (two fingers together): Zoom out to 100%
 - **Single-finger drag**: Pan the viewport when zoomed in
-- **Double-tap**: Reset zoom to 100%
 
 ### Architecture
 The zoom feature uses a canvas-based rendering pipeline:

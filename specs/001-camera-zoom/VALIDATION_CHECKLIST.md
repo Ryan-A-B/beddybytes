@@ -99,17 +99,6 @@
 
 ## Phase 5: Polish Features ⏳
 
-### V016: Double-tap resets zoom within 300ms
-- [ ] Zoom to 250%
-- [ ] Double-tap canvas quickly
-- [ ] **Expected**: View instantly resets to 100% centered
-
-### V019: Reset transmitted to parents
-- [ ] Zoom and pan on baby station
-- [ ] Double-tap to reset
-- [ ] Check parent station
-- [ ] **Expected**: Parent view also resets to 100%
-
 ### V022: Frame rate maintains 15-30 fps
 - [ ] Open browser developer tools console
 - [ ] Zoom to various levels and pan
@@ -124,7 +113,6 @@
 ### V024: 95% gesture recognition accuracy
 - [ ] Perform 20+ pinch gestures
 - [ ] Perform 20+ pan gestures
-- [ ] Perform 10+ double-tap gestures
 - [ ] **Expected**: <5% failure rate (gestures not recognized)
 
 ### V025: Device rotation handled gracefully
@@ -149,7 +137,7 @@
 ### T041: iOS Safari testing
 - [ ] Test on iPhone (iOS Safari)
 - [ ] Test on iPad (iOS Safari)
-- [ ] Verify all gestures work (pinch, pan, double-tap)
+- [ ] Verify all gestures work (pinch, pan)
 - [ ] **Expected**: All features functional on iOS
 
 ### T042: Android Chrome testing

@@ -113,11 +113,8 @@
 ### Reset Zoom Functionality
 
 - [X] T028 [P] Add resetViewport callback to useZoomGestures hook
-- [X] T029 [P] Implement double-tap gesture recognition in GestureHandler (two taps within 300ms threshold)
-- [X] T030 Wire up double-tap gesture to resetViewport callback in MediaStream.tsx
 
 **Manual Validation Checklist**:
-- [ ] V016 Double-tap resets zoom to 100% and centers viewport within 300ms (SC-007)
 - [ ] V019 Reset zoom transmitted to parent stations
 
 ### Performance & Edge Cases
@@ -231,7 +228,6 @@ This delivers:
 
 **Not included in MVP** (can be added incrementally):
 - ❌ Pan functionality (User Story 2)
-- ❌ Reset button/double-tap (Phase 5)
 - ❌ Visual feedback indicators (Phase 5)
 
 **Total Tasks**: 46 implementation tasks + 26 manual validation checks

@@ -62,7 +62,6 @@ When zoomed in, the user wants to pan around the camera view to focus on differe
 - **FR-017**: Only the baby station operator can control zoom and pan - parent stations are view-only
 - **FR-025**: Baby station MUST maintain zoom/pan state locally - state is independent of network connectivity
 - **FR-010**: Baby station MUST handle simultaneous multi-touch gestures without conflicts (e.g., distinguishing between pinch and pan)
-- **FR-011**: Baby station MUST support double-tap gesture to reset zoom to 100% and center viewport
 - **FR-022**: Baby station MUST work on touch-enabled devices for this initial release
 - **FR-023**: System MUST preserve aspect ratio of camera feed when zooming
 - **FR-024**: System does not handle device rotation automatically - user must manually correct zoom/pan after rotation
@@ -72,7 +71,7 @@ When zoomed in, the user wants to pan around the camera view to focus on differe
 
 - **Viewport**: The visible portion of the camera frame currently being displayed and transmitted. Has properties: zoom level (percentage), x-offset, y-offset, width, height
 - **Camera Frame**: The full unzoomed video frame from the device camera. Represents the maximum available view area
-- **Gesture Event**: Touch interaction from user including type (pinch, pan, tap), coordinates, and delta values used to calculate viewport changes
+- **Gesture Event**: Touch interaction from user including type (pinch, pan), coordinates, and delta values used to calculate viewport changes
 - **Video Stream**: The WebRTC media stream transmitted from baby station to parent stations, derived from the viewport (HTMLCanvasElement::captureStream)
 
 ## Success Criteria *(mandatory)*
@@ -83,7 +82,6 @@ When zoomed in, the user wants to pan around the camera view to focus on differe
 - **SC-002**: Pan gesture responds within 50ms of touch input with smooth movement (no visible lag or stuttering)
 - **SC-005**: 95% of pinch and pan gestures are correctly recognized and executed without accidental triggering
 - **SC-006**: System supports simultaneous viewing by at least 3 parent stations with zoomed feed without performance degradation
-- **SC-007**: Double-tap to reset zoom completes within 300ms
 
 ## Clarifications
 
