@@ -20,9 +20,9 @@
 
 **Purpose**: Project initialization and canvas pipeline foundation
 
-- [ ] T001 Create ZoomControls module directory structure in frontend/src/pages/BabyStation/ZoomControls/
-- [ ] T002 [P] Create TypeScript interface definitions file in frontend/src/pages/BabyStation/ZoomControls/types.ts based on contracts/typescript-interfaces.md
-- [ ] T003 [P] Create constants file in frontend/src/pages/BabyStation/ZoomControls/constants.ts (zoom limits, gesture thresholds, performance targets)
+- [X] T001 Create ZoomControls module directory structure in frontend/src/pages/BabyStation/ZoomControls/
+- [X] T002 [P] Create TypeScript interface definitions file in frontend/src/pages/BabyStation/ZoomControls/types.ts based on contracts/typescript-interfaces.md
+- [X] T003 [P] Create constants file in frontend/src/pages/BabyStation/ZoomControls/constants.ts (zoom limits, gesture thresholds, performance targets)
 
 ---
 
@@ -32,12 +32,12 @@
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T004 Implement CanvasRenderer class in frontend/src/pages/BabyStation/ZoomControls/CanvasRenderer.ts (basic rendering loop, captureStream)
-- [ ] T005 Implement ViewportManager module in frontend/src/pages/BabyStation/ZoomControls/ViewportManager.ts (state management, constraint functions)
-- [ ] T006 Modify MediaStream component in frontend/src/pages/BabyStation/MediaStream.tsx to add canvas element alongside video element
-- [ ] T007 Wire up canvas dimensions initialization in frontend/src/pages/BabyStation/MediaStream.tsx (match video dimensions on loadedmetadata)
-- [ ] T008 Create CanvasRenderer instance in frontend/src/pages/BabyStation/MediaStream.tsx and start rendering loop
-- [ ] T009 Modify Connections.ts in frontend/src/pages/BabyStation/Connections.ts to accept canvas stream instead of video stream
+- [X] T004 Implement CanvasRenderer class in frontend/src/pages/BabyStation/ZoomControls/CanvasRenderer.ts (basic rendering loop, captureStream)
+- [X] T005 Implement ViewportManager module in frontend/src/pages/BabyStation/ZoomControls/ViewportManager.ts (state management, constraint functions)
+- [X] T006 Modify MediaStream component in frontend/src/pages/BabyStation/MediaStream.tsx to add canvas element alongside video element
+- [X] T007 Wire up canvas dimensions initialization in frontend/src/pages/BabyStation/MediaStream.tsx (match video dimensions on loadedmetadata)
+- [X] T008 Create CanvasRenderer instance in frontend/src/pages/BabyStation/MediaStream.tsx and start rendering loop
+- [X] T009 Modify Connections.ts in frontend/src/pages/BabyStation/Connections.ts to accept canvas stream instead of video stream
 - [ ] T010 Manual validation: Verify canvas displays camera feed and parent stations receive video (no zoom functionality yet)
 
 **Checkpoint**: Canvas pipeline functional - video rendering through canvas to parent stations. User story implementation can now begin.
@@ -52,16 +52,16 @@
 
 ### Implementation for User Story 1
 
-- [ ] T011 [P] [US1] Implement GestureHandler class in frontend/src/pages/BabyStation/ZoomControls/GestureHandler.ts (touch event listeners, distance calculation)
-- [ ] T012 [P] [US1] Implement pinch gesture recognition in GestureHandler (touchstart with 2 fingers, touchmove distance tracking, scale calculation)
-- [ ] T013 [US1] Create useZoomGestures custom hook in frontend/src/hooks/useZoomGestures.ts (viewport state, updateZoom callback)
-- [ ] T014 [US1] Wire up GestureHandler in MediaStream.tsx component (attach to canvas, listen for pinch events)
-- [ ] T015 [US1] Connect pinch gesture events to updateZoom callback in MediaStream.tsx
-- [ ] T016 [US1] Modify CanvasRenderer.renderFrame() in CanvasRenderer.ts to apply viewport zoom transform (drawImage with source crop)
-- [ ] T017 [US1] Update CanvasRenderer to accept viewport updates via setViewport() method
-- [ ] T018 [US1] Wire up viewport state changes to renderer.setViewport() in MediaStream.tsx
-- [ ] T019 [US1] Implement zoom constraint enforcement (1.0 - 3.0 range) in ViewportManager.constrainViewport()
-- [ ] T020 [US1] Add event.preventDefault() to GestureHandler touch events to prevent browser zoom
+- [X] T011 [P] [US1] Implement GestureHandler class in frontend/src/pages/BabyStation/ZoomControls/GestureHandler.ts (touch event listeners, distance calculation)
+- [X] T012 [P] [US1] Implement pinch gesture recognition in GestureHandler (touchstart with 2 fingers, touchmove distance tracking, scale calculation)
+- [X] T013 [US1] Create useZoomGestures custom hook in frontend/src/hooks/useZoomGestures.ts (viewport state, updateZoom callback)
+- [X] T014 [US1] Wire up GestureHandler in MediaStream.tsx component (attach to canvas, listen for pinch events)
+- [X] T015 [US1] Connect pinch gesture events to updateZoom callback in MediaStream.tsx
+- [X] T016 [US1] Modify CanvasRenderer.renderFrame() in CanvasRenderer.ts to apply viewport zoom transform (drawImage with source crop)
+- [X] T017 [US1] Update CanvasRenderer to accept viewport updates via setViewport() method
+- [X] T018 [US1] Wire up viewport state changes to renderer.setViewport() in MediaStream.tsx
+- [X] T019 [US1] Implement zoom constraint enforcement (1.0 - 3.0 range) in ViewportManager.constrainViewport()
+- [X] T020 [US1] Add event.preventDefault() to GestureHandler touch events to prevent browser zoom
 
 **Manual Validation Checklist**:
 - [ ] V001 [US1] Pinch-out gesture zooms in smoothly on touch device (SC-001: <2 seconds to max zoom)
@@ -85,13 +85,13 @@
 
 ### Implementation for User Story 2
 
-- [ ] T021 [US2] Implement pan gesture recognition in GestureHandler (single touch tracking, delta calculation)
-- [ ] T022 [US2] Add pan gesture condition check in GestureHandler (only when zoom > 1.0)
-- [ ] T023 [US2] Add updatePan callback to useZoomGestures hook in frontend/src/hooks/useZoomGestures.ts
-- [ ] T024 [US2] Wire up pan gesture events to updatePan callback in MediaStream.tsx
-- [ ] T025 [US2] Implement pan boundary constraints in ViewportManager.constrainViewport() (maxPanX, maxPanY calculation)
-- [ ] T026 [US2] Update CanvasRenderer.renderFrame() to apply panX/panY offsets to drawImage source rectangle
-- [ ] T027 [US2] Add conditional event.preventDefault() for pan gestures (only when zoomed, to preserve scroll when not zoomed)
+- [X] T021 [US2] Implement pan gesture recognition in GestureHandler (single touch tracking, delta calculation)
+- [X] T022 [US2] Add pan gesture condition check in GestureHandler (only when zoom > 1.0)
+- [X] T023 [US2] Add updatePan callback to useZoomGestures hook in frontend/src/hooks/useZoomGestures.ts
+- [X] T024 [US2] Wire up pan gesture events to updatePan callback in MediaStream.tsx
+- [X] T025 [US2] Implement pan boundary constraints in ViewportManager.constrainViewport() (maxPanX, maxPanY calculation)
+- [X] T026 [US2] Update CanvasRenderer.renderFrame() to apply panX/panY offsets to drawImage source rectangle
+- [X] T027 [US2] Add conditional event.preventDefault() for pan gestures (only when zoomed, to preserve scroll when not zoomed)
 
 **Manual Validation Checklist**:
 - [ ] V009 [US2] Single-finger drag pans viewport when zoomed in
@@ -112,9 +112,9 @@
 
 ### Reset Zoom Functionality
 
-- [ ] T028 [P] Add resetViewport callback to useZoomGestures hook
-- [ ] T029 [P] Implement double-tap gesture recognition in GestureHandler (two taps within 300ms threshold)
-- [ ] T030 Wire up double-tap gesture to resetViewport callback in MediaStream.tsx
+- [X] T028 [P] Add resetViewport callback to useZoomGestures hook
+- [X] T029 [P] Implement double-tap gesture recognition in GestureHandler (two taps within 300ms threshold)
+- [X] T030 Wire up double-tap gesture to resetViewport callback in MediaStream.tsx
 
 **Manual Validation Checklist**:
 - [ ] V016 Double-tap resets zoom to 100% and centers viewport within 300ms (SC-007)
@@ -122,9 +122,9 @@
 
 ### Performance & Edge Cases
 
-- [ ] T037 Add frame rate monitoring to CanvasRenderer (performance.now() tracking, log warnings if <30fps)
-- [ ] T038 [P] Add error boundary for ZoomControls component
-- [ ] T039 [P] Handle video device change during session (reset zoom, reinitialize canvas)
+- [X] T037 Add frame rate monitoring to CanvasRenderer (performance.now() tracking, log warnings if <30fps)
+- [X] T038 [P] Add error boundary for ZoomControls component
+- [X] T039 [P] Handle video device change during session (reset zoom, reinitialize canvas)
 
 **Manual Validation Checklist**:
 - [ ] V022 Frame rate maintains 15-30 fps at all zoom levels (FR-021, SC-004)
@@ -143,8 +143,8 @@
 - [ ] T041 [P] Test on iOS Safari (iPhone/iPad) - verify all gestures work correctly
 - [ ] T042 [P] Test on Android Chrome (phone/tablet) - verify all gestures work correctly
 - [ ] T043 [P] Verify parent station compatibility (receives zoom feed on all supported browsers)
-- [ ] T044 Update user documentation with zoom feature usage instructions
-- [ ] T045 [P] Update developer README with canvas pipeline architecture notes
+- [X] T044 Update user documentation with zoom feature usage instructions
+- [X] T045 [P] Update developer README with canvas pipeline architecture notes
 - [ ] T046 Run through quickstart.md validation steps
 
 ---

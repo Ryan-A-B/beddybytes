@@ -2,6 +2,35 @@
 
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
 
+## Camera Zoom Feature
+
+The baby station now supports pinch-to-zoom and pan gestures for camera positioning:
+
+### Usage
+- **Pinch out** (two fingers apart): Zoom in up to 300%
+- **Pinch in** (two fingers together): Zoom out to 100%
+- **Single-finger drag**: Pan the viewport when zoomed in
+- **Double-tap**: Reset zoom to 100%
+
+### Architecture
+The zoom feature uses a canvas-based rendering pipeline:
+1. Video from `getUserMedia()` renders to hidden `<video>` element
+2. Canvas element displays cropped/zoomed viewport using `drawImage()`
+3. Canvas stream via `captureStream()` transmits to parent stations over WebRTC
+4. Touch gestures handled by native browser Touch Events API
+
+**Key files:**
+- `src/pages/BabyStation/ZoomControls/` - Core zoom modules (CanvasRenderer, GestureHandler, ViewportManager)
+- `src/hooks/useZoomGestures.ts` - React hook for gesture state management
+- `src/pages/BabyStation/MediaStream.tsx` - Integration point
+
+**Performance:**
+- Target: 30 fps rendering
+- Minimum: 15 fps (warnings logged if below)
+- Touch latency: <50ms
+
+See `/specs/001-camera-zoom/` for complete technical documentation.
+
 ## Available Scripts
 
 In the project directory, you can run:

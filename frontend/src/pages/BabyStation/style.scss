@@ -3,16 +3,30 @@
     flex-direction: column;
     height: 100%;
 
-    .video {
+    .video-container {
         flex-grow: 1;
-        object-fit: contain;
-        max-height: calc(100vh - 150px);
-        background-color: #000000;
-
+        position: relative;
+        
         filter: grayscale(100%);
-
+        
         &.active {
             filter: none;
+        }
+
+        video {
+            position: absolute;
+        }
+        
+        video, canvas {
+            width: 100%;
+            height: 100%;
+            max-height: calc(100vh - 250px);
+        }
+        
+        canvas {
+            position: relative;
+            background-color: #000000;
+            object-fit: contain;
         }
     }
 }

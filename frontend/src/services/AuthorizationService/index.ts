@@ -172,7 +172,6 @@ class AuthorizationService extends Service<AuthorizationServiceState> {
 
     constructor(input: NewAuthorizationServiceInput) {
         const initial_state = AuthorizationService.get_initial_state();
-        console.log(`AuthorizationService: initial state is ${initial_state.name}`);
         super({
             logging_service: input.logging_service,
             initial_state,

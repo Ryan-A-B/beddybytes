@@ -3,6 +3,8 @@
 Auto-generated from all feature plans. Last updated: 2026-01-18
 
 ## Active Technologies
+- TypeScript 5.2.2, React 18.2.0 + React functional components, hooks, browser WebRTC APIs (HTMLCanvasElement::captureStream), touch events API (001-camera-zoom)
+- LocalStorage for session state persistence (001-camera-zoom)
 
 - Python 3.8 + Selenium 4.17.2 (WebRTC test automation), trio 0.27.0 (async tasks), requests 2.31.0 (HTTP), Docker (container control) (002-endurance-test-recording)
 
@@ -22,6 +24,7 @@ cd src [ONLY COMMANDS FOR ACTIVE TECHNOLOGIES][ONLY COMMANDS FOR ACTIVE TECHNOLO
 Python 3.8: Follow standard conventions
 
 ## Recent Changes
+- 001-camera-zoom: Added TypeScript 5.2.2, React 18.2.0 + React functional components, hooks, browser WebRTC APIs (HTMLCanvasElement::captureStream), touch events API
 
 - 002-endurance-test-recording: Added Python 3.8 + Selenium 4.17.2 (WebRTC test automation), trio 0.27.0 (async tasks), requests 2.31.0 (HTTP), Docker (container control)
 

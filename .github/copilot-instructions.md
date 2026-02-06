@@ -27,3 +27,23 @@ Use functional components and hooks instead of class components.
 Use React.FunctionComponent rather than React.FC
 Use <React.Fragment> instead of <>
 Use double quotes for attributes
+
+# Code Style
+## Keep the happy path on the left
+When writing functions, prefer to keep the main logic (the "happy path") unindented on the left side of the function.
+Instead of
+```ts
+if (type === "gesture") {
+    const index = this.listeners.indexOf(listener);
+    if (index !== -1) {
+        this.listeners.splice(index, 1);
+    }
+}
+```
+Prefer
+```ts
+if (type !== "gesture") return;
+const index = this.listeners.indexOf(listener);
+if (index === -1) return;
+this.listeners.splice(index, 1);
+```
