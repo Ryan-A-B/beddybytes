@@ -8,13 +8,13 @@ import FAQSection from "../../components/LandingPage/FAQSection";
 
 const CameraZoomFeaturePage: React.FunctionComponent = () => (
     <DefaultPageWrapper>
-        <main id="main">
+        <main id="main" className="feature-page">
             <DefaultHeroSection>
                 <React.Fragment>
-                    <h1>Camera zoom for your baby monitor</h1>
+                    <h1>Camera zoom that keeps your view where you need it</h1>
                     <p>
-                        Pinch-to-zoom and pan on the baby station so you can
-                        reframe the view before bedtime.
+                        When your phone can&apos;t be close, zoom in and keep the
+                        cot centered. Simple controls that just work.
                     </p>
                 </React.Fragment>
                 <StaticImage
@@ -26,9 +26,22 @@ const CameraZoomFeaturePage: React.FunctionComponent = () => (
             </DefaultHeroSection>
             <section className="bg-body-tertiary py-5">
                 <div className="container">
-                    <h2 className="text-center">
-                        Simple zoom and pan controls
-                    </h2>
+                    <section className="mx-auto" style={{ maxWidth: 720 }}>
+                        <h2>Why we added camera zoom</h2>
+                        <p>
+                            The need for zoom arose after our little one tried
+                            to get in some unauthorized screen time, grabbing
+                            the phone from the edge of the cot. We moved the
+                            phone to safety, and suddenly the cot looked like a
+                            tiny postcard. Zoom let us keep a clear view without
+                            putting the phone back within reach.
+                        </p>
+                    </section>
+                </div>
+            </section>
+            <section className="bg-body-secondary py-5">
+                <div className="container">
+                    <h2 className="text-center">Simple zoom controls</h2>
                     <div className="row mt-4">
                         <div className="col-lg">
                             <div className="card h-100">
@@ -37,8 +50,8 @@ const CameraZoomFeaturePage: React.FunctionComponent = () => (
                                         Pinch to zoom
                                     </h3>
                                     <p>
-                                        Zoom in for a closer view with a simple
-                                        two-finger pinch.
+                                        Bring the cot closer with a two-finger
+                                        pinch. No fuss, no extra steps.
                                     </p>
                                 </div>
                             </div>
@@ -47,11 +60,11 @@ const CameraZoomFeaturePage: React.FunctionComponent = () => (
                             <div className="card h-100">
                                 <div className="card-body">
                                     <h3 className="card-title fs-5">
-                                        Pan to reframe
+                                        Private stream, simple setup
                                     </h3>
                                     <p>
-                                        Drag to keep the cot centered in frame
-                                        after you move the phone.
+                                        Zoom works within the same private,
+                                        reliable stream - no extra hoops.
                                     </p>
                                 </div>
                             </div>
@@ -60,10 +73,10 @@ const CameraZoomFeaturePage: React.FunctionComponent = () => (
                             <div className="card h-100">
                                 <div className="card-body">
                                     <h3 className="card-title fs-5">
-                                        Built for setup
+                                        Set it once
                                     </h3>
                                     <p>
-                                        Adjust the view on the baby station
+                                        Frame the view on the baby station
                                         before you start monitoring.
                                     </p>
                                 </div>
@@ -72,7 +85,7 @@ const CameraZoomFeaturePage: React.FunctionComponent = () => (
                     </div>
                 </div>
             </section>
-            <section className="bg-body-secondary py-5">
+            <section className="bg-secondary text-bg-secondary py-5">
                 <div className="container">
                     <div className="row">
                         <div className="col-sm-auto mx-auto">
@@ -80,30 +93,16 @@ const CameraZoomFeaturePage: React.FunctionComponent = () => (
                             <ol>
                                 <li>Open Baby Station</li>
                                 <li>Pinch to zoom in or out</li>
-                                <li>Drag to pan and reframe</li>
+                                <li>Adjust the view to keep the cot centered</li>
                                 <li>Start monitoring</li>
                             </ol>
+                            <p className="mt-4 mb-0">
+                                Camera zoom is for quick setup before you
+                                step away. It is optional and uses digital
+                                zoom.
+                            </p>
                         </div>
                     </div>
-                </div>
-            </section>
-            <section className="bg-secondary text-bg-secondary py-5">
-                <div className="container">
-                    <section>
-                        <h2>When the camera has to move</h2>
-                        <ul>
-                            <li>
-                                Move the phone out of reach, then zoom in for a
-                                closer view.
-                            </li>
-                            <li>
-                                Reframe after repositioning the baby station.
-                            </li>
-                            <li>
-                                Adjust once before bedtime so your view is set.
-                            </li>
-                        </ul>
-                    </section>
                 </div>
             </section>
         </main>
@@ -115,7 +114,7 @@ export default CameraZoomFeaturePage;
 
 export const Head: HeadFC = () => (
     <SEOHead
-        title="Camera zoom for baby monitor"
-        description="Pinch-to-zoom and pan on the baby station so you can reframe the view before bedtime."
+        title="Camera Zoom That Keeps the Cot Centered"
+        description="Pinch to zoom on the baby station to keep the cot centered when your phone can't be close."
     />
 );

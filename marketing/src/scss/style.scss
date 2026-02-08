@@ -93,3 +93,49 @@
     }
     text-align: center;
 }
+
+.feature-page {
+    > section {
+        display: flex;
+        align-items: center;
+        padding: {
+            top: 4 * $spacer;
+            bottom: 4 * $spacer;
+        }
+
+        @media (min-width: 992px) {
+            min-height: 50vh;
+
+            padding: {
+                top: 6 * $spacer;
+                bottom: 6 * $spacer;
+            }
+        }
+    }
+
+    .container {
+        max-width: 960px;
+    }
+
+    @media (min-width: 992px) {
+        h1 {
+            font-size: 3rem;
+        }
+
+        h2 {
+            font-size: 2.25rem;
+        }
+
+        p,
+        li {
+            font-size: 1.125rem;
+        }
+    }
+
+    ol,
+    ul {
+        li + li {
+            margin-top: 0.75rem;
+        }
+    }
+}
