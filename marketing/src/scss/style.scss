@@ -95,24 +95,6 @@
 }
 
 .feature-page {
-    > section {
-        display: flex;
-        align-items: center;
-        padding: {
-            top: 4 * $spacer;
-            bottom: 4 * $spacer;
-        }
-
-        @media (min-width: 992px) {
-            min-height: 50vh;
-
-            padding: {
-                top: 6 * $spacer;
-                bottom: 6 * $spacer;
-            }
-        }
-    }
-
     .container {
         max-width: 960px;
     }
