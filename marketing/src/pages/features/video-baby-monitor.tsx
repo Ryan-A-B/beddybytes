@@ -8,7 +8,7 @@ import FAQSection from "../../components/LandingPage/FAQSection";
 
 const VideoFeaturePage: React.FunctionComponent = () => (
     <DefaultPageWrapper>
-        <main id="main">
+        <main id="main" className="feature-page">
             <DefaultHeroSection>
                 <React.Fragment>
                     <h1>

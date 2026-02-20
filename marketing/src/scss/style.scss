@@ -93,3 +93,31 @@
     }
     text-align: center;
 }
+
+.feature-page {
+    .container {
+        max-width: 960px;
+    }
+
+    @media (min-width: 992px) {
+        h1 {
+            font-size: 3rem;
+        }
+
+        h2 {
+            font-size: 2.25rem;
+        }
+
+        p,
+        li {
+            font-size: 1.125rem;
+        }
+    }
+
+    ol,
+    ul {
+        li + li {
+            margin-top: 0.75rem;
+        }
+    }
+}
