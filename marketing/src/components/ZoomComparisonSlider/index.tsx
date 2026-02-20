@@ -1,5 +1,4 @@
 import React from "react";
-import { StaticImage } from "gatsby-plugin-image";
 
 type Props = {
     className?: string;
@@ -28,6 +27,7 @@ const ZoomComparisonSlider: React.FunctionComponent<Props> = ({ className }) => 
     const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
         isDraggingRef.current = true;
         event.currentTarget.setPointerCapture(event.pointerId);
+        event.preventDefault();
         setSplitFromClientX(event.clientX);
     };
 
@@ -51,13 +51,9 @@ const ZoomComparisonSlider: React.FunctionComponent<Props> = ({ className }) => 
 
     return (
         <div className={className}>
-            <div style={{ width: "100%", maxWidth: 380, margin: "0 auto" }}>
+            <div style={{ width: "100%", maxWidth: 320, margin: "0 auto" }}>
                 <div
                     ref={sliderRef}
-                    onPointerDown={handlePointerDown}
-                    onPointerMove={handlePointerMove}
-                    onPointerUp={handlePointerUp}
-                    onPointerCancel={handlePointerUp}
                     onDragStart={(event) => {
                         event.preventDefault();
                     }}
@@ -72,17 +68,18 @@ const ZoomComparisonSlider: React.FunctionComponent<Props> = ({ className }) => 
                         overflow: "hidden",
                         borderRadius: 12,
                         border: "1px solid rgba(255, 255, 255, 0.25)",
-                        cursor: "ew-resize",
-                        touchAction: "none",
+                        cursor: "default",
+                        touchAction: "pan-y",
                         userSelect: "none",
                     }}
                 >
-                    <StaticImage
-                        src="../../images/ZoomIn.jpg"
+                    <img
+                        src="/images/ZoomIn.jpg"
                         alt="Baby station view zoomed in"
-                        transformOptions={{ fit: "cover" }}
-                        style={{ height: "100%" }}
-                        imgStyle={{
+                        draggable={false}
+                        style={{
+                            position: "absolute",
+                            inset: 0,
                             height: "100%",
                             width: "100%",
                             objectFit: "cover",
@@ -95,14 +92,16 @@ const ZoomComparisonSlider: React.FunctionComponent<Props> = ({ className }) => 
                             position: "absolute",
                             inset: 0,
                             clipPath: `inset(0 ${100 - splitPercentage}% 0 0)`,
+                            pointerEvents: "none",
                         }}
                     >
-                        <StaticImage
-                            src="../../images/ZoomOut.jpg"
+                        <img
+                            src="/images/ZoomOut.jpg"
                             alt="Baby station view zoomed out"
-                            transformOptions={{ fit: "cover" }}
-                            style={{ height: "100%" }}
-                            imgStyle={{
+                            draggable={false}
+                            style={{
+                                position: "absolute",
+                                inset: 0,
                                 height: "100%",
                                 width: "100%",
                                 objectFit: "cover",
@@ -125,6 +124,23 @@ const ZoomComparisonSlider: React.FunctionComponent<Props> = ({ className }) => 
                         }}
                     />
                     <div
+                        onPointerDown={handlePointerDown}
+                        onPointerMove={handlePointerMove}
+                        onPointerUp={handlePointerUp}
+                        onPointerCancel={handlePointerUp}
+                        style={{
+                            position: "absolute",
+                            top: 0,
+                            bottom: 0,
+                            left: `${splitPercentage}%`,
+                            width: 56,
+                            transform: "translateX(-50%)",
+                            cursor: "ew-resize",
+                            touchAction: "none",
+                            zIndex: 3,
+                        }}
+                    />
+                    <div
                         aria-hidden
                         style={{
                             position: "absolute",
@@ -140,8 +156,8 @@ const ZoomComparisonSlider: React.FunctionComponent<Props> = ({ className }) => 
                             fontSize: 18,
                             lineHeight: "1",
                             padding: 0,
-                            zIndex: 2,
-                            cursor: "ew-resize",
+                            zIndex: 4,
+                            cursor: "default",
                             pointerEvents: "none",
                             display: "grid",
                             placeItems: "center",
