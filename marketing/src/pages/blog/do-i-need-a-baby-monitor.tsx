@@ -89,5 +89,7 @@ export const Head: HeadFC = () => (
     <SEOHead
         title="Do I Need a Baby Monitor?"
         description="Do you really need a baby monitor? Discover the pros and cons of using a baby monitor and how it can help you as a parent."
+        pathname="/blog/do-i-need-a-baby-monitor/"
+        type="article"
     />
 )

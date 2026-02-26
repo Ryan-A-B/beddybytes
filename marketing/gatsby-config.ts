@@ -12,7 +12,17 @@ const config: GatsbyConfig = {
   plugins: [
     "gatsby-plugin-sass",
     "gatsby-plugin-image",
-    "gatsby-plugin-sitemap",
+    {
+      resolve: "gatsby-plugin-sitemap",
+      options: {
+        excludes: [
+          "/after-checkout/",
+          "/paulgconlon/",
+          "/tools/visual-timer/",
+          "/blog/egg-honey-custard/",
+        ],
+      },
+    },
     {
       resolve: "gatsby-plugin-robots-txt",
       options: {

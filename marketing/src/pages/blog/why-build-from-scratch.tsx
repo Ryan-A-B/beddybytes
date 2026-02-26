@@ -158,5 +158,7 @@ export const Head: HeadFC = () => (
     <SEOHead
         title="Why I build a baby monitor from scratch"
         description="Discover Why a Software Engineer Built a Privacy-Focused Baby Monitor from Scratch."
+        pathname="/blog/why-build-from-scratch/"
+        type="article"
     />
 )

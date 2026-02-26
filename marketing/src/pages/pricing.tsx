@@ -33,5 +33,6 @@ export const Head: HeadFC = () => (
     <SEOHead
         title="BeddyBytes Pricing"
         description="BeddyBytes pricing information"
+        pathname="/pricing/"
     />
 )

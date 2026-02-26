@@ -190,5 +190,6 @@ export const Head: HeadFC = () => (
     <SEOHead
         title="Video baby monitor"
         description="Keep an eye on your baby with our video baby monitor. Stream securely over your home WiFi with BeddyBytes."
+        pathname="/features/video-baby-monitor/"
     />
 );

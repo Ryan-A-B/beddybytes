@@ -24,7 +24,7 @@ const IndexPage: React.FunctionComponent<PageProps> = () => {
             </p>
           </React.Fragment>
           <StaticImage
-            src="../images/BabyStation.png"
+            src="../images/BabyStationRunning.jpg"
             alt="smartphone baby station"
             aspectRatio={16 / 9}
             transformOptions={{ fit: "contain" }}
@@ -53,7 +53,7 @@ const IndexPage: React.FunctionComponent<PageProps> = () => {
 
 export default IndexPage
 
-export const Head: HeadFC = () => <SEOHead title="BeddyBytes" description="The privacy-first baby camera" />
+export const Head: HeadFC = () => <SEOHead title="BeddyBytes" description="The privacy-first baby camera" pathname="/" />
 
 
 

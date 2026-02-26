@@ -94,7 +94,7 @@ const PrivacyPolicy: React.FunctionComponent<PageProps> = () => (
 
 export default PrivacyPolicy;
 
-export const Head: HeadFC = () => <SEOHead title="Privacy Policy - BeddyBytes" description="BeddyBytes privacy policy" />
+export const Head: HeadFC = () => <SEOHead title="Privacy Policy - BeddyBytes" description="BeddyBytes privacy policy" pathname="/privacy-policy/" />
 
 /*
 <section className="my-5">

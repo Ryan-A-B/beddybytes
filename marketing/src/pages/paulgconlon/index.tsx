@@ -181,5 +181,7 @@ export const Head: HeadFC = () => (
     <SEOHead
         title="Citizen One - BeddyBytes"
         description="Celebrate Privacy with BeddyBytes and Citizen One"
+        pathname="/paulgconlon/"
+        noindex
     />
 )

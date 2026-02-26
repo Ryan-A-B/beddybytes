@@ -114,5 +114,7 @@ export const Head: HeadFC = () => (
     <SEOHead
         title="Baby Routine and Ritual"
         description="Discover the importance of establishing routines and rituals for better sleep and happier parenting. Learn from our personal experience."
+        pathname="/blog/baby-routine-and-ritual/"
+        type="article"
     />
 )

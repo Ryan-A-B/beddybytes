@@ -142,5 +142,6 @@ export const Head: HeadFC = () => (
     <SEOHead
         title="Camera Zoom That Keeps the Cot Centered"
         description="Pinch to zoom on the baby station to keep the cot centered when your phone can't be close."
+        pathname="/features/camera-zoom/"
     />
 );

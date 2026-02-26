@@ -15,7 +15,7 @@ const Footer: React.FunctionComponent = () => (
                     <h5>Features</h5>
                     <ul className="list-unstyled">
                         <li>
-                            <Link to="/features/recording">Recording</Link>
+                            <Link to="/features/baby-monitor-with-recording">Recording</Link>
                         </li>
                     </ul>
                 </div>
