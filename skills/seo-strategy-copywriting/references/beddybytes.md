@@ -228,7 +228,6 @@ Use the CTA that matches the page and funnel stage:
 - `Start monitoring with BeddyBytes`
 - `See how BeddyBytes works`
 - `Compare privacy features`
-- `Get early access` (only if applicable)
 
 ## Pricing-Model Differentiation (Use More Often)
 

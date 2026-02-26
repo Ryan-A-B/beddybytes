@@ -58,7 +58,7 @@ export default IndexPage
 export const Head: HeadFC = () => (
   <SEOHead
     title="Simple. Private. Yours. | Private Baby Monitor App | BeddyBytes"
-    description="Video stays on your devices with no cloud video relay or cloud recording storage. No subscription. BeddyBytes is designed and built with love by parents, for parents."
+    description="Video stays on your devices with no cloud video relay or cloud recording or storage. No subscription. BeddyBytes is designed and built with love by parents, for parents."
     pathname="/"
   />
 )

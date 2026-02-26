@@ -18,8 +18,6 @@ const config: GatsbyConfig = {
         excludes: [
           "/after-checkout/",
           "/paulgconlon/",
-          "/tools/visual-timer/",
-          "/blog/egg-honey-custard/",
         ],
       },
     },

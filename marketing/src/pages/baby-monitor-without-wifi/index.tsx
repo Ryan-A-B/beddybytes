@@ -116,8 +116,8 @@ export default PrivateBabyMonitorPage
 
 export const Head: HeadFC = () => (
     <SEOHead
-        title="Private Baby Monitor | No Cloud Video Relay | BeddyBytes"
-        description="Looking for a private baby monitor without cloud video? BeddyBytes streams directly between your devices over home WiFi with no cloud recording storage."
+        title="Private Baby Monitor | No Cloud Video | BeddyBytes"
+        description="Looking for a private baby monitor without cloud video? BeddyBytes streams directly between your devices over home WiFi with no cloud video."
         pathname="/baby-monitor-without-wifi/"
     />
 )
