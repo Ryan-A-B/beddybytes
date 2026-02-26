@@ -18,7 +18,7 @@ const items: FAQItem[] = [
                     connection. No video or audio is relayed through our servers.
                 </p>
                 <p>
-                    Today BeddyBytes is configured with no STUN or TURN servers, so if your devices
+                    BeddyBytes is configured with no STUN or TURN servers, so if your devices
                     cannot connect locally the stream fails rather than falling back to a relay.
                     In the future we plan to support a full offline mode using a self-hosted MQTT
                     server on your local network.
