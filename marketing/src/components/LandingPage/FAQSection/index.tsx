@@ -13,12 +13,15 @@ const items: FAQItem[] = [
                 <p>
                     BeddyBytes uses WebRTC to send video directly between your devices.
                     To start a WebRTC connection your devices first need to find each other.
-                    The easiest way to do this is to use a remote server.
-                    None of the data exchanged between your devices is stored.
-                    The data is nearly worthless outside of your home WiFi.
+                    BeddyBytes uses the backend to introduce your devices and relay signalling
+                    messages (connection metadata only) so they can establish a direct local
+                    connection. No video or audio is relayed through our servers.
                 </p>
                 <p>
-                    In the future we plan to add the ability to connect without an internet connection.
+                    BeddyBytes is configured with no STUN or TURN servers, so if your devices
+                    cannot connect locally the stream fails rather than falling back to a relay.
+                    In the future we plan to support a full offline mode using a self-hosted MQTT
+                    server on your local network.
                 </p>
             </React.Fragment>
         )
@@ -48,10 +51,11 @@ const items: FAQItem[] = [
     {
         question: 'Is it secure?',
         answer: (
-            <p>
-                BeddyBytes uses WebRTC to stream video and audio directly between your devices.
-                We don't store any of your video on our servers.
-            </p>
+                <p>
+                    BeddyBytes uses WebRTC to stream video and audio directly between your devices.
+                    We don't store any of your video on our servers, and we don't relay your media
+                    through our servers.
+                </p>
         )
     },
     {

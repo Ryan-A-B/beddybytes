@@ -175,6 +175,7 @@ export const Head: HeadFC = () => (
     <SEOHead
         title="Compatibility"
         description="BeddyBytes compatibility information"
+        pathname="/compatibility/"
     />
 )
 

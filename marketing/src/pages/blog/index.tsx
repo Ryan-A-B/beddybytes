@@ -24,27 +24,6 @@ const BlogIndexPage: React.FunctionComponent<PageProps> = () => {
                         <article className="card card-blog">
                             <div className="card-body">
                                 <h2 className="card-title">
-                                    Egg-Honey Custard
-                                </h2>
-                                <p>
-                                    Discover the simple joy of crafting a Egg-Honey Custard with this
-                                    straightforward, beginner-friendly recipe. This luscious, creamy
-                                    custard combines the wholesome richness of eggs, velvety cream, and
-                                    a subtle sweetness from honey. Gently baked in a soothing water bath,
-                                    it emerges as a high-fat delight that's as nutritious as it is 
-                                    satisfying—perfect for a comforting dessert or a hearty snack. 
-                                    Packed with the natural goodness of eggs, often hailed as nature's
-                                    multivitamin, this custard is a treat that nourishes both body and
-                                    soul.
-                                </p>
-                                <ReadMoreLink to="/blog/egg-honey-custard/" />
-                            </div>
-                        </article>
-                    </div>
-                    <div className="col-auto col-lg-6 col-xl-4 mb-3">
-                        <article className="card card-blog">
-                            <div className="card-body">
-                                <h2 className="card-title">
                                     Do I Need a Baby Monitor?
                                 </h2>
                                 <p>
@@ -142,4 +121,4 @@ const BlogIndexPage: React.FunctionComponent<PageProps> = () => {
 
 export default BlogIndexPage
 
-export const Head: HeadFC = () => <SEOHead title="Blog - BeddyBytes" description="Read the latest from BeddyBytes" />
+export const Head: HeadFC = () => <SEOHead title="Blog - BeddyBytes" description="Read the latest from BeddyBytes" pathname="/blog/" />

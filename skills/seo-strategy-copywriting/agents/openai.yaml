@@ -1,0 +1,4 @@
+interface:
+  display_name: "SEO Strategy & Copy"
+  short_description: "SEO strategy and search-intent copywriting"
+  default_prompt: "Use $seo-strategy-copywriting to build an SEO content strategy and draft optimized page copy for a target keyword."

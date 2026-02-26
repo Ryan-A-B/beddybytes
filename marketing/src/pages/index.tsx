@@ -7,6 +7,7 @@ import DefaultHeroSection from "../components/DefaultHeroSection"
 import Features from "../components/Features"
 import SocialProofSection from "../components/SocialProof/Section"
 import YoutubeVideo from "../components/YoutubeVideo"
+import NoCloudBanner from "../components/NoCloudBanner"
 
 import thumbnail from "../components/LandingPage/DemoSection/thumbnail.webp"
 
@@ -17,6 +18,7 @@ const IndexPage: React.FunctionComponent<PageProps> = () => {
         <DefaultHeroSection>
           <React.Fragment>
             <h1>The privacy-first baby camera</h1>
+            <NoCloudBanner />
             <p>
               Transform your smartphone and laptop into a private baby camera
               and monitor within minutes. Your family's privacy is paramount
@@ -24,7 +26,7 @@ const IndexPage: React.FunctionComponent<PageProps> = () => {
             </p>
           </React.Fragment>
           <StaticImage
-            src="../images/BabyStation.png"
+            src="../images/BabyStationRunning.jpg"
             alt="smartphone baby station"
             aspectRatio={16 / 9}
             transformOptions={{ fit: "contain" }}
@@ -53,7 +55,13 @@ const IndexPage: React.FunctionComponent<PageProps> = () => {
 
 export default IndexPage
 
-export const Head: HeadFC = () => <SEOHead title="BeddyBytes" description="The privacy-first baby camera" />
+export const Head: HeadFC = () => (
+  <SEOHead
+    title="Simple. Private. Yours. | Private Baby Monitor App | BeddyBytes"
+    description="Video stays on your devices with no cloud video relay or cloud recording or storage. No subscription. BeddyBytes is designed and built with love by parents, for parents."
+    pathname="/"
+  />
+)
 
 
 

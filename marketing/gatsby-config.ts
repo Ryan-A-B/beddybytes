@@ -12,7 +12,15 @@ const config: GatsbyConfig = {
   plugins: [
     "gatsby-plugin-sass",
     "gatsby-plugin-image",
-    "gatsby-plugin-sitemap",
+    {
+      resolve: "gatsby-plugin-sitemap",
+      options: {
+        excludes: [
+          "/after-checkout/",
+          "/paulgconlon/",
+        ],
+      },
+    },
     {
       resolve: "gatsby-plugin-robots-txt",
       options: {

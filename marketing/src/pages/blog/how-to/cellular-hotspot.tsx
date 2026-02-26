@@ -122,6 +122,7 @@ export const Head: HeadFC = () => (
     <SEOHead
         title="How to use BeddyBytes on a cellular hotspot"
         description="Learn how to use BeddyBytes with a cellular hotspot for baby monitoring on the go. Perfect for camping or road trips."
+        pathname="/blog/how-to/cellular-hotspot/"
+        type="article"
     />
 )
-

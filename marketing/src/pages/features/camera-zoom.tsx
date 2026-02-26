@@ -140,7 +140,8 @@ export default CameraZoomFeaturePage;
 
 export const Head: HeadFC = () => (
     <SEOHead
-        title="Camera Zoom That Keeps the Cot Centered"
-        description="Pinch to zoom on the baby station to keep the cot centered when your phone can't be close."
+        title="Baby Monitor Camera Zoom | No Cloud Processing | BeddyBytes"
+        description="Zoom in on the Baby Station to keep the cot centered. BeddyBytes applies zoom locally on your device with no cloud processing."
+        pathname="/features/camera-zoom/"
     />
 );

@@ -66,4 +66,4 @@ const AboutPage: React.FunctionComponent<PageProps> = () => {
 
 export default AboutPage;
 
-export const Head: HeadFC = () => <SEOHead title="About - BeddyBytes" description="Learn about the story behind BeddyBytes and how it puts your family's privacy first" />
+export const Head: HeadFC = () => <SEOHead title="About - BeddyBytes" description="Learn about the story behind BeddyBytes and how it puts your family's privacy first" pathname="/about/" />

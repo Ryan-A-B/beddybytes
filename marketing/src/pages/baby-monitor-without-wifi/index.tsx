@@ -114,7 +114,13 @@ const PrivateBabyMonitorPage: React.FunctionComponent = () => (
 
 export default PrivateBabyMonitorPage
 
-export const Head: HeadFC = () => <SEOHead title="Private Baby Monitor - BeddyBytes" description="BeddyBytes is a private baby monitor that streams video directly between your devices" />
+export const Head: HeadFC = () => (
+    <SEOHead
+        title="Private Baby Monitor | No Cloud Video | BeddyBytes"
+        description="Looking for a private baby monitor without cloud video? BeddyBytes streams directly between your devices over home WiFi with no cloud video."
+        pathname="/baby-monitor-without-wifi/"
+    />
+)
 
 const ProblemFlowDiagramLandscape = () => (
     <svg viewBox="0 0 170 80" width={500}>

@@ -57,4 +57,4 @@ const PaymentComplete: React.FunctionComponent = () => (
 
 export default PaymentComplete;
 
-export const Head: HeadFC = () => <SEOHead title="Thank you!" noindex />
+export const Head: HeadFC = () => <SEOHead title="Thank you!" noindex pathname="/after-checkout/" />

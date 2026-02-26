@@ -188,7 +188,8 @@ export default VideoFeaturePage;
 
 export const Head: HeadFC = () => (
     <SEOHead
-        title="Video baby monitor"
-        description="Keep an eye on your baby with our video baby monitor. Stream securely over your home WiFi with BeddyBytes."
+        title="Video Baby Monitor App | No Cloud Video Relay | BeddyBytes"
+        description="Use your phone, tablet, or laptop as a video baby monitor. BeddyBytes streams directly between your devices over home WiFi with no cloud video relay."
+        pathname="/features/video-baby-monitor/"
     />
 );

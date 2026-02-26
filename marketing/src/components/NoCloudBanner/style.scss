@@ -1,0 +1,27 @@
+@import "../../scss/configuration";
+
+.support-line-banner {
+    display: inline-block;
+    margin: {
+        top: $spacer / 2;
+        bottom: $spacer;
+    }
+    padding: {
+        left: 3 * $spacer;
+        right: 3 * $spacer;
+        top: $spacer / 2;
+        bottom: $spacer / 2;
+    }
+
+    .fixed-words {
+        font-size: 1.05rem;
+        white-space: nowrap;
+        margin-right: 0.35ch;
+    }
+
+    .animated-words {
+        display: inline-block;
+        width: 10ch;
+        color: $primary;
+    }
+}
