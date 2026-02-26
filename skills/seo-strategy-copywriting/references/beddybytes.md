@@ -22,8 +22,9 @@ Prioritize this order in copy unless the page goal requires a different order:
 
 1. Reassure on privacy and trust
 2. Explain practical monitoring value (what parents can do)
-3. Reduce setup/usage friction
-4. Present CTA
+3. Reinforce pricing model differentiation (no subscription / one-time purchase)
+4. Reduce setup/usage friction
+5. Present CTA
 
 ## Confirmed Public Claims (from marketing site)
 
@@ -34,6 +35,8 @@ Prioritize this order in copy unless the page goal requires a different order:
 - Multiple parent stations can monitor at the same time
 - Unlimited baby stations and unlimited parent stations (pricing section claim)
 - Local-only streaming (pricing / feature messaging)
+- No subscription (pricing section claim)
+- One purchase per account / access across devices
 - One purchase per account gives access across devices
 - 30-day refund guarantee
 - Uses Stripe-hosted checkout for payments
@@ -82,6 +85,8 @@ Do not claim support for any feature unless confirmed by the user.
 - Simpler monitoring workflow with clear privacy expectations
 - Reuse your devices for private baby monitoring (privacy + sustainability)
 - Travel-friendly baby monitoring using devices you already carry
+- Private baby monitoring without a subscription
+- One-time purchase baby monitor web app
 
 Avoid stacking every angle into one page. Pick the strongest angle for the query.
 
@@ -133,10 +138,33 @@ Prefer explicit and bounded privacy language:
 
 Use this structure in trust content: what is protected, what is not, and why the tradeoff exists.
 
+## Required Phrasing Rule: Qualify "No Cloud" Claims
+
+Do not use unqualified phrases like:
+
+- "no cloud"
+- "cloud-free" (unless the surrounding sentence clearly specifies media/storage scope)
+
+Reason:
+- BeddyBytes does use a backend for accounts, authentication, session metadata, licensing, and signalling.
+
+Prefer precise, qualified language:
+
+- "no cloud video"
+- "no cloud video relay"
+- "no cloud media transport"
+- "no cloud recording storage"
+- "no cloud recording uploads"
+- "no cloud media processing" (when relevant and accurate)
+
+Good example:
+- "BeddyBytes uses a backend for accounts and signalling, but your video is not relayed through the cloud and recordings are not stored in the cloud."
+
 ## Copy Guardrails (BeddyBytes)
 
 - Avoid fear-based copy that overstates risks.
 - Avoid absolute security claims like "100% secure" or "unhackable."
+- Avoid unqualified "no cloud" phrasing; specify the exact thing that is not in the cloud (video, storage, recording, relay, processing).
 - Prefer precise phrasing such as:
   - "privacy-focused"
   - "designed with privacy in mind"
@@ -170,6 +198,24 @@ Use the CTA that matches the page and funnel stage:
 - `See how BeddyBytes works`
 - `Compare privacy features`
 - `Get early access` (only if applicable)
+
+## Pricing-Model Differentiation (Use More Often)
+
+Treat these as core differentiators alongside privacy:
+
+- `No subscription`
+- `One-time purchase`
+- `Only one purchase per account`
+- `Lifetime access option`
+- `No recurring fees` (when referencing lifetime)
+
+Use this angle especially on:
+
+- comparison pages
+- pricing pages
+- "alternative to [brand]" pages
+- commercial-intent landing pages
+- parent budget/value-oriented blog content
 
 ## SEO Deliverables For BeddyBytes (Default)
 

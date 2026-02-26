@@ -48,7 +48,7 @@ For BeddyBytes, also collect (or state assumptions for):
    Note what searchers likely expect (comparison, how-to, service proof, pricing cues, local trust, etc.).
 1. Create a content angle and differentiation:
    Specify what makes this page more useful than generic competitor pages.
-   For BeddyBytes, emphasize privacy/trust differentiation without making unverifiable claims.
+   For BeddyBytes, emphasize privacy/trust plus pricing-model differentiation (no subscription / one-time purchase) without making unverifiable claims.
 1. Produce an outline or brief:
    Include recommended headings, evidence/proof elements, internal link opportunities, and CTA placement.
 1. Provide on-page SEO recommendations:
@@ -73,7 +73,7 @@ Use `references/strategy.md` for reusable templates and scoring checklists.
    Title tag, meta description, intro paragraph, subheads, CTA copy, image alt text.
 1. Add trust and conversion elements where appropriate:
    Specific outcomes, process clarity, objections, guarantees, testimonials, pricing cues.
-   For BeddyBytes, prioritize privacy explanations, setup clarity, and responsible disclaimers.
+   For BeddyBytes, prioritize privacy explanations, setup clarity, no-subscription / one-time purchase value, and responsible disclaimers.
 1. Self-edit for SEO and readability:
    Cut repetition, strengthen specificity, and align every section to intent.
 1. Return copy plus a short rationale:
@@ -99,6 +99,7 @@ Use `references/copywriting.md` for page templates, headline formulas, and editi
 - Prefer explicit assumptions over silent guessing.
 - For baby-monitoring copy, avoid medical/safety claims unless the user provides approved language.
 - Do not imply the product replaces caregiver supervision unless the user explicitly provides compliant wording.
+- For BeddyBytes, avoid unqualified "no cloud" claims. Prefer precise phrases like "no cloud video", "no cloud storage", "no cloud recording", while acknowledging the backend is used for accounts/signalling.
 
 ## References
 

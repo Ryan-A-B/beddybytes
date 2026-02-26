@@ -164,8 +164,8 @@ export default RecordingFeaturePage
 
 export const Head: HeadFC = () => (
     <SEOHead
-        title="Baby monitor with recording"
-        description="Record and revisit those precious moments when your baby is talking and singing to themselves in their cot."
+        title="Baby Monitor Recording | No Cloud Recording | BeddyBytes"
+        description="Record baby monitor moments to your device instantly. BeddyBytes saves recordings locally to your downloads folder with no cloud recording storage."
         pathname="/features/baby-monitor-with-recording/"
     />
 )

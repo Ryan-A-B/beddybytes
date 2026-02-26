@@ -53,7 +53,13 @@ const IndexPage: React.FunctionComponent<PageProps> = () => {
 
 export default IndexPage
 
-export const Head: HeadFC = () => <SEOHead title="BeddyBytes" description="The privacy-first baby camera" pathname="/" />
+export const Head: HeadFC = () => (
+  <SEOHead
+    title="Private Baby Monitor App | No Cloud Video | BeddyBytes"
+    description="Turn your phone and laptop into a privacy-focused baby monitor. No cloud video relay, no cloud recording storage, and no subscription with BeddyBytes."
+    pathname="/"
+  />
+)
 
 
 

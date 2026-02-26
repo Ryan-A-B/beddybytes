@@ -31,8 +31,8 @@ export default PricingPage
 
 export const Head: HeadFC = () => (
     <SEOHead
-        title="BeddyBytes Pricing"
-        description="BeddyBytes pricing information"
+        title="BeddyBytes Pricing | One-Time Purchase Baby Monitor"
+        description="See BeddyBytes pricing for private baby monitoring with one-time purchase options, no subscription, unlimited stations, and a 30-day refund guarantee."
         pathname="/pricing/"
     />
 )
