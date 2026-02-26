@@ -140,8 +140,8 @@ export default CameraZoomFeaturePage;
 
 export const Head: HeadFC = () => (
     <SEOHead
-        title="Baby Monitor Camera Zoom | Local Video Processing | BeddyBytes"
-        description="Zoom in on the Baby Station to keep the cot centered. BeddyBytes applies zoom locally on your device with no cloud video processing."
+        title="Baby Monitor Camera Zoom | No Cloud Processing | BeddyBytes"
+        description="Zoom in on the Baby Station to keep the cot centered. BeddyBytes applies zoom locally on your device with no cloud processing."
         pathname="/features/camera-zoom/"
     />
 );

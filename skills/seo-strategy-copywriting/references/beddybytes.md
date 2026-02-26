@@ -14,6 +14,7 @@ Treat `HowBeddyBytesWorks2.md` as the most detailed technical explanation curren
 - Category: Baby monitoring / parent tech / home monitoring software
 - Core angle: Help caregivers check in on baby while prioritizing privacy and trust
 - Hero positioning used on homepage: `The privacy-first baby camera`
+- Preferred brand tagline: `Simple. Private. Yours.`
 - Core promise used across site: images/videos stay on user devices (local-only media path)
 
 ## Messaging Priorities
@@ -25,6 +26,36 @@ Prioritize this order in copy unless the page goal requires a different order:
 3. Reinforce pricing model differentiation (no subscription / one-time purchase)
 4. Reduce setup/usage friction
 5. Present CTA
+
+## Approved Messaging Lines (User-Preferred)
+
+Use these lines as high-confidence copy inputs for headlines, subheads, pricing sections, and CTA support copy.
+
+- `Simple. Private. Yours.`
+- `A monitor that minds its own business.`
+- `Video stays on your device — no cloud, no subscription, no compromises.`
+- `Designed and built with love by parents, for parents.`
+- `No cloud video.`
+- `No cloud storage.`
+- `No cloud recording.`
+- `No subscription.`
+- `No compromises.`
+
+## Using "No Cloud" Shorthand vs Qualified Phrasing
+
+The short lines above are approved brand copy.
+
+When writing:
+
+- Hero sections, pricing callouts, badges, and punchy landing-page copy:
+  - You may use the short brand phrasing (`No cloud video.`, `No cloud storage.`, `No cloud recording.`).
+- Explanatory copy, FAQs, trust pages, and technical content:
+  - Expand to precise qualified wording and acknowledge backend usage for accounts/signalling.
+
+Example expansion:
+
+- Short: `No cloud recording.`
+- Expanded: `Recordings are saved locally on your device with no cloud recording storage.`
 
 ## Confirmed Public Claims (from marketing site)
 
