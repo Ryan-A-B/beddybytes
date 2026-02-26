@@ -1,16 +1,17 @@
+@use "sass:math";
 @import "../../scss/configuration";
 
 .support-line-banner {
     display: inline-block;
     margin: {
-        top: $spacer / 2;
+        top: math.div($spacer, 2);
         bottom: $spacer;
     }
     padding: {
         left: 3 * $spacer;
         right: 3 * $spacer;
-        top: $spacer / 2;
-        bottom: $spacer / 2;
+        top: math.div($spacer, 2);
+        bottom: math.div($spacer, 2);
     }
 
     .fixed-words {
