@@ -8,3 +8,5 @@ upload_event_log.sh
 *.pem
 *.csr
 *.crt
+
+MarketingSitePlan.md

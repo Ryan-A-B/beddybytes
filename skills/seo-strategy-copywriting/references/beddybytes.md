@@ -55,7 +55,13 @@ When writing:
 Example expansion:
 
 - Short: `No cloud recording.`
-- Expanded: `Recordings are saved locally on your device with no cloud recording storage.`
+- Expanded: `Recordings are created locally on your device with no cloud recording and no cloud storage.`
+
+Terminology note:
+
+- `No cloud recording` means cloud servers are not used to create the recording.
+- `No cloud storage` means recordings/images are not stored on cloud servers.
+- Do not merge these into a single phrase like `no cloud recording storage`.
 
 ## Confirmed Public Claims (from marketing site)
 
@@ -184,7 +190,8 @@ Prefer precise, qualified language:
 - "no cloud video"
 - "no cloud video relay"
 - "no cloud media transport"
-- "no cloud recording storage"
+- "no cloud recording"
+- "no cloud storage"
 - "no cloud recording uploads"
 - "no cloud media processing" (when relevant and accurate)
 

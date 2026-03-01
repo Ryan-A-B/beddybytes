@@ -100,6 +100,7 @@ Use `references/copywriting.md` for page templates, headline formulas, and editi
 - For baby-monitoring copy, avoid medical/safety claims unless the user provides approved language.
 - Do not imply the product replaces caregiver supervision unless the user explicitly provides compliant wording.
 - For BeddyBytes, avoid unqualified "no cloud" claims. Prefer precise phrases like "no cloud video", "no cloud storage", "no cloud recording", while acknowledging the backend is used for accounts/signalling.
+- For BeddyBytes, keep "no cloud recording" and "no cloud storage" as separate claims. Do not conflate them into a combined phrase.
 
 ## References
 
