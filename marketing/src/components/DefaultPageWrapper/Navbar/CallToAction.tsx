@@ -6,7 +6,7 @@ const CallToAction: React.FunctionComponent = () => {
     const onClick = useOnClick("cta-navbar")
     return (
         <Link to="/pricing" onClick={onClick} className="btn btn-primary">
-            Use baby monitor
+            See pricing
         </Link>
     )
 }

@@ -42,7 +42,7 @@ const IndexPage: React.FunctionComponent<PageProps> = () => {
             <ol>
               <li>Start Baby Station on the device near your baby.</li>
               <li>Open Parent Station on your phone, tablet, or laptop.</li>
-              <li>Monitor with local video and audio streaming over your WiFi.</li>
+              <li>Monitor with local video and audio streaming over your Wi-Fi.</li>
             </ol>
             <p>
               BeddyBytes uses the backend for account authentication and

@@ -18,12 +18,12 @@ export const RedirectToPaymentProcessor: React.FunctionComponent = () => (
 
 export const TrialPeriod: React.FunctionComponent = () => (
     <Message>
-        <strong>30-day refund guarantee</strong> - no questions asked.
+        <strong>30-day refund guarantee</strong>, no questions asked.
     </Message>
 )
 
 export const OnePurchase: React.FunctionComponent = () => (
     <Message>
-        Only one purchase per account is needed - access BeddyBytes across all your devices.
+        Only one purchase per account is needed to access BeddyBytes across all your devices.
     </Message>
 )

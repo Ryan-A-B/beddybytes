@@ -24,7 +24,7 @@ const CallToAction: React.FunctionComponent<Props> = ({ to, color = DefaultColor
             </small>
             <br />
             <Link to={to} onClick={onClick} target="_blank" className={`btn btn-${color} btn-lg w-100`}>
-                Use baby monitor
+                See pricing
             </Link>
         </div>
     )

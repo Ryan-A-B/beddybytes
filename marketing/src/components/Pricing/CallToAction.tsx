@@ -31,7 +31,7 @@ const CallToAction: React.FunctionComponent<Props> = ({ product, coupon_code = p
                 rel="external"
                 className="btn btn-primary btn-lg w-100"
             >
-                Buy now
+                Buy BeddyBytes
             </a>
         </div>
     )
