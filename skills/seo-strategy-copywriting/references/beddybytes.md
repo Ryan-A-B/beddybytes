@@ -231,7 +231,8 @@ Before finalizing high-conviction copy, ask for any available proof:
 Use the CTA that matches the page and funnel stage:
 
 - `Try BeddyBytes`
-- `Use Baby Monitor` (current primary CTA; links to pricing/buy flow)
+- `See pricing` (internal CTA to pricing)
+- `Buy BeddyBytes` (checkout CTA)
 - `Start monitoring with BeddyBytes`
 - `See how BeddyBytes works`
 - `Compare privacy features`
@@ -253,6 +254,18 @@ Use this angle especially on:
 - "alternative to [brand]" pages
 - commercial-intent landing pages
 - parent budget/value-oriented blog content
+
+## Copy Normalization Rules
+
+Apply these consistency rules in BeddyBytes copy unless the user overrides them:
+
+- Keep `no cloud recording` and `no cloud storage` as separate claims.
+- Use hyphenation for `one-time` and `1-year` in transactional copy.
+- Prefer `Wi-Fi` over `WiFi`.
+- Prefer sentence case for headings unless a brand line intentionally uses title case.
+- Use direct phrasing for account-wide access claims:
+  - Preferred: `Only one purchase per account is needed to access BeddyBytes across all your devices.`
+  - Avoid: `...is needed, with access...`
 
 ## SEO Deliverables For BeddyBytes (Default)
 
