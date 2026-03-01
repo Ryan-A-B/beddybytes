@@ -6,7 +6,7 @@ import { TrialPeriod } from './Messages';
 const AllPlansInclude: React.FunctionComponent = () => {
     return (
         <section id="all-plans-include" className="alert alert-light text-center mx-auto border-0">
-            <h2>All Plans Include</h2>
+            <h2>Every One-Time Purchase Plan Includes</h2>
             <ul className="d-flex flex-wrap justify-content-around list-unstyled">
                 <li><FontAwesomeIcon icon={faMobileScreenButton} /> Use your own devices</li>
                 <li><FontAwesomeIcon icon={faVideo} /> Local-only streaming</li>

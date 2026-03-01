@@ -33,13 +33,14 @@ const Pricing: React.FunctionComponent = () => (
             <PromotionBadge />
             <div className="card-body">
                 <h2 className="card-title">
-                    Lifetime access
+                    Lifetime one-time purchase
                 </h2>
                 <div className="text-center">
                     <DiscountedPrice price={lifetime_price} discount={promotion.discount} />
                 </div>
                 <p className="text-center text-muted">
-                    Perfect for long term peace of mind with no recurring fees.
+                    Best value for families who want a private baby monitor app
+                    with no recurring fees.
                 </p>
                 <CallToAction product="lifetime" coupon_code={promotion.code} discount={promotion.discount} />
             </div>
@@ -47,12 +48,12 @@ const Pricing: React.FunctionComponent = () => (
         <section className="card card-pricing border-primary-subtle flex-fill">
             <PromotionBadge />
             <div className="card-body">
-                <h2 className="card-title">1 year access</h2>
+                <h2 className="card-title">1-year one-time purchase</h2>
                 <div className="text-center">
                     <DiscountedPrice price={one_year_price} discount={promotion.discount} />
                 </div>
                 <p className="text-center text-muted">
-                    Ideal for trying us out and covering baby's first year.
+                    Lower upfront cost to try BeddyBytes with no subscription.
                 </p>
                 <CallToAction product="one_year" coupon_code={promotion.code} discount={promotion.discount} />
             </div>
