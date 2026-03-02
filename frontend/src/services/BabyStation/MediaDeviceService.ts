@@ -2,7 +2,7 @@ import LoggingService from '../LoggingService';
 import Service from "../Service";
 import MediaDevicePermissionService from './MediaDevicePermissionService';
 
-interface MediaDeviceState {
+export interface MediaDeviceState {
     active: boolean;
     devices: MediaDeviceInfo[];
     audio_device_id: string;
