@@ -77,7 +77,6 @@ const MediaStream: React.FunctionComponent<Props> = ({ sessionActive }) => {
 
         const video_tracks: MediaStreamTrack[] = [];
         if (renderer !== null) {
-            console.log("Capturing canvas stream for WebRTC");
             const canvas_stream = renderer.getCaptureStream();
             canvas_stream.getVideoTracks().forEach((track) => video_tracks.push(track));
         }

@@ -11,7 +11,6 @@ class CanvasRendererManager {
     }
 
     create_renderer(canvas: HTMLCanvasElement, video: HTMLVideoElement, viewport: Viewport): CanvasRenderer {
-        console.log("create_renderer")
         this.renderer = new CanvasRenderer(canvas, video, viewport);
         this.renderer.start();
         return this.renderer;
@@ -19,7 +18,6 @@ class CanvasRendererManager {
 
     clear = () => {
         if (this.renderer === null) return;
-        console.log("clear_renderer")
         this.renderer.stop();
         this.renderer = null;
     }
