@@ -113,7 +113,7 @@ def wait_for_element_to_not_be_displayed(driver, element_id, timeout=DefaultTime
             return not elements[0].is_displayed()
         except StaleElementReferenceException:
             return True
-    wait.until(is_not_displayed)
+    return wait.until(is_not_displayed)
 
 def wait_for_element_to_be_removed(driver, element_id, timeout=DefaultTimeoutSeconds):
     wait = WebDriverWait(driver, timeout=timeout)
