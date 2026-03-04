@@ -7,9 +7,13 @@ import time
 
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.wait import WebDriverWait
+from selenium.webdriver.support.ui import Select
+from selenium.common.exceptions import StaleElementReferenceException
+
+DefaultTimeoutSeconds = 5
 
 def create_account(driver, email, password):
-    wait = WebDriverWait(driver, timeout=1)
+    wait = WebDriverWait(driver, timeout=DefaultTimeoutSeconds)
 
     nav_button_create_account = wait.until(lambda driver: driver.find_element(By.ID, "nav-button-create-account"))
     nav_button_create_account.click()
@@ -28,7 +32,7 @@ def create_account(driver, email, password):
     wait.until(lambda driver: driver.find_element(By.ID, "page-index"))
 
 def login(driver, email, password):
-    wait = WebDriverWait(driver, timeout=1)
+    wait = WebDriverWait(driver, timeout=DefaultTimeoutSeconds)
 
     form_element = wait.until(lambda driver: driver.find_element(By.ID, "form-login"))
     
@@ -87,14 +91,59 @@ def get_input(prompt, timeout=5):
 def allow_time_for_video_to_display():
     time.sleep(1)
 
-def wait_for_element_to_be_displayed(driver, element_id, timeout=1):
+def wait_for_element_to_be_displayed(driver, element_id, timeout=DefaultTimeoutSeconds):
     wait = WebDriverWait(driver, timeout=timeout)
-    return wait.until(lambda driver: driver.find_element(By.ID, element_id).is_displayed())
+    def is_displayed(driver):
+        elements = driver.find_elements(By.ID, element_id)
+        if len(elements) == 0:
+            return False
+        try:
+            return elements[0].is_displayed()
+        except StaleElementReferenceException:
+            return False
+    return wait.until(is_displayed)
 
-def wait_for_element_to_not_be_displayed(driver, element_id):
-    wait = WebDriverWait(driver, timeout=1)
-    wait.until(lambda driver: not driver.find_element(By.ID, element_id).is_displayed())
+def wait_for_element_to_not_be_displayed(driver, element_id, timeout=DefaultTimeoutSeconds):
+    wait = WebDriverWait(driver, timeout=timeout)
+    def is_not_displayed(driver):
+        elements = driver.find_elements(By.ID, element_id)
+        if len(elements) == 0:
+            return True
+        try:
+            return not elements[0].is_displayed()
+        except StaleElementReferenceException:
+            return True
+    return wait.until(is_not_displayed)
 
-def wait_for_element_to_be_removed(driver, element_id):
-    wait = WebDriverWait(driver, timeout=1)
+def wait_for_element_to_be_removed(driver, element_id, timeout=DefaultTimeoutSeconds):
+    wait = WebDriverWait(driver, timeout=timeout)
     wait.until(lambda driver: len(driver.find_elements(By.ID, element_id)) == 0)
+
+def select_first_video_device_and_wait_for_preview(driver, timeout=DefaultTimeoutSeconds):
+    wait = WebDriverWait(driver, timeout=timeout)
+    wait.until(lambda driver: len(Select(driver.find_element(By.ID, "select-video-device")).options) > 1)
+    select_video_device = Select(driver.find_element(By.ID, "select-video-device"))
+    select_video_device.options[1].click()
+    wait.until(lambda driver: driver.find_element(By.ID, "select-video-device").get_attribute("value") != "")
+    wait.until(lambda driver: len(driver.find_elements(By.CSS_SELECTOR, ".baby-station .video-container canvas")) > 0)
+
+def wait_for_select_option_count(driver, select_id, count, timeout=DefaultTimeoutSeconds):
+    wait = WebDriverWait(driver, timeout=timeout)
+    def has_enough_options(driver):
+        elements = driver.find_elements(By.ID, select_id)
+        if len(elements) == 0:
+            return False
+        try:
+            return len(Select(elements[0]).options) >= count
+        except StaleElementReferenceException:
+            return False
+    wait.until(has_enough_options)
+
+def wait_for_session_running(driver, timeout=DefaultTimeoutSeconds):
+    wait = WebDriverWait(driver, timeout=timeout)
+    wait.until(lambda driver: driver.find_element(By.ID, "session-toggle").text.strip() == "Stop")
+
+def wait_for_parent_station_ready(driver, expected_station_count=None, timeout=DefaultTimeoutSeconds):
+    wait_for_element_to_be_displayed(driver, "video-parent-station", timeout)
+    if expected_station_count is not None:
+        wait_for_select_option_count(driver, "baby-station-dropdown", expected_station_count, timeout)

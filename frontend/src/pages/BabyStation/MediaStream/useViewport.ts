@@ -1,5 +1,5 @@
 import * as React from "react";
-import ViewportService, { Viewport, ViewportChangedEvent } from "../pages/BabyStation/ZoomControls/ViewportService"
+import ViewportService, { Viewport, ViewportChangedEvent } from "./ZoomControls/ViewportService"
 
 const useViewport = (viewport_service: ViewportService) => {
     const [viewport, setViewport] = React.useState<Viewport>(viewport_service.get_viewport());

@@ -7,7 +7,7 @@ from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.support.ui import Select
 
 from settings import hub_url, app_base_url, chrome_options
-from utils import create_account, login, get_browser_logs, generate_random_string, stop_backend_container, start_backend_container, wait_for_element_to_be_displayed, wait_for_element_to_be_removed, wait_for_element_to_not_be_displayed
+from utils import create_account, login, get_browser_logs, generate_random_string, stop_backend_container, start_backend_container, wait_for_element_to_be_displayed, wait_for_element_to_be_removed, wait_for_element_to_not_be_displayed, select_first_video_device_and_wait_for_preview, wait_for_parent_station_ready, wait_for_session_running
 
 class TestSession(unittest.TestCase):
     def setUp(self):
@@ -24,7 +24,7 @@ class TestSession(unittest.TestCase):
             driver_1.get(f"{app_base_url}")
             create_account(driver_1, email, password)
             driver_1.find_element(By.ID, "nav-link-baby").click()
-            driver_1_wait = WebDriverWait(driver_1, 1)
+            driver_1_wait = WebDriverWait(driver_1, 5)
             continue_button = driver_1_wait.until(lambda driver: driver.find_element(By.ID, "button-continue-media-stream-permission-check"))
             continue_button.click()
 
@@ -35,12 +35,13 @@ class TestSession(unittest.TestCase):
 
             session_toggle = driver_1_wait.until(lambda driver: driver.find_element(By.ID, "session-toggle"))
             session_toggle.click()
+            wait_for_session_running(driver_1)
 
             driver_2.get(f"{app_base_url}")
             login(driver_2, email, password)
             driver_2.find_element(By.ID, "nav-link-parent").click()
 
-            driver_2_wait = WebDriverWait(driver_2, 1)
+            driver_2_wait = WebDriverWait(driver_2, 5)
             wait_for_element_to_be_displayed(driver_2, "audio-only-message", 2)
 
             audio_only_message = driver_2_wait.until(lambda driver: driver.find_element(By.ID, "audio-only-message"))
@@ -72,7 +73,7 @@ class TestSession(unittest.TestCase):
             driver_1.get(f"{app_base_url}")
             create_account(driver_1, email, password)
             driver_1.find_element(By.ID, "nav-link-baby").click()
-            driver_1_wait = WebDriverWait(driver_1, 1)
+            driver_1_wait = WebDriverWait(driver_1, 5)
             continue_button = driver_1_wait.until(lambda driver: driver.find_element(By.ID, "button-continue-media-stream-permission-check"))
             continue_button.click()
 
@@ -85,17 +86,18 @@ class TestSession(unittest.TestCase):
             self.assertTrue(select_video_device_element.is_displayed())
             select_video_device = Select(select_video_device_element)
             self.assertTrue(len(select_video_device.options) > 0)
-            select_video_device.options[1].click()
+            select_first_video_device_and_wait_for_preview(driver_1)
 
             session_toggle = driver_1_wait.until(lambda driver: driver.find_element(By.ID, "session-toggle"))
             session_toggle.click()
+            wait_for_session_running(driver_1)
 
             driver_2.get(f"{app_base_url}")
             login(driver_2, email, password)
             driver_2.find_element(By.ID, "nav-link-parent").click()
 
-            driver_2_wait = WebDriverWait(driver_2, 1)
-            wait_for_element_to_be_displayed(driver_2, "video-parent-station")
+            driver_2_wait = WebDriverWait(driver_2, 5)
+            wait_for_parent_station_ready(driver_2)
 
             baby_station_dropdown_element = driver_2_wait.until(lambda driver: driver.find_element(By.ID, "baby-station-dropdown"))
             baby_station_dropdown = Select(baby_station_dropdown_element)
@@ -119,27 +121,28 @@ class TestSession(unittest.TestCase):
             driver_1.get(f"{app_base_url}")
             create_account(driver_1, email, password)
             driver_1.find_element(By.ID, "nav-link-baby").click()
-            driver_1_wait = WebDriverWait(driver_1, 1)
+            driver_1_wait = WebDriverWait(driver_1, 5)
             continue_button = driver_1_wait.until(lambda driver: driver.find_element(By.ID, "button-continue-media-stream-permission-check"))
             continue_button.click()
-            select_video_device = driver_1_wait.until(lambda driver: Select(driver.find_element(By.ID, "select-video-device")))
-            select_video_device.options[1].click()
+            select_first_video_device_and_wait_for_preview(driver_1)
             session_toggle = driver_1_wait.until(lambda driver: driver.find_element(By.ID, "session-toggle"))
             session_toggle.click()
+            wait_for_session_running(driver_1)
 
             driver_2.get(f"{app_base_url}")
             login(driver_2, email, password)
             driver_2.find_element(By.ID, "nav-link-parent").click()
 
-            driver_2_wait = WebDriverWait(driver_2, 1)
+            driver_2_wait = WebDriverWait(driver_2, 5)
             video_element = driver_2_wait.until(lambda driver: driver.find_element(By.ID, "video-parent-station"))
-            wait_for_element_to_be_displayed(driver_2, "video-parent-station")
+            wait_for_parent_station_ready(driver_2)
 
             session_toggle.click()
             driver_2_wait.until(lambda driver: driver.find_element(By.ID, "alert-no-baby-stations"))
             self.assertFalse(video_element.is_displayed())
 
             session_toggle.click()
+            wait_for_session_running(driver_1)
             wait_for_element_to_be_displayed(driver_2, "video-parent-station")
 
             driver_1_logs = get_browser_logs(driver_1)
@@ -155,17 +158,17 @@ class TestSession(unittest.TestCase):
             driver_1.get(f"{app_base_url}")
             create_account(driver_1, email, password)
             driver_1.find_element(By.ID, "nav-link-baby").click()
-            driver_1_wait = WebDriverWait(driver_1, 1)
+            driver_1_wait = WebDriverWait(driver_1, 5)
             continue_button = driver_1_wait.until(lambda driver: driver.find_element(By.ID, "button-continue-media-stream-permission-check"))
             continue_button.click()
             session_name = generate_random_string(10)
             session_name_input = driver_1_wait.until(lambda driver: driver.find_element(By.ID, "input-session-name"))
             session_name_input.clear()
             session_name_input.send_keys(session_name)
-            select_video_device = driver_1_wait.until(lambda driver: Select(driver.find_element(By.ID, "select-video-device")))
-            select_video_device.options[1].click()
+            select_first_video_device_and_wait_for_preview(driver_1)
             session_toggle = driver_1_wait.until(lambda driver: driver.find_element(By.ID, "session-toggle"))
             session_toggle.click()
+            wait_for_session_running(driver_1)
 
             driver_2.get(f"{app_base_url}")
             login(driver_2, email, password)
@@ -175,8 +178,8 @@ class TestSession(unittest.TestCase):
             login(driver_3, email, password)
             driver_3.find_element(By.ID, "nav-link-parent").click()
 
-            driver_2_wait = WebDriverWait(driver_2, 1)
-            wait_for_element_to_be_displayed(driver_2, "video-parent-station")
+            driver_2_wait = WebDriverWait(driver_2, 5)
+            wait_for_parent_station_ready(driver_2)
 
             baby_station_dropdown_element = driver_2_wait.until(lambda driver: driver.find_element(By.ID, "baby-station-dropdown"))
             baby_station_dropdown = Select(baby_station_dropdown_element)
@@ -184,8 +187,8 @@ class TestSession(unittest.TestCase):
             self.assertEqual(baby_station_dropdown.options[0].text, session_name)
             self.assertTrue(baby_station_dropdown.options[0].is_selected())
 
-            driver_3_wait = WebDriverWait(driver_3, 1)
-            wait_for_element_to_be_displayed(driver_3, "video-parent-station")
+            driver_3_wait = WebDriverWait(driver_3, 5)
+            wait_for_parent_station_ready(driver_3)
 
             baby_station_dropdown_element = driver_3_wait.until(lambda driver: driver.find_element(By.ID, "baby-station-dropdown"))
             baby_station_dropdown = Select(baby_station_dropdown_element)
@@ -212,22 +215,22 @@ class TestSession(unittest.TestCase):
             driver_1.get(f"{app_base_url}")
             create_account(driver_1, email, password)
             driver_1.find_element(By.ID, "nav-link-baby").click()
-            driver_1_wait = WebDriverWait(driver_1, 1)
+            driver_1_wait = WebDriverWait(driver_1, 5)
             continue_button = driver_1_wait.until(lambda driver: driver.find_element(By.ID, "button-continue-media-stream-permission-check"))
             continue_button.click()
-            select_video_device = driver_1_wait.until(lambda driver: Select(driver.find_element(By.ID, "select-video-device")))
-            select_video_device.options[1].click()
+            select_first_video_device_and_wait_for_preview(driver_1)
             session_toggle = driver_1_wait.until(lambda driver: driver.find_element(By.ID, "session-toggle"))
             session_toggle.click()
+            wait_for_session_running(driver_1)
 
             driver_2.get(f"{app_base_url}")
             login(driver_2, email, password)
             driver_2.find_element(By.ID, "nav-link-parent").click()
 
-            driver_2_wait = WebDriverWait(driver_2, 1)
+            driver_2_wait = WebDriverWait(driver_2, 5)
             video_element = driver_2_wait.until(lambda driver: driver.find_element(By.ID, "video-parent-station"))
 
-            wait_for_element_to_be_displayed(driver_2, "video-parent-station")
+            wait_for_parent_station_ready(driver_2)
 
             stop_backend_container()
             for _ in range(5):

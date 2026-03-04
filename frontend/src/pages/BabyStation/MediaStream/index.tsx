@@ -1,12 +1,12 @@
 import React from "react";
-import Connections from "./Connections";
-import { useSignalService } from "../../services";
-import baby_station from "../../services/instances/baby_station";
-import useServiceState from "../../hooks/useServiceState";
-import { CanvasRenderer } from "./ZoomControls/CanvasRenderer";
+import Connections from "../Connections";
+import { useSignalService } from "../../../services";
+import baby_station from "../../../services/instances/baby_station";
+import useServiceState from "../../../hooks/useServiceState";
 import GestureHandler from "./ZoomControls/GestureHandler";
 import ViewportService from "./ZoomControls/ViewportService";
-import useViewport from "../../hooks/useViewport";
+import useViewport from "./useViewport";
+import useRenderer from "./useRenderer";
 
 interface Props {
     sessionActive: boolean
@@ -23,8 +23,8 @@ const MediaStream: React.FunctionComponent<Props> = ({ sessionActive }) => {
     const signal_service = useSignalService();
     const videoRef = React.useRef<HTMLVideoElement>(null);
     const canvasRef = React.useRef<HTMLCanvasElement>(null);
-    const rendererRef = React.useRef<CanvasRenderer | null>(null);
     const viewport = useViewport(viewport_service);
+    const renderer = useRenderer(videoRef, canvasRef, viewport, media_device_state);
 
     React.useLayoutEffect(() => {
         if (!canvasRef.current) return;
@@ -59,42 +59,11 @@ const MediaStream: React.FunctionComponent<Props> = ({ sessionActive }) => {
         }
     }, [media_device_state.media_stream_state]);
 
-    // Initialize canvas dimensions when video metadata loads
-    React.useEffect(() => {
-        const video = videoRef.current;
-        const canvas = canvasRef.current;
-        if (!video || !canvas) return;
-
-        const handle_loadedmetadata = () => {
-            // Match canvas size to video dimensions
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-
-            // Create and start renderer
-            const renderer = new CanvasRenderer(canvas, video, viewport);
-            rendererRef.current = renderer;
-            renderer.start();
-        };
-
-        if (video.readyState >= HTMLMediaElement.HAVE_METADATA) {
-            handle_loadedmetadata();
-        } else {
-            video.addEventListener("loadedmetadata", handle_loadedmetadata);
-        }
-
-        return () => {
-            video.removeEventListener("loadedmetadata", handle_loadedmetadata);
-            if (rendererRef.current === null) return;
-            rendererRef.current.stop();
-            rendererRef.current = null;
-        };
-    }, [media_device_state.media_stream_state, media_device_state.video_device_id]);
-
     // Update renderer viewport when zoom/pan changes
     React.useEffect(() => {
-        if (rendererRef.current === null) return;
-        rendererRef.current.setViewport(viewport);
-    }, [viewport]);
+        if (renderer === null) return;
+        renderer.setViewport(viewport);
+    }, [renderer, viewport]);
 
     // Set up WebRTC connections using canvas stream
     React.useEffect(() => {
@@ -107,8 +76,8 @@ const MediaStream: React.FunctionComponent<Props> = ({ sessionActive }) => {
         });
 
         const video_tracks: MediaStreamTrack[] = [];
-        if (rendererRef.current !== null) {
-            const canvas_stream = rendererRef.current.getCaptureStream();
+        if (renderer !== null) {
+            const canvas_stream = renderer.getCaptureStream();
             canvas_stream.getVideoTracks().forEach((track) => video_tracks.push(track));
         }
 
@@ -119,7 +88,7 @@ const MediaStream: React.FunctionComponent<Props> = ({ sessionActive }) => {
             video_tracks,
         });
         return connections.close;
-    }, [signal_service, sessionActive, media_device_state.media_stream_state]);
+    }, [signal_service, sessionActive, media_device_state.media_stream_state, renderer]);
     if (media_device_state.media_stream_state.state === 'loading') return (<div>Getting stream...</div>)
     if (media_device_state.media_stream_state.state === 'rejected') return (
         <div className="mt-3">

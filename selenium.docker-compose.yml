@@ -58,6 +58,7 @@ services:
       - SE_EVENT_BUS_SUBSCRIBE_PORT=4443
   chrome_video_1:
     image: selenium/video:ffmpeg-4.3.1-20230801
+    profiles: ["recordings"]
     depends_on:
       - selenium_chrome_node_1
     environment:
@@ -67,6 +68,7 @@ services:
       - ./integration_tests/recordings:/videos
   chrome_video_2:
     image: selenium/video:ffmpeg-4.3.1-20230801
+    profiles: ["recordings"]
     depends_on:
       - selenium_chrome_node_2
     environment:
@@ -76,6 +78,7 @@ services:
       - ./integration_tests/recordings:/videos
   chrome_video_3:
     image: selenium/video:ffmpeg-4.3.1-20230801
+    profiles: ["recordings"]
     depends_on:
       - selenium_chrome_node_3
     environment:
@@ -85,6 +88,7 @@ services:
       - ./integration_tests/recordings:/videos
   chrome_video_4:
     image: selenium/video:ffmpeg-4.3.1-20230801
+    profiles: ["recordings"]
     depends_on:
       - selenium_chrome_node_4
     environment:
