@@ -145,7 +145,7 @@ const Video: React.ForwardRefRenderFunction<HTMLVideoElement> = (props, ref) => 
                                 <FontAwesomeIcon icon={faStop} />
                             </button>
                         )}
-                        {recording_state.name === "not_recording" && (
+                        {recording_state.name === "ready" && (
                             <button
                                 type="button"
                                 onClick={parent_station.recording_service.start}

@@ -218,12 +218,7 @@ class TestTwoBabyStations(unittest.TestCase):
 
             driver_3_wait = WebDriverWait(driver_3, 5)
             baby_station_dropdown_element = driver_3_wait.until(lambda driver: driver.find_element(By.ID, "baby-station-dropdown"))
-            try:
-                wait_for_select_option_count(driver_3, "baby-station-dropdown", 2)
-            except TimeoutException:
-                driver_3.find_element(By.ID, "nav-link-parent").click()
-                wait_for_select_option_count(driver_3, "baby-station-dropdown", 2)
-                baby_station_dropdown_element = driver_3_wait.until(lambda driver: driver.find_element(By.ID, "baby-station-dropdown"))
+            wait_for_select_option_count(driver_3, "baby-station-dropdown", 2)
             baby_station_dropdown = Select(baby_station_dropdown_element)
             self.assertEqual(len(baby_station_dropdown.options), 2)
 
@@ -318,12 +313,7 @@ class TestTwoBabyStations(unittest.TestCase):
 
             driver_3_wait = WebDriverWait(driver_3, 5)
             baby_station_dropdown_element = driver_3_wait.until(lambda driver: driver.find_element(By.ID, "baby-station-dropdown"))
-            try:
-                wait_for_select_option_count(driver_3, "baby-station-dropdown", 2)
-            except TimeoutException:
-                driver_3.find_element(By.ID, "nav-link-parent").click()
-                wait_for_select_option_count(driver_3, "baby-station-dropdown", 2)
-                baby_station_dropdown_element = driver_3_wait.until(lambda driver: driver.find_element(By.ID, "baby-station-dropdown"))
+            wait_for_select_option_count(driver_3, "baby-station-dropdown", 2)
             baby_station_dropdown = Select(baby_station_dropdown_element)
             self.assertEqual(len(baby_station_dropdown.options), 2)
             
