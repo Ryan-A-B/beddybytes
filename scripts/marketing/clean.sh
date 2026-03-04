@@ -4,4 +4,4 @@ set -ex
 pushd marketing
 sudo rm -rf public .cache
 popd
-docker compose -f docker-compose.local.yml restart marketing
+docker compose -f docker-compose.yml restart marketing

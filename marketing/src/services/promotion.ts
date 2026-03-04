@@ -101,14 +101,11 @@ const get_promotion = (): Promotion => {
         if (promotion_frame === undefined) return total;
         return total + promotion_frame.weight;
     }, 0);
-    console.log("total", total_weight);
     let random_weight = Math.random() * total_weight;
-    console.log("random", random_weight);
     let { promotion } = available_promotion_frames.last();
     available_promotion_frames.forEach((promotion_frame) => {
         if (promotion_frame === undefined) return;
         random_weight -= promotion_frame.weight;
-        console.log(random_weight);
         if (random_weight < 0) {
             promotion = promotion_frame.promotion;
             return false;

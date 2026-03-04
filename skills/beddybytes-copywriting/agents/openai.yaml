@@ -1,0 +1,4 @@
+interface:
+  display_name: "BeddyBytes Copywriting"
+  short_description: "BeddyBytes-specific SEO copywriting"
+  default_prompt: "Use $beddybytes-copywriting with $seo-strategy-copywriting to create BeddyBytes SEO strategy and draft compliant page copy."
