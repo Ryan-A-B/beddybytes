@@ -32,6 +32,11 @@ Privacy-first baby monitor that works entirely in the browser.
 - `integration_tests/` - End-to-end test scenarios.
 - `cloudformation/`, `traefik/`, `grafana/`, `influxdb/` - Infrastructure and observability.
 
+**License (Open Source)**
+- BeddyBytes is open-source software under the GNU General Public License, version 2 or (at your option) any later version (`GPL-2.0-or-later`).
+- You may run, study, modify, and redistribute BeddyBytes under those terms.
+- See `LICENSE.md` for the full license text.
+
 **LLM Context**
 - Product goal: private, browser-based baby monitoring with minimal infrastructure.
 - Network model: WebRTC peer connections; signaling via WebSockets; parents initiate.
