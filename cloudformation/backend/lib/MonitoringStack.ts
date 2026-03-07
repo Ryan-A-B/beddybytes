@@ -1,13 +1,15 @@
 import * as cdk from 'aws-cdk-lib';
 import { Construct } from 'constructs';
-import { domain_name, env_hosted_zone_or_throw, HostNames } from './config';
+import { domain_name, env_hosted_zone_or_throw } from './config';
 
 const influxdb_hostname = `influxdb.${domain_name}`;
 const grafana_hostname = `grafana.${domain_name}`;
+const analytics_hostname = `analytics.${domain_name}`;
 
 interface StackProps extends cdk.StackProps {
     elastic_ip: cdk.aws_ec2.CfnEIP;
     cluster: cdk.aws_ecs.ICluster;
+    tinyanalytics_docker_repository: cdk.aws_ecr.IRepository;
 }
 
 export class MonitoringStack extends cdk.Stack {
@@ -41,6 +43,12 @@ export class MonitoringStack extends cdk.Stack {
                     name: 'influxdb',
                     host: {
                         sourcePath: '/opt/influxdb',
+                    },
+                },
+                {
+                    name: 'tinyanalytics',
+                    host: {
+                        sourcePath: '/opt/tinyanalytics',
                     },
                 },
             ],
@@ -100,6 +108,33 @@ export class MonitoringStack extends cdk.Stack {
         });
         this.grafana_container.addLink(this.influxdb_container, 'influxdb');
 
+        const tinyanalytics_container = task_definition.addContainer(`tinyanalytics`, {
+            containerName: 'tinyanalytics',
+            image: cdk.aws_ecs.ContainerImage.fromEcrRepository(props.tinyanalytics_docker_repository, 'latest'),
+            essential: false,
+            enableRestartPolicy: true,
+            memoryLimitMiB: 32,
+            portMappings: [{ containerPort: 9000 }],
+            healthCheck: {
+                command: [
+                    "CMD-SHELL",
+                    "curl --fail http://localhost:9000/v0/summary?bucket=1h&index=0",
+                ],
+            },
+            dockerLabels: {
+                'traefik.enable': 'true',
+                'traefik.http.routers.analytics.rule': `Host(\`${analytics_hostname}\`)`,
+                'traefik.http.routers.analytics.entrypoints': 'websecure',
+                'traefik.http.routers.analytics.tls': 'true',
+                'traefik.http.routers.analytics.tls.certresolver': 'letsencrypt',
+            },
+        });
+        tinyanalytics_container.addMountPoints({
+            sourceVolume: 'tinyanalytics',
+            containerPath: '/app/data',
+            readOnly: false,
+        });
+
         const service = new cdk.aws_ecs.Ec2Service(this, `service`, {
             cluster: props.cluster,
             taskDefinition: task_definition,
@@ -118,6 +153,13 @@ export class MonitoringStack extends cdk.Stack {
         const grafana_dns_record = new cdk.aws_route53.ARecord(this, `grafana-dns`, {
             zone: hosted_zone,
             recordName: grafana_hostname,
+            ttl: cdk.Duration.minutes(15),
+            target: cdk.aws_route53.RecordTarget.fromIpAddresses(props.elastic_ip.ref as string),
+        });
+
+        const analytics_dns_record = new cdk.aws_route53.ARecord(this, `analytics-dns`, {
+            zone: hosted_zone,
+            recordName: analytics_hostname,
             ttl: cdk.Duration.minutes(15),
             target: cdk.aws_route53.RecordTarget.fromIpAddresses(props.elastic_ip.ref as string),
         });

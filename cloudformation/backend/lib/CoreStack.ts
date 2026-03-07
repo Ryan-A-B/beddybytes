@@ -203,6 +203,8 @@ const create_user_data = (input: CreateUserDataInput): cdk.aws_ec2.UserData => {
         `cp -R /ebs/persistent/grafana/ /opt/grafana`,
         `chown -R 472:472 /opt/grafana`,
         `cp -R /ebs/persistent/influxdb /opt/influxdb`,
+        `mkdir -p /opt/tinyanalytics`,
+        `chown -R 10001:10001 /opt/tinyanalytics`,
         `echo ECS_CLUSTER=${input.backend_cluster_name} >> /etc/ecs/ecs.config`,
         `aws ec2 associate-address --public-ip ${input.public_ip} --instance-id $INSTANCE_ID`
     );

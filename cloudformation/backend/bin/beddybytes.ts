@@ -16,17 +16,18 @@ const core_stack = new CoreStack(app, 'beddybytes-core');
 
 const secrets_stack = new SecretsStack(app, 'beddybytes-secrets');
 
+const ci_stack = new ContinuousIntegrationStack(app, 'beddybytes-ci');
+
 const monitoring_stack = new MonitoringStack(app, 'beddybytes-monitoring', {
   cluster: core_stack.cluster,
   elastic_ip: core_stack.elastic_ip,
+  tinyanalytics_docker_repository: ci_stack.tinyanalytics_docker_repository,
 });
 
 const load_balancer_stack = new LoadBalancerStack(app, 'beddybytes-load-balancer', {
   cluster: core_stack.cluster,
   influxdb_container: monitoring_stack.influxdb_container,
 });
-
-const ci_stack = new ContinuousIntegrationStack(app, 'beddybytes-ci');
 
 new BackendStack(app, 'beddybytes-backend-prod', {
   deploy_env: 'prod',

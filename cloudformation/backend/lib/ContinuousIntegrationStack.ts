@@ -3,6 +3,7 @@ import { Construct } from 'constructs';
 
 export class ContinuousIntegrationStack extends cdk.Stack {
     public readonly docker_repository: cdk.aws_ecr.IRepository;
+    public readonly tinyanalytics_docker_repository: cdk.aws_ecr.IRepository;
 
     constructor(scope: Construct, id_prefix: string, props?: cdk.StackProps) {
         super(scope, id_prefix, props);
@@ -15,10 +16,50 @@ export class ContinuousIntegrationStack extends cdk.Stack {
         });
         this.docker_repository = docker_repository;
 
-        const build_project = new cdk.aws_codebuild.Project(this, `build-project`, {
+        const tinyanalytics_docker_repository = new cdk.aws_ecr.Repository(this, `${id_prefix}-tinyanalytics-repository`, {
+            repositoryName: 'tinyanalytics',
+        });
+        this.tinyanalytics_docker_repository = tinyanalytics_docker_repository;
+
+        const backend_build_project = this.create_build_project({
+            id: 'backend-build-project',
+            owner: 'Ryan-A-B',
+            repo: 'beddybytes',
+            docker_repository,
+            docker_hub_credential,
+            build_commands: [
+                'echo Building the Docker image...',
+                'docker build --file scripts/backend/Dockerfile -t $DOCKER_REPOSITORY_URI:$DOCKER_IMAGE_TAG .',
+            ],
+        });
+        docker_repository.grantPullPush(backend_build_project);
+
+        const tinyanalytics_build_project = this.create_build_project({
+            id: 'tinyanalytics-build-project',
+            owner: 'Ryan-A-B',
+            repo: 'tinyanalytics',
+            docker_repository: tinyanalytics_docker_repository,
+            docker_hub_credential,
+            build_commands: [
+                'echo Building the Tiny Analytics Docker image...',
+                './build.sh "$DOCKER_REPOSITORY_URI:$DOCKER_IMAGE_TAG"',
+            ],
+        });
+        tinyanalytics_docker_repository.grantPullPush(tinyanalytics_build_project);
+    }
+
+    private create_build_project(input: {
+        id: string;
+        owner: string;
+        repo: string;
+        docker_repository: cdk.aws_ecr.IRepository;
+        docker_hub_credential: cdk.aws_secretsmanager.ISecret;
+        build_commands: string[];
+    }): cdk.aws_codebuild.Project {
+        return new cdk.aws_codebuild.Project(this, input.id, {
             source: cdk.aws_codebuild.Source.gitHub({
-                owner: 'Ryan-A-B',
-                repo: 'beddybytes',
+                owner: input.owner,
+                repo: input.repo,
             }),
             environment: {
                 buildImage: cdk.aws_codebuild.LinuxArmBuildImage.AMAZON_LINUX_2023_STANDARD_3_0,
@@ -26,18 +67,18 @@ export class ContinuousIntegrationStack extends cdk.Stack {
                 computeType: cdk.aws_codebuild.ComputeType.SMALL,
                 environmentVariables: {
                     DOCKER_REPOSITORY_URI: {
-                        value: docker_repository.repositoryUri,
+                        value: input.docker_repository.repositoryUri,
                     },
                     DOCKER_IMAGE_TAG: {
                         value: 'latest',
                     },
                     DOCKER_HUB_USERNAME: {
                         type: cdk.aws_codebuild.BuildEnvironmentVariableType.SECRETS_MANAGER,
-                        value: `${docker_hub_credential.secretArn}:username`,
+                        value: `${input.docker_hub_credential.secretArn}:username`,
                     },
                     DOCKER_HUB_ACCESS_TOKEN: {
                         type: cdk.aws_codebuild.BuildEnvironmentVariableType.SECRETS_MANAGER,
-                        value: `${docker_hub_credential.secretArn}:access_token`,
+                        value: `${input.docker_hub_credential.secretArn}:access_token`,
                     },
                 },
             },
@@ -54,10 +95,7 @@ export class ContinuousIntegrationStack extends cdk.Stack {
                         ],
                     },
                     build: {
-                        commands: [
-                            'echo Building the Docker image...',
-                            'docker build --file scripts/backend/Dockerfile -t $DOCKER_REPOSITORY_URI:$DOCKER_IMAGE_TAG .',
-                        ],
+                        commands: input.build_commands,
                     },
                     post_build: {
                         commands: [
@@ -73,6 +111,5 @@ export class ContinuousIntegrationStack extends cdk.Stack {
                 },
             },
         });
-        docker_repository.grantPullPush(build_project);
     }
 }
