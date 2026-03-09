@@ -156,9 +156,8 @@ func (babyStationList *BabyStationList) applyConnected(event *eventlog.Event) {
 	fatal.OnError(err)
 	snapshot := babyStationList.getOrCreateSnapshot(event.AccountID)
 	connection := Connection{
-		ClientID:  data.ClientID,
-		ID:        data.ConnectionID,
-		RequestID: data.RequestID,
+		ClientID: data.ClientID,
+		ID:       data.ConnectionID,
 	}
 	snapshot.ConnectionByID[data.ConnectionID] = &connection
 }

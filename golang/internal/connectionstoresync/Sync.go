@@ -6,21 +6,19 @@ import (
 	"log"
 	"regexp"
 
-	"github.com/Ryan-A-B/beddybytes/golang/internal/connections"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/connectionstore"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/fatal"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/logx"
-	"github.com/Ryan-A-B/beddybytes/golang/internal/messages"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/mqttx"
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 )
 
 var connectionStore *connectionstore.Decider
-var handlers = map[messages.MessageType]func(ctx context.Context, input handlerInput){
-	connections.MessageTypeConnected:    handleConnectedMessage,
-	connections.MessageTypeDisconnected: handleDisconnectedMessage,
+var handlers = map[string]func(ctx context.Context, input handlerInput){
+	"connected":    handleConnectedMessage,
+	"disconnected": handleDisconnectedMessage,
 }
-var topicRegex = regexp.MustCompile(`^accounts/([^/]+)/connections/([^/]+)/status$`)
+var topicRegex = regexp.MustCompile(`^accounts/([^/]+)/clients/([^/]+)/status$`)
 
 type RunInput struct {
 	MQTTClient      mqtt.Client
@@ -32,63 +30,79 @@ func Run(ctx context.Context, input RunInput) {
 		panic("already running")
 	}
 	connectionStore = input.ConnectionStore
-	err := mqttx.Wait(input.MQTTClient.Subscribe("accounts/+/connections/+/status", 1, handleMessage))
+	err := mqttx.Wait(input.MQTTClient.Subscribe("accounts/+/clients/+/status", 1, handleMessage))
 	fatal.OnError(err)
 	<-ctx.Done()
 }
 
 func handleMessage(client mqtt.Client, message mqtt.Message) {
 	ctx := context.Background()
-	var frame connections.MessageFrame
-	err := json.Unmarshal(message.Payload(), &frame)
+	var status statusMessage
+	err := json.Unmarshal(message.Payload(), &status)
 	if err != nil {
 		logx.Warnln(err)
 		return
 	}
 	var accountID string
-	var connectionID string
+	var clientID string
 	matches := topicRegex.FindStringSubmatch(message.Topic())
 	fatal.Unless(len(matches) == 3, "failed to parse topic: "+message.Topic())
-	accountID, connectionID = matches[1], matches[2]
-	handle, ok := handlers[frame.Type]
+	accountID, clientID = matches[1], matches[2]
+	handle, ok := handlers[status.Type]
 	if !ok {
-		logx.Warnln("unhandled message type:", frame.Type)
+		logx.Warnln("unhandled message type:", status.Type)
 		return
 	}
 	handle(ctx, handlerInput{
-		AccountID:    accountID,
-		ConnectionID: connectionID,
-		Frame:        frame,
+		AccountID: accountID,
+		ClientID:  clientID,
+		Status:    status,
 	})
 	message.Ack()
 }
 
 func handleConnectedMessage(ctx context.Context, input handlerInput) {
 	err := connectionStore.Put(ctx, connectionstore.Connection{
-		ID:        input.ConnectionID,
+		ID:        input.Status.ConnectionID,
 		AccountID: input.AccountID,
-		ClientID:  input.Frame.Connected.ClientID,
-		RequestID: input.Frame.Connected.RequestID,
+		ClientID:  input.ClientID,
+		AtMillis:  input.Status.AtMillis,
 	})
 	if err != nil {
+		if err == connectionstore.ErrDuplicate {
+			return
+		}
 		log.Fatal(err)
 	}
 }
 
 func handleDisconnectedMessage(ctx context.Context, input handlerInput) {
 	err := connectionStore.Delete(ctx, connectionstore.Connection{
-		ID:        input.ConnectionID,
-		AccountID: input.AccountID,
-		ClientID:  input.Frame.Disconnected.ClientID,
-		RequestID: input.Frame.Disconnected.RequestID,
+		ID:               input.Status.ConnectionID,
+		AccountID:        input.AccountID,
+		ClientID:         input.ClientID,
+		AtMillis:         input.Status.AtMillis,
+		DisconnectReason: input.Status.Disconnected.Reason,
 	})
 	if err != nil {
+		if err == connectionstore.ErrDuplicate {
+			return
+		}
 		log.Fatal(err)
 	}
 }
 
 type handlerInput struct {
-	AccountID    string
-	ConnectionID string
-	Frame        connections.MessageFrame
+	AccountID string
+	ClientID  string
+	Status    statusMessage
+}
+
+type statusMessage struct {
+	Type         string `json:"type"`
+	ConnectionID string `json:"connection_id"`
+	AtMillis     int64  `json:"at_millis"`
+	Disconnected struct {
+		Reason string `json:"reason"`
+	} `json:"disconnected"`
 }

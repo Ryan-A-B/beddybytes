@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"time"
@@ -14,6 +15,7 @@ import (
 	"github.com/Ryan-A-B/beddybytes/golang/internal/eventlog"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/fatal"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/httpx"
+	"github.com/Ryan-A-B/beddybytes/golang/internal/mqttx"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/sessions"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/sessionstore"
 )
@@ -49,6 +51,29 @@ type Session struct {
 	StartedAt        time.Time `json:"started_at"`
 }
 
+type CreateSessionInput struct {
+	ClientID        string `json:"client_id"`
+	ConnectionID    string `json:"connection_id"`
+	Name            string `json:"name"`
+	StartedAtMillis int64  `json:"started_at_millis"`
+}
+
+func (input *CreateSessionInput) validate() error {
+	if input.ClientID == "" {
+		return merry.New("client id is empty").WithHTTPCode(http.StatusBadRequest)
+	}
+	if input.ConnectionID == "" {
+		return merry.New("connection id is empty").WithHTTPCode(http.StatusBadRequest)
+	}
+	if input.Name == "" {
+		return merry.New("session name is empty").WithHTTPCode(http.StatusBadRequest)
+	}
+	if input.StartedAtMillis <= 0 {
+		return merry.New("started_at_millis must be positive").WithHTTPCode(http.StatusBadRequest)
+	}
+	return nil
+}
+
 func (handlers *Handlers) StartSession(responseWriter http.ResponseWriter, request *http.Request) {
 	var err error
 	defer func() {
@@ -58,31 +83,24 @@ func (handlers *Handlers) StartSession(responseWriter http.ResponseWriter, reque
 		}
 	}()
 	ctx := request.Context()
-	vars := mux.Vars(request)
-	sessionID := vars["session_id"]
-	var session StartSessionEventData
-	err = json.NewDecoder(request.Body).Decode(&session)
-	if err != nil {
+	accountID := contextx.GetAccountID(ctx)
+	_ = mux.Vars(request)["session_id"]
+	var input CreateSessionInput
+	if err = json.NewDecoder(request.Body).Decode(&input); err != nil {
 		err = merry.WithHTTPCode(err, http.StatusBadRequest)
 		return
 	}
-	err = session.validate()
+	if err = input.validate(); err != nil {
+		return
+	}
+	topic := fmt.Sprintf("accounts/%s/baby_stations", accountID)
+	payload, err := json.Marshal(input)
 	if err != nil {
 		return
 	}
-	if session.ID != sessionID {
-		err = merry.Errorf("session id in path does not match session id in body").WithHTTPCode(http.StatusBadRequest)
+	if err = mqttx.Wait(handlers.MQTTClient.Publish(topic, 1, false, payload)); err != nil {
 		return
 	}
-	_, err = handlers.EventLog.Append(ctx, eventlog.AppendInput{
-		Type:      EventTypeSessionStarted,
-		AccountID: contextx.GetAccountID(ctx),
-		Data:      fatal.UnlessMarshalJSON(session),
-	})
-	if err != nil {
-		return
-	}
-	// TODO set header with logical clock of the start event
 }
 
 type EndSessionEventData struct {
@@ -90,26 +108,7 @@ type EndSessionEventData struct {
 }
 
 func (handlers *Handlers) EndSession(responseWriter http.ResponseWriter, request *http.Request) {
-	var err error
-	defer func() {
-		if err != nil {
-			log.Println(err)
-			httpx.Error(responseWriter, err)
-		}
-	}()
-	ctx := request.Context()
-	vars := mux.Vars(request)
-	sessionID := vars["session_id"]
-	// TODO check we know about the session?
-	// expect a header with the logical clock of the start event
-	_, err = handlers.EventLog.Append(ctx, eventlog.AppendInput{
-		Type:      EventTypeSessionEnded,
-		AccountID: contextx.GetAccountID(ctx),
-		Data:      fatal.UnlessMarshalJSON(&EndSessionEventData{ID: sessionID}),
-	})
-	if err != nil {
-		return
-	}
+	// Session delete is intentionally a no-op. Session lifecycle now ends on disconnect.
 }
 
 type SessionProjection struct {

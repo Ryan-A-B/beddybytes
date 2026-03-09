@@ -38,7 +38,6 @@ func (state HostConnectionStateBase) GetSince() int64 {
 
 type HostConnectionStateConnected struct {
 	HostConnectionStateBase
-	RequestID string `json:"request_id"`
 }
 
 type HostConnectionStateDisconnected struct {

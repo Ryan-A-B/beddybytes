@@ -7,23 +7,20 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"sync"
 	"time"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
-	uuid "github.com/satori/go.uuid"
 
-	"github.com/Ryan-A-B/beddybytes/golang/internal/connections"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/contextx"
-	"github.com/Ryan-A-B/beddybytes/golang/internal/fatal"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/logx"
-	"github.com/Ryan-A-B/beddybytes/golang/internal/messages"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/mqttx"
 )
 
-const inboxTopicFormat = "accounts/%s/connections/%s/inbox"
-const statusTopicFormat = "accounts/%s/connections/%s/status"
+const webrtcInboxTopicFormat = "accounts/%s/clients/%s/webrtc_inbox"
+const statusTopicFormat = "accounts/%s/clients/%s/status"
 
 const EventTypeClientConnected = "client.connected"
 const EventTypeClientDisconnected = "client.disconnected"
@@ -31,14 +28,16 @@ const EventTypeClientDisconnected = "client.disconnected"
 type ClientConnectedEventData struct {
 	ClientID     string `json:"client_id"`
 	ConnectionID string `json:"connection_id"`
-	RequestID    string `json:"request_id"`
+	AtMillis     int64  `json:"at_millis"`
 }
 
 type ClientDisconnectedEventData struct {
-	ClientID           string `json:"client_id"`
-	ConnectionID       string `json:"connection_id"`
-	RequestID          string `json:"request_id"`
-	WebSocketCloseCode int    `json:"web_socket_close_code"`
+	ClientID     string `json:"client_id"`
+	ConnectionID string `json:"connection_id"`
+	AtMillis     int64  `json:"at_millis"`
+	Disconnected struct {
+		Reason string `json:"reason"`
+	} `json:"disconnected"`
 }
 
 type MessageType string
@@ -72,6 +71,7 @@ func (message *IncomingMessage) Validate() (err error) {
 
 type IncomingSignal struct {
 	ToConnectionID string          `json:"to_connection_id"`
+	ToClientID     string          `json:"to_client_id,omitempty"`
 	Data           json.RawMessage `json:"data"`
 }
 
@@ -89,13 +89,8 @@ func (signal *IncomingSignal) Validate() (err error) {
 
 type OutgoingMessage struct {
 	Type   MessageType     `json:"type"`
-	Signal *OutgoingSignal `json:"signal,omitempty"`
+	Signal json.RawMessage `json:"signal,omitempty"`
 	Event  *Event          `json:"event,omitempty"`
-}
-
-type OutgoingSignal struct {
-	FromConnectionID string          `json:"from_connection_id"`
-	Data             json.RawMessage `json:"data"`
 }
 
 type ConnectionStoreKey struct {
@@ -109,73 +104,48 @@ func (handlers *Handlers) HandleConnection(responseWriter http.ResponseWriter, r
 	vars := mux.Vars(request)
 	clientID := vars["client_id"]
 	connectionID := vars["connection_id"]
-	requestID := uuid.NewV4().String()
 	conn, err := handlers.Upgrader.Upgrade(responseWriter, request, nil)
 	if err != nil {
 		logx.Errorln(err)
 		return
 	}
 	defer conn.Close()
-	inboxTopic := fmt.Sprintf(inboxTopicFormat, accountID, connectionID)
-	token := handlers.MQTTClient.Subscribe(inboxTopic, 1, func(client mqtt.Client, message mqtt.Message) {
-		signal := new(OutgoingSignal)
-		err := json.Unmarshal(message.Payload(), signal)
-		fatal.OnError(err)
-
-		err = conn.WriteJSON(OutgoingMessage{
-			Type:   MessageTypeSignal,
-			Signal: signal,
-		})
-		if err != nil {
-			logx.Errorln(err)
-			return
-		}
-		message.Ack()
-	})
-	err = mqttx.Wait(token)
-	if err != nil {
-		logx.Errorln(err)
-		return
-	}
-	// Wait for the subscription to propagate
-	readyC := time.After(500 * time.Millisecond)
 	err = handlers.sendConnectedMessage(ctx, sendConnectedMessageInput{
 		accountID:    accountID,
 		clientID:     clientID,
 		connectionID: connectionID,
-		requestID:    requestID,
 	})
 	if err != nil {
 		logx.Errorln(err)
 		return
 	}
+	connection := handlers.ConnectionFactory.CreateConnection(ctx, &CreateConnectionInput{
+		AccountID:    accountID,
+		ClientID:     clientID,
+		ConnectionID: connectionID,
+		conn:         conn,
+		client:       handlers.MQTTClient,
+	})
+	handlers.ConnectionHub.Put(connection)
+	defer handlers.ConnectionHub.Delete(connection.ID)
+	disconnectReason := "clean"
 	defer func() {
 		err = handlers.sendDisconnectedMessage(ctx, sendDisconnectedMessageInput{
 			accountID:    accountID,
 			clientID:     clientID,
 			connectionID: connectionID,
-			requestID:    requestID,
+			reason:       disconnectReason,
 		})
 		if err != nil {
 			logx.Errorln(err)
 		}
-		err = mqttx.Wait(handlers.MQTTClient.Unsubscribe(inboxTopic))
-		if err != nil {
-			logx.Errorln(err)
-		}
 	}()
-	connection := handlers.ConnectionFactory.CreateConnection(ctx, &CreateConnectionInput{
-		AccountID:    accountID,
-		ConnectionID: connectionID,
-		conn:         conn,
-		client:       handlers.MQTTClient,
-	})
+
 	errC := make(chan error, 1)
 	go func() {
 		errC <- connection.runKeepAlive(ctx)
 	}()
 	go func() {
-		<-readyC
 		errC <- connection.handleMessages(ctx)
 	}()
 	select {
@@ -188,6 +158,7 @@ func (handlers *Handlers) HandleConnection(responseWriter http.ResponseWriter, r
 					return
 				}
 			}
+			disconnectReason = "unexpected"
 			logx.Errorln(err)
 			return
 		}
@@ -198,20 +169,18 @@ type sendConnectedMessageInput struct {
 	accountID    string
 	clientID     string
 	connectionID string
-	requestID    string
 }
 
 func (handlers *Handlers) sendConnectedMessage(ctx context.Context, input sendConnectedMessageInput) (err error) {
-	topic := fmt.Sprintf(statusTopicFormat, input.accountID, input.connectionID)
-	payload := fatal.UnlessMarshalJSON(connections.MessageFrame{
-		MessageFrameBase: messages.MessageFrameBase{
-			Type: connections.MessageTypeConnected,
-		},
-		Connected: &connections.MessageConnected{
-			ClientID:  input.clientID,
-			RequestID: input.requestID,
-		},
+	topic := fmt.Sprintf(statusTopicFormat, input.accountID, input.clientID)
+	payload, err := json.Marshal(map[string]any{
+		"type":          "connected",
+		"connection_id": input.connectionID,
+		"at_millis":     time.Now().UnixMilli(),
 	})
+	if err != nil {
+		return
+	}
 	return mqttx.Wait(handlers.MQTTClient.Publish(topic, 1, false, payload))
 }
 
@@ -219,20 +188,25 @@ type sendDisconnectedMessageInput struct {
 	accountID    string
 	clientID     string
 	connectionID string
-	requestID    string
+	reason       string
 }
 
 func (handlers *Handlers) sendDisconnectedMessage(ctx context.Context, input sendDisconnectedMessageInput) (err error) {
-	topic := fmt.Sprintf(statusTopicFormat, input.accountID, input.connectionID)
-	payload := fatal.UnlessMarshalJSON(connections.MessageFrame{
-		MessageFrameBase: messages.MessageFrameBase{
-			Type: connections.MessageTypeDisconnected,
+	if input.reason == "" {
+		input.reason = "clean"
+	}
+	topic := fmt.Sprintf(statusTopicFormat, input.accountID, input.clientID)
+	payload, err := json.Marshal(map[string]any{
+		"type":          "disconnected",
+		"connection_id": input.connectionID,
+		"disconnected": map[string]any{
+			"reason": input.reason,
 		},
-		Disconnected: &connections.MessageDisconnected{
-			ClientID:  input.clientID,
-			RequestID: input.requestID,
-		},
+		"at_millis": time.Now().UnixMilli(),
 	})
+	if err != nil {
+		return
+	}
 	return mqttx.Wait(handlers.MQTTClient.Publish(topic, 1, false, payload))
 }
 
@@ -240,6 +214,7 @@ type ConnectionFactory struct{}
 
 type CreateConnectionInput struct {
 	AccountID    string
+	ClientID     string
 	ConnectionID string
 	conn         *websocket.Conn
 	client       mqtt.Client
@@ -247,15 +222,18 @@ type CreateConnectionInput struct {
 
 type Connection struct {
 	AccountID string
+	ClientID  string
 	ID        string
 	conn      *websocket.Conn
 	client    mqtt.Client
 	pongC     chan struct{}
+	writeMu   sync.Mutex
 }
 
 func (factory *ConnectionFactory) CreateConnection(ctx context.Context, input *CreateConnectionInput) (connection *Connection) {
 	connection = &Connection{
 		AccountID: input.AccountID,
+		ClientID:  input.ClientID,
 		ID:        input.ConnectionID,
 		conn:      input.conn,
 		client:    input.client,
@@ -291,7 +269,7 @@ func (connection *Connection) handleNextMessage(ctx context.Context) (err error)
 	}
 	switch incomingMessage.Type {
 	case MessageTypePing:
-		return connection.conn.WriteJSON(OutgoingMessage{
+		return connection.WriteJSON(OutgoingMessage{
 			Type: MessageTypePong,
 		})
 	case MessageTypeSignal:
@@ -302,13 +280,20 @@ func (connection *Connection) handleNextMessage(ctx context.Context) (err error)
 }
 
 func (connection *Connection) handleSignal(ctx context.Context, incomingSignal *IncomingSignal) (err error) {
-	inboxTopic := fmt.Sprintf(inboxTopicFormat, connection.AccountID, incomingSignal.ToConnectionID)
-	data, err := json.Marshal(OutgoingSignal{
-		FromConnectionID: connection.ID,
-		Data:             incomingSignal.Data,
+	topicClientID := incomingSignal.ToClientID
+	if topicClientID == "" {
+		topicClientID = connection.ClientID
+	}
+	inboxTopic := fmt.Sprintf(webrtcInboxTopicFormat, connection.AccountID, topicClientID)
+	data, err := json.Marshal(map[string]any{
+		"from_client_id": connection.ClientID,
+		"connection_id":  incomingSignal.ToConnectionID,
+		"data":           json.RawMessage(incomingSignal.Data),
 	})
-	fatal.OnError(err)
-	return mqttx.Wait(connection.client.Publish(inboxTopic, 1, false, []byte(data)))
+	if err != nil {
+		return
+	}
+	return mqttx.Wait(connection.client.Publish(inboxTopic, 1, false, data))
 }
 
 func (connection *Connection) handlePong(appData string) (err error) {
@@ -368,4 +353,10 @@ func (connection *Connection) waitForPong(ctx context.Context) (err error) {
 	case <-connection.pongC:
 		return
 	}
+}
+
+func (connection *Connection) WriteJSON(value any) error {
+	connection.writeMu.Lock()
+	defer connection.writeMu.Unlock()
+	return connection.conn.WriteJSON(value)
 }

@@ -67,7 +67,6 @@ func TestBabyStationList(t *testing.T) {
 					Data: fatal.UnlessMarshalJSON(connections.EventConnected{
 						ClientID:     clientID,
 						ConnectionID: connectionID,
-						RequestID:    uuid.NewV4().String(),
 					}),
 				})
 				So(err, ShouldBeNil)
@@ -106,7 +105,6 @@ func TestBabyStationList(t *testing.T) {
 							Data: fatal.UnlessMarshalJSON(connections.EventConnected{
 								ClientID:     clientID,
 								ConnectionID: connectionID,
-								RequestID:    uuid.NewV4().String(),
 							}),
 						})
 						So(err, ShouldBeNil)
@@ -144,7 +142,6 @@ func TestBabyStationList(t *testing.T) {
 							Data: fatal.UnlessMarshalJSON(connections.EventConnected{
 								ClientID:     clientID,
 								ConnectionID: connectionID,
-								RequestID:    uuid.NewV4().String(),
 							}),
 						})
 						So(err, ShouldBeNil)
@@ -220,7 +217,6 @@ func TestBabyStationList(t *testing.T) {
 				Data: fatal.UnlessMarshalJSON(connections.EventConnected{
 					ClientID:     clientID1,
 					ConnectionID: connectionID1,
-					RequestID:    uuid.NewV4().String(),
 				}),
 			})
 			So(err, ShouldBeNil)
@@ -231,7 +227,6 @@ func TestBabyStationList(t *testing.T) {
 				Data: fatal.UnlessMarshalJSON(connections.EventConnected{
 					ClientID:     clientID2,
 					ConnectionID: connectionID2,
-					RequestID:    uuid.NewV4().String(),
 				}),
 			})
 			So(err, ShouldBeNil)

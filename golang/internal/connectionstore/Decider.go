@@ -15,10 +15,11 @@ import (
 var ErrDuplicate = errors.New("duplicate")
 
 type Connection struct {
-	ID        string
-	AccountID string
-	ClientID  string
-	RequestID string
+	ID               string
+	AccountID        string
+	ClientID         string
+	AtMillis         int64
+	DisconnectReason string
 }
 
 type ApplyFunc func(ctx context.Context, event *eventlog.Event) error
@@ -64,7 +65,7 @@ func (decider *Decider) Put(ctx context.Context, connection Connection) error {
 	data, err := json.Marshal(connections.EventConnected{
 		ClientID:     connection.ClientID,
 		ConnectionID: connection.ID,
-		RequestID:    connection.RequestID,
+		AtMillis:     connection.AtMillis,
 	})
 	fatal.OnError(err)
 	_, err = decider.eventLog.Append(ctx, eventlog.AppendInput{
@@ -90,7 +91,12 @@ func (decider *Decider) Delete(ctx context.Context, connection Connection) error
 	data, err := json.Marshal(connections.EventDisconnected{
 		ClientID:     connection.ClientID,
 		ConnectionID: connection.ID,
-		RequestID:    connection.RequestID,
+		AtMillis:     connection.AtMillis,
+		Disconnected: struct {
+			Reason string `json:"reason"`
+		}{
+			Reason: connection.DisconnectReason,
+		},
 	})
 	fatal.OnError(err)
 	_, err = decider.eventLog.Append(ctx, eventlog.AppendInput{
@@ -136,7 +142,6 @@ func (decider *Decider) applyConnected(ctx context.Context, event *eventlog.Even
 		ID:        data.ConnectionID,
 		AccountID: event.AccountID,
 		ClientID:  data.ClientID,
-		RequestID: data.RequestID,
 	}
 	key := decider.getKey(connection)
 	decider.connectedKeySet[key] = struct{}{}
@@ -151,7 +156,6 @@ func (decider *Decider) applyDisconnected(ctx context.Context, event *eventlog.E
 		ID:        data.ConnectionID,
 		AccountID: event.AccountID,
 		ClientID:  data.ClientID,
-		RequestID: data.RequestID,
 	}
 	key := decider.getKey(connection)
 	decider.disconnectedKeySet[key] = struct{}{}
@@ -159,5 +163,5 @@ func (decider *Decider) applyDisconnected(ctx context.Context, event *eventlog.E
 }
 
 func (decider *Decider) getKey(connection Connection) string {
-	return fmt.Sprintf("accounts/%s/clients/%s/connections/%s/requests/%s", connection.AccountID, connection.ClientID, connection.ID, connection.RequestID)
+	return fmt.Sprintf("accounts/%s/clients/%s/connections/%s", connection.AccountID, connection.ClientID, connection.ID)
 }
