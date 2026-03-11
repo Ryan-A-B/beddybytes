@@ -49,7 +49,7 @@ func (handlers *Handlers) handleBabyStationsMessage(client mqtt.Client, message 
 		logx.Warnln(err)
 		return
 	}
-	if announcement.ClientID == "" || announcement.ConnectionID == "" || announcement.Name == "" {
+	if announcement.ConnectionID == "" || announcement.Name == "" {
 		logx.Warnln("invalid baby station announcement payload")
 		return
 	}

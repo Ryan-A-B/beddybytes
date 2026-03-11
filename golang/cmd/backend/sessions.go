@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"time"
@@ -59,9 +60,6 @@ type CreateSessionInput struct {
 }
 
 func (input *CreateSessionInput) validate() error {
-	if input.ClientID == "" {
-		return merry.New("client id is empty").WithHTTPCode(http.StatusBadRequest)
-	}
 	if input.ConnectionID == "" {
 		return merry.New("connection id is empty").WithHTTPCode(http.StatusBadRequest)
 	}
@@ -84,23 +82,63 @@ func (handlers *Handlers) StartSession(responseWriter http.ResponseWriter, reque
 	}()
 	ctx := request.Context()
 	accountID := contextx.GetAccountID(ctx)
-	_ = mux.Vars(request)["session_id"]
-	var input CreateSessionInput
-	if err = json.NewDecoder(request.Body).Decode(&input); err != nil {
+	sessionID := mux.Vars(request)["session_id"]
+	requestBody, err := io.ReadAll(request.Body)
+	if err != nil {
 		err = merry.WithHTTPCode(err, http.StatusBadRequest)
 		return
 	}
-	if err = input.validate(); err != nil {
-		return
-	}
-	topic := fmt.Sprintf("accounts/%s/baby_stations", accountID)
-	payload, err := json.Marshal(input)
+	input, err := parseStartSessionInput(requestBody, sessionID)
 	if err != nil {
 		return
 	}
-	if err = mqttx.Wait(handlers.MQTTClient.Publish(topic, 1, false, payload)); err != nil {
+	if input.ClientID == "" {
+		connection, ok := handlers.ConnectionHub.Get(input.ConnectionID)
+		if ok && connection.AccountID == accountID {
+			input.ClientID = connection.ClientID
+		}
+	}
+	if input.ClientID == "" {
+		handlers.PendingSessionStarts.Put(accountID, input)
 		return
 	}
+	if err = handlers.publishBabyStationAnnouncement(accountID, input); err != nil {
+		return
+	}
+}
+
+func parseStartSessionInput(data []byte, sessionID string) (CreateSessionInput, error) {
+	var input CreateSessionInput
+	if err := json.Unmarshal(data, &input); err == nil {
+		if err := input.validate(); err == nil {
+			return input, nil
+		}
+	}
+	var legacyInput StartSessionEventData
+	if err := json.Unmarshal(data, &legacyInput); err != nil {
+		return CreateSessionInput{}, merry.WithHTTPCode(err, http.StatusBadRequest)
+	}
+	if err := legacyInput.validate(); err != nil {
+		return CreateSessionInput{}, err
+	}
+	if legacyInput.ID != sessionID {
+		return CreateSessionInput{}, merry.Errorf("session id in path does not match session id in body").WithHTTPCode(http.StatusBadRequest)
+	}
+	return CreateSessionInput{
+		ClientID:        "",
+		ConnectionID:    legacyInput.HostConnectionID,
+		Name:            legacyInput.Name,
+		StartedAtMillis: legacyInput.StartedAt.UnixMilli(),
+	}, nil
+}
+
+func (handlers *Handlers) publishBabyStationAnnouncement(accountID string, input CreateSessionInput) error {
+	topic := fmt.Sprintf("accounts/%s/baby_stations", accountID)
+	payload, err := json.Marshal(input)
+	if err != nil {
+		return err
+	}
+	return mqttx.Wait(handlers.MQTTClient.Publish(topic, 1, false, payload))
 }
 
 type EndSessionEventData struct {

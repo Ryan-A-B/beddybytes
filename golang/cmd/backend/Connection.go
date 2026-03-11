@@ -128,6 +128,12 @@ func (handlers *Handlers) HandleConnection(responseWriter http.ResponseWriter, r
 	})
 	handlers.ConnectionHub.Put(connection)
 	defer handlers.ConnectionHub.Delete(connection.ID)
+	if pendingStart, ok := handlers.PendingSessionStarts.Take(accountID, connectionID); ok {
+		pendingStart.ClientID = clientID
+		if err = handlers.publishBabyStationAnnouncement(accountID, pendingStart); err != nil {
+			logx.Errorln(err)
+		}
+	}
 	disconnectReason := "clean"
 	defer func() {
 		err = handlers.sendDisconnectedMessage(ctx, sendDisconnectedMessageInput{

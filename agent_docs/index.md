@@ -10,6 +10,7 @@ This vault captures implementation-oriented documentation for BeddyBytes.
 - [[Backend Signalling Contracts]]
 - [[Signalling Migration]]
 - [[Open Questions]]
+- [[Working Agreement with Human]]
 
 ## Source Material
 

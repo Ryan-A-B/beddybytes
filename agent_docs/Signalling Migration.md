@@ -6,6 +6,7 @@
   - publishes client status to `accounts/{account_id}/clients/{client_id}/status`
   - publishes WebRTC signalling to `accounts/{account_id}/clients/{client_id}/webrtc_inbox`
   - subscribes `baby_stations`, `parent_stations`, `webrtc_inbox`, and status wildcard topics
+  - queues `PUT /sessions/{session_id}` session starts in-memory when `client_id` is unresolved and flushes on websocket connect
 - Current implementation is backend-centric; no finalized frontend MQTT path yet.
 
 See [[Backend Signalling Contracts]] for current endpoint/topic details.

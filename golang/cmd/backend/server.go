@@ -67,17 +67,18 @@ type Client struct {
 }
 
 type Handlers struct {
-	Upgrader            websocket.Upgrader
-	ClientStore         ClientStore
-	ConnectionFactory   ConnectionFactory
-	SessionProjection   SessionProjection
-	SessionList         *sessionlist.SessionList
-	SessionStartDecider *sessionstartdecider.Decider
-	BabyStationList     *babystationlist.BabyStationList
-	ConnectionHub       *ConnectionHub
-	EventLog            eventlog.EventLog
-	MQTTClient          mqtt.Client
-	UsageStats          *UsageStats
+	Upgrader             websocket.Upgrader
+	ClientStore          ClientStore
+	ConnectionFactory    ConnectionFactory
+	SessionProjection    SessionProjection
+	SessionList          *sessionlist.SessionList
+	SessionStartDecider  *sessionstartdecider.Decider
+	PendingSessionStarts *PendingSessionStarts
+	BabyStationList      *babystationlist.BabyStationList
+	ConnectionHub        *ConnectionHub
+	EventLog             eventlog.EventLog
+	MQTTClient           mqtt.Client
+	UsageStats           *UsageStats
 
 	Key interface{}
 }
@@ -282,6 +283,7 @@ func main() {
 		SessionStartDecider: sessionstartdecider.NewDecider(sessionstartdecider.NewDeciderInput{
 			EventLog: eventLog,
 		}),
+		PendingSessionStarts: NewPendingSessionStarts(),
 		BabyStationList: babystationlist.New(babystationlist.NewInput{
 			EventLog: eventLog,
 		}),

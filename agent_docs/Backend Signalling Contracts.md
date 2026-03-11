@@ -92,6 +92,12 @@ Event payloads are defined in `golang/internal/connections/Event.go`.
 
 - `PUT /sessions/{session_id}` now publishes session announcements to:
   - `accounts/{account_id}/baby_stations`
+- `PUT /sessions/{session_id}` accepts both:
+  - legacy payload (`id`, `name`, `host_connection_id`, `started_at`)
+  - migration payload (`client_id`, `connection_id`, `name`, `started_at_millis`)
+- If `client_id` is missing, backend resolves it from in-memory connection map (`connection_id -> client_id`).
+- If mapping is not available yet, backend queues session start in-memory and publishes after websocket connect registers that connection.
+- Queue policy: per-account LRU with max 2 pending session starts.
 - Session delete endpoint is intentionally no-op; disconnect status drives lifecycle.
 - `MQTTSync` subscribes `accounts/+/baby_stations` and appends `session.started` with idempotency via `sessionstartdecider`.
 
