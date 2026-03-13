@@ -134,11 +134,11 @@ func TestUsageStats(t *testing.T) {
 						})
 						So(err, ShouldBeNil)
 						So(stats.GetTotalDuration(ctx), ShouldAlmostEqual, expectedDuration, time.Second)
-						So(stats.GetCountOfActiveSessions(ctx), ShouldEqual, 1)
+						So(stats.GetCountOfActiveSessions(ctx), ShouldEqual, 0)
 						Convey("wait a second", func() {
 							time.Sleep(time.Second)
 							So(stats.GetTotalDuration(ctx), ShouldAlmostEqual, expectedDuration, time.Second)
-							So(stats.GetCountOfActiveSessions(ctx), ShouldEqual, 1)
+							So(stats.GetCountOfActiveSessions(ctx), ShouldEqual, 0)
 						})
 						Convey("host connects again", func() {
 							clientConnectedData := ClientConnectedEventData{
@@ -174,11 +174,11 @@ func TestUsageStats(t *testing.T) {
 					})
 					So(err, ShouldBeNil)
 					So(stats.GetTotalDuration(ctx), ShouldAlmostEqual, expectedDuration, time.Second)
-					So(stats.GetCountOfActiveSessions(ctx), ShouldEqual, 1)
+					So(stats.GetCountOfActiveSessions(ctx), ShouldEqual, 0)
 					Convey("wait a second", func() {
 						time.Sleep(time.Second)
 						So(stats.GetTotalDuration(ctx), ShouldAlmostEqual, expectedDuration, time.Second)
-						So(stats.GetCountOfActiveSessions(ctx), ShouldEqual, 1)
+						So(stats.GetCountOfActiveSessions(ctx), ShouldEqual, 0)
 					})
 					Convey("client connects", func() {
 						clientConnectedData := ClientConnectedEventData{
@@ -210,9 +210,59 @@ func TestUsageStats(t *testing.T) {
 	})
 }
 
+func TestUsageStatsDisconnectedSessionCache(t *testing.T) {
+	Convey("Disconnected sessions are capped per account", t, func() {
+		ctx := context.Background()
+		folderPath, err := os.MkdirTemp("testdata", "TestUsageStatsDisconnectedSessionCache-*")
+		So(err, ShouldBeNil)
+		log := eventlog.NewFileEventLog(&eventlog.NewFileEventLogInput{
+			FolderPath: folderPath,
+		})
+		stats := NewUsageStats(ctx, NewUsageStatsInput{
+			Log: log,
+		})
+		accountID := uuid.NewV4().String()
+		for i := 0; i < maxDisconnectedSessionsPerAccount+2; i++ {
+			connectionID := uuid.NewV4().String()
+			sessionStartedData := StartSessionEventData{
+				ID:               uuid.NewV4().String(),
+				Name:             "test",
+				HostConnectionID: connectionID,
+				StartedAt:        time.Now().Add(-time.Hour),
+			}
+			data, err := json.Marshal(sessionStartedData)
+			So(err, ShouldBeNil)
+			_, err = log.Append(ctx, eventlog.AppendInput{
+				Type:      EventTypeSessionStarted,
+				AccountID: accountID,
+				Data:      data,
+			})
+			So(err, ShouldBeNil)
+			clientDisconnectedData := ClientDisconnectedEventData{
+				ClientID:           uuid.NewV4().String(),
+				ConnectionID:       connectionID,
+				RequestID:          uuid.NewV4().String(),
+				WebSocketCloseCode: 1006,
+			}
+			data, err = json.Marshal(clientDisconnectedData)
+			So(err, ShouldBeNil)
+			_, err = log.Append(ctx, eventlog.AppendInput{
+				Type:      EventTypeClientDisconnected,
+				AccountID: accountID,
+				Data:      data,
+			})
+			So(err, ShouldBeNil)
+		}
+
+		So(stats.GetCountOfActiveSessions(ctx), ShouldEqual, 0)
+		So(len(stats.disconnectedSessionsByAccountID[accountID]), ShouldEqual, maxDisconnectedSessionsPerAccount)
+		So(len(stats.disconnectedSessionByConnectionID), ShouldEqual, maxDisconnectedSessionsPerAccount)
+	})
+}
+
 // Baseline on 2026-03-13 against the checked-in eventlog (~145k events):
-// 1 iteration, ~1.13s/op, 141175736 B/op, 2486928 allocs/op, 276576 live-B,
-// 86 accounts, 606 sessions.
+// 1 iteration, ~1.08s/op, 141345840 B/op, 2501740 allocs/op, 87088 live-B,
+// 86 accounts, 1 session, 165 disconnected cached sessions.
 func BenchmarkUsageStatsRealData(b *testing.B) {
 	ctx := context.Background()
 	eventLogPath := findRealEventLogPath(b)
@@ -251,6 +301,7 @@ func BenchmarkUsageStatsRealData(b *testing.B) {
 	b.ReportMetric(float64(liveBytes), "live-B")
 	b.ReportMetric(float64(len(stats.durationByAccountID)), "accounts")
 	b.ReportMetric(float64(len(stats.sessionInfoByID)), "sessions")
+	b.ReportMetric(float64(len(stats.disconnectedSessionByConnectionID)), "disconnected")
 }
 
 func findRealEventLogPath(tb testing.TB) string {
