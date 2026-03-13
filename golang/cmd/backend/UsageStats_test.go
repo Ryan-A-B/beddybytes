@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"os"
+	"path/filepath"
+	"runtime"
 	"testing"
 	"time"
 
@@ -11,6 +13,9 @@ import (
 	uuid "github.com/satori/go.uuid"
 	. "github.com/smartystreets/goconvey/convey"
 )
+
+var benchmarkUsageStatsDurationSink time.Duration
+var benchmarkUsageStatsActiveSessionsSink int
 
 func TestUsageStats(t *testing.T) {
 	Convey("TestUsageStats", t, func() {
@@ -203,4 +208,72 @@ func TestUsageStats(t *testing.T) {
 			})
 		})
 	})
+}
+
+// Baseline on 2026-03-13 against the checked-in eventlog (~145k events):
+// 1 iteration, ~1.13s/op, 141175736 B/op, 2486928 allocs/op, 276576 live-B,
+// 86 accounts, 606 sessions.
+func BenchmarkUsageStatsRealData(b *testing.B) {
+	ctx := context.Background()
+	eventLogPath := findRealEventLogPath(b)
+	log := eventlog.NewFileEventLog(&eventlog.NewFileEventLogInput{
+		FolderPath: eventLogPath,
+	})
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		stats := NewUsageStats(ctx, NewUsageStatsInput{
+			Log: log,
+		})
+		benchmarkUsageStatsDurationSink = stats.GetTotalDuration(ctx)
+		benchmarkUsageStatsActiveSessionsSink = stats.GetCountOfActiveSessions(ctx)
+	}
+	b.StopTimer()
+
+	runtime.GC()
+	var before runtime.MemStats
+	runtime.ReadMemStats(&before)
+
+	stats := NewUsageStats(ctx, NewUsageStatsInput{
+		Log: log,
+	})
+	benchmarkUsageStatsDurationSink = stats.GetTotalDuration(ctx)
+	benchmarkUsageStatsActiveSessionsSink = stats.GetCountOfActiveSessions(ctx)
+
+	runtime.GC()
+	var after runtime.MemStats
+	runtime.ReadMemStats(&after)
+
+	liveBytes := int64(after.Alloc) - int64(before.Alloc)
+	if liveBytes < 0 {
+		liveBytes = 0
+	}
+	b.ReportMetric(float64(liveBytes), "live-B")
+	b.ReportMetric(float64(len(stats.durationByAccountID)), "accounts")
+	b.ReportMetric(float64(len(stats.sessionInfoByID)), "sessions")
+}
+
+func findRealEventLogPath(tb testing.TB) string {
+	tb.Helper()
+	_, filePath, _, ok := runtime.Caller(0)
+	if !ok {
+		tb.Fatal("failed to locate benchmark file path")
+	}
+	dir := filepath.Dir(filePath)
+	for {
+		goModPath := filepath.Join(dir, "go.mod")
+		if _, err := os.Stat(goModPath); err == nil {
+			eventLogPath := filepath.Join(dir, "eventlog")
+			eventsPath := filepath.Join(eventLogPath, eventlog.EventsFileName)
+			if _, err := os.Stat(eventsPath); err == nil {
+				return eventLogPath
+			}
+			tb.Skipf("real eventlog not found at %s", eventLogPath)
+		}
+		parentDir := filepath.Dir(dir)
+		if parentDir == dir {
+			tb.Fatal("failed to locate repository root")
+		}
+		dir = parentDir
+	}
 }
