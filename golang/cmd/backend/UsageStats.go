@@ -137,7 +137,6 @@ func applySessionEndedEvent(ctx context.Context, stats *UsageStats, event *event
 	}
 	disconnectedSession, ok := stats.removeDisconnectedSessionByID(event.AccountID, sessionEndedData.ID)
 	if !ok {
-		// log.Println("WARN: session ended without starting", sessionEndedData.ID)
 		return
 	}
 	duration := disconnectedSession.DisconnectTime.Sub(disconnectedSession.StartTime)

@@ -177,7 +177,7 @@ func applySessionStartedEvent(ctx context.Context, sessionList *SessionList, eve
 				State: ConnectionStateConnected,
 				Since: event.UnixTimestamp,
 			},
-			RequestID: "TODO", // TODO
+			RequestID: "TODO",
 		},
 	})
 }
