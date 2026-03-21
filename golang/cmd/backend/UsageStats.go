@@ -200,6 +200,7 @@ func (stats *UsageStats) trackDisconnectedSession(sessionInfo *SessionInfo, disc
 	disconnectedSessions = append(disconnectedSessions, disconnectedSession)
 	if len(disconnectedSessions) > maxDisconnectedSessionsPerAccount {
 		evictedSession := disconnectedSessions[0]
+		stats.durationByAccountID[evictedSession.AccountID] += evictedSession.DisconnectTime.Sub(evictedSession.StartTime)
 		delete(stats.disconnectedSessionByConnectionID, evictedSession.HostConnectionID)
 		disconnectedSessions = disconnectedSessions[1:]
 	}

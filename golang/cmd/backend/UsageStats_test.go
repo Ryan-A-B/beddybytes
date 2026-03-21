@@ -260,6 +260,58 @@ func TestUsageStatsDisconnectedSessionCache(t *testing.T) {
 	})
 }
 
+func TestUsageStatsEvictedDisconnectedSessionsStillCountTowardsDuration(t *testing.T) {
+	Convey("Evicted disconnected sessions keep their accrued duration", t, func() {
+		ctx := context.Background()
+		folderPath, err := os.MkdirTemp("testdata", "TestUsageStatsEvictedDisconnectedSessionsStillCountTowardsDuration-*")
+		So(err, ShouldBeNil)
+		log := eventlog.NewFileEventLog(&eventlog.NewFileEventLogInput{
+			FolderPath: folderPath,
+		})
+		stats := NewUsageStats(ctx, NewUsageStatsInput{
+			Log: log,
+		})
+		accountID := uuid.NewV4().String()
+		expectedDuration := time.Duration(0)
+		for i := 0; i < maxDisconnectedSessionsPerAccount+2; i++ {
+			connectionID := uuid.NewV4().String()
+			sessionStartedData := StartSessionEventData{
+				ID:               uuid.NewV4().String(),
+				Name:             "test",
+				HostConnectionID: connectionID,
+				StartedAt:        time.Now().Add(-time.Hour),
+			}
+			expectedDuration += time.Hour
+			data, err := json.Marshal(sessionStartedData)
+			So(err, ShouldBeNil)
+			_, err = log.Append(ctx, eventlog.AppendInput{
+				Type:      EventTypeSessionStarted,
+				AccountID: accountID,
+				Data:      data,
+			})
+			So(err, ShouldBeNil)
+			clientDisconnectedData := ClientDisconnectedEventData{
+				ClientID:           uuid.NewV4().String(),
+				ConnectionID:       connectionID,
+				RequestID:          uuid.NewV4().String(),
+				WebSocketCloseCode: 1006,
+			}
+			data, err = json.Marshal(clientDisconnectedData)
+			So(err, ShouldBeNil)
+			_, err = log.Append(ctx, eventlog.AppendInput{
+				Type:      EventTypeClientDisconnected,
+				AccountID: accountID,
+				Data:      data,
+			})
+			So(err, ShouldBeNil)
+		}
+
+		So(stats.GetTotalDuration(ctx), ShouldAlmostEqual, expectedDuration, 10*time.Second)
+		So(len(stats.disconnectedSessionsByAccountID[accountID]), ShouldEqual, maxDisconnectedSessionsPerAccount)
+		So(len(stats.disconnectedSessionByConnectionID), ShouldEqual, maxDisconnectedSessionsPerAccount)
+	})
+}
+
 // Baseline on 2026-03-13 against the checked-in eventlog (~145k events):
 // 1 iteration, ~1.08s/op, 141345840 B/op, 2501740 allocs/op, 87088 live-B,
 // 86 accounts, 1 session, 165 disconnected cached sessions.
