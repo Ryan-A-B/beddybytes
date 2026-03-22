@@ -17,6 +17,7 @@ type UsageStats struct {
 
 	sessionInfoByID                   map[string]*SessionInfo
 	sessionInfoByConnectionID         map[string]*SessionInfo
+	disconnectedSessionByID           map[string]*DisconnectedSessionDurationInfo
 	disconnectedSessionByConnectionID map[string]*DisconnectedSessionInfo
 	disconnectedSessionsByAccountID   map[string][]*DisconnectedSessionInfo
 	durationByAccountID               map[string]time.Duration
@@ -33,12 +34,17 @@ func NewUsageStats(ctx context.Context, input NewUsageStatsInput) *UsageStats {
 		log:                               input.Log,
 		sessionInfoByID:                   make(map[string]*SessionInfo),
 		sessionInfoByConnectionID:         make(map[string]*SessionInfo),
+		disconnectedSessionByID:           make(map[string]*DisconnectedSessionDurationInfo),
 		disconnectedSessionByConnectionID: make(map[string]*DisconnectedSessionInfo),
 		disconnectedSessionsByAccountID:   make(map[string][]*DisconnectedSessionInfo),
 		durationByAccountID:               make(map[string]time.Duration),
 	}
 }
 
+// UsageStats models peer-session lifetime, not backend connectivity lifetime.
+// A backend disconnect freezes a session at the last known connected time until
+// later evidence arrives, and reconnect/session-ended events can backfill that
+// offline gap.
 func (stats *UsageStats) GetTotalDuration(ctx context.Context) time.Duration {
 	stats.catchUp(ctx)
 	total := time.Duration(0)
@@ -49,10 +55,9 @@ func (stats *UsageStats) GetTotalDuration(ctx context.Context) time.Duration {
 		duration := time.Since(sessionInfo.StartTime)
 		total += duration
 	}
-	for _, disconnectedSessions := range stats.disconnectedSessionsByAccountID {
-		for _, sessionInfo := range disconnectedSessions {
-			total += sessionInfo.DisconnectTime.Sub(sessionInfo.StartTime)
-		}
+	for _, sessionInfo := range stats.disconnectedSessionByID {
+		duration := sessionInfo.DisconnectTime.Sub(sessionInfo.StartTime)
+		total += duration
 	}
 	return total
 }
@@ -105,6 +110,13 @@ type DisconnectedSessionInfo struct {
 	DisconnectTime time.Time
 }
 
+type DisconnectedSessionDurationInfo struct {
+	ID             string
+	AccountID      string
+	StartTime      time.Time
+	DisconnectTime time.Time
+}
+
 func applySessionStartedEvent(ctx context.Context, stats *UsageStats, event *eventlog.Event) {
 	var sessionStartedData StartSessionEventData
 	err := json.Unmarshal(event.Data, &sessionStartedData)
@@ -118,7 +130,9 @@ func applySessionStartedEvent(ctx context.Context, stats *UsageStats, event *eve
 	if existingSessionInfo, ok := stats.sessionInfoByConnectionID[sessionStartedData.HostConnectionID]; ok {
 		stats.removeActiveSession(existingSessionInfo)
 	}
-	stats.removeDisconnectedSessionByConnectionID(sessionStartedData.HostConnectionID)
+	if disconnectedSession, ok := stats.removeDisconnectedSessionByConnectionID(sessionStartedData.HostConnectionID); ok {
+		delete(stats.disconnectedSessionByID, disconnectedSession.ID)
+	}
 	stats.sessionInfoByID[sessionStartedData.ID] = &sessionInfo
 	stats.sessionInfoByConnectionID[sessionStartedData.HostConnectionID] = &sessionInfo
 }
@@ -135,12 +149,15 @@ func applySessionEndedEvent(ctx context.Context, stats *UsageStats, event *event
 		stats.removeActiveSession(sessionInfo)
 		return
 	}
-	disconnectedSession, ok := stats.removeDisconnectedSessionByID(event.AccountID, sessionEndedData.ID)
+	disconnectedSessionDurationInfo, ok := stats.disconnectedSessionByID[sessionEndedData.ID]
 	if !ok {
 		return
 	}
-	duration := disconnectedSession.DisconnectTime.Sub(disconnectedSession.StartTime)
-	stats.durationByAccountID[disconnectedSession.AccountID] += duration
+	endTime := time.Unix(event.UnixTimestamp, 0)
+	duration := endTime.Sub(disconnectedSessionDurationInfo.StartTime)
+	stats.durationByAccountID[disconnectedSessionDurationInfo.AccountID] += duration
+	delete(stats.disconnectedSessionByID, sessionEndedData.ID)
+	stats.removeDisconnectedSessionByID(event.AccountID, sessionEndedData.ID)
 }
 
 func applyClientConnectedEvent(ctx context.Context, stats *UsageStats, event *eventlog.Event) {
@@ -151,11 +168,7 @@ func applyClientConnectedEvent(ctx context.Context, stats *UsageStats, event *ev
 	if !ok {
 		return
 	}
-	reconnectTime := time.Unix(event.UnixTimestamp, 0)
-	disconnectedDuration := reconnectTime.Sub(disconnectedSession.DisconnectTime)
-	if disconnectedDuration > 0 {
-		disconnectedSession.StartTime = disconnectedSession.StartTime.Add(disconnectedDuration)
-	}
+	delete(stats.disconnectedSessionByID, disconnectedSession.ID)
 	stats.sessionInfoByID[disconnectedSession.ID] = disconnectedSession.SessionInfo
 	stats.sessionInfoByConnectionID[disconnectedSession.HostConnectionID] = disconnectedSession.SessionInfo
 }
@@ -192,6 +205,12 @@ func applyServerStartedEvent(ctx context.Context, stats *UsageStats, event *even
 func (stats *UsageStats) trackDisconnectedSession(sessionInfo *SessionInfo, disconnectTime time.Time) {
 	stats.removeActiveSession(sessionInfo)
 	stats.removeDisconnectedSessionByConnectionID(sessionInfo.HostConnectionID)
+	stats.disconnectedSessionByID[sessionInfo.ID] = &DisconnectedSessionDurationInfo{
+		ID:             sessionInfo.ID,
+		AccountID:      sessionInfo.AccountID,
+		StartTime:      sessionInfo.StartTime,
+		DisconnectTime: disconnectTime,
+	}
 	disconnectedSession := &DisconnectedSessionInfo{
 		SessionInfo:    sessionInfo,
 		DisconnectTime: disconnectTime,
@@ -200,7 +219,6 @@ func (stats *UsageStats) trackDisconnectedSession(sessionInfo *SessionInfo, disc
 	disconnectedSessions = append(disconnectedSessions, disconnectedSession)
 	if len(disconnectedSessions) > maxDisconnectedSessionsPerAccount {
 		evictedSession := disconnectedSessions[0]
-		stats.durationByAccountID[evictedSession.AccountID] += evictedSession.DisconnectTime.Sub(evictedSession.StartTime)
 		delete(stats.disconnectedSessionByConnectionID, evictedSession.HostConnectionID)
 		disconnectedSessions = disconnectedSessions[1:]
 	}

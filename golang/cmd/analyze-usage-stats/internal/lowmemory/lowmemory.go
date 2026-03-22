@@ -1,4 +1,4 @@
-package current
+package lowmemory
 
 import (
 	"time"
@@ -12,16 +12,17 @@ type Stats struct {
 
 	SessionInfoByID                   map[string]*shared.SessionInfo
 	SessionInfoByConnectionID         map[string]*shared.SessionInfo
+	DisconnectedSessionByID           map[string]*shared.DisconnectedSessionInfo
 	DisconnectedSessionByConnectionID map[string]*shared.DisconnectedSessionInfo
 	DisconnectedSessionsByAccountID   map[string][]*shared.DisconnectedSessionInfo
 	EvictedSessionByConnectionID      map[string]*shared.DisconnectedSessionInfo
 	DurationByAccountID               map[string]time.Duration
 	ReconnectCount                    int
-	ReconnectGapDuration              time.Duration
 	MissedReconnectCount              int
 	MissedReconnectGap                time.Duration
 	EvictedCount                      int
-	EvictedDuration                   time.Duration
+	EndedWhileDisconnectedCount       int
+	EndedWhileDisconnectedGap         time.Duration
 }
 
 func New(cacheSize int) *Stats {
@@ -29,6 +30,7 @@ func New(cacheSize int) *Stats {
 		CacheSize:                         cacheSize,
 		SessionInfoByID:                   make(map[string]*shared.SessionInfo),
 		SessionInfoByConnectionID:         make(map[string]*shared.SessionInfo),
+		DisconnectedSessionByID:           make(map[string]*shared.DisconnectedSessionInfo),
 		DisconnectedSessionByConnectionID: make(map[string]*shared.DisconnectedSessionInfo),
 		DisconnectedSessionsByAccountID:   make(map[string][]*shared.DisconnectedSessionInfo),
 		EvictedSessionByConnectionID:      make(map[string]*shared.DisconnectedSessionInfo),
@@ -59,8 +61,12 @@ func (stats *Stats) Apply(event *eventlog.Event) {
 		if existingSession, ok := stats.SessionInfoByConnectionID[data.HostConnectionID]; ok {
 			stats.removeActiveSession(existingSession)
 		}
-		stats.removeDisconnectedSessionByConnectionID(data.HostConnectionID)
-		delete(stats.EvictedSessionByConnectionID, data.HostConnectionID)
+		if disconnectedSession, ok := stats.removeDisconnectedSessionByConnectionID(data.HostConnectionID); ok {
+			delete(stats.DisconnectedSessionByID, disconnectedSession.ID)
+		}
+		if evictedSession, ok := stats.removeEvictedSessionByConnectionID(data.HostConnectionID); ok {
+			delete(stats.DisconnectedSessionByID, evictedSession.ID)
+		}
 		stats.SessionInfoByID[data.ID] = session
 		stats.SessionInfoByConnectionID[data.HostConnectionID] = session
 	case shared.EventTypeSessionEnded:
@@ -72,11 +78,24 @@ func (stats *Stats) Apply(event *eventlog.Event) {
 			stats.removeActiveSession(session)
 			return
 		}
-		disconnectedSession, ok := stats.removeDisconnectedSessionByID(event.AccountID, data.ID)
+		disconnectedSession, ok := stats.DisconnectedSessionByID[data.ID]
+		if ok {
+			stats.EndedWhileDisconnectedCount++
+			if reconnectableSession, ok := stats.removeDisconnectedSessionByID(event.AccountID, data.ID); ok {
+				stats.EndedWhileDisconnectedGap += shared.EventTime(event).Sub(reconnectableSession.DisconnectTime)
+			}
+			stats.DurationByAccountID[disconnectedSession.AccountID] += shared.EventTime(event).Sub(disconnectedSession.StartTime)
+			delete(stats.DisconnectedSessionByID, data.ID)
+			return
+		}
+		evictedSession, ok := stats.removeEvictedSessionByID(data.ID)
 		if !ok {
 			return
 		}
-		stats.DurationByAccountID[disconnectedSession.AccountID] += disconnectedSession.DisconnectTime.Sub(disconnectedSession.StartTime)
+		stats.EndedWhileDisconnectedCount++
+		stats.EndedWhileDisconnectedGap += shared.EventTime(event).Sub(evictedSession.DisconnectTime)
+		stats.DurationByAccountID[evictedSession.AccountID] += shared.EventTime(event).Sub(evictedSession.StartTime)
+		delete(stats.DisconnectedSessionByID, data.ID)
 	case shared.EventTypeClientConnected:
 		var data shared.ClientConnectedEventData
 		shared.MustUnmarshal(event.Data, &data)
@@ -84,11 +103,7 @@ func (stats *Stats) Apply(event *eventlog.Event) {
 		disconnectedSession, ok := stats.removeDisconnectedSessionByConnectionID(data.ConnectionID)
 		if ok {
 			stats.ReconnectCount++
-			stats.ReconnectGapDuration += reconnectTime.Sub(disconnectedSession.DisconnectTime)
-			disconnectedDuration := reconnectTime.Sub(disconnectedSession.DisconnectTime)
-			if disconnectedDuration > 0 {
-				disconnectedSession.StartTime = disconnectedSession.StartTime.Add(disconnectedDuration)
-			}
+			delete(stats.DisconnectedSessionByID, disconnectedSession.ID)
 			stats.SessionInfoByID[disconnectedSession.ID] = disconnectedSession.SessionInfo
 			stats.SessionInfoByConnectionID[disconnectedSession.HostConnectionID] = disconnectedSession.SessionInfo
 			return
@@ -96,7 +111,7 @@ func (stats *Stats) Apply(event *eventlog.Event) {
 		if evictedSession, ok := stats.EvictedSessionByConnectionID[data.ConnectionID]; ok {
 			stats.MissedReconnectCount++
 			stats.MissedReconnectGap += reconnectTime.Sub(evictedSession.DisconnectTime)
-			delete(stats.EvictedSessionByConnectionID, data.ConnectionID)
+			stats.removeEvictedSessionByConnectionID(data.ConnectionID)
 		}
 	case shared.EventTypeClientDisconnected:
 		var data shared.ClientDisconnectedEventData
@@ -123,10 +138,8 @@ func (stats *Stats) TotalDuration(referenceTime time.Time) time.Duration {
 	for _, session := range stats.SessionInfoByID {
 		total += referenceTime.Sub(session.StartTime)
 	}
-	for _, disconnectedSessions := range stats.DisconnectedSessionsByAccountID {
-		for _, session := range disconnectedSessions {
-			total += session.DisconnectTime.Sub(session.StartTime)
-		}
+	for _, session := range stats.DisconnectedSessionByID {
+		total += session.DisconnectTime.Sub(session.StartTime)
 	}
 	return total
 }
@@ -146,14 +159,12 @@ func (stats *Stats) trackDisconnectedSession(session *shared.SessionInfo, discon
 		SessionInfo:    session,
 		DisconnectTime: disconnectTime,
 	}
+	stats.DisconnectedSessionByID[session.ID] = disconnectedSession
 	disconnectedSessions := stats.DisconnectedSessionsByAccountID[session.AccountID]
 	disconnectedSessions = append(disconnectedSessions, disconnectedSession)
 	if len(disconnectedSessions) > stats.CacheSize {
 		evictedSession := disconnectedSessions[0]
-		evictedDuration := evictedSession.DisconnectTime.Sub(evictedSession.StartTime)
-		stats.DurationByAccountID[evictedSession.AccountID] += evictedDuration
 		stats.EvictedCount++
-		stats.EvictedDuration += evictedDuration
 		stats.EvictedSessionByConnectionID[evictedSession.HostConnectionID] = evictedSession
 		delete(stats.DisconnectedSessionByConnectionID, evictedSession.HostConnectionID)
 		disconnectedSessions = disconnectedSessions[1:]
@@ -203,6 +214,26 @@ func (stats *Stats) removeDisconnectedSessionByID(accountID string, sessionID st
 			stats.DisconnectedSessionsByAccountID[accountID] = disconnectedSessions
 		}
 		return disconnectedSession, true
+	}
+	return nil, false
+}
+
+func (stats *Stats) removeEvictedSessionByConnectionID(connectionID string) (*shared.DisconnectedSessionInfo, bool) {
+	evictedSession, ok := stats.EvictedSessionByConnectionID[connectionID]
+	if !ok {
+		return nil, false
+	}
+	delete(stats.EvictedSessionByConnectionID, connectionID)
+	return evictedSession, true
+}
+
+func (stats *Stats) removeEvictedSessionByID(sessionID string) (*shared.DisconnectedSessionInfo, bool) {
+	for connectionID, evictedSession := range stats.EvictedSessionByConnectionID {
+		if evictedSession.ID != sessionID {
+			continue
+		}
+		delete(stats.EvictedSessionByConnectionID, connectionID)
+		return evictedSession, true
 	}
 	return nil, false
 }

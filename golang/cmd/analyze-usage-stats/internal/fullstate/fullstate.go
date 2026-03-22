@@ -1,4 +1,4 @@
-package legacy
+package fullstate
 
 import (
 	"time"
@@ -12,6 +12,8 @@ type Stats struct {
 	SessionInfoByConnectionID    map[string]*shared.SessionInfo
 	DisconnectTimeByConnectionID map[string]time.Time
 	DurationByAccountID          map[string]time.Duration
+	EndedWhileDisconnectedCount  int
+	EndedWhileDisconnectedGap    time.Duration
 }
 
 func New() *Stats {
@@ -54,7 +56,12 @@ func (stats *Stats) Apply(event *eventlog.Event) {
 		if !ok {
 			return
 		}
-		stats.DurationByAccountID[session.AccountID] += shared.EventTime(event).Sub(session.StartTime)
+		endTime := shared.EventTime(event)
+		if disconnectTime, ok := stats.DisconnectTimeByConnectionID[session.HostConnectionID]; ok {
+			stats.EndedWhileDisconnectedCount++
+			stats.EndedWhileDisconnectedGap += endTime.Sub(disconnectTime)
+		}
+		stats.DurationByAccountID[session.AccountID] += endTime.Sub(session.StartTime)
 		delete(stats.SessionInfoByID, data.ID)
 		delete(stats.SessionInfoByConnectionID, session.HostConnectionID)
 		delete(stats.DisconnectTimeByConnectionID, session.HostConnectionID)

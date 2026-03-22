@@ -312,6 +312,49 @@ func TestUsageStatsEvictedDisconnectedSessionsStillCountTowardsDuration(t *testi
 	})
 }
 
+func TestUsageStatsIncludesOfflineTimeAfterUncleanDisconnect(t *testing.T) {
+	Convey("UsageStats continues counting peer session time across backend disconnects", t, func() {
+		ctx := context.Background()
+		stats := NewUsageStats(ctx, NewUsageStatsInput{})
+		accountID := "account-1"
+		sessionID := "session-1"
+		connectionID := "connection-1"
+		baseTime := time.Unix(1_700_000_000, 0).UTC()
+
+		stats.applyEvent(ctx, usageStatsEvent(accountID, EventTypeSessionStarted, baseTime, StartSessionEventData{
+			ID:               sessionID,
+			Name:             "test",
+			HostConnectionID: connectionID,
+			StartedAt:        baseTime,
+		}))
+		stats.applyEvent(ctx, usageStatsEvent(accountID, EventTypeClientDisconnected, baseTime.Add(time.Hour), ClientDisconnectedEventData{
+			ClientID:           "client-1",
+			ConnectionID:       connectionID,
+			RequestID:          "request-1",
+			WebSocketCloseCode: 1006,
+		}))
+		stats.applyEvent(ctx, usageStatsEvent(accountID, EventTypeClientConnected, baseTime.Add(3*time.Hour), ClientConnectedEventData{
+			ClientID:     "client-1",
+			ConnectionID: connectionID,
+			RequestID:    "request-2",
+		}))
+		stats.applyEvent(ctx, usageStatsEvent(accountID, EventTypeClientDisconnected, baseTime.Add(5*time.Hour), ClientDisconnectedEventData{
+			ClientID:           "client-1",
+			ConnectionID:       connectionID,
+			RequestID:          "request-3",
+			WebSocketCloseCode: 1006,
+		}))
+		stats.applyEvent(ctx, usageStatsEvent(accountID, EventTypeSessionEnded, baseTime.Add(8*time.Hour), EndSessionEventData{
+			ID: sessionID,
+		}))
+
+		So(stats.durationByAccountID[accountID], ShouldEqual, 8*time.Hour)
+		So(len(stats.sessionInfoByID), ShouldEqual, 0)
+		So(len(stats.disconnectedSessionByID), ShouldEqual, 0)
+		So(len(stats.disconnectedSessionByConnectionID), ShouldEqual, 0)
+	})
+}
+
 // Baseline on 2026-03-13 against the checked-in eventlog (~145k events):
 // 1 iteration, ~1.08s/op, 141345840 B/op, 2501740 allocs/op, 87088 live-B,
 // 86 accounts, 1 session, 165 disconnected cached sessions.
@@ -378,5 +421,18 @@ func findRealEventLogPath(tb testing.TB) string {
 			tb.Fatal("failed to locate repository root")
 		}
 		dir = parentDir
+	}
+}
+
+func usageStatsEvent(accountID string, eventType string, eventTime time.Time, data interface{}) *eventlog.Event {
+	rawData, err := json.Marshal(data)
+	if err != nil {
+		panic(err)
+	}
+	return &eventlog.Event{
+		Type:          eventType,
+		AccountID:     accountID,
+		UnixTimestamp: eventTime.Unix(),
+		Data:          rawData,
 	}
 }

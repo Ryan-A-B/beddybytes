@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Ryan-A-B/beddybytes/golang/cmd/analyze-usage-stats/internal/current"
-	"github.com/Ryan-A-B/beddybytes/golang/cmd/analyze-usage-stats/internal/legacy"
+	"github.com/Ryan-A-B/beddybytes/golang/cmd/analyze-usage-stats/internal/fullstate"
+	"github.com/Ryan-A-B/beddybytes/golang/cmd/analyze-usage-stats/internal/lowmemory"
 	"github.com/Ryan-A-B/beddybytes/golang/cmd/analyze-usage-stats/internal/shared"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/eventlog"
 )
@@ -40,36 +40,39 @@ func main() {
 	}
 
 	referenceTime := shared.EventTime(events[len(events)-1]).Add(time.Second)
-	legacyStats := legacy.New()
+	fullStateStats := fullstate.New()
 	for _, event := range events {
-		legacyStats.Apply(event)
+		fullStateStats.Apply(event)
 	}
-	legacyTotal := legacyStats.TotalDuration(referenceTime)
+	fullStateTotal := fullStateStats.TotalDuration(referenceTime)
 
 	fmt.Printf("eventlog_path: %s\n", *eventLogPath)
 	fmt.Printf("events: %d\n", len(events))
 	fmt.Printf("reference_time: %s\n", referenceTime.Format(time.RFC3339))
-	fmt.Printf("legacy_total_hours: %.3f\n\n", legacyTotal.Hours())
+	fmt.Printf("fullstate_total_hours: %.3f\n", fullStateTotal.Hours())
+	fmt.Printf("fullstate_ended_while_disconnected: %d\n", fullStateStats.EndedWhileDisconnectedCount)
+	fmt.Printf("fullstate_ended_while_disconnected_gap_hours: %.3f\n\n", fullStateStats.EndedWhileDisconnectedGap.Hours())
 
-	fmt.Println("cache  current_hours  delta_hours  reconnects  reconnect_gap_hours  missed_reconnects  missed_gap_hours  evicted_hours  final_active  final_disconnected")
+	fmt.Println("cache  lowmemory_hours  delta_vs_fullstate_hours  reconnects  ended_disc  ended_disc_gap_hours  missed_reconnects  missed_gap_hours  evicted  final_active  final_disconnected")
 	for _, cacheSize := range cacheSizes {
-		currentStats := current.New(cacheSize)
+		lowMemoryStats := lowmemory.New(cacheSize)
 		for _, event := range events {
-			currentStats.Apply(event)
+			lowMemoryStats.Apply(event)
 		}
-		currentTotal := currentStats.TotalDuration(referenceTime)
+		lowMemoryTotal := lowMemoryStats.TotalDuration(referenceTime)
 		fmt.Printf(
-			"%5d  %13.3f  %11.3f  %10d  %19.3f  %17d  %16.3f  %13.3f  %12d  %18d\n",
+			"%5d  %13.3f  %11.3f  %10d  %10d  %20.3f  %17d  %16.3f  %7d  %12d  %18d\n",
 			cacheSize,
-			currentTotal.Hours(),
-			(currentTotal - legacyTotal).Hours(),
-			currentStats.ReconnectCount,
-			currentStats.ReconnectGapDuration.Hours(),
-			currentStats.MissedReconnectCount,
-			currentStats.MissedReconnectGap.Hours(),
-			currentStats.EvictedDuration.Hours(),
-			len(currentStats.SessionInfoByID),
-			currentStats.FinalDisconnectedCount(),
+			lowMemoryTotal.Hours(),
+			(lowMemoryTotal - fullStateTotal).Hours(),
+			lowMemoryStats.ReconnectCount,
+			lowMemoryStats.EndedWhileDisconnectedCount,
+			lowMemoryStats.EndedWhileDisconnectedGap.Hours(),
+			lowMemoryStats.MissedReconnectCount,
+			lowMemoryStats.MissedReconnectGap.Hours(),
+			lowMemoryStats.EvictedCount,
+			len(lowMemoryStats.SessionInfoByID),
+			lowMemoryStats.FinalDisconnectedCount(),
 		)
 	}
 }
