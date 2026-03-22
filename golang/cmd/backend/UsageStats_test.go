@@ -355,7 +355,7 @@ func TestUsageStatsIncludesOfflineTimeAfterUncleanDisconnect(t *testing.T) {
 	})
 }
 
-// Baseline on 2026-03-13 against the checked-in eventlog (~145k events):
+// Baseline on 2026-03-13 against the downloaded eventlog (~145k events):
 // 1 iteration, ~1.08s/op, 141345840 B/op, 2501740 allocs/op, 87088 live-B,
 // 86 accounts, 1 session, 165 disconnected cached sessions.
 func BenchmarkUsageStatsRealData(b *testing.B) {
