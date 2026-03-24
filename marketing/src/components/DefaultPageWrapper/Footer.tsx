@@ -18,7 +18,16 @@ const Footer: React.FunctionComponent = () => (
                             <Link to="/private-baby-monitor/">Private Baby Monitor</Link>
                         </li>
                         <li>
-                            <Link to="/baby-monitor-without-wifi/">Baby Monitor Without Wi-Fi</Link>
+                            <Link to="/no-subscription-baby-monitor/">No Subscription Baby Monitor</Link>
+                        </li>
+                        <li>
+                            <Link to="/baby-monitor-app-iphone-and-android/">iPhone and Android</Link>
+                        </li>
+                        <li>
+                            <Link to="/how-to-turn-an-old-phone-into-a-baby-monitor/">Turn an Old Phone Into a Baby Monitor</Link>
+                        </li>
+                        <li>
+                            <Link to="/radio-baby-monitor-vs-wifi-baby-monitor/">Radio vs Wi-Fi Baby Monitor</Link>
                         </li>
                     </ul>
                 </div>

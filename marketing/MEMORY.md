@@ -22,6 +22,7 @@ Prefer libraries over frameworks, and composable components over a monolith with
 Use Google Search Console data when available.
 Do not use Google Analytics for this project because it conflicts with the privacy positioning.
 Prefer approaches that reduce user manual involvement when practical.
+Treat `/baby-monitor-without-wifi/` as a legacy page kept for external links; minimize internal linking to it from current use-case landing pages.
 
 ## Projects - active work, current tasks, status
 BeddyBytes is a privacy-first baby monitor that streams video and audio only over the local network using WebRTC without STUN or TURN, so remote access is intentionally impossible.

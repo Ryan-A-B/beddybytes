@@ -31,6 +31,19 @@ interface RelatedLink {
     to: string
 }
 
+interface ChecklistSectionProps {
+    title: string
+    intro?: string
+    items: string[]
+}
+
+interface ComparisonTableSectionProps {
+    title: string
+    intro?: string
+    headers: string[]
+    rows: string[][]
+}
+
 interface PageProps {
     children: React.ReactNode
 }
@@ -148,6 +161,22 @@ export const UseCaseTextSection: React.FunctionComponent<SectionContent> = ({ ti
                 {paragraphs.map((paragraph) => (
                     <p key={paragraph}>{paragraph}</p>
                 ))}
+            </div>
+        </div>
+    </section>
+)
+
+export const UseCaseChecklistSection: React.FunctionComponent<ChecklistSectionProps> = ({ title, intro, items }) => (
+    <section className="use-case-page__text-section">
+        <div className="container">
+            <div className="use-case-page__section-copy">
+                <h2>{title}</h2>
+                {intro && <p>{intro}</p>}
+                <ul className="use-case-page__checklist">
+                    {items.map((item) => (
+                        <li key={item}>{item}</li>
+                    ))}
+                </ul>
             </div>
         </div>
     </section>
@@ -277,6 +306,42 @@ export const UseCasePricingSection: React.FunctionComponent<PricingCtaSectionPro
                     discount={promotion.discount}
                     click_id="cta-use-case-pricing"
                 />
+            </div>
+        </div>
+    </section>
+)
+
+export const UseCaseComparisonTableSection: React.FunctionComponent<ComparisonTableSectionProps> = ({
+    title,
+    intro,
+    headers,
+    rows,
+}) => (
+    <section className="use-case-page__comparison-table">
+        <div className="container">
+            <div className="use-case-page__section-copy">
+                <h2>{title}</h2>
+                {intro && <p>{intro}</p>}
+            </div>
+            <div className="use-case-page__table-wrapper">
+                <table className="use-case-page__table">
+                    <thead>
+                        <tr>
+                            {headers.map((header) => (
+                                <th key={header} scope="col">{header}</th>
+                            ))}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {rows.map((row) => (
+                            <tr key={row.join('|')}>
+                                {row.map((cell) => (
+                                    <td key={cell}>{cell}</td>
+                                ))}
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
             </div>
         </div>
     </section>

@@ -206,9 +206,9 @@ const PrivateBabyMonitorPage: React.FunctionComponent = () => (
         <UseCaseFAQSection items={faqItems} />
         <UseCaseRelatedLinksSection
             links={[
-                { label: 'Baby monitor without Wi-Fi', to: '/baby-monitor-without-wifi/' },
-                { label: 'Video baby monitor feature', to: '/features/video-baby-monitor/' },
-                { label: 'Pricing', to: '/pricing/' },
+                { label: 'No subscription baby monitor', to: '/no-subscription-baby-monitor/' },
+                { label: 'Baby monitor app for iPhone and Android', to: '/baby-monitor-app-iphone-and-android/' },
+                { label: 'How to turn an old phone into a baby monitor', to: '/how-to-turn-an-old-phone-into-a-baby-monitor/' },
             ]}
         />
     </UseCasePage>
