@@ -1,0 +1,371 @@
+@import "../../scss/configuration";
+
+.use-case-page {
+    background: $body-bg;
+    color: $body-color;
+
+    h1,
+    h2,
+    h3 {
+        line-height: 1.15;
+    }
+
+    h1 {
+        font-size: clamp(2.5rem, 4vw, 4.25rem);
+        margin-bottom: 1rem;
+    }
+
+    h2 {
+        font-size: clamp(2rem, 3vw, 3rem);
+        margin-bottom: 1rem;
+    }
+
+    p,
+    li {
+        font-size: 1.05rem;
+    }
+
+    section {
+        padding: 4rem 0;
+    }
+
+    .container {
+        max-width: 1140px;
+    }
+}
+
+.use-case-page__hero,
+.use-case-page__pricing-cta {
+    color: $light;
+
+    code {
+        color: $teal-300;
+    }
+}
+
+.use-case-page__hero {
+    background:
+        radial-gradient(circle at top left, rgba($teal, 0.18), transparent 26rem),
+        linear-gradient(180deg, $purple-800 0%, $purple-700 100%);
+    overflow: hidden;
+    padding-bottom: 4rem;
+    padding-top: 4rem;
+    position: relative;
+
+    @media (min-width: 992px) {
+        min-height: 36rem;
+        padding-bottom: 4.5rem;
+        padding-top: 4.5rem;
+    }
+}
+
+.use-case-page__eyebrow {
+    color: rgba($light, 0.82);
+    font-size: 0.875rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    margin-bottom: 1rem;
+    text-transform: uppercase;
+}
+
+.use-case-page__lead {
+    color: rgba($light, 0.92);
+    font-size: 1.2rem;
+    max-width: 40rem;
+}
+
+.use-case-page__hero-visual {
+    display: grid;
+    gap: 1rem;
+    margin-inline: auto;
+    position: relative;
+}
+
+.use-case-page__hero-visual--portrait {
+    max-width: 24rem;
+}
+
+.use-case-page__hero-visual--landscape {
+    max-width: 36rem;
+}
+
+.use-case-page__visual-card,
+.use-case-page__card,
+.use-case-page__side-panel,
+.use-case-page__proof-stat,
+.use-case-page__proof-quote,
+.use-case-page__faq-item,
+.use-case-page__related-link,
+.use-case-page__pricing-panel {
+    border-radius: 1.5rem;
+}
+
+.use-case-page__visual-card,
+.use-case-page__visual-note {
+    background: rgba($light, 0.08);
+    border: 1px solid rgba($light, 0.16);
+    box-shadow: 0 1.25rem 3rem rgba($black, 0.22);
+}
+
+.use-case-page__visual-card {
+    overflow: hidden;
+    padding: 1.25rem;
+
+    .gatsby-image-wrapper {
+        width: 100%;
+
+        @media (min-width: 992px) {
+            max-height: 40rem;
+        }
+    }
+
+    img {
+        @media (min-width: 992px) {
+            object-fit: contain !important;
+        }
+    }
+}
+
+.use-case-page__hero-visual--portrait .use-case-page__visual-card .gatsby-image-wrapper {
+    @media (min-width: 992px) {
+        max-height: 36rem;
+    }
+}
+
+.use-case-page__hero-visual--landscape .use-case-page__visual-card .gatsby-image-wrapper {
+    @media (min-width: 992px) {
+        max-height: 24rem;
+    }
+}
+
+.use-case-page__visual-note {
+    color: rgba($light, 0.88);
+    font-size: 0.95rem;
+    line-height: 1.5;
+    padding: 0.875rem 1rem;
+}
+
+.use-case-page__trust-bar {
+    margin-top: -1.75rem;
+    padding-top: 0;
+    position: relative;
+    z-index: 2;
+}
+
+.use-case-page__trust-grid {
+    background: rgba($light, 0.96);
+    border: 1px solid rgba($purple, 0.12);
+    border-radius: 1.25rem;
+    box-shadow: 0 0.75rem 2rem rgba($purple-900, 0.08);
+    display: grid;
+    gap: 1px;
+    overflow: hidden;
+
+    @media (min-width: 768px) {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+}
+
+.use-case-page__trust-item {
+    background: $light;
+    font-size: 0.95rem;
+    font-weight: 600;
+    padding: 1rem 1.25rem;
+    text-align: center;
+}
+
+.use-case-page__section-copy {
+    max-width: 48rem;
+}
+
+.use-case-page__section-copy p:last-child {
+    margin-bottom: 0;
+}
+
+.use-case-page__differentiators {
+    background: rgba($light, 0.72);
+}
+
+.use-case-page__card {
+    background: linear-gradient(180deg, rgba($light, 0.98), rgba($purple-100, 0.62));
+    border: 1px solid rgba($purple, 0.12);
+    box-shadow: 0 1rem 2.5rem rgba($purple-900, 0.08);
+    height: 100%;
+    padding: 1.5rem;
+}
+
+.use-case-page__card--light {
+    background: rgba($light, 0.96);
+}
+
+.use-case-page__card h3,
+.use-case-page__side-panel h3,
+.use-case-page__faq-item h3 {
+    font-size: 1.2rem;
+    margin-bottom: 0.75rem;
+}
+
+.use-case-page__how-it-works ol,
+.use-case-page__side-panel ul,
+.use-case-page__proof-quote ul {
+    margin-bottom: 0;
+    padding-left: 1.25rem;
+}
+
+.use-case-page__how-it-works li + li,
+.use-case-page__side-panel li + li,
+.use-case-page__proof-quote li + li {
+    margin-top: 0.75rem;
+}
+
+.use-case-page__side-panel {
+    background: rgba($purple, 0.08);
+    border: 1px solid rgba($purple, 0.12);
+    height: 100%;
+    padding: 1.5rem;
+}
+
+.use-case-page__proof {
+    background: linear-gradient(180deg, rgba($purple-100, 0.45), rgba($light, 0.85));
+}
+
+.use-case-page__proof-stat,
+.use-case-page__proof-quote,
+.use-case-page__pricing-panel {
+    background: rgba($light, 0.96);
+    border: 1px solid rgba($purple, 0.12);
+    box-shadow: 0 1rem 2.5rem rgba($purple-900, 0.08);
+    height: 100%;
+    padding: 1.75rem;
+}
+
+.use-case-page__proof-stat {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.use-case-page__proof-stat span {
+    color: $secondary;
+    font-size: 0.875rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    margin-bottom: 0.75rem;
+    text-transform: uppercase;
+}
+
+.use-case-page__proof-label {
+    color: $secondary;
+    display: inline-block;
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    margin-bottom: 0.85rem;
+    text-transform: uppercase;
+}
+
+.use-case-page__proof-quote blockquote {
+    border-left: 4px solid rgba($secondary, 0.55);
+    font-size: 1.2rem;
+    font-style: italic;
+    margin-bottom: 1rem;
+    padding-left: 1rem;
+
+    &::before,
+    &::after {
+        color: rgba($secondary, 0.75);
+        font-size: 1.4em;
+        line-height: 0;
+    }
+
+    &::before {
+        content: open-quote;
+        margin-right: 0.1em;
+    }
+
+    &::after {
+        content: close-quote;
+        margin-left: 0.1em;
+    }
+}
+
+.use-case-page__proof-quote > p {
+    color: $gray-700;
+    font-weight: 600;
+    margin-bottom: 1rem;
+}
+
+.use-case-page__tradeoffs {
+    background: rgba($purple, 0.05);
+}
+
+.use-case-page__comparison {
+    background: rgba($light, 0.76);
+}
+
+.use-case-page__pricing-panel {
+    align-items: center;
+    background: linear-gradient(135deg, rgba($purple-800, 0.98), rgba($purple-700, 0.94));
+    color: $light;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    justify-content: space-between;
+
+    @media (min-width: 992px) {
+        flex-direction: row;
+    }
+}
+
+.use-case-page__pricing-panel p {
+    color: rgba($light, 0.88);
+    margin-bottom: 0;
+    max-width: 40rem;
+}
+
+.use-case-page__pricing-panel .call-to-action {
+    margin-left: 0;
+    margin-right: 0;
+    min-width: min(100%, 20rem);
+}
+
+.use-case-page__faq {
+    background: rgba($light, 0.86);
+}
+
+.use-case-page__faq-item {
+    background: rgba($light, 0.98);
+    border: 1px solid rgba($purple, 0.12);
+    box-shadow: 0 1rem 2.5rem rgba($purple-900, 0.05);
+    height: 100%;
+    padding: 1.5rem;
+}
+
+.use-case-page__related-links {
+    padding-top: 0;
+}
+
+.use-case-page__related-grid {
+    display: grid;
+    gap: 1rem;
+
+    @media (min-width: 768px) {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
+.use-case-page__related-link {
+    background: rgba($light, 0.98);
+    border: 1px solid rgba($purple, 0.12);
+    box-shadow: 0 1rem 2rem rgba($purple-900, 0.05);
+    color: $body-color;
+    display: block;
+    font-weight: 600;
+    padding: 1.25rem 1.5rem;
+    text-decoration: none;
+
+    &:hover {
+        color: $primary;
+        transform: translateY(-1px);
+    }
+}

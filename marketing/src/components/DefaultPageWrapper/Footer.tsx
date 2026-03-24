@@ -12,6 +12,17 @@ const Footer: React.FunctionComponent = () => (
                     </p>
                 </div>
                 <div className="col-6 col-lg-2">
+                    <h5>Use Cases</h5>
+                    <ul className="list-unstyled">
+                        <li>
+                            <Link to="/private-baby-monitor/">Private Baby Monitor</Link>
+                        </li>
+                        <li>
+                            <Link to="/baby-monitor-without-wifi/">Baby Monitor Without Wi-Fi</Link>
+                        </li>
+                    </ul>
+                </div>
+                <div className="col-6 col-lg-2">
                     <h5>Features</h5>
                     <ul className="list-unstyled">
                         <li>
