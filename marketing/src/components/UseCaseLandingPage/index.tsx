@@ -327,16 +327,16 @@ export const UseCaseComparisonTableSection: React.FunctionComponent<ComparisonTa
                 <table className="use-case-page__table">
                     <thead>
                         <tr>
-                            {headers.map((header) => (
-                                <th key={header} scope="col">{header}</th>
+                            {headers.map((header, headerIndex) => (
+                                <th key={`${header}-${headerIndex}`} scope="col">{header}</th>
                             ))}
                         </tr>
                     </thead>
                     <tbody>
                         {rows.map((row) => (
                             <tr key={row.join('|')}>
-                                {row.map((cell) => (
-                                    <td key={cell}>{cell}</td>
+                                {row.map((cell, cellIndex) => (
+                                    <td key={`${headers[cellIndex] ?? 'col'}-${cellIndex}-${cell}`}>{cell}</td>
                                 ))}
                             </tr>
                         ))}
