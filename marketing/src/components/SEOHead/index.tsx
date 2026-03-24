@@ -1,5 +1,4 @@
 import React from 'react';
-import { graphql, useStaticQuery } from 'gatsby';
 
 interface Props {
     title: string;
@@ -9,32 +8,13 @@ interface Props {
     type?: 'website' | 'article';
 }
 
-interface SiteMetadataQuery {
-    site: {
-        siteMetadata: {
-            siteUrl?: string;
-            title?: string;
-        }
-    }
-}
+const SITE_URL = 'https://beddybytes.com';
 
 const SEOHead: React.FunctionComponent<Props> = ({ title, description, noindex, pathname, type = 'website' }) => {
-    const data = useStaticQuery<SiteMetadataQuery>(graphql`
-        query SEOHeadSiteMetadata {
-            site {
-                siteMetadata {
-                    siteUrl
-                    title
-                }
-            }
-        }
-    `)
-
     if (noindex !== true && description === undefined)
         throw new Error('description is required if noindex is not true');
 
-    const siteUrl = data.site.siteMetadata.siteUrl ?? '';
-    const canonicalURL = pathname && siteUrl ? new URL(pathname, siteUrl).toString() : undefined;
+    const canonicalURL = pathname ? new URL(pathname, SITE_URL).toString() : undefined;
     const socialTitle = title;
     const socialDescription = description;
 
