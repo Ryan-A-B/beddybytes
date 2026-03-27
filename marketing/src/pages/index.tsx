@@ -1,5 +1,5 @@
 import * as React from "react"
-import type { HeadFC, PageProps } from "gatsby"
+import { Link, type HeadFC, type PageProps } from "gatsby"
 import { StaticImage } from "gatsby-plugin-image"
 import SEOHead from "../components/SEOHead"
 import DefaultPageWrapper from "../components/DefaultPageWrapper"
@@ -60,6 +60,22 @@ const IndexPage: React.FunctionComponent<PageProps> = () => {
         <Features>
           <h2>Key features for private baby monitoring</h2>
         </Features>
+        <section className="py-4 bg-body-tertiary">
+          <div className="container">
+            <p className="mb-2">
+              Looking for a <Link to="/no-subscription-baby-monitor/">no subscription baby monitor</Link>?
+            </p>
+            <p className="mb-2">
+              Need a <Link to="/baby-monitor-app-iphone-and-android/">baby monitor app for iPhone and Android</Link>?
+            </p>
+            <p className="mb-2">
+              Want to <Link to="/how-to-turn-an-old-phone-into-a-baby-monitor/">turn an old phone into a baby monitor</Link>?
+            </p>
+            <p className="mb-0">
+              Still comparing <Link to="/radio-baby-monitor-vs-wifi-baby-monitor/">radio baby monitor vs Wi-Fi baby monitor</Link>?
+            </p>
+          </div>
+        </section>
         <section id="demo" className="py-5">
           <div className="container">
             <h2>Set up your private baby monitor app in under 5 minutes</h2>

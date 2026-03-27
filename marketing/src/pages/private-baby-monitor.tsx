@@ -1,5 +1,5 @@
 import React from 'react'
-import { HeadFC } from 'gatsby'
+import { HeadFC, Link } from 'gatsby'
 import { StaticImage } from 'gatsby-plugin-image'
 import SEOHead from '../components/SEOHead'
 import {
@@ -123,16 +123,28 @@ const PrivateBabyMonitorPage: React.FunctionComponent = () => (
                     description: 'Your live video and audio stay between your own devices on your local network instead of passing through BeddyBytes servers.',
                 },
                 {
-                    title: 'No cloud storage for your live stream',
-                    description: 'BeddyBytes does not store your live baby monitor video or audio, so there is no server-side library of your monitoring sessions sitting on our side.',
+                    title: 'No subscription',
+                    description: (
+                        <React.Fragment>
+                            Pay once for access and stop thinking about monthly baby monitor fees. If recurring fees are the main thing you are trying to avoid, see the full <Link to="/no-subscription-baby-monitor/">no subscription baby monitor</Link> page.
+                        </React.Fragment>
+                    ),
                 },
                 {
                     title: 'Reuse the devices you already own',
-                    description: 'Use a spare phone, tablet, or laptop as the baby station instead of buying another camera for the nursery.',
+                    description: (
+                        <React.Fragment>
+                            Use a spare phone, tablet, or laptop as the baby station instead of buying another camera for the nursery. If you already have a spare handset ready to go, here is how to <Link to="/how-to-turn-an-old-phone-into-a-baby-monitor/">turn an old phone into a baby monitor</Link>.
+                        </React.Fragment>
+                    ),
                 },
                 {
                     title: 'Works across the devices already in your home',
-                    description: 'BeddyBytes works across iPhone, Android, tablets, and laptops through the browser, so it fits the mix of devices most families already have at home.',
+                    description: (
+                        <React.Fragment>
+                            BeddyBytes works across iPhone, Android, tablets, and laptops through the browser, so it fits the mix of devices most families already have at home. For mixed-device households, this <Link to="/baby-monitor-app-iphone-and-android/">baby monitor app for iPhone and Android</Link> page explains how the setup works.
+                        </React.Fragment>
+                    ),
                 },
             ]}
         />
@@ -209,6 +221,7 @@ const PrivateBabyMonitorPage: React.FunctionComponent = () => (
                 { label: 'No subscription baby monitor', to: '/no-subscription-baby-monitor/' },
                 { label: 'Baby monitor app for iPhone and Android', to: '/baby-monitor-app-iphone-and-android/' },
                 { label: 'How to turn an old phone into a baby monitor', to: '/how-to-turn-an-old-phone-into-a-baby-monitor/' },
+                { label: 'Radio baby monitor vs Wi-Fi baby monitor', to: '/radio-baby-monitor-vs-wifi-baby-monitor/' },
             ]}
         />
     </UseCasePage>
