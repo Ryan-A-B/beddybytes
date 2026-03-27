@@ -1,11 +1,11 @@
 import React from 'react'
 
-interface FAQItem {
+export interface FAQItem {
     question: string
     answer: React.ReactNode
 }
 
-const items: FAQItem[] = [
+const DefaultItems: FAQItem[] = [
     {
         question: 'Why do I need an internet connection?',
         answer: (
@@ -99,7 +99,11 @@ const getCollapseClassName = (isActive: boolean) => {
     return isActive ? ActiveCollapseClassName : CollapseClassName
 }
 
-const FAQSection: React.FunctionComponent = () => {
+interface Props {
+    items?: FAQItem[]
+}
+
+const FAQSection: React.FunctionComponent<Props> = ({ items = DefaultItems }) => {
     const [activeIndex, setActiveIndex] = React.useState<number | null>(null)
     const handleClick = (index: number) => () => {
         if (activeIndex === index) {

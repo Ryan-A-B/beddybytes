@@ -1,5 +1,5 @@
 import React, { FunctionComponent } from 'react'
-import { type HeadFC } from "gatsby"
+import { Link, type HeadFC } from "gatsby"
 import { StaticImage } from 'gatsby-plugin-image'
 
 import DefaultPageWrapper from '../../components/DefaultPageWrapper'
@@ -58,6 +58,7 @@ const PrivateBabyMonitorPage: React.FunctionComponent = () => (
                                     Like us you are probably looking for a baby monitor without WiFi because you're worried about privacy.
                                     If you've read a few privacy policies you'll know that most baby monitors which connect to the cloud are creepy at best.
                                     And, even if the privacy policy checks out, data leaks and breaches happen all the time.
+                                    If that is your main concern, the better fit is often a <Link to="/private-baby-monitor/">private baby monitor</Link> where the live stream stays on your local network.
                                 </p>
                                 <section>
                                     <h3>Privacy red flags</h3>
@@ -86,6 +87,7 @@ const PrivateBabyMonitorPage: React.FunctionComponent = () => (
                         <p>
                             The best way to keep your data private is to never give it out in the first place.
                             We stream nap time directly between your smartphone and laptop using your home WiFi.
+                            If you also want to avoid monthly fees, see why BeddyBytes works as a <Link to="/no-subscription-baby-monitor/">no subscription baby monitor</Link>.
                         </p>
                         <p>
                             An internet connection is required to establish the connection between devices. But no video is sent over the internet.
