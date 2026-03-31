@@ -8,17 +8,17 @@ import './style.scss'
 
 interface SectionContent {
     title: string
-    paragraphs: string[]
+    paragraphs: React.ReactNode[]
 }
 
 interface FeatureCard {
     title: string
-    description: string
+    description: React.ReactNode
 }
 
 interface Tradeoff {
     title: string
-    description: string
+    description: React.ReactNode
 }
 
 interface FAQItem {
@@ -51,7 +51,7 @@ interface PageProps {
 interface HeroProps {
     eyebrow?: string
     title: string
-    description: string
+    description: React.ReactNode
     visual: React.ReactNode
     visualVariant?: 'portrait' | 'landscape'
 }
@@ -94,7 +94,7 @@ interface TradeoffsSectionProps {
 
 interface PricingCtaSectionProps {
     title: string
-    description: string
+    description: React.ReactNode
 }
 
 interface FAQSectionProps {
@@ -158,8 +158,8 @@ export const UseCaseTextSection: React.FunctionComponent<SectionContent> = ({ ti
         <div className="container">
             <div className="use-case-page__section-copy">
                 <h2>{title}</h2>
-                {paragraphs.map((paragraph) => (
-                    <p key={paragraph}>{paragraph}</p>
+                {paragraphs.map((paragraph, index) => (
+                    <p key={index}>{paragraph}</p>
                 ))}
             </div>
         </div>
