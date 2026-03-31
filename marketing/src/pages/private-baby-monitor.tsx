@@ -75,7 +75,7 @@ const webPageSchema = {
     '@context': 'https://schema.org',
     '@type': 'WebPage',
     name: 'Private Baby Monitor That Uses Devices You Already Own',
-    description: 'Turn your old phone, tablet, or laptop into a private baby monitor. No subscription. Works across iPhone and Android. Live video and audio stay on your local network.',
+    description: 'Turn your old phone, tablet, or laptop into a private baby monitor. One purchase covers your account across your devices. Works across iPhone and Android. Live video and audio stay on your local network.',
     url: 'https://beddybytes.com/private-baby-monitor/',
 }
 
@@ -84,7 +84,7 @@ const PrivateBabyMonitorPage: React.FunctionComponent = () => (
         <UseCaseHero
             eyebrow="Private baby monitor"
             title="Private baby monitor that uses devices you already own"
-            description="If you already have an old phone, tablet, or laptop, BeddyBytes turns it into a private baby monitor in minutes. You do not need extra monitor hardware, and your live video and audio stay on your local network."
+            description="If you already have an old phone, tablet, or laptop, BeddyBytes turns it into a private baby monitor in minutes. One purchase covers your account, and your live video and audio stay on your local network."
             visualVariant="portrait"
             visual={(
                 <React.Fragment>
@@ -102,7 +102,7 @@ const PrivateBabyMonitorPage: React.FunctionComponent = () => (
         />
         <UseCaseTrustBar
             items={[
-                'No subscription',
+                'One purchase, no ongoing fee',
                 'One purchase covers all your devices',
                 'Works across iPhone and Android',
                 '30-day refund, no questions asked',
@@ -112,7 +112,7 @@ const PrivateBabyMonitorPage: React.FunctionComponent = () => (
             title="Why people end up here"
             paragraphs={[
                 'Most people looking for a private baby monitor are trying to solve two problems at once. They want something practical enough to use every day, and they do not want live baby video going through someone else\'s servers.',
-                'That is exactly what BeddyBytes is for. It gives the devices you already own a second life as a baby monitor, without pushing you toward dedicated hardware or a monthly subscription.',
+                'That is exactly what BeddyBytes is for. It gives the devices you already own a second life as a baby monitor, without pushing you toward dedicated hardware or an ongoing fee model.',
             ]}
         />
         <UseCaseCardGridSection
@@ -123,10 +123,10 @@ const PrivateBabyMonitorPage: React.FunctionComponent = () => (
                     description: 'Your live video and audio stay between your own devices on your local network instead of passing through BeddyBytes servers.',
                 },
                 {
-                    title: 'No subscription',
+                    title: 'One-Time Purchase',
                     description: (
                         <React.Fragment>
-                            Pay once for access and stop thinking about monthly baby monitor fees. If recurring fees are the main thing you are trying to avoid, see the full <Link to="/no-subscription-baby-monitor/">no subscription baby monitor</Link> page.
+                            Pay once for access and stop thinking about another ongoing baby monitor charge. If your main concern is avoiding monthly fees, see the page focused on choosing a <Link to="/no-subscription-baby-monitor/">no subscription baby monitor</Link>.
                         </React.Fragment>
                     ),
                 },
@@ -163,7 +163,7 @@ const PrivateBabyMonitorPage: React.FunctionComponent = () => (
                 title: 'Probably a good fit if you want',
                 items: [
                     'A private baby monitor without buying more hardware',
-                    'No subscription hanging over a simple daily tool',
+                    'One purchase instead of another ongoing fee',
                     'A spare phone or tablet that can get a second life',
                     'A setup that works across iPhone, Android, tablets, and laptops',
                     'Something useful for naps, evenings, working from home, and travel',
@@ -218,7 +218,7 @@ const PrivateBabyMonitorPage: React.FunctionComponent = () => (
         <UseCaseFAQSection items={faqItems} />
         <UseCaseRelatedLinksSection
             links={[
-                { label: 'No subscription baby monitor', to: '/no-subscription-baby-monitor/' },
+                { label: 'no subscription baby monitor', to: '/no-subscription-baby-monitor/' },
                 { label: 'Baby monitor app for iPhone and Android', to: '/baby-monitor-app-iphone-and-android/' },
                 { label: 'How to turn an old phone into a baby monitor', to: '/how-to-turn-an-old-phone-into-a-baby-monitor/' },
                 { label: 'Radio baby monitor vs Wi-Fi baby monitor', to: '/radio-baby-monitor-vs-wifi-baby-monitor/' },
@@ -232,8 +232,8 @@ export default PrivateBabyMonitorPage
 export const Head: HeadFC = () => (
     <React.Fragment>
         <SEOHead
-            title="Private Baby Monitor | No Subscription | BeddyBytes"
-            description="Turn your old phone, tablet, or laptop into a private baby monitor. No subscription. Works across iPhone and Android. Live video and audio stay on your local network."
+            title="Private Baby Monitor | Local-Only Media | BeddyBytes"
+            description="Turn your old phone, tablet, or laptop into a private baby monitor. One purchase covers your account across your devices. Works across iPhone and Android. Live video and audio stay on your local network."
             pathname="/private-baby-monitor/"
         />
         <script type="application/ld+json">
