@@ -6,15 +6,7 @@ import Pricing from "../components/Pricing"
 import SocialProofSection from "../components/SocialProof/Section"
 import AllPlansInclude from "../components/Pricing/AllPlansInclude"
 import { OnePurchase, RedirectToPaymentProcessor } from "../components/Pricing/Messages"
-import FAQSection, { FAQItem, faqLibrary } from "../components/LandingPage/FAQSection"
-
-const faqItems: FAQItem[] = [
-    faqLibrary.internetConnection,
-    faqLibrary.valueOverShopMonitor,
-    faqLibrary.secure,
-    faqLibrary.passwordLength,
-    faqLibrary.nightVision,
-]
+import FAQSection from "../components/LandingPage/FAQSection"
 
 const PricingPage: React.FunctionComponent<PageProps> = () => {
     return (
@@ -36,7 +28,7 @@ const PricingPage: React.FunctionComponent<PageProps> = () => {
                 </div>
             </main>
             <SocialProofSection />
-            <FAQSection items={faqItems} />
+            <FAQSection />
         </DefaultPageWrapper>
     )
 }
