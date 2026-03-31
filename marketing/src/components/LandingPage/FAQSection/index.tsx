@@ -1,12 +1,13 @@
 import React from 'react'
+import { Link } from 'gatsby'
 
 export interface FAQItem {
     question: string
     answer: React.ReactNode
 }
 
-const DefaultItems: FAQItem[] = [
-    {
+export const faqLibrary = {
+    internetConnection: {
         question: 'Why do I need an internet connection?',
         answer: (
             <React.Fragment>
@@ -26,7 +27,7 @@ const DefaultItems: FAQItem[] = [
             </React.Fragment>
         )
     },
-    {
+    valueOverShopMonitor: {
         question: "What's the value over a baby monitor I can buy at the shops?",
         answer: (
             <React.Fragment>
@@ -45,10 +46,13 @@ const DefaultItems: FAQItem[] = [
                     already overflowing baby travel bag. Which also means one less thing to forget! We've got
                     enough on our minds.
                 </p>
+                <p>
+                    If you are weighing dedicated hardware against browser-based monitoring, this <Link to="/radio-baby-monitor-vs-wifi-baby-monitor/">radio baby monitor vs Wi-Fi baby monitor</Link> comparison is the clearest place to start.
+                </p>
             </React.Fragment>
         )
     },
-    {
+    secure: {
         question: 'Is it secure?',
         answer: (
                 <p>
@@ -58,7 +62,7 @@ const DefaultItems: FAQItem[] = [
                 </p>
         )
     },
-    {
+    passwordLength: {
         question: 'Why does the password need to be so long?',
         answer: (
             <p>
@@ -67,7 +71,7 @@ const DefaultItems: FAQItem[] = [
             </p>
         )
     },
-    {
+    nightVision: {
         question: 'Does it have night vision?',
         answer: (
             <p>
@@ -75,6 +79,14 @@ const DefaultItems: FAQItem[] = [
             </p>
         )
     }
+} satisfies Record<string, FAQItem>
+
+export const defaultFAQItems: FAQItem[] = [
+    faqLibrary.internetConnection,
+    faqLibrary.valueOverShopMonitor,
+    faqLibrary.secure,
+    faqLibrary.passwordLength,
+    faqLibrary.nightVision,
 ]
 
 const ActiveButtonProps = {
@@ -103,7 +115,7 @@ interface Props {
     items?: FAQItem[]
 }
 
-const FAQSection: React.FunctionComponent<Props> = ({ items = DefaultItems }) => {
+const FAQSection: React.FunctionComponent<Props> = ({ items = defaultFAQItems }) => {
     const [activeIndex, setActiveIndex] = React.useState<number | null>(null)
     const handleClick = (index: number) => () => {
         if (activeIndex === index) {
