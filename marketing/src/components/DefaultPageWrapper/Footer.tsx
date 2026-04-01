@@ -63,7 +63,7 @@ const Footer: React.FunctionComponent = () => (
                     <h5>Socials</h5>
                     <ul className="list-unstyled">
                         <li>
-                            <Link to="https://www.youtube.com/@BeddyBytes" target="_blank">YouTube</Link>
+                            <a href="https://www.youtube.com/@BeddyBytes" target="_blank" rel="noopener noreferrer">YouTube</a>
                         </li>
                     </ul>
                 </div>
