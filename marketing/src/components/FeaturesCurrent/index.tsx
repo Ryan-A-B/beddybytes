@@ -1,4 +1,5 @@
 import React from 'react'
+import { Link } from 'gatsby'
 
 const FeaturesCurrent: React.FunctionComponent = () => {
     return (
@@ -25,7 +26,7 @@ const FeaturesCurrent: React.FunctionComponent = () => {
             <section>
                 <h5>Monitor from any modern web browser</h5>
                 <p>
-                    Simply log in and you're good to go.
+                    Simply log in and you're good to go. That also makes it a practical <Link to="/baby-monitor-app-iphone-and-android/">baby monitor app for iPhone and Android</Link> if your devices do not match.
                 </p>
             </section>
             <section>

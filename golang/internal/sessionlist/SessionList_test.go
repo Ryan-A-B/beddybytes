@@ -10,6 +10,7 @@ import (
 	uuid "github.com/satori/go.uuid"
 	. "github.com/smartystreets/goconvey/convey"
 
+	"github.com/Ryan-A-B/beddybytes/golang/internal/connections"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/contextx"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/eventlog"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/sessionlist"
@@ -245,4 +246,67 @@ func TestSessionList(t *testing.T) {
 			})
 		})
 	})
+}
+
+func TestSessionListReconnectCache(t *testing.T) {
+	Convey("Disconnected sessions leave the active list but can reconnect", t, func() {
+		ctx := context.Background()
+		accountID := uuid.NewV4().String()
+		ctx = contextx.WithAccountID(ctx, accountID)
+		folderPath, err := os.MkdirTemp("testdata", "TestSessionListReconnectCache-*")
+		So(err, ShouldBeNil)
+		log := eventlog.NewFileEventLog(&eventlog.NewFileEventLogInput{
+			FolderPath: folderPath,
+		})
+		sessionList := sessionlist.New(ctx, sessionlist.NewInput{
+			Log: log,
+		})
+		connectionID := uuid.NewV4().String()
+		sessionStartedEventData := sessionlist.SessionStartedEventData{
+			ID:               uuid.NewV4().String(),
+			Name:             "test",
+			HostConnectionID: connectionID,
+			StartedAt:        time.Now(),
+		}
+		data, err := json.Marshal(sessionStartedEventData)
+		So(err, ShouldBeNil)
+		_, err = log.Append(ctx, eventlog.AppendInput{
+			Type:      sessionlist.EventTypeSessionStarted,
+			AccountID: accountID,
+			Data:      data,
+		})
+		So(err, ShouldBeNil)
+		_, err = log.Append(ctx, eventlog.AppendInput{
+			Type:      connections.EventTypeDisconnected,
+			AccountID: accountID,
+			Data: mustMarshalSessionListEvent(connections.EventDisconnected{
+				ConnectionID: connectionID,
+				RequestID:    "TODO",
+			}),
+		})
+		So(err, ShouldBeNil)
+
+		output := sessionList.List(ctx)
+		So(output.Sessions, ShouldBeEmpty)
+
+		_, err = log.Append(ctx, eventlog.AppendInput{
+			Type:      connections.EventTypeConnected,
+			AccountID: accountID,
+			Data: mustMarshalSessionListEvent(connections.EventConnected{
+				ConnectionID: connectionID,
+				RequestID:    uuid.NewV4().String(),
+			}),
+		})
+		So(err, ShouldBeNil)
+		output = sessionList.List(ctx)
+		So(output.Sessions, ShouldHaveLength, 1)
+	})
+}
+
+func mustMarshalSessionListEvent(v interface{}) []byte {
+	data, err := json.Marshal(v)
+	if err != nil {
+		panic(err)
+	}
+	return data
 }

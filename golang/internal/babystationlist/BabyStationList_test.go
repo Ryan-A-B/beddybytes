@@ -244,7 +244,6 @@ func TestBabyStationList(t *testing.T) {
 			So(output.Snapshot.List(), ShouldHaveLength, 2)
 			So(output.Cursor, ShouldEqual, 4)
 
-			// Validate babyStation 1
 			babyStation := output.Snapshot.List()[0]
 			if babyStation.ClientID == clientID1 {
 				So(babyStation.Name, ShouldEqual, sessionName1)
@@ -255,7 +254,6 @@ func TestBabyStationList(t *testing.T) {
 				So(babyStation.StartedAt, ShouldHappenWithin, time.Millisecond, sessionStartedAt2)
 			}
 
-			// Validate session 2
 			babyStation = output.Snapshot.List()[1]
 			if babyStation.ClientID == clientID2 {
 				So(babyStation.Name, ShouldEqual, sessionName2)

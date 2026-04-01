@@ -1,5 +1,5 @@
 import React from "react"
-import type { HeadFC, PageProps } from "gatsby"
+import { type HeadFC, type PageProps } from "gatsby"
 import SEOHead from "../components/SEOHead"
 import DefaultPageWrapper from "../components/DefaultPageWrapper"
 import Pricing from "../components/Pricing"
