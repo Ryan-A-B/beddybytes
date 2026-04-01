@@ -1,0 +1,33 @@
+providers:
+  docker: {}
+  file:
+    directory: /etc/traefik/
+    filename: dynamic_conf.yml
+    watch: true
+
+entryPoints:
+  web:
+    address: :80
+    http:
+      redirections:
+        entryPoint:
+          to: websecure
+          scheme: https
+  websecure:
+    address: :443
+
+api:
+  dashboard: true
+  insecure: true
+
+log:
+  level: INFO
+
+accessLog: {}
+
+metrics:
+  influxDB2:
+    address: http://influxdb:8086
+    token: g7PJBncqbvOIJfuFtRTbSHr99T_PwDvyFmnC1zdpZooFnauwuRBeWHM5E54DespJlKDw5Fy4AWgvZH-5no5dgQ==
+    org: beddybytes
+    bucket: traefik

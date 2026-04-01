@@ -1,0 +1,76 @@
+services:
+  traefik:
+    image: traefik:v2.10
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8080:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./traefik/traefik.marketing.local.yml:/etc/traefik/traefik.yml
+      - ./traefik/dynamic_conf.local.yml:/etc/traefik/dynamic_conf.yml
+      - ./traefik/certificates:/opt/certificates
+    labels:
+      - "traefik.http.middlewares.headers-cors.headers.accesscontrolalloworiginlist=https://beddybytes.local"
+      - "traefik.http.middlewares.headers-cors.headers.accesscontrolallowheaders=Content-Type,Authorization"
+      - "traefik.http.middlewares.headers-cors.headers.accesscontrolallowcredentials=true"
+      - "traefik.http.middlewares.headers-cors.headers.accesscontrolallowmethods=GET,OPTIONS,POST,PUT,DELETE"
+    networks:
+      default:
+        aliases:
+          - beddybytes.local
+          - analytics.beddybytes.local
+          - influx.beddybytes.local
+
+  marketing:
+    image: node:18
+    command: npm run develop
+    restart: always
+    ports:
+      - "8000"
+    volumes:
+      - ./marketing/:/opt/marketing
+    environment:
+      - TINYANALYTICS_ENDPOINT=${TINYANALYTICS_ENDPOINT:-https://analytics.beddybytes.local}
+      - TINYANALYTICS_WRITE_TOKEN=${TINYANALYTICS_WRITE_TOKEN}
+    working_dir: /opt/marketing
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.marketing.rule=Host(`beddybytes.local`)"
+      - "traefik.http.routers.marketing.entrypoints=websecure"
+      - "traefik.http.routers.marketing.tls=true"
+
+  analytics:
+    image: tinyanalytics:v0
+    restart: always
+    environment:
+      - ANALYTICS_JWT_SECRET=${JWT_SIGNING_KEY}
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.analytics.rule=Host(`analytics.beddybytes.local`)"
+      - "traefik.http.routers.analytics.entrypoints=websecure"
+      - "traefik.http.routers.analytics.tls=true"
+      - "traefik.http.routers.analytics.middlewares=headers-cors@docker"
+
+  influxdb:
+    image: influxdb:2.7-alpine
+    restart: always
+    ports:
+      - "8086"
+    volumes:
+      - ./influxdb/data:/var/lib/influxdb2
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.influx.rule=Host(`influx.beddybytes.local`)"
+      - "traefik.http.routers.influx.entrypoints=websecure"
+      - "traefik.http.routers.influx.tls=true"
+      - "traefik.http.routers.influx.middlewares=headers-cors@docker"
+
+secrets:
+  ENCRYPTION_KEY:
+    external: true
+  JWT_SIGNING_KEY:
+    external: true
+  TINYANALYTICS_WRITE_TOKEN:
+    external: true
