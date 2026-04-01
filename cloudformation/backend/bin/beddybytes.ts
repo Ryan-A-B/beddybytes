@@ -22,6 +22,8 @@ const monitoring_stack = new MonitoringStack(app, 'beddybytes-monitoring', {
   cluster: core_stack.cluster,
   elastic_ip: core_stack.elastic_ip,
   tinyanalytics_docker_repository: ci_stack.tinyanalytics_docker_repository,
+  tinyanalytics_docker_image_digest: 'sha256:3ddfdd0fd945d60ebff0ea22e516c26e483c6edca67242a49c836e0d13b54528',
+  tinyanalytics_token_signing_key: secrets_stack.tinyanalytics_token_signing_key,
 });
 
 const load_balancer_stack = new LoadBalancerStack(app, 'beddybytes-load-balancer', {

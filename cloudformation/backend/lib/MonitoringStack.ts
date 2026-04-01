@@ -10,6 +10,8 @@ interface StackProps extends cdk.StackProps {
     elastic_ip: cdk.aws_ec2.CfnEIP;
     cluster: cdk.aws_ecs.ICluster;
     tinyanalytics_docker_repository: cdk.aws_ecr.IRepository;
+    tinyanalytics_docker_image_digest: string;
+    tinyanalytics_token_signing_key: cdk.aws_secretsmanager.ISecret;
 }
 
 export class MonitoringStack extends cdk.Stack {
@@ -108,18 +110,23 @@ export class MonitoringStack extends cdk.Stack {
         });
         this.grafana_container.addLink(this.influxdb_container, 'influxdb');
 
+        const tinyanalytics_container_image = cdk.aws_ecs.ContainerImage.fromEcrRepository(props.tinyanalytics_docker_repository, props.tinyanalytics_docker_image_digest);
+
         const tinyanalytics_container = task_definition.addContainer(`tinyanalytics`, {
             containerName: 'tinyanalytics',
-            image: cdk.aws_ecs.ContainerImage.fromEcrRepository(props.tinyanalytics_docker_repository, 'latest'),
+            image: tinyanalytics_container_image,
             essential: false,
             enableRestartPolicy: true,
             memoryLimitMiB: 32,
             portMappings: [{ containerPort: 9000 }],
-            healthCheck: {
-                command: [
-                    "CMD-SHELL",
-                    "curl --fail http://localhost:9000/v0/summary?bucket=1h&index=0",
-                ],
+            // healthCheck: {
+            //     command: [
+            //         "CMD-SHELL",
+            //         "curl --fail http://localhost:9000/v0/summary?bucket=1h&index=0",
+            //     ],
+            // },
+            secrets: {
+                'ANALYTICS_JWT_SECRET': cdk.aws_ecs.Secret.fromSecretsManager(props.tinyanalytics_token_signing_key)
             },
             dockerLabels: {
                 'traefik.enable': 'true',

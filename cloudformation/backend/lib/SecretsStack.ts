@@ -3,6 +3,7 @@ import { Construct } from 'constructs';
 
 export class SecretsStack extends cdk.Stack {
     public readonly signing_key: cdk.aws_secretsmanager.ISecret;
+    public readonly tinyanalytics_token_signing_key: cdk.aws_secretsmanager.ISecret;
     public readonly docker_hub_credentials: cdk.aws_secretsmanager.ISecret;
 
     constructor(scope: Construct, id_prefix: string, props?: cdk.StackProps) {
@@ -10,6 +11,10 @@ export class SecretsStack extends cdk.Stack {
 
         this.signing_key = new cdk.aws_secretsmanager.Secret(this, `signing-key`, {
             secretName: `${id_prefix}-signing-key`,
+        });
+
+        this.tinyanalytics_token_signing_key = new cdk.aws_secretsmanager.Secret(this, `tinyanalytics-token-signing-key`, {
+            secretName: `${id_prefix}-tinyanalytics-token-signing-key`,
         });
     }
 }
