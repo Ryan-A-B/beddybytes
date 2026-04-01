@@ -146,13 +146,5 @@ volumes:
   # TODO influx_storage + set up script
   grafana_storage:
 
-secrets:
-  ENCRYPTION_KEY:
-    external: true
-  JWT_SIGNING_KEY:
-    external: true
-  TINYANALYTICS_WRITE_TOKEN:
-    external: true
-
 include:
   - selenium.docker-compose.yml
