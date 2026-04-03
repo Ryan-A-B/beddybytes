@@ -6,6 +6,7 @@ This vault captures implementation-oriented documentation for BeddyBytes.
 
 - [[architecture]]
 - [[structure]]
+- [[Frontend Service Architecture]]
 - [[Product and Privacy Model]]
 - [[Backend Signalling Contracts]]
 - [[Signalling Migration]]

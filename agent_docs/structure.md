@@ -44,6 +44,7 @@ This note maps where key system behavior lives.
 
 - [[index]]
 - [[architecture]]
+- [[Frontend Service Architecture]]
 - [[Product and Privacy Model]]
 - [[Backend Signalling Contracts]]
 - [[Signalling Migration]]

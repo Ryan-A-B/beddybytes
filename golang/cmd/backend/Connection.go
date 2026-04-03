@@ -292,9 +292,10 @@ func (connection *Connection) handleSignal(ctx context.Context, incomingSignal *
 	}
 	inboxTopic := fmt.Sprintf(webrtcInboxTopicFormat, connection.AccountID, topicClientID)
 	data, err := json.Marshal(map[string]any{
-		"from_client_id": connection.ClientID,
-		"connection_id":  incomingSignal.ToConnectionID,
-		"data":           json.RawMessage(incomingSignal.Data),
+		"from_client_id":     connection.ClientID,
+		"from_connection_id": connection.ID,
+		"connection_id":      incomingSignal.ToConnectionID,
+		"data":               json.RawMessage(incomingSignal.Data),
 	})
 	if err != nil {
 		return

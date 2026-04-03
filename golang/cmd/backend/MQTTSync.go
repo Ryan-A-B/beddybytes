@@ -131,7 +131,14 @@ func (handlers *Handlers) handleWebRTCInboxMessage(client mqtt.Client, message m
 	if !ok {
 		return
 	}
-	signal, err := json.Marshal(inbox)
+	if inbox.FromConnectionID == "" {
+		// Frontend websocket signalling still routes by from_connection_id.
+		return
+	}
+	signal, err := json.Marshal(map[string]any{
+		"from_connection_id": inbox.FromConnectionID,
+		"data":               inbox.Data,
+	})
 	if err != nil {
 		logx.Errorln(err)
 		return
@@ -164,9 +171,10 @@ type parentStationAnnouncementRequest struct {
 }
 
 type webrtcInboxMessage struct {
-	FromClientID string          `json:"from_client_id"`
-	ConnectionID string          `json:"connection_id"`
-	Data         json.RawMessage `json:"data"`
+	FromClientID     string          `json:"from_client_id"`
+	FromConnectionID string          `json:"from_connection_id"`
+	ConnectionID     string          `json:"connection_id"`
+	Data             json.RawMessage `json:"data"`
 }
 
 type ControlMessageBase struct {

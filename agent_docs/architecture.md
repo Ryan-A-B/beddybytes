@@ -8,6 +8,16 @@ BeddyBytes is a privacy-first baby monitor built around browser-native WebRTC.
 - Backend (`golang/`): authentication, session metadata, signalling transport, and account separation.
 - Marketing site (`marketing/`): public website and commercial pages.
 
+## Frontend Architecture Pattern
+
+The frontend generally follows a service-oriented model:
+
+- application and workflow state live in services under `frontend/src/services/`
+- React components under `frontend/src/pages/` and `frontend/src/components/` render that state
+- hooks such as `frontend/src/hooks/useServiceState.ts` adapt service events into React updates
+
+This keeps business logic, timers, and network workflows out of JSX-heavy components.
+
 ## Core Roles
 
 - Baby Station: captures microphone audio (required) and camera video (optional), then publishes media to WebRTC peers.
