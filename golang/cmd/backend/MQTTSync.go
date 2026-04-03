@@ -53,10 +53,14 @@ func (handlers *Handlers) handleBabyStationsMessage(client mqtt.Client, message 
 		logx.Warnln("invalid baby station announcement payload")
 		return
 	}
+	if announcement.SessionID == "" {
+		logx.Warnln("invalid baby station announcement payload: missing session_id")
+		return
+	}
 	startedAt := time.UnixMilli(announcement.StartedAtMillis)
 	err := handlers.SessionStartDecider.Put(context.Background(), sessionstartdecider.Session{
 		AccountID:        accountID,
-		ID:               announcement.ConnectionID,
+		ID:               announcement.SessionID,
 		Name:             announcement.Name,
 		HostConnectionID: announcement.ConnectionID,
 		StartedAt:        startedAt,
@@ -96,6 +100,7 @@ func (handlers *Handlers) handleParentStationsMessage(client mqtt.Client, messag
 				AtMillis: time.Now().UnixMilli(),
 			},
 			BabyStationAnnouncement: babyStationAnnouncement{
+				SessionID:       babyStation.SessionID,
 				ClientID:        babyStation.ClientID,
 				ConnectionID:    babyStation.Connection.ID,
 				Name:            babyStation.Name,
@@ -160,6 +165,7 @@ func parseAccountID(topic string, pattern *regexp.Regexp) (string, bool) {
 }
 
 type babyStationAnnouncement struct {
+	SessionID       string `json:"session_id"`
 	ClientID        string `json:"client_id"`
 	ConnectionID    string `json:"connection_id"`
 	Name            string `json:"name"`

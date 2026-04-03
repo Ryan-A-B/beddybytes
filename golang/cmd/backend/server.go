@@ -309,6 +309,8 @@ func main() {
 			ConnectionStore: connectionstore.NewDecider(connectionstore.NewDeciderInput{
 				EventLog: eventLog,
 			}),
+			SessionList: handlers.SessionList,
+			EventLog:    eventLog,
 		})
 		log.Fatal("connectionstoresync.Run exited")
 	}()

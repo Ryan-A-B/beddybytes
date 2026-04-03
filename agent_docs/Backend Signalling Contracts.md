@@ -48,9 +48,9 @@ This is the legacy transport targeted for deprecation after MQTT migration.
   - payload: `{"type":"disconnected","connection_id":"...","disconnected":{"reason":"clean|unexpected"},"at_millis":<int>}`
 - Incoming websocket payload from client:
   - `{"type":"signal","signal":{"to_connection_id":"...","data":<json>}}`
-  - backend republishes to MQTT topic:
+- backend republishes to MQTT topic:
   - `accounts/{account_id}/clients/{to_client_id|sender_client_id}/webrtc_inbox`
-  - payload: `{"from_client_id":"...","connection_id":"...","data":<json>}`
+  - payload: `{"from_client_id":"...","from_connection_id":"...","connection_id":"...","data":<json>}`
 - Keepalive:
   - websocket ping/pong with 30s ping period
   - pong timeout 10s
@@ -92,14 +92,40 @@ Event payloads are defined in `golang/internal/connections/Event.go`.
 
 - `PUT /sessions/{session_id}` now publishes session announcements to:
   - `accounts/{account_id}/baby_stations`
-- `PUT /sessions/{session_id}` accepts both:
-  - legacy payload (`id`, `name`, `host_connection_id`, `started_at`)
-  - migration payload (`client_id`, `connection_id`, `name`, `started_at_millis`)
-- If `client_id` is missing, backend resolves it from in-memory connection map (`connection_id -> client_id`).
+- `PUT /sessions/{session_id}` continues to accept the legacy payload only:
+  - `id`, `name`, `host_connection_id`, `started_at`
+- Backend derives MQTT announcement fields from the legacy request body:
+  - `session_id` comes from path/body `id`
+  - `connection_id` comes from `host_connection_id`
+  - `started_at_millis` comes from `started_at`
+- Backend resolves `client_id` from the in-memory connection map (`connection_id -> client_id`).
 - If mapping is not available yet, backend queues session start in-memory and publishes after websocket connect registers that connection.
 - Queue policy: per-account LRU with max 2 pending session starts.
-- Session delete endpoint is intentionally no-op; disconnect status drives lifecycle.
+- Old-client compatibility detail:
+  - after publishing the MQTT announcement, backend also appends `session.started` locally before returning from `PUT /sessions/{session_id}`
+  - backend still subscribes its own `baby_stations` topic; that later delivery is treated as a duplicate by `sessionstartdecider`
+  - this avoids a race where old clients could call stop before the backend had observed its own published start announcement
+- `DELETE /sessions/{session_id}` appends `session.ended` using the real session id if the session is still active.
 - `MQTTSync` subscribes `accounts/+/baby_stations` and appends `session.started` with idempotency via `sessionstartdecider`.
+- Clean disconnect compatibility:
+  - `connectionstoresync` still appends `client.disconnected`
+  - if disconnect reason is `clean` and the connection owns an active session, backend also appends `session.ended`
+  - this preserves existing frontend session teardown behavior without changing frontend code
+- `sessionstartdecider` releases a connection id for reuse after `session.ended`, so the same long-lived frontend connection id can start a later session again
+
+## Identity Model
+
+- `account_id`:
+  - stable account scope
+- `client_id`:
+  - stable device/browser identity
+- `session_id`:
+  - explicit baby-station session lifecycle id
+  - preserved for compatibility and event history
+- `connection_id`:
+  - runtime identity for legacy websocket transport
+  - survives reconnects of the same runtime
+  - still needed as a bridge while websocket clients coexist with MQTT-native clients
 
 ## Parent Station Discovery
 

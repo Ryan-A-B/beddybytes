@@ -12,6 +12,7 @@ import (
 )
 
 const EventTypeSessionStarted = "session.started"
+const EventTypeSessionEnded = "session.ended"
 
 var ErrDuplicate = errors.New("duplicate")
 
@@ -24,10 +25,12 @@ type Session struct {
 }
 
 type Decider struct {
-	eventLog        eventlog.EventLog
-	mutex           sync.Mutex
-	cursor          int64
-	connectionIDSet map[string]struct{}
+	eventLog                  eventlog.EventLog
+	mutex                     sync.Mutex
+	cursor                    int64
+	sessionKeyByConnectionKey map[string]string
+	connectionKeyBySessionKey map[string]string
+	endedSessionKeySet        map[string]struct{}
 }
 
 type NewDeciderInput struct {
@@ -36,8 +39,10 @@ type NewDeciderInput struct {
 
 func NewDecider(input NewDeciderInput) *Decider {
 	return &Decider{
-		eventLog:        input.EventLog,
-		connectionIDSet: make(map[string]struct{}),
+		eventLog:                  input.EventLog,
+		sessionKeyByConnectionKey: make(map[string]string),
+		connectionKeyBySessionKey: make(map[string]string),
+		endedSessionKeySet:        make(map[string]struct{}),
 	}
 }
 
@@ -48,8 +53,12 @@ func (decider *Decider) Put(ctx context.Context, session Session) error {
 	if err := decider.catchUp(ctx); err != nil {
 		return err
 	}
-	key := decider.getKey(session.AccountID, session.HostConnectionID)
-	if _, ok := decider.connectionIDSet[key]; ok {
+	connectionKey := decider.getKey(session.AccountID, session.HostConnectionID)
+	sessionKey := decider.getSessionKey(session.AccountID, session.ID)
+	if _, ok := decider.endedSessionKeySet[sessionKey]; ok {
+		return ErrDuplicate
+	}
+	if existingSessionKey, ok := decider.sessionKeyByConnectionKey[connectionKey]; ok && existingSessionKey == sessionKey {
 		return ErrDuplicate
 	}
 	data, err := json.Marshal(sessionStartedEventData{
@@ -76,6 +85,19 @@ func (decider *Decider) catchUp(ctx context.Context) error {
 	for iterator.Next(ctx) {
 		event := iterator.Event()
 		if event.Type != EventTypeSessionStarted {
+			if event.Type == EventTypeSessionEnded {
+				var data sessionEndedEventData
+				if err := json.Unmarshal(event.Data, &data); err != nil {
+					return err
+				}
+				sessionKey := decider.getSessionKey(event.AccountID, data.ID)
+				connectionKey, ok := decider.connectionKeyBySessionKey[sessionKey]
+				if ok {
+					delete(decider.sessionKeyByConnectionKey, connectionKey)
+					delete(decider.connectionKeyBySessionKey, sessionKey)
+				}
+				decider.endedSessionKeySet[sessionKey] = struct{}{}
+			}
 			decider.cursor = event.LogicalClock
 			continue
 		}
@@ -83,8 +105,20 @@ func (decider *Decider) catchUp(ctx context.Context) error {
 		if err := json.Unmarshal(event.Data, &data); err != nil {
 			return err
 		}
-		key := decider.getKey(event.AccountID, data.HostConnectionID)
-		decider.connectionIDSet[key] = struct{}{}
+		connectionKey := decider.getKey(event.AccountID, data.HostConnectionID)
+		sessionKey := decider.getSessionKey(event.AccountID, data.ID)
+		if _, ended := decider.endedSessionKeySet[sessionKey]; ended {
+			decider.cursor = event.LogicalClock
+			continue
+		}
+		if replacedSessionKey, ok := decider.sessionKeyByConnectionKey[connectionKey]; ok && replacedSessionKey != sessionKey {
+			delete(decider.connectionKeyBySessionKey, replacedSessionKey)
+		}
+		if replacedConnectionKey, ok := decider.connectionKeyBySessionKey[sessionKey]; ok && replacedConnectionKey != connectionKey {
+			delete(decider.sessionKeyByConnectionKey, replacedConnectionKey)
+		}
+		decider.sessionKeyByConnectionKey[connectionKey] = sessionKey
+		decider.connectionKeyBySessionKey[sessionKey] = connectionKey
 		decider.cursor = event.LogicalClock
 	}
 	return iterator.Err()
@@ -94,9 +128,17 @@ func (decider *Decider) getKey(accountID string, connectionID string) string {
 	return fmt.Sprintf("accounts/%s/connections/%s", accountID, connectionID)
 }
 
+func (decider *Decider) getSessionKey(accountID string, sessionID string) string {
+	return fmt.Sprintf("accounts/%s/sessions/%s", accountID, sessionID)
+}
+
 type sessionStartedEventData struct {
 	ID               string    `json:"id"`
 	Name             string    `json:"name"`
 	HostConnectionID string    `json:"host_connection_id"`
 	StartedAt        time.Time `json:"started_at"`
+}
+
+type sessionEndedEventData struct {
+	ID string `json:"id"`
 }

@@ -54,6 +54,12 @@ func TestDecider(t *testing.T) {
 					So(err, ShouldEqual, connectionstore.ErrDuplicate)
 				})
 			})
+			Convey("Reconnect after disconnect", func() {
+				err = decider.Delete(ctx, connection)
+				So(err, ShouldBeNil)
+				err = decider.Put(ctx, connection)
+				So(err, ShouldBeNil)
+			})
 		})
 		Convey("Multiple Connections", func() {
 			Convey("Multiple Accounts", func() {

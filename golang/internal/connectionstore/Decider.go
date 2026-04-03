@@ -144,6 +144,7 @@ func (decider *Decider) applyConnected(ctx context.Context, event *eventlog.Even
 		ClientID:  data.ClientID,
 	}
 	key := decider.getKey(connection)
+	delete(decider.disconnectedKeySet, key)
 	decider.connectedKeySet[key] = struct{}{}
 	return nil
 }
@@ -158,6 +159,7 @@ func (decider *Decider) applyDisconnected(ctx context.Context, event *eventlog.E
 		ClientID:  data.ClientID,
 	}
 	key := decider.getKey(connection)
+	delete(decider.connectedKeySet, key)
 	decider.disconnectedKeySet[key] = struct{}{}
 	return nil
 }

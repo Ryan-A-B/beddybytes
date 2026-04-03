@@ -6,7 +6,12 @@
   - publishes client status to `accounts/{account_id}/clients/{client_id}/status`
   - publishes WebRTC signalling to `accounts/{account_id}/clients/{client_id}/webrtc_inbox`
   - subscribes `baby_stations`, `parent_stations`, `webrtc_inbox`, and status wildcard topics
+  - keeps `PUT /sessions/{session_id}` on the legacy request payload and derives the MQTT announcement fields server-side, including `session_id`
   - queues `PUT /sessions/{session_id}` session starts in-memory when `client_id` is unresolved and flushes on websocket connect
+  - appends `session.ended` on explicit delete for old clients and on clean disconnect for compatibility with future clients that end sessions by disconnecting
+- Current direction:
+  - `session_id` stays
+  - `connection_id` is being reduced to compatibility/runtime identity rather than long-term primary identity
 - Current implementation is backend-centric; no finalized frontend MQTT path yet.
 
 See [[Backend Signalling Contracts]] for current endpoint/topic details.

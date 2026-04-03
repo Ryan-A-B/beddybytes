@@ -261,6 +261,92 @@ func TestBabyStationList(t *testing.T) {
 				So(babyStation.StartedAt, ShouldHappenWithin, time.Millisecond, sessionStartedAt1)
 			}
 		})
+		Convey("Starting a new session on the same connection replaces the old one", func() {
+			clientID := uuid.NewV4().String()
+			connectionID := uuid.NewV4().String()
+			first := babystationlist.StartSessionEventData{
+				ID:               uuid.NewV4().String(),
+				Name:             "First",
+				HostConnectionID: connectionID,
+				StartedAt:        time.Now(),
+			}
+			_, err := eventLog.Append(ctx, eventlog.AppendInput{
+				Type:      babystationlist.EventTypeSessionStarted,
+				AccountID: accountID,
+				Data:      fatal.UnlessMarshalJSON(first),
+			})
+			So(err, ShouldBeNil)
+			_, err = eventLog.Append(ctx, eventlog.AppendInput{
+				Type:      connections.EventTypeConnected,
+				AccountID: accountID,
+				Data: fatal.UnlessMarshalJSON(connections.EventConnected{
+					ClientID:     clientID,
+					ConnectionID: connectionID,
+				}),
+			})
+			So(err, ShouldBeNil)
+
+			second := babystationlist.StartSessionEventData{
+				ID:               uuid.NewV4().String(),
+				Name:             "Second",
+				HostConnectionID: connectionID,
+				StartedAt:        time.Now().Add(time.Minute),
+			}
+			_, err = eventLog.Append(ctx, eventlog.AppendInput{
+				Type:      babystationlist.EventTypeSessionStarted,
+				AccountID: accountID,
+				Data:      fatal.UnlessMarshalJSON(second),
+			})
+			So(err, ShouldBeNil)
+
+			output, err := babyStationList.GetSnapshot(ctx)
+			So(err, ShouldBeNil)
+			So(output.Snapshot.SessionByID, ShouldHaveLength, 1)
+			So(output.Snapshot.SessionIDByConnectionID, ShouldHaveLength, 1)
+			So(output.Snapshot.ConnectionByID, ShouldHaveLength, 1)
+			So(output.Snapshot.List(), ShouldHaveLength, 1)
+			babyStation := output.Snapshot.List()[0]
+			So(babyStation.SessionID, ShouldEqual, second.ID)
+			So(babyStation.Name, ShouldEqual, second.Name)
+		})
+		Convey("Ending a session while the client stays connected should leave an empty list", func() {
+			clientID := uuid.NewV4().String()
+			connectionID := uuid.NewV4().String()
+			session := babystationlist.StartSessionEventData{
+				ID:               uuid.NewV4().String(),
+				Name:             "First",
+				HostConnectionID: connectionID,
+				StartedAt:        time.Now(),
+			}
+			_, err := eventLog.Append(ctx, eventlog.AppendInput{
+				Type:      babystationlist.EventTypeSessionStarted,
+				AccountID: accountID,
+				Data:      fatal.UnlessMarshalJSON(session),
+			})
+			So(err, ShouldBeNil)
+			_, err = eventLog.Append(ctx, eventlog.AppendInput{
+				Type:      connections.EventTypeConnected,
+				AccountID: accountID,
+				Data: fatal.UnlessMarshalJSON(connections.EventConnected{
+					ClientID:     clientID,
+					ConnectionID: connectionID,
+				}),
+			})
+			So(err, ShouldBeNil)
+			_, err = eventLog.Append(ctx, eventlog.AppendInput{
+				Type:      babystationlist.EventTypeSessionEnded,
+				AccountID: accountID,
+				Data: fatal.UnlessMarshalJSON(babystationlist.EndSessionEventData{
+					ID: session.ID,
+				}),
+			})
+			So(err, ShouldBeNil)
+
+			output, err := babyStationList.GetSnapshot(ctx)
+			So(err, ShouldBeNil)
+			So(func() { _ = output.Snapshot.List() }, ShouldNotPanic)
+			So(output.Snapshot.List(), ShouldHaveLength, 0)
+		})
 	})
 }
 

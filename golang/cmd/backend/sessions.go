@@ -53,6 +53,7 @@ type Session struct {
 }
 
 type CreateSessionInput struct {
+	SessionID       string `json:"session_id"`
 	ClientID        string `json:"client_id"`
 	ConnectionID    string `json:"connection_id"`
 	Name            string `json:"name"`
@@ -108,12 +109,6 @@ func (handlers *Handlers) StartSession(responseWriter http.ResponseWriter, reque
 }
 
 func parseStartSessionInput(data []byte, sessionID string) (CreateSessionInput, error) {
-	var input CreateSessionInput
-	if err := json.Unmarshal(data, &input); err == nil {
-		if err := input.validate(); err == nil {
-			return input, nil
-		}
-	}
 	var legacyInput StartSessionEventData
 	if err := json.Unmarshal(data, &legacyInput); err != nil {
 		return CreateSessionInput{}, merry.WithHTTPCode(err, http.StatusBadRequest)
@@ -125,6 +120,7 @@ func parseStartSessionInput(data []byte, sessionID string) (CreateSessionInput, 
 		return CreateSessionInput{}, merry.Errorf("session id in path does not match session id in body").WithHTTPCode(http.StatusBadRequest)
 	}
 	return CreateSessionInput{
+		SessionID:       legacyInput.ID,
 		ClientID:        "",
 		ConnectionID:    legacyInput.HostConnectionID,
 		Name:            legacyInput.Name,
@@ -146,7 +142,27 @@ type EndSessionEventData struct {
 }
 
 func (handlers *Handlers) EndSession(responseWriter http.ResponseWriter, request *http.Request) {
-	// Session delete is intentionally a no-op. Session lifecycle now ends on disconnect.
+	var err error
+	defer func() {
+		if err != nil {
+			log.Println(err)
+			httpx.Error(responseWriter, err)
+		}
+	}()
+	ctx := request.Context()
+	sessionID := mux.Vars(request)["session_id"]
+	accountID := contextx.GetAccountID(ctx)
+	data, err := json.Marshal(EndSessionEventData{
+		ID: sessionID,
+	})
+	if err != nil {
+		return
+	}
+	_, err = handlers.EventLog.Append(ctx, eventlog.AppendInput{
+		Type:      EventTypeSessionEnded,
+		AccountID: accountID,
+		Data:      data,
+	})
 }
 
 type SessionProjection struct {

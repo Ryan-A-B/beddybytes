@@ -7,13 +7,18 @@ import (
 	"regexp"
 
 	"github.com/Ryan-A-B/beddybytes/golang/internal/connectionstore"
+	"github.com/Ryan-A-B/beddybytes/golang/internal/contextx"
+	"github.com/Ryan-A-B/beddybytes/golang/internal/eventlog"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/fatal"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/logx"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/mqttx"
+	"github.com/Ryan-A-B/beddybytes/golang/internal/sessionlist"
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 )
 
 var connectionStore *connectionstore.Decider
+var sessionListStore *sessionlist.SessionList
+var eventLogStore eventlog.EventLog
 var handlers = map[string]func(ctx context.Context, input handlerInput){
 	"connected":    handleConnectedMessage,
 	"disconnected": handleDisconnectedMessage,
@@ -23,6 +28,8 @@ var topicRegex = regexp.MustCompile(`^accounts/([^/]+)/clients/([^/]+)/status$`)
 type RunInput struct {
 	MQTTClient      mqtt.Client
 	ConnectionStore *connectionstore.Decider
+	SessionList     *sessionlist.SessionList
+	EventLog        eventlog.EventLog
 }
 
 func Run(ctx context.Context, input RunInput) {
@@ -30,6 +37,8 @@ func Run(ctx context.Context, input RunInput) {
 		panic("already running")
 	}
 	connectionStore = input.ConnectionStore
+	sessionListStore = input.SessionList
+	eventLogStore = input.EventLog
 	err := mqttx.Wait(input.MQTTClient.Subscribe("accounts/+/clients/+/status", 1, handleMessage))
 	fatal.OnError(err)
 	<-ctx.Done()
@@ -88,6 +97,28 @@ func handleDisconnectedMessage(ctx context.Context, input handlerInput) {
 		if err == connectionstore.ErrDuplicate {
 			return
 		}
+		log.Fatal(err)
+	}
+	if input.Status.Disconnected.Reason != "clean" {
+		return
+	}
+	sessionCtx := contextx.WithAccountID(ctx, input.AccountID)
+	session, ok := sessionListStore.GetByConnectionID(sessionCtx, input.Status.ConnectionID)
+	if !ok {
+		return
+	}
+	data, err := json.Marshal(struct {
+		ID string `json:"id"`
+	}{
+		ID: session.ID,
+	})
+	fatal.OnError(err)
+	_, err = eventLogStore.Append(sessionCtx, eventlog.AppendInput{
+		Type:      "session.ended",
+		AccountID: input.AccountID,
+		Data:      data,
+	})
+	if err != nil {
 		log.Fatal(err)
 	}
 }
