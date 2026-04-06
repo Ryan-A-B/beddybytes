@@ -24,6 +24,23 @@ const BlogIndexPage: React.FunctionComponent<PageProps> = () => {
                         <article className="card card-blog">
                             <div className="card-body">
                                 <h2 className="card-title">
+                                    What &quot;No Subscription Baby Monitor&quot; Should Actually Mean
+                                </h2>
+                                <p>
+                                    When a baby monitor says no subscription, most of us hear something
+                                    pretty simple: buy it once, use it for its core job, and do not
+                                    worry about recurring fees later. This article walks through why that
+                                    expectation is reasonable, where the confusion starts, and what
+                                    parents should actually look for.
+                                </p>
+                                <ReadMoreLink to="/blog/what-no-subscription-baby-monitor-should-actually-mean/" />
+                            </div>
+                        </article>
+                    </div>
+                    <div className="col-auto col-lg-6 col-xl-4 mb-3">
+                        <article className="card card-blog">
+                            <div className="card-body">
+                                <h2 className="card-title">
                                     Do I Need a Baby Monitor?
                                 </h2>
                                 <p>

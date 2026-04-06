@@ -210,6 +210,7 @@ const NoSubscriptionBabyMonitorPage: React.FunctionComponent = () => (
         <UseCaseFAQSection items={faqItems} />
         <UseCaseRelatedLinksSection
             links={[
+                { label: 'What "no subscription baby monitor" should actually mean', to: '/blog/what-no-subscription-baby-monitor-should-actually-mean/' },
                 { label: 'Private baby monitor', to: '/private-baby-monitor/' },
                 { label: 'Baby monitor app for iPhone and Android', to: '/baby-monitor-app-iphone-and-android/' },
                 { label: 'How to turn an old phone into a baby monitor', to: '/how-to-turn-an-old-phone-into-a-baby-monitor/' },

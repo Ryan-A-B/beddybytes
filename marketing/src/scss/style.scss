@@ -121,3 +121,81 @@
         }
     }
 }
+
+.blog-article {
+    max-width: 760px;
+    margin: 0 auto;
+
+    &__lede {
+        font-size: 1.25rem;
+        line-height: 1.6;
+    }
+
+    section + section {
+        margin-top: 2.5rem;
+    }
+
+    h2 {
+        margin-top: 0;
+        margin-bottom: 1rem;
+    }
+
+    h3 {
+        margin-top: 1.5rem;
+        margin-bottom: 0.75rem;
+    }
+
+    p,
+    li {
+        font-size: 1.0625rem;
+        line-height: 1.75;
+    }
+
+    ul {
+        padding-left: 1.25rem;
+    }
+
+    li + li {
+        margin-top: 0.5rem;
+    }
+
+    code {
+        white-space: normal;
+    }
+
+    &__table-wrap {
+        overflow-x: auto;
+        margin: 1.5rem 0;
+    }
+
+    &__table {
+        margin-bottom: 0;
+        background: $white;
+        border: 1px solid $gray-300;
+
+        th {
+            background: $gray-100;
+        }
+    }
+
+    &__aside {
+        margin: 1.5rem 0;
+        padding: 1.25rem;
+        background: $gray-100;
+        border-left: 4px solid $teal-500;
+        border-radius: $border-radius;
+
+        p {
+            margin-bottom: 0;
+            font-style: italic;
+        }
+    }
+
+    &__sources {
+        padding-left: 1.25rem;
+
+        li + li {
+            margin-top: 0.25rem;
+        }
+    }
+}
