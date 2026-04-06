@@ -26,8 +26,8 @@ const PrivateBabyMonitorPage: React.FunctionComponent = () => (
                                     Baby monitors can be private <strong>and</strong> convenient.
                                 </h1>
                                 <p className="mb-5">
-                                    BeddyBytes doesn't send a single frame over the internet.
-                                    Video is streamed directly between your smartphone and laptop.
+                                    BeddyBytes uses the internet for signalling, but your video and audio
+                                    stay local between your devices on your home Wi-Fi.
                                 </p>
                                 <CallToAction
                                     to="#pricing"
@@ -88,7 +88,8 @@ const PrivateBabyMonitorPage: React.FunctionComponent = () => (
                             We stream nap time directly between your smartphone and laptop using your home WiFi.
                         </p>
                         <p>
-                            An internet connection is required to establish the connection between devices. But no video is sent over the internet.
+                            An internet connection is required for account authentication and signalling so your devices can find each other.
+                            Once connected, no video or audio is sent through our servers.
                         </p>
                         <section>
                             <h3>Features</h3>

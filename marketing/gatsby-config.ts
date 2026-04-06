@@ -24,7 +24,6 @@ const config: GatsbyConfig = {
     {
       resolve: "gatsby-plugin-robots-txt",
       options: {
-        "host": "https://beddybytes.com",
         "sitemap": "https://beddybytes.com/sitemap-index.xml",
         "policy": [
           {
