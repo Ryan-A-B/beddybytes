@@ -1,6 +1,25 @@
 @import "../../scss/configuration";
 
 section#social-proof {
+    .proof-metrics {
+        .proof-metric {
+            background-color: tint-color($secondary, 20%);
+            border-radius: $border-radius;
+            padding: 1rem;
+            height: 100%;
+
+            strong,
+            span {
+                display: block;
+            }
+
+            strong {
+                font-size: 1.5rem;
+                color: $light;
+            }
+        }
+    }
+
     .testimonials {
         columns: 375px 3;
         column-gap: $spacer;
@@ -16,6 +35,17 @@ section#social-proof {
             background-color: tint-color($secondary, 20%);
             border-radius: $border-radius;
             position: relative;
+            break-inside: avoid;
+
+            blockquote {
+                margin-bottom: 0.75rem;
+            }
+
+            figcaption {
+                font-size: 0.95rem;
+                color: tint-color($secondary, 80%);
+                font-style: normal;
+            }
 
             &::before,
             &::after {

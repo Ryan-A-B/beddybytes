@@ -28,6 +28,18 @@ const IndexPage: React.FunctionComponent<PageProps> = () => {
               minutes with no cloud video relay, no cloud recording, and no
               cloud storage.
             </p>
+            <p className="mb-4">
+              Want to check your spare devices before you pay? Start with the
+              compatibility checker and setup video.
+            </p>
+            <div className="d-flex flex-column flex-sm-row gap-2 justify-content-lg-start justify-content-center mb-4">
+              <Link to="/compatibility/" className="btn btn-outline-light btn-lg">
+                Check compatibility
+              </Link>
+              <Link to="#demo" className="btn btn-light btn-lg">
+                Watch setup video
+              </Link>
+            </div>
           </React.Fragment>
           <StaticImage
             src="../images/BabyStationRunning.jpg"
@@ -57,6 +69,27 @@ const IndexPage: React.FunctionComponent<PageProps> = () => {
             transformOptions={{ fit: "contain" }}
           />
         </DefaultHowToSection>
+        <section className="py-4 bg-body-secondary">
+          <div className="container">
+            <div className="row g-3 align-items-center">
+              <div className="col-lg-8">
+                <h2 className="h4 mb-2">Reduce the obvious buyer risk before purchase</h2>
+                <p className="mb-0">
+                  Check whether your phones, tablets, and laptops support the browser features BeddyBytes
+                  needs, then compare that against the 5-minute setup video before you head to pricing.
+                </p>
+              </div>
+              <div className="col-lg-4 d-grid gap-2 d-sm-flex justify-content-lg-end">
+                <Link to="/compatibility/" className="btn btn-primary">
+                  Check compatibility
+                </Link>
+                <Link to="#demo" className="btn btn-outline-primary">
+                  See it in action
+                </Link>
+              </div>
+            </div>
+          </div>
+        </section>
         <Features>
           <h2>Key features for private baby monitoring</h2>
         </Features>

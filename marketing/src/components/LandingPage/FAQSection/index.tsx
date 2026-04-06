@@ -55,11 +55,16 @@ export const faqLibrary = {
     secure: {
         question: 'Is it secure?',
         answer: (
+            <React.Fragment>
                 <p>
-                    BeddyBytes uses WebRTC to stream video and audio directly between your devices.
-                    We don't store any of your video on our servers, and we don't relay your media
-                    through our servers.
+                    BeddyBytes uses the internet for account authentication and signalling so your devices
+                    can establish a connection.
                 </p>
+                <p>
+                    Once connected, video and audio stream directly between your devices over your local
+                    network. We do not relay or store your media on our servers.
+                </p>
+            </React.Fragment>
         )
     },
     passwordLength: {
