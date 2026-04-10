@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"time"
@@ -14,6 +16,7 @@ import (
 	"github.com/Ryan-A-B/beddybytes/golang/internal/eventlog"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/fatal"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/httpx"
+	"github.com/Ryan-A-B/beddybytes/golang/internal/mqttx"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/sessions"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/sessionstore"
 )
@@ -49,6 +52,27 @@ type Session struct {
 	StartedAt        time.Time `json:"started_at"`
 }
 
+type CreateSessionInput struct {
+	SessionID       string `json:"session_id"`
+	ClientID        string `json:"client_id"`
+	ConnectionID    string `json:"connection_id"`
+	Name            string `json:"name"`
+	StartedAtMillis int64  `json:"started_at_millis"`
+}
+
+func (input *CreateSessionInput) validate() error {
+	if input.ConnectionID == "" {
+		return merry.New("connection id is empty").WithHTTPCode(http.StatusBadRequest)
+	}
+	if input.Name == "" {
+		return merry.New("session name is empty").WithHTTPCode(http.StatusBadRequest)
+	}
+	if input.StartedAtMillis <= 0 {
+		return merry.New("started_at_millis must be positive").WithHTTPCode(http.StatusBadRequest)
+	}
+	return nil
+}
+
 func (handlers *Handlers) StartSession(responseWriter http.ResponseWriter, request *http.Request) {
 	var err error
 	defer func() {
@@ -58,31 +82,59 @@ func (handlers *Handlers) StartSession(responseWriter http.ResponseWriter, reque
 		}
 	}()
 	ctx := request.Context()
-	vars := mux.Vars(request)
-	sessionID := vars["session_id"]
-	var session StartSessionEventData
-	err = json.NewDecoder(request.Body).Decode(&session)
+	accountID := contextx.GetAccountID(ctx)
+	sessionID := mux.Vars(request)["session_id"]
+	requestBody, err := io.ReadAll(request.Body)
 	if err != nil {
 		err = merry.WithHTTPCode(err, http.StatusBadRequest)
 		return
 	}
-	err = session.validate()
+	input, err := parseStartSessionInput(requestBody, sessionID)
 	if err != nil {
 		return
 	}
-	if session.ID != sessionID {
-		err = merry.Errorf("session id in path does not match session id in body").WithHTTPCode(http.StatusBadRequest)
+	if input.ClientID == "" {
+		connection, ok := handlers.ConnectionHub.Get(input.ConnectionID)
+		if ok && connection.AccountID == accountID {
+			input.ClientID = connection.ClientID
+		}
+	}
+	if input.ClientID == "" {
+		handlers.PendingSessionStarts.Put(accountID, input)
 		return
 	}
-	_, err = handlers.EventLog.Append(ctx, eventlog.AppendInput{
-		Type:      EventTypeSessionStarted,
-		AccountID: contextx.GetAccountID(ctx),
-		Data:      fatal.UnlessMarshalJSON(session),
-	})
+	if err = handlers.publishBabyStationAnnouncement(accountID, input); err != nil {
+		return
+	}
+}
+
+func parseStartSessionInput(data []byte, sessionID string) (CreateSessionInput, error) {
+	var legacyInput StartSessionEventData
+	if err := json.Unmarshal(data, &legacyInput); err != nil {
+		return CreateSessionInput{}, merry.WithHTTPCode(err, http.StatusBadRequest)
+	}
+	if err := legacyInput.validate(); err != nil {
+		return CreateSessionInput{}, err
+	}
+	if legacyInput.ID != sessionID {
+		return CreateSessionInput{}, merry.Errorf("session id in path does not match session id in body").WithHTTPCode(http.StatusBadRequest)
+	}
+	return CreateSessionInput{
+		SessionID:       legacyInput.ID,
+		ClientID:        "",
+		ConnectionID:    legacyInput.HostConnectionID,
+		Name:            legacyInput.Name,
+		StartedAtMillis: legacyInput.StartedAt.UnixMilli(),
+	}, nil
+}
+
+func (handlers *Handlers) publishBabyStationAnnouncement(accountID string, input CreateSessionInput) error {
+	topic := fmt.Sprintf("accounts/%s/baby_stations", accountID)
+	payload, err := json.Marshal(input)
 	if err != nil {
-		return
+		return err
 	}
-	// TODO set header with logical clock of the start event
+	return mqttx.Wait(handlers.MQTTClient.Publish(topic, 1, false, payload))
 }
 
 type EndSessionEventData struct {
@@ -98,18 +150,19 @@ func (handlers *Handlers) EndSession(responseWriter http.ResponseWriter, request
 		}
 	}()
 	ctx := request.Context()
-	vars := mux.Vars(request)
-	sessionID := vars["session_id"]
-	// TODO check we know about the session?
-	// expect a header with the logical clock of the start event
-	_, err = handlers.EventLog.Append(ctx, eventlog.AppendInput{
-		Type:      EventTypeSessionEnded,
-		AccountID: contextx.GetAccountID(ctx),
-		Data:      fatal.UnlessMarshalJSON(&EndSessionEventData{ID: sessionID}),
+	sessionID := mux.Vars(request)["session_id"]
+	accountID := contextx.GetAccountID(ctx)
+	data, err := json.Marshal(EndSessionEventData{
+		ID: sessionID,
 	})
 	if err != nil {
 		return
 	}
+	_, err = handlers.EventLog.Append(ctx, eventlog.AppendInput{
+		Type:      EventTypeSessionEnded,
+		AccountID: accountID,
+		Data:      data,
+	})
 }
 
 type SessionProjection struct {

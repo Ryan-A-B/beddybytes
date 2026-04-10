@@ -57,6 +57,26 @@ func (sessionList *SessionList) List(ctx context.Context) (output ListOutput) {
 	return
 }
 
+func (sessionList *SessionList) GetByConnectionID(ctx context.Context, connectionID string) (session *Session, ok bool) {
+	sessionList.catchUp(ctx)
+	accountID := contextx.GetAccountID(ctx)
+	return sessionList.getSessionByConnectionID(accountID, connectionID)
+}
+
+func (sessionList *SessionList) Get(ctx context.Context, sessionID string) (session *Session, ok bool) {
+	sessionList.catchUp(ctx)
+	accountID := contextx.GetAccountID(ctx)
+	index := sessionList.search(accountID, sessionID)
+	if index == len(sessionList.sessions) {
+		return nil, false
+	}
+	session = sessionList.sessions[index]
+	if session.AccountID != accountID || session.ID != sessionID {
+		return nil, false
+	}
+	return session, true
+}
+
 func (sessionList *SessionList) catchUp(ctx context.Context) {
 	sessionList.mutex.Lock()
 	defer sessionList.mutex.Unlock()

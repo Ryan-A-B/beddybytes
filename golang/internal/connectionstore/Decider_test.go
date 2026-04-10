@@ -28,7 +28,6 @@ func TestDecider(t *testing.T) {
 				ID:        uuid.NewV4().String(),
 				AccountID: uuid.NewV4().String(),
 				ClientID:  uuid.NewV4().String(),
-				RequestID: uuid.NewV4().String(),
 			}
 			Convey("Put", func() {
 				err = decider.Put(ctx, connection)
@@ -44,7 +43,6 @@ func TestDecider(t *testing.T) {
 				ID:        uuid.NewV4().String(),
 				AccountID: uuid.NewV4().String(),
 				ClientID:  uuid.NewV4().String(),
-				RequestID: uuid.NewV4().String(),
 			}
 			err = decider.Put(ctx, connection)
 			So(err, ShouldBeNil)
@@ -56,6 +54,12 @@ func TestDecider(t *testing.T) {
 					So(err, ShouldEqual, connectionstore.ErrDuplicate)
 				})
 			})
+			Convey("Reconnect after disconnect", func() {
+				err = decider.Delete(ctx, connection)
+				So(err, ShouldBeNil)
+				err = decider.Put(ctx, connection)
+				So(err, ShouldBeNil)
+			})
 		})
 		Convey("Multiple Connections", func() {
 			Convey("Multiple Accounts", func() {
@@ -64,13 +68,11 @@ func TestDecider(t *testing.T) {
 						ID:        uuid.NewV4().String(),
 						AccountID: uuid.NewV4().String(),
 						ClientID:  uuid.NewV4().String(),
-						RequestID: uuid.NewV4().String(),
 					},
 					{
 						ID:        uuid.NewV4().String(),
 						AccountID: uuid.NewV4().String(),
 						ClientID:  uuid.NewV4().String(),
-						RequestID: uuid.NewV4().String(),
 					},
 				}
 				for _, connection := range connections {

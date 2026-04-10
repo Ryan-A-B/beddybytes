@@ -82,7 +82,6 @@ func TestUsageStats(t *testing.T) {
 				clientConnectedData := ClientConnectedEventData{
 					ClientID:     hostClientID,
 					ConnectionID: hostConnectionID,
-					RequestID:    uuid.NewV4().String(),
 				}
 				data, err := json.Marshal(clientConnectedData)
 				So(err, ShouldBeNil)
@@ -97,11 +96,10 @@ func TestUsageStats(t *testing.T) {
 				Convey("host connection ends", func() {
 					Convey("clean", func() {
 						clientDisconnectedData := ClientDisconnectedEventData{
-							ClientID:           hostClientID,
-							ConnectionID:       hostConnectionID,
-							RequestID:          clientConnectedData.RequestID,
-							WebSocketCloseCode: 1000,
+							ClientID:     hostClientID,
+							ConnectionID: hostConnectionID,
 						}
+						clientDisconnectedData.Disconnected.Reason = "clean"
 						data, err := json.Marshal(clientDisconnectedData)
 						So(err, ShouldBeNil)
 						_, err = log.Append(ctx, eventlog.AppendInput{
@@ -120,11 +118,10 @@ func TestUsageStats(t *testing.T) {
 					})
 					Convey("unclean", func() {
 						clientDisconnectedData := ClientDisconnectedEventData{
-							ClientID:           hostClientID,
-							ConnectionID:       hostConnectionID,
-							RequestID:          clientConnectedData.RequestID,
-							WebSocketCloseCode: 1006,
+							ClientID:     hostClientID,
+							ConnectionID: hostConnectionID,
 						}
+						clientDisconnectedData.Disconnected.Reason = "unexpected"
 						data, err := json.Marshal(clientDisconnectedData)
 						So(err, ShouldBeNil)
 						_, err = log.Append(ctx, eventlog.AppendInput{
@@ -144,7 +141,6 @@ func TestUsageStats(t *testing.T) {
 							clientConnectedData := ClientConnectedEventData{
 								ClientID:     hostClientID,
 								ConnectionID: hostConnectionID,
-								RequestID:    uuid.NewV4().String(),
 							}
 							data, err := json.Marshal(clientConnectedData)
 							So(err, ShouldBeNil)
@@ -184,7 +180,6 @@ func TestUsageStats(t *testing.T) {
 						clientConnectedData := ClientConnectedEventData{
 							ClientID:     hostClientID,
 							ConnectionID: hostConnectionID,
-							RequestID:    uuid.NewV4().String(),
 						}
 						data, err := json.Marshal(clientConnectedData)
 						So(err, ShouldBeNil)

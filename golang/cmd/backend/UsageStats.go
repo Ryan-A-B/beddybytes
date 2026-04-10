@@ -182,7 +182,7 @@ func applyClientDisconnectedEvent(ctx context.Context, stats *UsageStats, event 
 		return
 	}
 	disconnectTime := time.Unix(event.UnixTimestamp, 0)
-	if disconnectWasClean(clientDisconnectedData.WebSocketCloseCode) {
+	if disconnectWasClean(clientDisconnectedData.Disconnected.Reason) {
 		duration := disconnectTime.Sub(sessionInfo.StartTime)
 		stats.durationByAccountID[event.AccountID] += duration
 		stats.removeActiveSession(sessionInfo)
@@ -271,11 +271,6 @@ func (stats *UsageStats) removeDisconnectedSessionByID(accountID string, session
 	return nil, false
 }
 
-func disconnectWasClean(closeCode int) bool {
-	switch closeCode {
-	case 1000, 1001:
-		return true
-	default:
-		return false
-	}
+func disconnectWasClean(reason string) bool {
+	return reason == "clean"
 }

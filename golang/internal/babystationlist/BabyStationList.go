@@ -21,10 +21,15 @@ func (snapshot *Snapshot) List() []BabyStation {
 	babyStations := make([]BabyStation, 0, len(snapshot.ConnectionByID))
 	for connectionID, connection := range snapshot.ConnectionByID {
 		sessionID, ok := snapshot.SessionIDByConnectionID[connectionID]
-		fatal.Unless(ok, "session not found: "+sessionID)
+		if !ok {
+			continue
+		}
 		session, ok := snapshot.SessionByID[sessionID]
-		fatal.Unless(ok, "session not found: "+sessionID)
+		if !ok {
+			continue
+		}
 		babyStation := BabyStation{
+			SessionID: session.ID,
 			Name:     session.Name,
 			ClientID: connection.ClientID,
 			Connection: BabyStationConnection{
@@ -39,6 +44,7 @@ func (snapshot *Snapshot) List() []BabyStation {
 }
 
 type BabyStation struct {
+	SessionID  string                `json:"session_id"`
 	Name       string                `json:"name"`
 	ClientID   string                `json:"client_id"`
 	Connection BabyStationConnection `json:"connection"`
@@ -133,6 +139,9 @@ func (babyStationList *BabyStationList) applySessionStarted(event *eventlog.Even
 		StartedAt:        data.StartedAt,
 	}
 	snapshot := babyStationList.getOrCreateSnapshot(event.AccountID)
+	if previousSessionID, ok := snapshot.SessionIDByConnectionID[data.HostConnectionID]; ok && previousSessionID != data.ID {
+		delete(snapshot.SessionByID, previousSessionID)
+	}
 	snapshot.SessionByID[data.ID] = &session
 	snapshot.SessionIDByConnectionID[data.HostConnectionID] = data.ID
 }
@@ -156,9 +165,8 @@ func (babyStationList *BabyStationList) applyConnected(event *eventlog.Event) {
 	fatal.OnError(err)
 	snapshot := babyStationList.getOrCreateSnapshot(event.AccountID)
 	connection := Connection{
-		ClientID:  data.ClientID,
-		ID:        data.ConnectionID,
-		RequestID: data.RequestID,
+		ClientID: data.ClientID,
+		ID:       data.ConnectionID,
 	}
 	snapshot.ConnectionByID[data.ConnectionID] = &connection
 }

@@ -21,7 +21,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	const topic = "accounts/+/connections/+/status"
+	const topic = "accounts/+/clients/+/status"
 	err = mqttx.Wait(client.Subscribe(topic, 1, handleMessage))
 	if err != nil {
 		panic(err)

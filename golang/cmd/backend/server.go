@@ -32,6 +32,7 @@ import (
 	"github.com/Ryan-A-B/beddybytes/golang/internal/mqttx"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/resetpassword"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/sessionlist"
+	"github.com/Ryan-A-B/beddybytes/golang/internal/sessionstartdecider"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/sessionstore"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/store"
 )
@@ -66,15 +67,18 @@ type Client struct {
 }
 
 type Handlers struct {
-	Upgrader          websocket.Upgrader
-	ClientStore       ClientStore
-	ConnectionFactory ConnectionFactory
-	SessionProjection SessionProjection
-	SessionList       *sessionlist.SessionList
-	BabyStationList   *babystationlist.BabyStationList
-	EventLog          eventlog.EventLog
-	MQTTClient        mqtt.Client
-	UsageStats        *UsageStats
+	Upgrader             websocket.Upgrader
+	ClientStore          ClientStore
+	ConnectionFactory    ConnectionFactory
+	SessionProjection    SessionProjection
+	SessionList          *sessionlist.SessionList
+	SessionStartDecider  *sessionstartdecider.Decider
+	PendingSessionStarts *PendingSessionStarts
+	BabyStationList      *babystationlist.BabyStationList
+	ConnectionHub        *ConnectionHub
+	EventLog             eventlog.EventLog
+	MQTTClient           mqtt.Client
+	UsageStats           *UsageStats
 
 	Key interface{}
 }
@@ -276,11 +280,16 @@ func main() {
 		SessionList: sessionlist.New(ctx, sessionlist.NewInput{
 			Log: eventLog,
 		}),
+		SessionStartDecider: sessionstartdecider.NewDecider(sessionstartdecider.NewDeciderInput{
+			EventLog: eventLog,
+		}),
+		PendingSessionStarts: NewPendingSessionStarts(),
 		BabyStationList: babystationlist.New(babystationlist.NewInput{
 			EventLog: eventLog,
 		}),
-		EventLog:   eventLog,
-		MQTTClient: mqttClient,
+		ConnectionHub: NewConnectionHub(),
+		EventLog:      eventLog,
+		MQTTClient:    mqttClient,
 		UsageStats: NewUsageStats(ctx, NewUsageStatsInput{
 			Log: eventLog,
 		}),
@@ -300,8 +309,14 @@ func main() {
 			ConnectionStore: connectionstore.NewDecider(connectionstore.NewDeciderInput{
 				EventLog: eventLog,
 			}),
+			SessionList: handlers.SessionList,
+			EventLog:    eventLog,
 		})
 		log.Fatal("connectionstoresync.Run exited")
+	}()
+	go func() {
+		handlers.RunMQTTSync(ctx)
+		log.Fatal("handlers.RunMQTTSync exited")
 	}()
 	router := mux.NewRouter()
 	router.Use(internal.LoggingMiddleware)
