@@ -28,13 +28,16 @@ const EventTypeClientDisconnected = "client.disconnected"
 type ClientConnectedEventData struct {
 	ClientID     string `json:"client_id"`
 	ConnectionID string `json:"connection_id"`
+	RequestID    string `json:"request_id"`
 	AtMillis     int64  `json:"at_millis"`
 }
 
 type ClientDisconnectedEventData struct {
-	ClientID     string `json:"client_id"`
-	ConnectionID string `json:"connection_id"`
-	AtMillis     int64  `json:"at_millis"`
+	ClientID           string `json:"client_id"`
+	ConnectionID       string `json:"connection_id"`
+	RequestID          string `json:"request_id"`
+	WebSocketCloseCode int    `json:"web_socket_close_code"`
+	AtMillis           int64  `json:"at_millis"`
 	Disconnected struct {
 		Reason string `json:"reason"`
 	} `json:"disconnected"`

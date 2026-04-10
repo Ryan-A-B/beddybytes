@@ -2,16 +2,15 @@ package main
 
 import (
 	"context"
-<<<<<<< HEAD
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
-	"path/filepath"
-	"runtime"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"github.com/gorilla/mux"

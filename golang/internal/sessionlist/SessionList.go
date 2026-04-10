@@ -225,6 +225,10 @@ func applyClientDisconnectedEvent(ctx context.Context, sessionList *SessionList,
 	if session.HostConnectionState.GetState() != ConnectionStateConnected {
 		return
 	}
+	hostConnectionState := session.HostConnectionState.(HostConnectionStateConnected)
+	if hostConnectionState.RequestID != data.RequestID {
+		return
+	}
 	session.HostConnectionState = HostConnectionStateDisconnected{
 		HostConnectionStateBase: HostConnectionStateBase{
 			State: ConnectionStateDisconnected,
@@ -251,6 +255,7 @@ func applyClientConnectedEvent(ctx context.Context, sessionList *SessionList, ev
 			State: ConnectionStateConnected,
 			Since: event.UnixTimestamp,
 		},
+		RequestID: data.RequestID,
 	}
 }
 
