@@ -1,0 +1,93 @@
+@import "../../scss/configuration";
+
+.trust-section {
+    position: relative;
+    overflow: hidden;
+
+    &::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background:
+            radial-gradient(circle at top right, rgba($secondary, 0.18), transparent 28rem),
+            linear-gradient(135deg, rgba($primary, 0.04), transparent 45%);
+        pointer-events: none;
+    }
+
+    .container {
+        position: relative;
+        z-index: 1;
+    }
+}
+
+.trust-section__header {
+    max-width: 48rem;
+    margin: 0 auto 2rem;
+    text-align: center;
+
+    h2 {
+        margin-bottom: 0.75rem;
+    }
+}
+
+.trust-section__card-eyebrow {
+    margin-bottom: 0.75rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+}
+
+.trust-section__intro {
+    margin-bottom: 0;
+    font-size: 1.1rem;
+    color: $body-secondary-color;
+}
+
+.trust-section__grid {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.trust-section__card {
+    height: 100%;
+    padding: 1.25rem;
+    border: 1px solid rgba($primary, 0.14);
+    border-radius: $border-radius-xl;
+    background:
+        linear-gradient(180deg, rgba($white, 0.96), rgba($white, 0.88)),
+        linear-gradient(135deg, rgba($secondary, 0.08), rgba($primary, 0.06));
+    box-shadow: 0 1rem 2.5rem rgba($dark, 0.08);
+
+    h3 {
+        margin-bottom: 0.75rem;
+        font-size: 1.1rem;
+    }
+
+    p:last-child {
+        margin-bottom: 0;
+    }
+}
+
+.trust-section__card-eyebrow {
+    color: $secondary;
+}
+
+.trust-section__card-body {
+    color: $body-color;
+}
+
+@media (min-width: 992px) {
+    .trust-section__header {
+        margin-bottom: 2.5rem;
+
+        h2 {
+            font-size: 2.5rem;
+        }
+    }
+
+    .trust-section__card {
+        padding: 1.5rem;
+    }
+}

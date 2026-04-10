@@ -1,0 +1,66 @@
+@import "../../scss/configuration";
+
+.good-fit-section__header {
+    max-width: 46rem;
+    margin: 0 auto 2rem;
+    text-align: center;
+
+    h2 {
+        margin-bottom: 0.75rem;
+    }
+}
+
+.good-fit-section__intro {
+    margin-bottom: 0;
+    color: $body-secondary-color;
+    font-size: 1.05rem;
+}
+
+.good-fit-section__grid {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.good-fit-section__card {
+    height: 100%;
+    padding: 1.25rem;
+    border-radius: $border-radius-xl;
+    border: 1px solid rgba($primary, 0.12);
+    background-color: rgba($white, 0.92);
+    box-shadow: 0 1rem 2rem rgba($dark, 0.06);
+
+    h3 {
+        margin-bottom: 0.75rem;
+        font-size: 1.1rem;
+    }
+
+    p:last-child {
+        margin-bottom: 0;
+    }
+}
+
+.good-fit-section__link {
+    margin-top: 1rem;
+    font-weight: 600;
+
+    a {
+        color: $primary;
+        text-decoration-thickness: 0.08em;
+        text-underline-offset: 0.14em;
+    }
+}
+
+@media (min-width: 992px) {
+    .good-fit-section__header {
+        margin-bottom: 2.5rem;
+
+        h2 {
+            font-size: 2.5rem;
+        }
+    }
+
+    .good-fit-section__card {
+        padding: 1.5rem;
+    }
+}
