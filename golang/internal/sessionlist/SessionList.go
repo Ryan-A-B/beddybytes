@@ -14,10 +14,12 @@ import (
 )
 
 type SessionList struct {
-	mutex    sync.Mutex
-	log      eventlog.EventLog
-	cursor   int64
-	sessions []*Session
+	mutex                           sync.Mutex
+	log                             eventlog.EventLog
+	cursor                          int64
+	sessions                        []*Session
+	disconnectedSessionByKey        map[string]*Session
+	disconnectedSessionsByAccountID map[string][]*Session
 }
 
 type NewInput struct {
@@ -26,7 +28,9 @@ type NewInput struct {
 
 func New(ctx context.Context, input NewInput) *SessionList {
 	return &SessionList{
-		log: input.Log,
+		log:                             input.Log,
+		disconnectedSessionByKey:        make(map[string]*Session),
+		disconnectedSessionsByAccountID: make(map[string][]*Session),
 	}
 }
 
@@ -156,6 +160,7 @@ type applyFunc func(ctx context.Context, sessionList *SessionList, event *eventl
 const EventTypeServerStarted = "server.started"
 const EventTypeSessionStarted = "session.started"
 const EventTypeSessionEnded = "session.ended"
+const maxDisconnectedSessionsPerAccount = 4
 
 var applyByType = map[string]applyFunc{
 	EventTypeServerStarted:            applyServerStartedEvent,
@@ -180,6 +185,7 @@ func applySessionStartedEvent(ctx context.Context, sessionList *SessionList, eve
 	if ok {
 		sessionList.delete(event.AccountID, existingSession.ID)
 	}
+	sessionList.removeDisconnectedSessionByConnectionID(event.AccountID, sessionStartedEventData.HostConnectionID)
 	sessionList.put(&Session{
 		AccountID:        event.AccountID,
 		ID:               sessionStartedEventData.ID,
@@ -191,6 +197,7 @@ func applySessionStartedEvent(ctx context.Context, sessionList *SessionList, eve
 				State: ConnectionStateConnected,
 				Since: event.UnixTimestamp,
 			},
+			RequestID: "TODO",
 		},
 	})
 }
@@ -204,6 +211,7 @@ func applySessionEndedEvent(ctx context.Context, sessionList *SessionList, event
 	err := json.Unmarshal(event.Data, &sessionEndedEventData)
 	fatal.OnError(err)
 	sessionList.delete(event.AccountID, sessionEndedEventData.ID)
+	sessionList.removeDisconnectedSessionByID(event.AccountID, sessionEndedEventData.ID)
 }
 
 func applyClientDisconnectedEvent(ctx context.Context, sessionList *SessionList, event *eventlog.Event) {
@@ -223,6 +231,7 @@ func applyClientDisconnectedEvent(ctx context.Context, sessionList *SessionList,
 			Since: event.UnixTimestamp,
 		},
 	}
+	sessionList.trackDisconnectedSession(session)
 }
 
 func applyClientConnectedEvent(ctx context.Context, sessionList *SessionList, event *eventlog.Event) {
@@ -231,7 +240,11 @@ func applyClientConnectedEvent(ctx context.Context, sessionList *SessionList, ev
 	fatal.OnError(err)
 	session, ok := sessionList.getSessionByConnectionID(event.AccountID, data.ConnectionID)
 	if !ok {
-		return
+		session, ok = sessionList.removeDisconnectedSessionByConnectionID(event.AccountID, data.ConnectionID)
+		if !ok {
+			return
+		}
+		sessionList.put(session)
 	}
 	session.HostConnectionState = HostConnectionStateConnected{
 		HostConnectionStateBase: HostConnectionStateBase{
@@ -242,7 +255,8 @@ func applyClientConnectedEvent(ctx context.Context, sessionList *SessionList, ev
 }
 
 func applyServerStartedEvent(ctx context.Context, sessionList *SessionList, event *eventlog.Event) {
-	for _, session := range sessionList.sessions {
+	activeSessions := append([]*Session(nil), sessionList.sessions...)
+	for _, session := range activeSessions {
 		if session.HostConnectionState.GetState() == ConnectionStateDisconnected {
 			continue
 		}
@@ -252,5 +266,65 @@ func applyServerStartedEvent(ctx context.Context, sessionList *SessionList, even
 				Since: event.UnixTimestamp,
 			},
 		}
+		sessionList.trackDisconnectedSession(session)
 	}
+}
+
+func (sessionList *SessionList) trackDisconnectedSession(session *Session) {
+	sessionList.delete(session.AccountID, session.ID)
+	sessionList.removeDisconnectedSessionByConnectionID(session.AccountID, session.HostConnectionID)
+	disconnectedSessions := sessionList.disconnectedSessionsByAccountID[session.AccountID]
+	disconnectedSessions = append(disconnectedSessions, session)
+	if len(disconnectedSessions) > maxDisconnectedSessionsPerAccount {
+		evictedSession := disconnectedSessions[0]
+		delete(sessionList.disconnectedSessionByKey, sessionKey(evictedSession.AccountID, evictedSession.HostConnectionID))
+		disconnectedSessions = disconnectedSessions[1:]
+	}
+	sessionList.disconnectedSessionsByAccountID[session.AccountID] = disconnectedSessions
+	sessionList.disconnectedSessionByKey[sessionKey(session.AccountID, session.HostConnectionID)] = session
+}
+
+func (sessionList *SessionList) removeDisconnectedSessionByConnectionID(accountID string, connectionID string) (*Session, bool) {
+	key := sessionKey(accountID, connectionID)
+	session, ok := sessionList.disconnectedSessionByKey[key]
+	if !ok {
+		return nil, false
+	}
+	delete(sessionList.disconnectedSessionByKey, key)
+	disconnectedSessions := sessionList.disconnectedSessionsByAccountID[accountID]
+	for i, disconnectedSession := range disconnectedSessions {
+		if disconnectedSession.HostConnectionID != connectionID {
+			continue
+		}
+		disconnectedSessions = append(disconnectedSessions[:i], disconnectedSessions[i+1:]...)
+		if len(disconnectedSessions) == 0 {
+			delete(sessionList.disconnectedSessionsByAccountID, accountID)
+		} else {
+			sessionList.disconnectedSessionsByAccountID[accountID] = disconnectedSessions
+		}
+		return session, true
+	}
+	return session, true
+}
+
+func (sessionList *SessionList) removeDisconnectedSessionByID(accountID string, sessionID string) bool {
+	disconnectedSessions := sessionList.disconnectedSessionsByAccountID[accountID]
+	for i, disconnectedSession := range disconnectedSessions {
+		if disconnectedSession.ID != sessionID {
+			continue
+		}
+		delete(sessionList.disconnectedSessionByKey, sessionKey(accountID, disconnectedSession.HostConnectionID))
+		disconnectedSessions = append(disconnectedSessions[:i], disconnectedSessions[i+1:]...)
+		if len(disconnectedSessions) == 0 {
+			delete(sessionList.disconnectedSessionsByAccountID, accountID)
+		} else {
+			sessionList.disconnectedSessionsByAccountID[accountID] = disconnectedSessions
+		}
+		return true
+	}
+	return false
+}
+
+func sessionKey(accountID string, connectionID string) string {
+	return accountID + "\x00" + connectionID
 }

@@ -1,5 +1,5 @@
 import * as React from "react"
-import type { HeadFC, PageProps } from "gatsby"
+import { Link, type HeadFC, type PageProps } from "gatsby"
 import { StaticImage } from "gatsby-plugin-image"
 import SEOHead from "../components/SEOHead"
 import DefaultPageWrapper from "../components/DefaultPageWrapper"
@@ -60,6 +60,70 @@ const IndexPage: React.FunctionComponent<PageProps> = () => {
         <Features>
           <h2>Key features for private baby monitoring</h2>
         </Features>
+        <section className="py-4 bg-body-tertiary">
+          <div className="container">
+            <div className="row g-3 align-items-stretch">
+              <div className="col-lg-4">
+                <h2 className="h4 mb-2">Explore by use case</h2>
+                <p className="mb-0 text-muted">
+                  Start with the page that matches what you are trying to solve.
+                </p>
+              </div>
+              <div className="col-lg-8">
+                <div className="row g-3">
+                  <div className="col-md-6">
+                    <article className="card h-100 border-0 shadow-sm">
+                      <div className="card-body">
+                        <h3 className="h6 card-title">
+                          <Link to="/no-subscription-baby-monitor/">No subscription baby monitor</Link>
+                        </h3>
+                        <p className="card-text mb-0">
+                          For families trying to avoid recurring monitor fees.
+                        </p>
+                      </div>
+                    </article>
+                  </div>
+                  <div className="col-md-6">
+                    <article className="card h-100 border-0 shadow-sm">
+                      <div className="card-body">
+                        <h3 className="h6 card-title">
+                          <Link to="/baby-monitor-app-iphone-and-android/">Baby monitor app for iPhone and Android</Link>
+                        </h3>
+                        <p className="card-text mb-0">
+                          For cross-platform setups using phones, tablets, and laptops.
+                        </p>
+                      </div>
+                    </article>
+                  </div>
+                  <div className="col-md-6">
+                    <article className="card h-100 border-0 shadow-sm">
+                      <div className="card-body">
+                        <h3 className="h6 card-title">
+                          <Link to="/how-to-turn-an-old-phone-into-a-baby-monitor/">Turn an old phone into a baby monitor</Link>
+                        </h3>
+                        <p className="card-text mb-0">
+                          For parents ready to give a spare device a second life.
+                        </p>
+                      </div>
+                    </article>
+                  </div>
+                  <div className="col-md-6">
+                    <article className="card h-100 border-0 shadow-sm">
+                      <div className="card-body">
+                        <h3 className="h6 card-title">
+                          <Link to="/radio-baby-monitor-vs-wifi-baby-monitor/">Radio baby monitor vs Wi-Fi baby monitor</Link>
+                        </h3>
+                        <p className="card-text mb-0">
+                          For comparing dedicated hardware with a private browser-based setup.
+                        </p>
+                      </div>
+                    </article>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
         <section id="demo" className="py-5">
           <div className="container">
             <h2>Set up your private baby monitor app in under 5 minutes</h2>

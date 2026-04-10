@@ -1,8 +1,7 @@
 #!/bin/bash
 set -ex
 
-ROOT_DIR=$(pwd)
-SCRIPT_DIR=$(pwd)/scripts/marketing
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 . $SCRIPT_DIR/init.sh
 

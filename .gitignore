@@ -1,6 +1,7 @@
 .env
 init.sh
 eventlog
+tinyanalytics
 
 download_event_log.sh
 upload_event_log.sh
@@ -10,3 +11,5 @@ upload_event_log.sh
 *.crt
 
 MarketingSitePlan.md
+
+tmp

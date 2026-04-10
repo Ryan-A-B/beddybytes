@@ -181,14 +181,14 @@ func (projection *SessionProjection) ApplyEvent(ctx context.Context, event *even
 }
 
 func (projection *SessionProjection) applySessionStartedEvent(event *eventlog.Event) {
-	var session StartSessionEventData
-	fatal.UnlessUnmarshalJSON(event.Data, &session)
+	var data StartSessionEventData
+	fatal.UnlessUnmarshalJSON(event.Data, &data)
 	projection.SessionStore.Put(&sessions.Session{
 		AccountID:        event.AccountID,
-		ID:               session.ID,
-		Name:             session.Name,
-		HostConnectionID: session.HostConnectionID,
-		StartedAt:        session.StartedAt,
+		ID:               data.ID,
+		Name:             data.Name,
+		HostConnectionID: data.HostConnectionID,
+		StartedAt:        data.StartedAt,
 	})
 }
 
