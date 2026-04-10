@@ -30,17 +30,12 @@
     }
 }
 
-.trust-section__eyebrow,
 .trust-section__card-eyebrow {
     margin-bottom: 0.75rem;
     font-size: 0.75rem;
     font-weight: 700;
     letter-spacing: 0.18em;
     text-transform: uppercase;
-}
-
-.trust-section__eyebrow {
-    color: $primary;
 }
 
 .trust-section__intro {
@@ -81,13 +76,6 @@
 
 .trust-section__card-body {
     color: $body-color;
-}
-
-.trust-section__footer {
-    max-width: 48rem;
-    margin: 1.5rem auto 0;
-    text-align: center;
-    color: $body-secondary-color;
 }
 
 @media (min-width: 992px) {
