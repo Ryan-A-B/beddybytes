@@ -110,8 +110,7 @@ class TestAccountManagement(unittest.TestCase):
         # Wait for reset link
         reset_link = get_input("Please enter the reset link: ", timeout=60)
         if not reset_link:
-            print("Reset link not provided. Skipping test.")
-            return
+            self.skipTest("reset link not provided within timeout")
 
         # Reset password
         with webdriver.Remote(command_executor=hub_url, options=chrome_options) as driver:

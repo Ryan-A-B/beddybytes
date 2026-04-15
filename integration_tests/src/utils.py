@@ -3,6 +3,7 @@ import string
 import secrets
 import random
 import signal
+import shutil
 import time
 
 from selenium.webdriver.common.by import By
@@ -62,6 +63,9 @@ def generate_random_string(length):
     return ''.join(secrets.choice(alphabet) for _ in range(length))
 
 backend_container_name = "beddybytes-api-1"
+
+def can_control_backend_container():
+    return shutil.which("docker") is not None
 
 def stop_backend_container():
     subprocess.run(["docker", "stop", backend_container_name], stderr=subprocess.DEVNULL, stdout=subprocess.DEVNULL)

@@ -7,7 +7,7 @@ from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.support.ui import Select
 
 from settings import hub_url, app_base_url, chrome_options
-from utils import create_account, login, get_browser_logs, generate_random_string, stop_backend_container, start_backend_container, wait_for_element_to_be_displayed, wait_for_element_to_be_removed, wait_for_element_to_not_be_displayed, select_first_video_device_and_wait_for_preview, wait_for_parent_station_ready, wait_for_session_running
+from utils import can_control_backend_container, create_account, login, get_browser_logs, generate_random_string, stop_backend_container, start_backend_container, wait_for_element_to_be_displayed, wait_for_element_to_be_removed, wait_for_element_to_not_be_displayed, select_first_video_device_and_wait_for_preview, wait_for_parent_station_ready, wait_for_session_running
 
 class TestSession(unittest.TestCase):
     def setUp(self):
@@ -208,6 +208,9 @@ class TestSession(unittest.TestCase):
             self.assertEqual(len(driver_3_logs), 0)
 
     def test_reconnect_after_server_restarts(self):
+        if not can_control_backend_container():
+            self.skipTest("docker CLI unavailable; cannot restart backend container in this environment")
+
         email = f'{generate_random_string(10)}@integrationtests.com'
         password = generate_random_string(20)
 
