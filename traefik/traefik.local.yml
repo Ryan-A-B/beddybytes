@@ -1,5 +1,6 @@
 providers:
-  docker: {}
+  docker:
+    exposedByDefault: false
   file:
     directory: /etc/traefik/
     filename: dynamic_conf.yml

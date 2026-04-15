@@ -32,6 +32,13 @@ Privacy-first baby monitor that works entirely in the browser.
 - `integration_tests/` - End-to-end test scenarios.
 - `cloudformation/`, `traefik/`, `grafana/`, `influxdb/` - Infrastructure and observability.
 
+**Local Dev TLS Setup**
+- Install `mkcert` on your machine.
+- Run `mkcert -install` once on each machine. This creates a local root CA and adds it to your trust stores.
+- Generate the repo's local TLS certs with `make -C traefik/certificates`.
+- The generated `beddybytes.local.crt` and `beddybytes.local.key` are leaf certs signed by that trusted local CA, so browsers on the same machine will trust them automatically.
+- If you work across multiple repos on the same machine, each repo can generate its own leaf certs with `mkcert` and they will all chain back to the same trusted local CA.
+
 **License (Open Source)**
 - BeddyBytes is open-source software under the GNU General Public License, version 2 or (at your option) any later version (`GPL-2.0-or-later`).
 - You may run, study, modify, and redistribute BeddyBytes under those terms.

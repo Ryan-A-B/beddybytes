@@ -1,6 +1,6 @@
 services:
   traefik:
-    image: traefik:v2.10
+    image: traefik:v3.6.7
     restart: always
     ports:
       - "80:80"
@@ -12,12 +12,21 @@ services:
       - ./traefik/dynamic_conf.local.yml:/etc/traefik/dynamic_conf.yml
       - ./traefik/certificates:/opt/certificates
     labels:
+      - "traefik.enable=true"
       - "traefik.http.middlewares.headers-cors.headers.accesscontrolalloworiginlist=https://app.beddybytes.local,https://beddybytes.local"
       - "traefik.http.middlewares.headers-cors.headers.accesscontrolallowheaders=Content-Type,Authorization"
       - "traefik.http.middlewares.headers-cors.headers.accesscontrolallowcredentials=true"
       - "traefik.http.middlewares.headers-cors.headers.accessControlAllowMethods=GET,OPTIONS,POST,PUT,DELETE"
     networks:
       default:
+        aliases:
+          - app.beddybytes.local
+          - api.beddybytes.local
+          - mosquitto.beddybytes.local
+          - influx.beddybytes.local
+          - grafana.beddybytes.local
+          - analytics.beddybytes.local
+      agent-net:
         aliases:
           - app.beddybytes.local
           - api.beddybytes.local
@@ -56,6 +65,7 @@ services:
       # - MQTT_AWS_IOT_CERT_FILE=certificate.crt
       # - MQTT_AWS_IOT_KEY_FILE=private_key.pem
     labels:
+      - "traefik.enable=true"
       - "traefik.http.routers.api.rule=Host(`api.beddybytes.local`)"
       - "traefik.http.routers.api.entrypoints=websecure"
       - "traefik.http.routers.api.tls=true"
@@ -72,6 +82,7 @@ services:
     volumes:
       - ./mosquitto/config/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
     labels:
+      - "traefik.enable=true"
       - "traefik.http.routers.mosquitto.rule=Host(`mosquitto.beddybytes.local`)"
       - "traefik.http.routers.mosquitto.entrypoints=websecure"
       - "traefik.http.routers.mosquitto.tls=true"
@@ -88,6 +99,7 @@ services:
       - WDS_SOCKET_PORT=443
     working_dir: /opt/app
     labels:
+      - "traefik.enable=true"
       - "traefik.http.routers.app.rule=Host(`app.beddybytes.local`)"
       - "traefik.http.routers.app.entrypoints=websecure"
       - "traefik.http.routers.app.tls=true"
@@ -104,6 +116,7 @@ services:
       - TINYANALYTICS_WRITE_TOKEN=${TINYANALYTICS_WRITE_TOKEN}
     working_dir: /opt/marketing
     labels:
+      - "traefik.enable=true"
       - "traefik.http.routers.marketing.rule=Host(`beddybytes.local`)"
       - "traefik.http.routers.marketing.entrypoints=websecure"
       - "traefik.http.routers.marketing.tls=true"
@@ -113,6 +126,7 @@ services:
     environment:
       - ANALYTICS_JWT_SECRET=${JWT_SIGNING_KEY}
     labels:
+      - "traefik.enable=true"
       - "traefik.http.routers.analytics.rule=Host(`analytics.beddybytes.local`)"
       - "traefik.http.routers.analytics.entrypoints=websecure"
       - "traefik.http.routers.analytics.tls=true"
@@ -125,6 +139,7 @@ services:
     volumes:
       - ./influxdb/data:/var/lib/influxdb2
     labels:
+      - "traefik.enable=true"
       - "traefik.http.routers.influx.rule=Host(`influx.beddybytes.local`)"
       - "traefik.http.routers.influx.entrypoints=websecure"
       - "traefik.http.routers.influx.tls=true"
@@ -137,6 +152,7 @@ services:
     volumes:
       - grafana_storage:/var/lib/grafana
     labels:
+      - "traefik.enable=true"
       - "traefik.http.routers.grafana.rule=Host(`grafana.beddybytes.local`)"
       - "traefik.http.routers.grafana.entrypoints=websecure"
       - "traefik.http.routers.grafana.tls=true"
@@ -148,3 +164,7 @@ volumes:
 
 include:
   - selenium.docker-compose.yml
+
+networks:
+  agent-net:
+    external: true
