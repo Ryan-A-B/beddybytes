@@ -2,7 +2,7 @@ import unittest
 
 import trio
 
-from backend_api_utils import BackendAPIClient, open_connection_websocket, open_connection_websocket_until_signaled, send_signal_between_connections, send_signal_to_missing_connection_and_expect_pong, utc_now_seconds_rfc3339
+from backend_api_utils import BackendAPIClient, open_connection_websocket, open_connection_websocket_until_signaled, send_signal_between_connections, send_signal_to_missing_connection_and_expect_pong, spawn_connection_websocket_process, utc_now_seconds_rfc3339
 from utils import generate_random_string
 
 
@@ -172,6 +172,62 @@ class TestBackendHTTPAPI(unittest.TestCase):
 
         session_list = client.list_sessions(access_token)
         self.assertEqual(len(session_list["sessions"]), 0)
+
+    def test_unclean_websocket_disconnect_writes_client_disconnected_event_and_removes_session_from_session_list(self):
+        client = BackendAPIClient()
+        email = f"{generate_random_string(10)}@integrationtests.com"
+        password = generate_random_string(20)
+        client_id = generate_random_string(24)
+        connection_id = generate_random_string(24)
+        session_id = generate_random_string(24)
+        started_at = utc_now_seconds_rfc3339()
+
+        client.create_account(email, password)
+        access_token = client.login(email, password)
+
+        response = client.start_session(access_token, session_id, {
+            "id": session_id,
+            "name": "Nursery",
+            "host_connection_id": connection_id,
+            "started_at": started_at,
+        })
+        self.assertEqual(response.status_code, 200, response.text)
+        websocket_process = spawn_connection_websocket_process(access_token, client_id, connection_id)
+        try:
+            setup_events = client.wait_for_matching_events(
+                access_token,
+                count=2,
+                predicate=lambda event: event["type"] in {"session.started", "client.connected"},
+                from_cursor=0,
+                timeout_seconds=10,
+            )
+            setup_cursor = max(event["logical_clock"] for event in setup_events)
+            connected_event = next(event for event in setup_events if event["type"] == "client.connected")
+
+            websocket_process.kill()
+            websocket_process.wait(timeout=5)
+
+            events = client.wait_for_matching_events(
+                access_token,
+                count=1,
+                predicate=lambda event: event["type"] == "client.disconnected",
+                from_cursor=setup_cursor,
+                timeout_seconds=10,
+            )
+
+            self.assertEqual(len(events), 1)
+            disconnected_event = events[0]
+            self.assertEqual(disconnected_event["type"], "client.disconnected")
+            self.assertEqual(disconnected_event["data"]["client_id"], client_id)
+            self.assertEqual(disconnected_event["data"]["connection_id"], connection_id)
+            self.assertEqual(disconnected_event["data"]["request_id"], connected_event["data"]["request_id"])
+
+            session_list = client.list_sessions(access_token)
+            self.assertEqual(len(session_list["sessions"]), 0)
+        finally:
+            if websocket_process.poll() is None:
+                websocket_process.kill()
+                websocket_process.wait(timeout=5)
 
     def test_websocket_signal_sent_to_client_gets_delivered_to_that_client(self):
         client = BackendAPIClient()

@@ -1,6 +1,9 @@
 import datetime
 import json
+import os
 import ssl
+import subprocess
+import sys
 from urllib.parse import urlencode
 
 import requests
@@ -284,3 +287,33 @@ async def open_connection_websocket_until_signaled(access_token, client_id, conn
     async with open_websocket_url(websocket_url, ssl_context=websocket_ssl_context()):
         ready_event.set()
         await release_event.wait()
+
+
+def spawn_connection_websocket_process(access_token, client_id, connection_id):
+    query = urlencode({
+        "access_token": access_token,
+    })
+    websocket_url = f"{api_websocket_base_url}/clients/{client_id}/connections/{connection_id}?{query}"
+    ssl_context = """
+import ssl
+ssl_context = ssl.create_default_context()
+ssl_context.check_hostname = False
+ssl_context.verify_mode = ssl.CERT_NONE
+""" if api_websocket_base_url.startswith("wss://") else "ssl_context = None"
+    script = f"""
+import trio
+from trio_websocket import open_websocket_url
+{ssl_context}
+
+async def main():
+    async with open_websocket_url({websocket_url!r}, ssl_context=ssl_context):
+        await trio.sleep_forever()
+
+trio.run(main)
+"""
+    env = os.environ.copy()
+    pythonpath_parts = ["/tmp/bb-it-pydeps", "/home/ryan/workspace-2/repositories/beddybytes/integration_tests/src"]
+    if env.get("PYTHONPATH"):
+        pythonpath_parts.append(env["PYTHONPATH"])
+    env["PYTHONPATH"] = ":".join(pythonpath_parts)
+    return subprocess.Popen([sys.executable, "-c", script], env=env)

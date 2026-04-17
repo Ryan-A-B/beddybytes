@@ -145,6 +145,83 @@ class TestBackendMQTT(unittest.TestCase):
         self.assertEqual(sessions[0]["host_connection_id"], connection_id)
         self.assertIn("started_at", sessions[0])
 
+    def test_unexpected_mqtt_disconnect_writes_client_disconnected_event_and_removes_session_from_session_list(self):
+        client = BackendAPIClient()
+        email = f"{generate_random_string(10)}@integrationtests.com"
+        password = generate_random_string(20)
+        client_id = generate_random_string(24)
+        connection_id = generate_random_string(24)
+        session_id = generate_random_string(24)
+        started_at = utc_now_seconds_rfc3339()
+
+        account = client.create_account(email, password)
+        account_id = account["id"]
+        access_token = client.login(email, password)
+        status_topic = f"accounts/{account_id}/clients/{client_id}/status"
+
+        response = client.start_session(access_token, session_id, {
+            "id": session_id,
+            "name": "Nursery",
+            "host_connection_id": connection_id,
+            "started_at": started_at,
+        })
+        self.assertEqual(response.status_code, 200, response.text)
+
+        async def run_flow():
+            ready_event = trio.Event()
+            release_event = trio.Event()
+            async with trio.open_nursery() as nursery:
+                nursery.start_soon(
+                    open_connection_websocket_until_signaled,
+                    access_token,
+                    client_id,
+                    connection_id,
+                    ready_event,
+                    release_event,
+                )
+                await ready_event.wait()
+
+                setup_events = client.wait_for_matching_events(
+                    access_token,
+                    count=2,
+                    predicate=lambda event: event["type"] in {"client.connected", "session.started"},
+                    from_cursor=0,
+                )
+                setup_cursor = max(event["logical_clock"] for event in setup_events)
+                connected_event = next(event for event in setup_events if event["type"] == "client.connected")
+
+                with MQTTPublisher() as publisher:
+                    publisher.publish_json(status_topic, {
+                        "type": "disconnected",
+                        "connection_id": connection_id,
+                        "request_id": connected_event["data"]["request_id"],
+                        "at_millis": int(time.time() * 1000),
+                        "disconnected": {
+                            "reason": "unexpected",
+                        },
+                    })
+
+                events = client.wait_for_matching_events(
+                    access_token,
+                    count=1,
+                    predicate=lambda event: event["type"] == "client.disconnected",
+                    from_cursor=setup_cursor,
+                )
+
+                release_event.set()
+                nursery.cancel_scope.cancel()
+                return connected_event, events[0]
+
+        connected_event, disconnected_event = trio.run(run_flow)
+
+        self.assertEqual(disconnected_event["type"], "client.disconnected")
+        self.assertEqual(disconnected_event["data"]["client_id"], client_id)
+        self.assertEqual(disconnected_event["data"]["connection_id"], connection_id)
+        self.assertEqual(disconnected_event["data"]["request_id"], connected_event["data"]["request_id"])
+
+        session_list = client.list_sessions(access_token)
+        self.assertEqual(len(session_list["sessions"]), 0)
+
     def test_parent_station_announcement_publishes_control_inbox_message_for_http_created_session(self):
         client = BackendAPIClient()
         email = f"{generate_random_string(10)}@integrationtests.com"
