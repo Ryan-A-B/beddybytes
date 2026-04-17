@@ -196,6 +196,52 @@ async def send_signal_between_connections(
             return json.loads(message)
 
 
+async def send_signal_over_connection(
+    access_token,
+    sender_client_id,
+    sender_connection_id,
+    recipient_connection_id,
+    signal_data,
+):
+    def connection_websocket_url(client_id, connection_id):
+        query = urlencode({
+            "access_token": access_token,
+        })
+        return f"{api_websocket_base_url}/clients/{client_id}/connections/{connection_id}?{query}"
+
+    async with open_websocket_url(
+        connection_websocket_url(sender_client_id, sender_connection_id),
+        ssl_context=websocket_ssl_context(),
+    ) as sender_websocket:
+        await trio.sleep(0.6)
+        await sender_websocket.send_message(json.dumps({
+            "type": "signal",
+            "signal": {
+                "to_connection_id": recipient_connection_id,
+                "data": signal_data,
+            },
+        }))
+        await trio.sleep(0.2)
+
+
+async def receive_signal_over_connection(access_token, client_id, connection_id, ready_event, result_channel):
+    def connection_websocket_url(client_id, connection_id):
+        query = urlencode({
+            "access_token": access_token,
+        })
+        return f"{api_websocket_base_url}/clients/{client_id}/connections/{connection_id}?{query}"
+
+    async with open_websocket_url(
+        connection_websocket_url(client_id, connection_id),
+        ssl_context=websocket_ssl_context(),
+    ) as websocket:
+        ready_event.set()
+        message = await websocket.get_message()
+        if isinstance(message, bytes):
+            message = message.decode("utf-8")
+        await result_channel.send(json.loads(message))
+
+
 async def send_signal_to_missing_connection_and_expect_pong(
     access_token,
     sender_client_id,

@@ -80,6 +80,31 @@ type BabyStationAnnouncment struct {
 	Name         string `json:"name"`
 }
 
+type ParentStationsPayload struct {
+	Type        string                    `json:"type"`
+	AtMillis    int64                     `json:"at_millis"`
+	Announcment ParentStationAnnouncment  `json:"announcment"`
+}
+
+type ParentStationAnnouncment struct {
+	ClientID     string `json:"client_id"`
+	ConnectionID string `json:"connection_id"`
+}
+
+type ControlInboxPayload struct {
+	Type                    string                             `json:"type"`
+	AtMillis                int64                              `json:"at_millis"`
+	BabyStationAnnouncement *ControlInboxBabyStationAnnouncement `json:"baby_station_announcement,omitempty"`
+}
+
+type ControlInboxBabyStationAnnouncement struct {
+	ClientID        string `json:"client_id"`
+	ConnectionID    string `json:"connection_id"`
+	SessionID       string `json:"session_id"`
+	Name            string `json:"name"`
+	StartedAtMillis int64  `json:"started_at_millis"`
+}
+
 type PendingSessionStart struct {
 	SessionID    string
 	Name         string

@@ -318,6 +318,13 @@ func main() {
 		})
 		log.Fatal("backendmqtt.RunBabyStationAnnouncementSync exited")
 	}()
+	go func() {
+		backendmqtt.RunParentStationAnnouncementSync(ctx, backendmqtt.RunParentStationAnnouncementSyncInput{
+			MQTTClient:      mqttClient,
+			BabyStationList: handlers.BabyStationList,
+		})
+		log.Fatal("backendmqtt.RunParentStationAnnouncementSync exited")
+	}()
 	router := mux.NewRouter()
 	router.Use(internal.LoggingMiddleware)
 	handlers.AddRoutes(router.NewRoute().Subrouter())

@@ -7,8 +7,10 @@ import (
 	"regexp"
 	"time"
 
+	"github.com/Ryan-A-B/beddybytes/golang/internal/babystationlist"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/connectionstore"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/connections"
+	"github.com/Ryan-A-B/beddybytes/golang/internal/contextx"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/eventlog"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/fatal"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/logx"
@@ -18,6 +20,7 @@ import (
 
 var clientStatusTopicRegex = regexp.MustCompile(`^accounts/([^/]+)/clients/([^/]+)/status$`)
 var babyStationsTopicRegex = regexp.MustCompile(`^accounts/([^/]+)/baby_stations$`)
+var parentStationsTopicRegex = regexp.MustCompile(`^accounts/([^/]+)/parent_stations$`)
 
 type RunClientStatusSyncInput struct {
 	MQTTClient            mqtt.Client
@@ -177,5 +180,62 @@ func ConnectedEventData(clientID string, connectionID string, requestID string) 
 		ClientID:     clientID,
 		ConnectionID: connectionID,
 		RequestID:    requestID,
+	}
+}
+
+type RunParentStationAnnouncementSyncInput struct {
+	MQTTClient       mqtt.Client
+	BabyStationList  *babystationlist.BabyStationList
+}
+
+func RunParentStationAnnouncementSync(ctx context.Context, input RunParentStationAnnouncementSyncInput) {
+	err := mqttx.Wait(input.MQTTClient.Subscribe("accounts/+/parent_stations", 1, func(client mqtt.Client, message mqtt.Message) {
+		handleParentStationAnnouncementMessage(message, input)
+	}))
+	fatal.OnError(err)
+	<-ctx.Done()
+}
+
+func handleParentStationAnnouncementMessage(message mqtt.Message, input RunParentStationAnnouncementSyncInput) {
+	defer message.Ack()
+	var payload ParentStationsPayload
+	if err := json.Unmarshal(message.Payload(), &payload); err != nil {
+		logx.Warnln(err)
+		return
+	}
+	if payload.Type != AnnouncementType {
+		logx.Warnln("unhandled parent station message type:", payload.Type)
+		return
+	}
+	matches := parentStationsTopicRegex.FindStringSubmatch(message.Topic())
+	if len(matches) != 2 {
+		logx.Warnln("failed to parse topic:", message.Topic())
+		return
+	}
+	accountID := matches[1]
+	ctx := contextx.WithAccountID(context.Background(), accountID)
+	snapshot, err := input.BabyStationList.GetSnapshot(ctx)
+	if err != nil {
+		logx.Errorln(err)
+		return
+	}
+	for _, babyStation := range snapshot.List() {
+		controlPayload := ControlInboxPayload{
+			Type:     "baby_station_announcement",
+			AtMillis: time.Now().UnixMilli(),
+			BabyStationAnnouncement: &ControlInboxBabyStationAnnouncement{
+				ClientID:        babyStation.ClientID,
+				ConnectionID:    babyStation.Connection.ID,
+				SessionID:       snapshot.SessionIDByConnectionID[babyStation.Connection.ID],
+				Name:            babyStation.Name,
+				StartedAtMillis: babyStation.StartedAt.UnixMilli(),
+			},
+		}
+		data := fatal.UnlessMarshalJSON(controlPayload)
+		topic := ClientControlInboxTopic(accountID, payload.Announcment.ClientID)
+		if err := mqttx.Wait(input.MQTTClient.Publish(topic, 1, false, data)); err != nil {
+			logx.Errorln(err)
+			return
+		}
 	}
 }
