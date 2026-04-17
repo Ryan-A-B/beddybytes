@@ -2,7 +2,7 @@ import unittest
 
 import trio
 
-from backend_api_utils import BackendAPIClient, open_connection_websocket, open_connection_websocket_until_signaled, send_signal_between_connections, utc_now_seconds_rfc3339
+from backend_api_utils import BackendAPIClient, open_connection_websocket, open_connection_websocket_until_signaled, send_signal_between_connections, send_signal_to_missing_connection_and_expect_pong, utc_now_seconds_rfc3339
 from utils import generate_random_string
 
 
@@ -202,3 +202,28 @@ class TestBackendHTTPAPI(unittest.TestCase):
         self.assertEqual(message["type"], "signal")
         self.assertEqual(message["signal"]["from_connection_id"], sender_connection_id)
         self.assertEqual(message["signal"]["data"], signal_data)
+
+    def test_websocket_signal_to_missing_connection_does_not_close_sender_connection(self):
+        client = BackendAPIClient()
+        email = f"{generate_random_string(10)}@integrationtests.com"
+        password = generate_random_string(20)
+        sender_client_id = generate_random_string(24)
+        sender_connection_id = generate_random_string(24)
+        missing_connection_id = generate_random_string(24)
+        signal_data = {
+            "candidate": "test-candidate",
+        }
+
+        client.create_account(email, password)
+        access_token = client.login(email, password)
+
+        message = trio.run(
+            send_signal_to_missing_connection_and_expect_pong,
+            access_token,
+            sender_client_id,
+            sender_connection_id,
+            missing_connection_id,
+            signal_data,
+        )
+
+        self.assertEqual(message["type"], "pong")

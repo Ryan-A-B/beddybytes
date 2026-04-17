@@ -1,0 +1,101 @@
+package backendmqtt
+
+import (
+	"encoding/json"
+	"errors"
+	"time"
+)
+
+const (
+	ClientStatusTypeConnected    = "connected"
+	ClientStatusTypeDisconnected = "disconnected"
+	AnnouncementType             = "announcment"
+)
+
+type DisconnectReason string
+
+const (
+	DisconnectReasonClean      DisconnectReason = "clean"
+	DisconnectReasonUnexpected DisconnectReason = "unexpected"
+)
+
+type ClientStatusPayload struct {
+	Type         string                     `json:"type"`
+	ConnectionID string                     `json:"connection_id"`
+	RequestID    string                     `json:"request_id"`
+	AtMillis     int64                      `json:"at_millis"`
+	Disconnected *ClientStatusDisconnected  `json:"disconnected,omitempty"`
+}
+
+type ClientStatusDisconnected struct {
+	Reason DisconnectReason `json:"reason"`
+}
+
+type WebRTCInboxPayload struct {
+	FromClientID string          `json:"from_client_id"`
+	Description  json.RawMessage `json:"description,omitempty"`
+	Candidate    json.RawMessage `json:"candidate,omitempty"`
+}
+
+func NewWebRTCInboxPayload(fromClientID string, signalData json.RawMessage) WebRTCInboxPayload {
+	payload := WebRTCInboxPayload{
+		FromClientID: fromClientID,
+	}
+	var probe struct {
+		Type      string          `json:"type"`
+		Candidate json.RawMessage `json:"candidate"`
+	}
+	if err := json.Unmarshal(signalData, &probe); err == nil {
+		switch probe.Type {
+		case "offer", "answer":
+			payload.Description = signalData
+			return payload
+		}
+		if probe.Candidate != nil {
+			payload.Candidate = signalData
+			return payload
+		}
+	}
+	payload.Candidate = signalData
+	return payload
+}
+
+func (payload WebRTCInboxPayload) SignalData() json.RawMessage {
+	if payload.Description != nil {
+		return payload.Description
+	}
+	return payload.Candidate
+}
+
+type BabyStationsPayload struct {
+	Type        string                     `json:"type"`
+	AtMillis    int64                      `json:"at_millis"`
+	Announcment BabyStationAnnouncment     `json:"announcment"`
+}
+
+type BabyStationAnnouncment struct {
+	ClientID     string `json:"client_id"`
+	ConnectionID string `json:"connection_id"`
+	SessionID    string `json:"session_id"`
+	Name         string `json:"name"`
+}
+
+type PendingSessionStart struct {
+	SessionID    string
+	Name         string
+	ConnectionID string
+	StartedAt    time.Time
+}
+
+func (pending PendingSessionStart) Validate() error {
+	if pending.SessionID == "" {
+		return errors.New("session id is empty")
+	}
+	if pending.Name == "" {
+		return errors.New("session name is empty")
+	}
+	if pending.ConnectionID == "" {
+		return errors.New("connection id is empty")
+	}
+	return nil
+}

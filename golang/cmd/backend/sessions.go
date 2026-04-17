@@ -10,6 +10,7 @@ import (
 	"github.com/ansel1/merry"
 	"github.com/gorilla/mux"
 
+	"github.com/Ryan-A-B/beddybytes/golang/internal/backendmqtt"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/contextx"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/eventlog"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/fatal"
@@ -74,13 +75,36 @@ func (handlers *Handlers) StartSession(responseWriter http.ResponseWriter, reque
 		err = merry.Errorf("session id in path does not match session id in body").WithHTTPCode(http.StatusBadRequest)
 		return
 	}
-	_, err = handlers.EventLog.Append(ctx, eventlog.AppendInput{
-		Type:      EventTypeSessionStarted,
-		AccountID: contextx.GetAccountID(ctx),
-		Data:      fatal.UnlessMarshalJSON(session),
-	})
-	if err != nil {
+	accountID := contextx.GetAccountID(ctx)
+	pending := backendmqtt.PendingSessionStart{
+		SessionID:    session.ID,
+		Name:         session.Name,
+		ConnectionID: session.HostConnectionID,
+		StartedAt:    session.StartedAt,
+	}
+	if err = pending.Validate(); err != nil {
+		err = merry.WithHTTPCode(err, http.StatusBadRequest)
 		return
+	}
+	handlers.PendingSessionStarts.Put(accountID, pending)
+	connection, ok := handlers.ConnectionRegistry.GetByConnectionID(accountID, session.HostConnectionID)
+	if ok {
+		pending, ok := handlers.PendingSessionStarts.Take(accountID, session.HostConnectionID)
+		if ok {
+			err = backendmqtt.PublishBabyStationAnnouncement(handlers.MQTTClient, accountID, backendmqtt.BabyStationsPayload{
+				Type:     backendmqtt.AnnouncementType,
+				AtMillis: pending.StartedAt.UnixMilli(),
+				Announcment: backendmqtt.BabyStationAnnouncment{
+					ClientID:     connection.ClientID,
+					ConnectionID: pending.ConnectionID,
+					SessionID:    pending.SessionID,
+					Name:         pending.Name,
+				},
+			})
+			if err != nil {
+				return
+			}
+		}
 	}
 	// TODO set header with logical clock of the start event
 }

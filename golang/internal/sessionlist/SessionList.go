@@ -18,6 +18,7 @@ type SessionList struct {
 	log                             eventlog.EventLog
 	cursor                          int64
 	sessions                        []*Session
+	activeConnectionByKey           map[string]activeConnectionInfo
 	disconnectedSessionByKey        map[string]*Session
 	disconnectedSessionsByAccountID map[string][]*Session
 }
@@ -29,9 +30,15 @@ type NewInput struct {
 func New(ctx context.Context, input NewInput) *SessionList {
 	return &SessionList{
 		log:                             input.Log,
+		activeConnectionByKey:           make(map[string]activeConnectionInfo),
 		disconnectedSessionByKey:        make(map[string]*Session),
 		disconnectedSessionsByAccountID: make(map[string][]*Session),
 	}
+}
+
+type activeConnectionInfo struct {
+	RequestID string
+	Since     int64
 }
 
 type ListOutput struct {
@@ -166,19 +173,30 @@ func applySessionStartedEvent(ctx context.Context, sessionList *SessionList, eve
 		sessionList.delete(event.AccountID, existingSession.ID)
 	}
 	sessionList.removeDisconnectedSessionByConnectionID(event.AccountID, sessionStartedEventData.HostConnectionID)
+	connectionInfo, connected := sessionList.getActiveConnection(event.AccountID, sessionStartedEventData.HostConnectionID)
+	hostConnectionState := HostConnectionStateConnected{
+		HostConnectionStateBase: HostConnectionStateBase{
+			State: ConnectionStateConnected,
+			Since: event.UnixTimestamp,
+		},
+		RequestID: "TODO",
+	}
+	if connected {
+		hostConnectionState = HostConnectionStateConnected{
+			HostConnectionStateBase: HostConnectionStateBase{
+				State: ConnectionStateConnected,
+				Since: connectionInfo.Since,
+			},
+			RequestID: connectionInfo.RequestID,
+		}
+	}
 	sessionList.put(&Session{
 		AccountID:        event.AccountID,
 		ID:               sessionStartedEventData.ID,
 		Name:             sessionStartedEventData.Name,
 		HostConnectionID: sessionStartedEventData.HostConnectionID,
 		StartedAt:        sessionStartedEventData.StartedAt,
-		HostConnectionState: HostConnectionStateConnected{
-			HostConnectionStateBase: HostConnectionStateBase{
-				State: ConnectionStateConnected,
-				Since: event.UnixTimestamp,
-			},
-			RequestID: "TODO",
-		},
+		HostConnectionState: hostConnectionState,
 	})
 }
 
@@ -198,6 +216,7 @@ func applyClientDisconnectedEvent(ctx context.Context, sessionList *SessionList,
 	var data connections.EventDisconnected
 	err := json.Unmarshal(event.Data, &data)
 	fatal.OnError(err)
+	sessionList.deleteActiveConnection(event.AccountID, data.ConnectionID)
 	session, ok := sessionList.getSessionByConnectionID(event.AccountID, data.ConnectionID)
 	if !ok {
 		return
@@ -222,6 +241,10 @@ func applyClientConnectedEvent(ctx context.Context, sessionList *SessionList, ev
 	var data connections.EventConnected
 	err := json.Unmarshal(event.Data, &data)
 	fatal.OnError(err)
+	sessionList.putActiveConnection(event.AccountID, data.ConnectionID, activeConnectionInfo{
+		RequestID: data.RequestID,
+		Since:     event.UnixTimestamp,
+	})
 	session, ok := sessionList.getSessionByConnectionID(event.AccountID, data.ConnectionID)
 	if !ok {
 		session, ok = sessionList.removeDisconnectedSessionByConnectionID(event.AccountID, data.ConnectionID)
@@ -241,6 +264,7 @@ func applyClientConnectedEvent(ctx context.Context, sessionList *SessionList, ev
 
 func applyServerStartedEvent(ctx context.Context, sessionList *SessionList, event *eventlog.Event) {
 	activeSessions := append([]*Session(nil), sessionList.sessions...)
+	sessionList.activeConnectionByKey = make(map[string]activeConnectionInfo)
 	for _, session := range activeSessions {
 		if session.HostConnectionState.GetState() == ConnectionStateDisconnected {
 			continue
@@ -312,4 +336,17 @@ func (sessionList *SessionList) removeDisconnectedSessionByID(accountID string, 
 
 func sessionKey(accountID string, connectionID string) string {
 	return accountID + "\x00" + connectionID
+}
+
+func (sessionList *SessionList) putActiveConnection(accountID string, connectionID string, info activeConnectionInfo) {
+	sessionList.activeConnectionByKey[sessionKey(accountID, connectionID)] = info
+}
+
+func (sessionList *SessionList) deleteActiveConnection(accountID string, connectionID string) {
+	delete(sessionList.activeConnectionByKey, sessionKey(accountID, connectionID))
+}
+
+func (sessionList *SessionList) getActiveConnection(accountID string, connectionID string) (activeConnectionInfo, bool) {
+	info, ok := sessionList.activeConnectionByKey[sessionKey(accountID, connectionID)]
+	return info, ok
 }

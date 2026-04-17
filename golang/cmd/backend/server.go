@@ -21,9 +21,9 @@ import (
 
 	"github.com/Ryan-A-B/beddybytes/golang/internal"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/accounts"
+	"github.com/Ryan-A-B/beddybytes/golang/internal/backendmqtt"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/babystationlist"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/connectionstore"
-	"github.com/Ryan-A-B/beddybytes/golang/internal/connectionstoresync"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/eventlog"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/fatal"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/httpx"
@@ -74,6 +74,8 @@ type Handlers struct {
 	BabyStationList   *babystationlist.BabyStationList
 	EventLog          eventlog.EventLog
 	MQTTClient        mqtt.Client
+	ConnectionRegistry *backendmqtt.ConnectionRegistry
+	PendingSessionStarts *backendmqtt.PendingSessionStarts
 	UsageStats        *UsageStats
 
 	Key interface{}
@@ -227,6 +229,8 @@ func main() {
 		}),
 	})
 	mqttClient := newMQTTClient()
+	connectionRegistry := backendmqtt.NewConnectionRegistry()
+	pendingSessionStarts := backendmqtt.NewPendingSessionStarts()
 	accountHandlers := accounts.Handlers{
 		CookieDomain: cookieDomain,
 		EventLog:     eventLog,
@@ -281,6 +285,8 @@ func main() {
 		}),
 		EventLog:   eventLog,
 		MQTTClient: mqttClient,
+		ConnectionRegistry: connectionRegistry,
+		PendingSessionStarts: pendingSessionStarts,
 		UsageStats: NewUsageStats(ctx, NewUsageStatsInput{
 			Log: eventLog,
 		}),
@@ -295,13 +301,22 @@ func main() {
 		log.Fatal("eventlog.Project exited")
 	}()
 	go func() {
-		connectionstoresync.Run(ctx, connectionstoresync.RunInput{
+		backendmqtt.RunClientStatusSync(ctx, backendmqtt.RunClientStatusSyncInput{
 			MQTTClient: mqttClient,
 			ConnectionStore: connectionstore.NewDecider(connectionstore.NewDeciderInput{
 				EventLog: eventLog,
 			}),
+			ConnectionRegistry:   connectionRegistry,
+			PendingSessionStarts: pendingSessionStarts,
 		})
-		log.Fatal("connectionstoresync.Run exited")
+		log.Fatal("backendmqtt.RunClientStatusSync exited")
+	}()
+	go func() {
+		backendmqtt.RunBabyStationAnnouncementSync(ctx, backendmqtt.RunBabyStationAnnouncementSyncInput{
+			MQTTClient: mqttClient,
+			EventLog:   eventLog,
+		})
+		log.Fatal("backendmqtt.RunBabyStationAnnouncementSync exited")
 	}()
 	router := mux.NewRouter()
 	router.Use(internal.LoggingMiddleware)

@@ -142,15 +142,21 @@ def utc_now_seconds_rfc3339():
     return datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
-async def open_connection_websocket(access_token, client_id, connection_id, duration_seconds=1.0):
+def websocket_ssl_context():
+    if not api_websocket_base_url.startswith("wss://"):
+        return None
     ssl_context = ssl.create_default_context()
     ssl_context.check_hostname = False
     ssl_context.verify_mode = ssl.CERT_NONE
+    return ssl_context
+
+
+async def open_connection_websocket(access_token, client_id, connection_id, duration_seconds=1.0):
     query = urlencode({
         "access_token": access_token,
     })
     websocket_url = f"{api_websocket_base_url}/clients/{client_id}/connections/{connection_id}?{query}"
-    async with open_websocket_url(websocket_url, ssl_context=ssl_context):
+    async with open_websocket_url(websocket_url, ssl_context=websocket_ssl_context()):
         await trio.sleep(duration_seconds)
 
 
@@ -162,10 +168,6 @@ async def send_signal_between_connections(
     recipient_connection_id,
     signal_data,
 ):
-    ssl_context = ssl.create_default_context()
-    ssl_context.check_hostname = False
-    ssl_context.verify_mode = ssl.CERT_NONE
-
     def connection_websocket_url(client_id, connection_id):
         query = urlencode({
             "access_token": access_token,
@@ -174,11 +176,11 @@ async def send_signal_between_connections(
 
     async with open_websocket_url(
         connection_websocket_url(recipient_client_id, recipient_connection_id),
-        ssl_context=ssl_context,
+        ssl_context=websocket_ssl_context(),
     ) as recipient_websocket:
         async with open_websocket_url(
             connection_websocket_url(sender_client_id, sender_connection_id),
-            ssl_context=ssl_context,
+            ssl_context=websocket_ssl_context(),
         ) as sender_websocket:
             await trio.sleep(0.6)
             await sender_websocket.send_message(json.dumps({
@@ -194,14 +196,45 @@ async def send_signal_between_connections(
             return json.loads(message)
 
 
+async def send_signal_to_missing_connection_and_expect_pong(
+    access_token,
+    sender_client_id,
+    sender_connection_id,
+    missing_connection_id,
+    signal_data,
+):
+    def connection_websocket_url(client_id, connection_id):
+        query = urlencode({
+            "access_token": access_token,
+        })
+        return f"{api_websocket_base_url}/clients/{client_id}/connections/{connection_id}?{query}"
+
+    async with open_websocket_url(
+        connection_websocket_url(sender_client_id, sender_connection_id),
+        ssl_context=websocket_ssl_context(),
+    ) as sender_websocket:
+        await trio.sleep(0.6)
+        await sender_websocket.send_message(json.dumps({
+            "type": "signal",
+            "signal": {
+                "to_connection_id": missing_connection_id,
+                "data": signal_data,
+            },
+        }))
+        await sender_websocket.send_message(json.dumps({
+            "type": "ping",
+        }))
+        message = await sender_websocket.get_message()
+        if isinstance(message, bytes):
+            message = message.decode("utf-8")
+        return json.loads(message)
+
+
 async def open_connection_websocket_until_signaled(access_token, client_id, connection_id, ready_event, release_event):
-    ssl_context = ssl.create_default_context()
-    ssl_context.check_hostname = False
-    ssl_context.verify_mode = ssl.CERT_NONE
     query = urlencode({
         "access_token": access_token,
     })
     websocket_url = f"{api_websocket_base_url}/clients/{client_id}/connections/{connection_id}?{query}"
-    async with open_websocket_url(websocket_url, ssl_context=ssl_context):
+    async with open_websocket_url(websocket_url, ssl_context=websocket_ssl_context()):
         ready_event.set()
         await release_event.wait()
