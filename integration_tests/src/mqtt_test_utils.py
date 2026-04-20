@@ -4,6 +4,7 @@ import ssl
 import threading
 
 import paho.mqtt.client as mqtt
+import trio
 
 
 class MQTTSubscription:
@@ -49,11 +50,24 @@ class MQTTSubscription:
     def wait_for_messages(self, count, predicate=None, timeout=5):
         messages = []
         while len(messages) < count:
-            message = self.messages.get(timeout=timeout)
+            try:
+                message = self.messages.get(timeout=timeout)
+            except queue.Empty as exc:
+                raise AssertionError(
+                    f"timed out waiting for {count} MQTT messages after receiving {len(messages)}"
+                ) from exc
             if predicate is not None and not predicate(message):
                 continue
             messages.append(message)
         return messages
+
+    async def wait_for_messages_async(self, count, predicate=None, timeout=5):
+        return await trio.to_thread.run_sync(
+            self.wait_for_messages,
+            count,
+            predicate,
+            timeout,
+        )
 
 
 class MQTTPublisher:

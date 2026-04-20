@@ -66,23 +66,26 @@ func handleClientStatusMessage(client mqtt.Client, message mqtt.Message, input R
 		if err := input.ConnectionStore.Put(context.Background(), connection); err != nil && err != connectionstore.ErrDuplicate {
 			log.Fatal(err)
 		}
-		pending, ok := input.PendingSessionStarts.Take(accountID, payload.ConnectionID)
+		pending, ok := input.PendingSessionStarts.Get(accountID, payload.ConnectionID)
 		if !ok {
 			return
 		}
 		err := PublishBabyStationAnnouncement(input.MQTTClient, accountID, BabyStationsPayload{
 			Type:     AnnouncementType,
 			AtMillis: pending.StartedAt.UnixMilli(),
-			Announcment: BabyStationAnnouncment{
-				ClientID:     clientID,
-				ConnectionID: pending.ConnectionID,
-				SessionID:    pending.SessionID,
-				Name:         pending.Name,
+			Announcement: SessionAnnouncement{
+				ClientID:        clientID,
+				ConnectionID:    pending.ConnectionID,
+				SessionID:       pending.SessionID,
+				Name:            pending.Name,
+				StartedAtMillis: pending.StartedAt.UnixMilli(),
 			},
 		})
 		if err != nil {
 			logx.Errorln(err)
+			return
 		}
+		input.PendingSessionStarts.Delete(accountID, payload.ConnectionID)
 	case ClientStatusTypeDisconnected:
 		input.ConnectionRegistry.Delete(accountID, ConnectionInfo{
 			ClientID:     clientID,
@@ -132,18 +135,7 @@ func handleBabyStationAnnouncementMessage(message mqtt.Message, input RunBabySta
 		return
 	}
 	accountID := matches[1]
-	startedAt := time.Unix(0, payload.AtMillis*int64(time.Millisecond))
-	data := fatal.UnlessMarshalJSON(struct {
-		ID               string    `json:"id"`
-		Name             string    `json:"name"`
-		HostConnectionID string    `json:"host_connection_id"`
-		StartedAt        time.Time `json:"started_at"`
-	}{
-		ID:               payload.Announcment.SessionID,
-		Name:             payload.Announcment.Name,
-		HostConnectionID: payload.Announcment.ConnectionID,
-		StartedAt:        startedAt,
-	})
+	data := fatal.UnlessMarshalJSON(payload.Session())
 	_, err := input.EventLog.Append(context.Background(), eventlog.AppendInput{
 		Type:      "session.started",
 		AccountID: accountID,
@@ -223,7 +215,7 @@ func handleParentStationAnnouncementMessage(message mqtt.Message, input RunParen
 		controlPayload := ControlInboxPayload{
 			Type:     "baby_station_announcement",
 			AtMillis: time.Now().UnixMilli(),
-			BabyStationAnnouncement: &ControlInboxBabyStationAnnouncement{
+			BabyStationAnnouncement: &SessionAnnouncement{
 				ClientID:        babyStation.ClientID,
 				ConnectionID:    babyStation.Connection.ID,
 				SessionID:       snapshot.SessionIDByConnectionID[babyStation.Connection.ID],
@@ -232,7 +224,7 @@ func handleParentStationAnnouncementMessage(message mqtt.Message, input RunParen
 			},
 		}
 		data := fatal.UnlessMarshalJSON(controlPayload)
-		topic := ClientControlInboxTopic(accountID, payload.Announcment.ClientID)
+		topic := ClientControlInboxTopic(accountID, payload.Announcement.ClientID)
 		if err := mqttx.Wait(input.MQTTClient.Publish(topic, 1, false, data)); err != nil {
 			logx.Errorln(err)
 			return

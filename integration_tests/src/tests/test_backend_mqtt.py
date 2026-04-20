@@ -47,7 +47,7 @@ class TestBackendMQTT(unittest.TestCase):
                     )
                     await ready_event.wait()
 
-                    messages = subscription.wait_for_messages(
+                    messages = await subscription.wait_for_messages_async(
                         2,
                         predicate=lambda message: message["topic"] in {status_topic, baby_stations_topic},
                     )
@@ -72,12 +72,13 @@ class TestBackendMQTT(unittest.TestCase):
         self.assertIn("at_millis", status_payload)
 
         announcement_payload = message_by_topic[baby_stations_topic]
-        self.assertEqual(announcement_payload["type"], "announcment")
+        self.assertEqual(announcement_payload["type"], "announcement")
         self.assertIn("at_millis", announcement_payload)
-        self.assertEqual(announcement_payload["announcment"]["client_id"], client_id)
-        self.assertEqual(announcement_payload["announcment"]["connection_id"], connection_id)
-        self.assertEqual(announcement_payload["announcment"]["session_id"], session_id)
-        self.assertEqual(announcement_payload["announcment"]["name"], "Nursery")
+        self.assertEqual(announcement_payload["announcement"]["client_id"], client_id)
+        self.assertEqual(announcement_payload["announcement"]["connection_id"], connection_id)
+        self.assertEqual(announcement_payload["announcement"]["session_id"], session_id)
+        self.assertEqual(announcement_payload["announcement"]["name"], "Nursery")
+        self.assertEqual(announcement_payload["announcement"]["started_at_millis"], announcement_payload["at_millis"])
 
     def test_connected_status_and_baby_station_announcement_messages_create_session_list_entry(self):
         client = BackendAPIClient()
@@ -94,22 +95,24 @@ class TestBackendMQTT(unittest.TestCase):
 
         status_topic = f"accounts/{account_id}/clients/{client_id}/status"
         baby_stations_topic = f"accounts/{account_id}/baby_stations"
+        published_at_millis = int(time.time() * 1000)
 
         with MQTTPublisher() as publisher:
             publisher.publish_json(status_topic, {
                 "type": "connected",
                 "connection_id": connection_id,
                 "request_id": request_id,
-                "at_millis": int(time.time() * 1000),
+                "at_millis": published_at_millis,
             })
             publisher.publish_json(baby_stations_topic, {
-                "type": "announcment",
-                "at_millis": int(time.time() * 1000),
-                "announcment": {
+                "type": "announcement",
+                "at_millis": published_at_millis,
+                "announcement": {
                     "client_id": client_id,
                     "connection_id": connection_id,
                     "session_id": session_id,
                     "name": "Nursery",
+                    "started_at_millis": published_at_millis,
                 },
             })
 
@@ -272,15 +275,15 @@ class TestBackendMQTT(unittest.TestCase):
 
                     with MQTTPublisher() as publisher:
                         publisher.publish_json(parent_stations_topic, {
-                            "type": "announcment",
+                            "type": "announcement",
                             "at_millis": int(time.time() * 1000),
-                            "announcment": {
+                            "announcement": {
                                 "client_id": parent_client_id,
                                 "connection_id": parent_connection_id,
                             },
                         })
 
-                    messages = subscription.wait_for_messages(
+                    messages = await subscription.wait_for_messages_async(
                         1,
                         predicate=lambda message: message["topic"] == control_inbox_topic,
                     )
@@ -346,9 +349,10 @@ class TestBackendMQTT(unittest.TestCase):
                 signal_data,
             )
 
-            messages = subscription.wait_for_messages(
+            messages = trio.run(
+                subscription.wait_for_messages_async,
                 1,
-                predicate=lambda message: message["topic"] == target_webrtc_inbox_topic,
+                lambda message: message["topic"] == target_webrtc_inbox_topic,
             )
 
         self.assertEqual(len(messages), 1)

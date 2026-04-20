@@ -4,12 +4,14 @@ import (
 	"encoding/json"
 	"errors"
 	"time"
+
+	"github.com/Ryan-A-B/beddybytes/golang/internal/sessions"
 )
 
 const (
 	ClientStatusTypeConnected    = "connected"
 	ClientStatusTypeDisconnected = "disconnected"
-	AnnouncementType             = "announcment"
+	AnnouncementType             = "announcement"
 )
 
 type DisconnectReason string
@@ -68,36 +70,12 @@ func (payload WebRTCInboxPayload) SignalData() json.RawMessage {
 }
 
 type BabyStationsPayload struct {
-	Type        string                     `json:"type"`
-	AtMillis    int64                      `json:"at_millis"`
-	Announcment BabyStationAnnouncment     `json:"announcment"`
+	Type         string              `json:"type"`
+	AtMillis     int64               `json:"at_millis"`
+	Announcement SessionAnnouncement `json:"announcement"`
 }
 
-type BabyStationAnnouncment struct {
-	ClientID     string `json:"client_id"`
-	ConnectionID string `json:"connection_id"`
-	SessionID    string `json:"session_id"`
-	Name         string `json:"name"`
-}
-
-type ParentStationsPayload struct {
-	Type        string                    `json:"type"`
-	AtMillis    int64                     `json:"at_millis"`
-	Announcment ParentStationAnnouncment  `json:"announcment"`
-}
-
-type ParentStationAnnouncment struct {
-	ClientID     string `json:"client_id"`
-	ConnectionID string `json:"connection_id"`
-}
-
-type ControlInboxPayload struct {
-	Type                    string                             `json:"type"`
-	AtMillis                int64                              `json:"at_millis"`
-	BabyStationAnnouncement *ControlInboxBabyStationAnnouncement `json:"baby_station_announcement,omitempty"`
-}
-
-type ControlInboxBabyStationAnnouncement struct {
+type SessionAnnouncement struct {
 	ClientID        string `json:"client_id"`
 	ConnectionID    string `json:"connection_id"`
 	SessionID       string `json:"session_id"`
@@ -105,11 +83,37 @@ type ControlInboxBabyStationAnnouncement struct {
 	StartedAtMillis int64  `json:"started_at_millis"`
 }
 
+type ParentStationsPayload struct {
+	Type         string                    `json:"type"`
+	AtMillis     int64                     `json:"at_millis"`
+	Announcement ParentStationAnnouncement `json:"announcement"`
+}
+
+type ParentStationAnnouncement struct {
+	ClientID     string `json:"client_id"`
+	ConnectionID string `json:"connection_id"`
+}
+
+type ControlInboxPayload struct {
+	Type                    string               `json:"type"`
+	AtMillis                int64                `json:"at_millis"`
+	BabyStationAnnouncement *SessionAnnouncement `json:"baby_station_announcement,omitempty"`
+}
+
 type PendingSessionStart struct {
 	SessionID    string
 	Name         string
 	ConnectionID string
 	StartedAt    time.Time
+}
+
+func (payload BabyStationsPayload) Session() sessions.Session {
+	return sessions.Session{
+		ID:               payload.Announcement.SessionID,
+		Name:             payload.Announcement.Name,
+		HostConnectionID: payload.Announcement.ConnectionID,
+		StartedAt:        time.UnixMilli(payload.Announcement.StartedAtMillis),
+	}
 }
 
 func (pending PendingSessionStart) Validate() error {

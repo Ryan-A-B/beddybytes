@@ -88,24 +88,28 @@ func (handlers *Handlers) StartSession(responseWriter http.ResponseWriter, reque
 	}
 	handlers.PendingSessionStarts.Put(accountID, pending)
 	connection, ok := handlers.ConnectionRegistry.GetByConnectionID(accountID, session.HostConnectionID)
-	if ok {
-		pending, ok := handlers.PendingSessionStarts.Take(accountID, session.HostConnectionID)
-		if ok {
-			err = backendmqtt.PublishBabyStationAnnouncement(handlers.MQTTClient, accountID, backendmqtt.BabyStationsPayload{
-				Type:     backendmqtt.AnnouncementType,
-				AtMillis: pending.StartedAt.UnixMilli(),
-				Announcment: backendmqtt.BabyStationAnnouncment{
-					ClientID:     connection.ClientID,
-					ConnectionID: pending.ConnectionID,
-					SessionID:    pending.SessionID,
-					Name:         pending.Name,
-				},
-			})
-			if err != nil {
-				return
-			}
-		}
+	if !ok {
+		return
 	}
+	pending, ok = handlers.PendingSessionStarts.Get(accountID, session.HostConnectionID)
+	if !ok {
+		return
+	}
+	err = backendmqtt.PublishBabyStationAnnouncement(handlers.MQTTClient, accountID, backendmqtt.BabyStationsPayload{
+		Type:     backendmqtt.AnnouncementType,
+		AtMillis: pending.StartedAt.UnixMilli(),
+		Announcement: backendmqtt.SessionAnnouncement{
+			ClientID:        connection.ClientID,
+			ConnectionID:    pending.ConnectionID,
+			SessionID:       pending.SessionID,
+			Name:            pending.Name,
+			StartedAtMillis: pending.StartedAt.UnixMilli(),
+		},
+	})
+	if err != nil {
+		return
+	}
+	handlers.PendingSessionStarts.Delete(accountID, session.HostConnectionID)
 	// TODO set header with logical clock of the start event
 }
 

@@ -74,7 +74,7 @@ func (store *PendingSessionStarts) Put(accountID string, pending PendingSessionS
 	store.items[accountConnectionKey(accountID, pending.ConnectionID)] = pending
 }
 
-func (store *PendingSessionStarts) Take(accountID string, connectionID string) (PendingSessionStart, bool) {
+func (store *PendingSessionStarts) Get(accountID string, connectionID string) (PendingSessionStart, bool) {
 	store.mutex.Lock()
 	defer store.mutex.Unlock()
 	key := accountConnectionKey(accountID, connectionID)
@@ -82,8 +82,13 @@ func (store *PendingSessionStarts) Take(accountID string, connectionID string) (
 	if !ok {
 		return PendingSessionStart{}, false
 	}
-	delete(store.items, key)
 	return pending, true
+}
+
+func (store *PendingSessionStarts) Delete(accountID string, connectionID string) {
+	store.mutex.Lock()
+	defer store.mutex.Unlock()
+	delete(store.items, accountConnectionKey(accountID, connectionID))
 }
 
 func accountConnectionKey(accountID string, connectionID string) string {

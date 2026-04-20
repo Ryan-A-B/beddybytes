@@ -4,6 +4,7 @@ import os
 import ssl
 import subprocess
 import sys
+from pathlib import Path
 from urllib.parse import urlencode
 
 import requests
@@ -14,6 +15,7 @@ import urllib3
 from settings import api_base_url, api_websocket_base_url
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+INTEGRATION_TESTS_SRC_DIR = str(Path(__file__).resolve().parent)
 
 
 class BackendAPIClient:
@@ -312,7 +314,7 @@ async def main():
 trio.run(main)
 """
     env = os.environ.copy()
-    pythonpath_parts = ["/tmp/bb-it-pydeps", "/home/ryan/workspace-2/repositories/beddybytes/integration_tests/src"]
+    pythonpath_parts = ["/tmp/bb-it-pydeps", INTEGRATION_TESTS_SRC_DIR]
     if env.get("PYTHONPATH"):
         pythonpath_parts.append(env["PYTHONPATH"])
     env["PYTHONPATH"] = ":".join(pythonpath_parts)
