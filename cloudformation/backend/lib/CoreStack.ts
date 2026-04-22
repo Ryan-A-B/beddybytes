@@ -87,7 +87,7 @@ export class CoreStack extends cdk.Stack {
         );
 
         const key_pair = new cdk.aws_ec2.KeyPair(this, "key-pair", {
-            keyPairName: `${id_prefix}-key-pair`,
+            keyPairName: `key-pair`,
             publicKeyMaterial: process.env.PUBLIC_KEY_MATERIAL!,
         });
 
