@@ -86,13 +86,9 @@ func (handlers *Handlers) StartSession(responseWriter http.ResponseWriter, reque
 		err = merry.WithHTTPCode(err, http.StatusBadRequest)
 		return
 	}
-	handlers.PendingSessionStarts.Put(accountID, pending)
 	connection, ok := handlers.ConnectionRegistry.GetByConnectionID(accountID, session.HostConnectionID)
 	if !ok {
-		return
-	}
-	pending, ok = handlers.PendingSessionStarts.Get(accountID, session.HostConnectionID)
-	if !ok {
+		handlers.PendingSessionStarts.Put(accountID, pending)
 		return
 	}
 	err = backendmqtt.PublishBabyStationAnnouncement(handlers.MQTTClient, accountID, backendmqtt.BabyStationsPayload{
@@ -109,7 +105,6 @@ func (handlers *Handlers) StartSession(responseWriter http.ResponseWriter, reque
 	if err != nil {
 		return
 	}
-	handlers.PendingSessionStarts.Delete(accountID, session.HostConnectionID)
 	// TODO set header with logical clock of the start event
 }
 
