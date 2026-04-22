@@ -4,6 +4,8 @@ from selenium import webdriver
 
 hub_url = os.getenv('SELENIUM_HUB_URL', 'http://localhost:4444')
 app_base_url = 'https://app.beddybytes.local'
+api_base_url = os.getenv('API_BASE_URL', 'https://api.beddybytes.local')
+api_websocket_base_url = os.getenv('API_WEBSOCKET_BASE_URL', 'wss://api.beddybytes.local')
 
 chrome_options = webdriver.ChromeOptions()
 # allow self-signed certificates

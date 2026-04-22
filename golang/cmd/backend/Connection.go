@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"log"
 	"net/http"
 	"time"
@@ -14,16 +13,12 @@ import (
 	"github.com/gorilla/websocket"
 	uuid "github.com/satori/go.uuid"
 
-	"github.com/Ryan-A-B/beddybytes/golang/internal/connections"
+	"github.com/Ryan-A-B/beddybytes/golang/internal/backendmqtt"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/contextx"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/fatal"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/logx"
-	"github.com/Ryan-A-B/beddybytes/golang/internal/messages"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/mqttx"
 )
-
-const inboxTopicFormat = "accounts/%s/connections/%s/inbox"
-const statusTopicFormat = "accounts/%s/connections/%s/status"
 
 const EventTypeClientConnected = "client.connected"
 const EventTypeClientDisconnected = "client.disconnected"
@@ -116,15 +111,24 @@ func (handlers *Handlers) HandleConnection(responseWriter http.ResponseWriter, r
 		return
 	}
 	defer conn.Close()
-	inboxTopic := fmt.Sprintf(inboxTopicFormat, accountID, connectionID)
+	inboxTopic := backendmqtt.ClientWebRTCInboxTopic(accountID, clientID)
 	token := handlers.MQTTClient.Subscribe(inboxTopic, 1, func(client mqtt.Client, message mqtt.Message) {
-		signal := new(OutgoingSignal)
-		err := json.Unmarshal(message.Payload(), signal)
+		payload := new(backendmqtt.WebRTCInboxPayload)
+		err := json.Unmarshal(message.Payload(), payload)
 		fatal.OnError(err)
+		sender, ok := handlers.ConnectionRegistry.GetByClientID(accountID, payload.FromClientID)
+		if !ok {
+			logx.Warnln("sender not found for client:", payload.FromClientID)
+			message.Ack()
+			return
+		}
 
 		err = conn.WriteJSON(OutgoingMessage{
 			Type:   MessageTypeSignal,
-			Signal: signal,
+			Signal: &OutgoingSignal{
+				FromConnectionID: sender.ConnectionID,
+				Data:             payload.SignalData(),
+			},
 		})
 		if err != nil {
 			logx.Errorln(err)
@@ -166,9 +170,11 @@ func (handlers *Handlers) HandleConnection(responseWriter http.ResponseWriter, r
 	}()
 	connection := handlers.ConnectionFactory.CreateConnection(ctx, &CreateConnectionInput{
 		AccountID:    accountID,
+		ClientID:     clientID,
 		ConnectionID: connectionID,
 		conn:         conn,
 		client:       handlers.MQTTClient,
+		registry:     handlers.ConnectionRegistry,
 	})
 	errC := make(chan error, 1)
 	go func() {
@@ -202,16 +208,8 @@ type sendConnectedMessageInput struct {
 }
 
 func (handlers *Handlers) sendConnectedMessage(ctx context.Context, input sendConnectedMessageInput) (err error) {
-	topic := fmt.Sprintf(statusTopicFormat, input.accountID, input.connectionID)
-	payload := fatal.UnlessMarshalJSON(connections.MessageFrame{
-		MessageFrameBase: messages.MessageFrameBase{
-			Type: connections.MessageTypeConnected,
-		},
-		Connected: &connections.MessageConnected{
-			ClientID:  input.clientID,
-			RequestID: input.requestID,
-		},
-	})
+	topic := backendmqtt.ClientStatusTopic(input.accountID, input.clientID)
+	payload := fatal.UnlessMarshalJSON(backendmqtt.NewConnectedStatusPayload(input.connectionID, input.requestID, time.Now()))
 	return mqttx.Wait(handlers.MQTTClient.Publish(topic, 1, false, payload))
 }
 
@@ -223,16 +221,8 @@ type sendDisconnectedMessageInput struct {
 }
 
 func (handlers *Handlers) sendDisconnectedMessage(ctx context.Context, input sendDisconnectedMessageInput) (err error) {
-	topic := fmt.Sprintf(statusTopicFormat, input.accountID, input.connectionID)
-	payload := fatal.UnlessMarshalJSON(connections.MessageFrame{
-		MessageFrameBase: messages.MessageFrameBase{
-			Type: connections.MessageTypeDisconnected,
-		},
-		Disconnected: &connections.MessageDisconnected{
-			ClientID:  input.clientID,
-			RequestID: input.requestID,
-		},
-	})
+	topic := backendmqtt.ClientStatusTopic(input.accountID, input.clientID)
+	payload := fatal.UnlessMarshalJSON(backendmqtt.NewDisconnectedStatusPayload(input.connectionID, input.requestID, time.Now(), backendmqtt.DisconnectReasonClean))
 	return mqttx.Wait(handlers.MQTTClient.Publish(topic, 1, false, payload))
 }
 
@@ -240,25 +230,31 @@ type ConnectionFactory struct{}
 
 type CreateConnectionInput struct {
 	AccountID    string
+	ClientID     string
 	ConnectionID string
 	conn         *websocket.Conn
 	client       mqtt.Client
+	registry     *backendmqtt.ConnectionRegistry
 }
 
 type Connection struct {
 	AccountID string
+	ClientID  string
 	ID        string
 	conn      *websocket.Conn
 	client    mqtt.Client
+	registry  *backendmqtt.ConnectionRegistry
 	pongC     chan struct{}
 }
 
 func (factory *ConnectionFactory) CreateConnection(ctx context.Context, input *CreateConnectionInput) (connection *Connection) {
 	connection = &Connection{
 		AccountID: input.AccountID,
+		ClientID:  input.ClientID,
 		ID:        input.ConnectionID,
 		conn:      input.conn,
 		client:    input.client,
+		registry:  input.registry,
 		pongC:     make(chan struct{}),
 	}
 	connection.conn.SetPongHandler(connection.handlePong)
@@ -302,11 +298,13 @@ func (connection *Connection) handleNextMessage(ctx context.Context) (err error)
 }
 
 func (connection *Connection) handleSignal(ctx context.Context, incomingSignal *IncomingSignal) (err error) {
-	inboxTopic := fmt.Sprintf(inboxTopicFormat, connection.AccountID, incomingSignal.ToConnectionID)
-	data, err := json.Marshal(OutgoingSignal{
-		FromConnectionID: connection.ID,
-		Data:             incomingSignal.Data,
-	})
+	target, ok := connection.registry.GetByConnectionID(connection.AccountID, incomingSignal.ToConnectionID)
+	if !ok {
+		logx.Warnln("target connection not found:", incomingSignal.ToConnectionID)
+		return nil
+	}
+	inboxTopic := backendmqtt.ClientWebRTCInboxTopic(connection.AccountID, target.ClientID)
+	data, err := json.Marshal(backendmqtt.NewWebRTCInboxPayload(connection.ClientID, incomingSignal.Data))
 	fatal.OnError(err)
 	return mqttx.Wait(connection.client.Publish(inboxTopic, 1, false, []byte(data)))
 }
