@@ -6,6 +6,9 @@ export interface Settings {
         host: string
         clientID: string
     }
+    MQTT: {
+        host: string
+    }
 }
 
 const try_get_item_from_local_storage = (key: string): string | null => {
@@ -33,6 +36,12 @@ const get_client_id = (): string => {
     return newClientID;
 }
 
+const get_mqtt_host = (): string => {
+    const mqtt_host = process.env.MQTT_HOST;
+    if (mqtt_host !== undefined && mqtt_host !== "") return mqtt_host;
+    return "mosquitto.beddybytes.local";
+}
+
 const settings: Settings = {
     RTC: {
         iceServers: [],
@@ -41,6 +50,9 @@ const settings: Settings = {
     API: {
         host: get_api_host(),
         clientID: get_client_id(),
+    },
+    MQTT: {
+        host: get_mqtt_host(),
     },
 }
 
