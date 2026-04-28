@@ -127,65 +127,68 @@ const BabyStation: React.FunctionComponent = () => {
                     Screen Saver
                 </button>
                 <div className={`configuration-panel py-3 ${showConfigurationPanel ? 'active' : ''}`}>
-                    <div className="configuration-panel-header">
-                        <h4 className="fs-4">
-                            <FontAwesomeIcon icon={faTag} />
-                            &nbsp;
-                            Baby Station
-                        </h4>
-                        <button type="button"
-                            className="btn-close"
-                            aria-label="Close"
-                            onClick={toggle_configuration_panel}
-                        ></button>
-                    </div>
-                    <div>
-                        <h5 className="fs-6 fw-light">Station Name</h5>
-                        <div className="form-group mb-3">
-                            <div className="input-group">
-                                <Input
-                                    id="input-session-name"
-                                    value={sessionName}
-                                    onChange={setSessionName}
-                                    className="form-control"
-                                    disabled={baby_station_session_state.name !== 'no_session_running'}
-                                />
-                                <span className="input-group-text">
-                                    <FontAwesomeIcon icon={faEdit} />
-                                </span>
+                    <div className="container">
+
+                        <div className="configuration-panel-header">
+                            <h4 className="fs-4">
+                                <FontAwesomeIcon icon={faTag} />
+                                &nbsp;
+                                Baby Station
+                            </h4>
+                            <button type="button"
+                                className="btn-close"
+                                aria-label="Close"
+                                onClick={toggle_configuration_panel}
+                            ></button>
+                        </div>
+                        <div>
+                            <h5 className="fs-6 fw-light">Station Name</h5>
+                            <div className="form-group mb-3">
+                                <div className="input-group">
+                                    <Input
+                                        id="input-session-name"
+                                        value={sessionName}
+                                        onChange={setSessionName}
+                                        className="form-control"
+                                        disabled={baby_station_session_state.name !== 'no_session_running'}
+                                    />
+                                    <span className="input-group-text">
+                                        <FontAwesomeIcon icon={faEdit} />
+                                    </span>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                    <div>
-                        <h5 className="fs-6 fw-light">Devices</h5>
-                        <div className="form-group mb-1">
-                            <div className="input-group">
-                                <span className="input-group-text">
-                                    <FontAwesomeIcon icon={faMicrophone} />
-                                </span>
-                                <SelectAudioDevice
-                                    value={media_device_state.audio_device_id}
-                                    onChange={media_device_service.set_audio_device_id}
-                                    disabled={baby_station_session_state.name !== 'no_session_running'}
-                                />
+                        <div>
+                            <h5 className="fs-6 fw-light">Devices</h5>
+                            <div className="form-group mb-1">
+                                <div className="input-group">
+                                    <span className="input-group-text">
+                                        <FontAwesomeIcon icon={faMicrophone} />
+                                    </span>
+                                    <SelectAudioDevice
+                                        value={media_device_state.audio_device_id}
+                                        onChange={media_device_service.set_audio_device_id}
+                                        disabled={baby_station_session_state.name !== 'no_session_running'}
+                                    />
+                                </div>
+                            </div>
+                            <div className="form-group mb-4">
+                                <div className="input-group">
+                                    <span className="input-group-text">
+                                        <FontAwesomeIcon icon={faVideo} />
+                                    </span>
+                                    <SelectVideoDevice
+                                        value={media_device_state.video_device_id}
+                                        onChange={media_device_service.set_video_device_id}
+                                        disabled={baby_station_session_state.name !== 'no_session_running'}
+                                    />
+                                </div>
                             </div>
                         </div>
-                        <div className="form-group mb-4">
-                            <div className="input-group">
-                                <span className="input-group-text">
-                                    <FontAwesomeIcon icon={faVideo} />
-                                </span>
-                                <SelectVideoDevice
-                                    value={media_device_state.video_device_id}
-                                    onChange={media_device_service.set_video_device_id}
-                                    disabled={baby_station_session_state.name !== 'no_session_running'}
-                                />
-                            </div>
-                        </div>
+                        <button className="btn btn-primary w-100" onClick={toggle_configuration_panel}>
+                            Done
+                        </button>
                     </div>
-                    <button className="btn btn-primary w-100" onClick={toggle_configuration_panel}>
-                        Done
-                    </button>
                 </div>
             </main >
         </MediaStreamPermissionCheck >

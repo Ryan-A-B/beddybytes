@@ -52,24 +52,24 @@ body {
         $blue-900;
 }
 
-.navbar-collapse.collapse.show {
-    background-color: $bg-translucent;
-    border: 1px solid $border-color-translucent;
-    border-left: none;
-    border-right: none;
-    border-radius: 0;
+.navbar-translucent {
+    .navbar-collapse.collapse.show {
+        background-color: $bg-translucent;
+        border: 1px solid $border-color-translucent;
+        border-left: none;
+        border-right: none;
+        border-radius: 0;
 
-    margin: {
-        left: -$spacer;
-        right: -$spacer;
-    }
+        margin: {
+            top: $spacer / 2;
+            left: -$spacer;
+            right: -$spacer;
+        }
 
-    padding: {
-        left: $spacer;
-        right: $spacer;
-    }
-
-    .navbar-nav.bg-translucent {
+        padding: {
+            left: $spacer;
+            right: $spacer;
+        }
     }
 }
 
@@ -162,13 +162,6 @@ main#baby-station {
 
         &.active {
             transform: translateY(0);
-        }
-
-        width: 100%;
-
-        padding: {
-            left: $spacer;
-            right: $spacer;
         }
 
         .configuration-panel-header {
