@@ -12,12 +12,12 @@ import Login from './pages/Login';
 import Instructions from './pages/Instructions';
 import BabyStation from './pages/BabyStation';
 import ParentStation from './pages/ParentStation';
+import RequestPasswordReset from './pages/Login/RequestPasswordReset';
+import ResetPassword from './pages/Login/ResetPassword';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 
 import './App.scss';
-import RequestPasswordReset from './pages/Login/RequestPasswordReset';
-import ResetPassword from './pages/Login/ResetPassword';
 
 export const services: Services = {
   logging_service,
@@ -30,24 +30,20 @@ const App: React.FunctionComponent = () => {
     <ServicesContext.Provider value={services}>
       <div className="wrapper">
         <Navbar />
-        <div className="position-relative">
-          <Routes>
-            <Route path="/request-password-reset" element={<RequestPasswordReset />} />
-            <Route path="/reset-password" element={<ResetPassword />} />
-            <Route path="*" element={
-              <Login>
-                <div className="pt-3">
-                  <Routes>
-                    <Route path="/" element={<Instructions />} />
-                    <Route path="/baby" element={<BabyStation />} />
-                    <Route path="/parent" element={<ParentStation />} />
-                  </Routes>
-                </div>
-              </Login>
-            }>
-            </Route>
-          </Routes>
-        </div>
+        <Routes>
+          <Route path="/request-password-reset" element={<RequestPasswordReset />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="*" element={
+            <Login>
+              <Routes>
+                <Route path="/" element={<Instructions />} />
+                <Route path="/baby" element={<BabyStation />} />
+                <Route path="/parent" element={<ParentStation />} />
+              </Routes>
+            </Login>
+          }>
+          </Route>
+        </Routes>
       </div>
       <Footer />
     </ServicesContext.Provider >

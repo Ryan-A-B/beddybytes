@@ -1,16 +1,29 @@
 // TODO
 // $color-mode-type: media-query;
 
-$yellow: #fffcdd;
-$blue: #dcf7f3;
-$red: #ffd8d8;
+$red: rgb(255, 107, 138);
+$green: rgb(156, 242, 200);
+$yellow: rgb(243, 217, 164);
 
 $primary: $yellow;
-$secondary: $blue;
+$secondary: $green;
 $danger: $red;
+
+$border-radius: 14px;
+$border-radius-sm: 10px;
+$border-radius-lg: 24px;
+
+$purple-800: rgb(42, 29, 74);
+$purple-900: rgba(17, 14, 38, 0.98);
+
+$blue-800: rgb(26, 45, 74);
+$blue-900: rgb(11, 10, 29);
 
 @import "bootstrap";
 @import "@fortawesome/fontawesome-svg-core/styles";
+
+$bg-translucent: rgba(255, 255, 255, 0.03);
+$border-color-translucent: rgba(255, 255, 255, 0.1);
 
 .debug-message {
     display: none;
@@ -26,8 +39,224 @@ $danger: $red;
     display: flex;
     flex-direction: column;
     min-height: 100vh;
-    
+
     .wrapper-content {
         flex-grow: 1;
+    }
+}
+
+body {
+    background:
+        radial-gradient(120% 60% at 100% -10%, $purple-800 0%, transparent 50%),
+        radial-gradient(80% 60% at -10% 110%, $blue-800 0%, transparent 60%),
+        $blue-900;
+}
+
+.navbar-collapse.collapse.show {
+    background-color: $bg-translucent;
+    border: 1px solid $border-color-translucent;
+    border-left: none;
+    border-right: none;
+    border-radius: 0;
+
+    margin: {
+        left: -$spacer;
+        right: -$spacer;
+    }
+
+    padding: {
+        left: $spacer;
+        right: $spacer;
+    }
+
+    .navbar-nav.bg-translucent {
+    }
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, $green, $yellow);
+}
+
+.alert {
+    &.alert-translucent {
+        background-color: $bg-translucent;
+        border: 1px solid $border-color-translucent;
+    }
+}
+
+main#instructions,
+main#baby-station,
+main#parent-station {
+    margin: {
+        top: $spacer;
+        bottom: $spacer;
+    }
+}
+
+main#baby-station {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto 1fr auto;
+    grid-template-areas:
+        "configuration configuration"
+        "media media"
+        "session-toggle screensaver-toggle";
+    gap: $spacer $spacer / 2;
+
+    .baby-station-configuration {
+        grid-area: configuration;
+    }
+
+    .baby-station-media {
+        grid-area: media;
+    }
+
+    .session-toggle {
+        grid-area: session-toggle;
+    }
+
+    .screensaver-toggle {
+        grid-area: screensaver-toggle;
+    }
+
+    button.btn.screensaver-toggle {
+        background-color: $bg-translucent;
+        color: $light;
+        border: 1px solid $border-color-translucent;
+    }
+
+    .configuration-summary {
+        display: flex;
+        align-items: center;
+        gap: $spacer / 2;
+
+        .session-name {
+            font-weight: bold;
+        }
+
+        .audio-device,
+        .video-device {
+            font-size: 0.7 * $font-size-base;
+        }
+    }
+
+    .configuration-panel {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        transform: translateY(100%);
+        transition: transform 0.1s ease-in-out;
+
+        background: linear-gradient($purple-800 0%, $purple-900 100%);
+        border-radius: $border-radius-lg $border-radius-lg 0 0;
+
+        .input-group {
+
+            .form-control,
+            .form-select {
+                background: $bg-translucent;
+                border: 1px solid $border-color-translucent;
+            }
+        }
+
+        &.active {
+            transform: translateY(0);
+        }
+
+        width: 100%;
+
+        padding: {
+            left: $spacer;
+            right: $spacer;
+        }
+
+        .configuration-panel-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: $spacer;
+        }
+    }
+
+    .video-container {
+        position: relative;
+        height: 100%;
+
+        filter: grayscale(100%);
+
+        &.active {
+            filter: none;
+        }
+
+        video {
+            position: absolute;
+        }
+
+        video,
+        canvas {
+            width: 100%;
+            height: 100%;
+        }
+
+        canvas {
+            position: relative;
+            background-color: #000000;
+            object-fit: contain;
+        }
+    }
+}
+
+main#parent-station {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+
+    canvas.audio-visualiser {
+        width: 100%;
+        height: 30vh;
+        margin-top: 20vh;
+    }
+
+    .video-container {
+        display: none;
+        position: relative;
+
+        video {
+            flex-grow: 1;
+            width: 100%;
+            height: 100%;
+            max-height: calc(100vh - 250px);
+            object-fit: contain;
+        }
+
+        .btn-play-overlay {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        .video-controls {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background-color: rgba(0, 0, 0, 0.5);
+
+            .volume-slider {
+                width: 100px;
+            }
+        }
+    }
+
+    &.audio-and-video {
+        .video-container {
+            display: flex;
+            flex-grow: 1;
+            flex-direction: column;
+            min-width: 350px;
+            background-color: #000000;
+        }
     }
 }

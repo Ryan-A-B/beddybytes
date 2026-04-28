@@ -27,7 +27,7 @@ const Navbar: React.FunctionComponent = () => {
         setShow(false);
     }, [setShow]);
     return (
-        <nav className="navbar navbar-expand-md bg-body-tertiary" ref={navElementRef}>
+        <nav className="navbar navbar-expand-md navbar-translucent" ref={navElementRef}>
             <div className="container">
                 <Link to="/" className="navbar-brand">
                     BeddyBytes
@@ -42,7 +42,7 @@ const Navbar: React.FunctionComponent = () => {
                     <span className="navbar-toggler-icon"></span>
                 </button>
                 <div className={collapseClassName} id="navbarSupportedContent">
-                    <ul className="navbar-nav me-auto mb-2 mb-lg-0">
+                    <ul className="navbar-nav mb-2 mb-lg-0">
                         <li className="nav-item">
                             <NavLink id="nav-link-baby" to="/baby" onClick={onNavLinkClick}>
                                 Baby Station

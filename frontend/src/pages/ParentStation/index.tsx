@@ -8,8 +8,6 @@ import SessionDuration from "./SessionDuration";
 import Video from "./Video";
 import StopWatch from "./StopWatch";
 
-import "./style.scss";
-
 const useParentStation = () => {
     React.useEffect(() => {
         parent_station.start();
@@ -31,7 +29,7 @@ const ParentStation: React.FunctionComponent = () => {
     // TODO detect audio-only and empty streams
 
     return (
-        <main className={`container wrapper-content parent-station ${media_stream_track_state}`}>
+        <main id="parent-station" className={`container wrapper-content ${media_stream_track_state}`}>
             <BabyStationDropdown session_service={session_service} baby_station_list_service={parent_station.baby_station_list_service} />
             <ConnectionStateAlert />
             <StopWatch />
