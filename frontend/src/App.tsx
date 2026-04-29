@@ -5,7 +5,7 @@ import { Services, context as ServicesContext } from './services';
 import { Severity } from './services/LoggingService';
 import logging_service from "./services/instances/logging_service"
 import authorization_service from "./services/instances/authorization_service"
-import signal_service from "./services/instances/signal_service"
+import mqtt_service from "./services/instances/mqtt_service"
 import error_service from "./services/instances/error_service"
 
 import Login from './pages/Login';
@@ -22,7 +22,7 @@ import ResetPassword from './pages/Login/ResetPassword';
 export const services: Services = {
   logging_service,
   authorization_service,
-  signal_service,
+  mqtt_service,
 };
 
 const App: React.FunctionComponent = () => {

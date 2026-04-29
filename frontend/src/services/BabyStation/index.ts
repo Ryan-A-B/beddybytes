@@ -1,5 +1,6 @@
 import AuthorizationService from '../AuthorizationService';
 import LoggingService from '../LoggingService';
+import MQTTService from '../MQTTService';
 import MediaDevicePermissionService from "./MediaDevicePermissionService";
 import MediaDeviceService from "./MediaDeviceService";
 import ScreenSaverService from './ScreenSaverService';
@@ -8,6 +9,7 @@ import SessionService from "./SessionService";
 interface NewBabyStationInput {
     logging_service: LoggingService;
     authorization_service: AuthorizationService;
+    mqtt_service: MQTTService;
 }
 
 class BabyStation {
@@ -28,7 +30,7 @@ class BabyStation {
         });
         this.session_service = new SessionService({
             logging_service: input.logging_service,
-            authorization_service: input.authorization_service
+            mqtt_service: input.mqtt_service,
         });
         this.screen_saver_service = new ScreenSaverService({
             logging_service: input.logging_service

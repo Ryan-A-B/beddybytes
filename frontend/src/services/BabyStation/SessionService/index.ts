@@ -1,185 +1,164 @@
-import moment from 'moment';
-import { v4 as uuid } from 'uuid';
-import Service, { SetStateFunction } from '../../Service';
-import LoggingService, { Severity } from '../../LoggingService';
-import settings from "../../../settings";
-import isClientError from '../../../utils/isClientError';
-import sleep from '../../../utils/sleep';
-import AuthorizationService from '../../AuthorizationService';
-import get_access_token_asap from '../../AuthorizationService/get_access_token_asap';
+import { v4 as uuid } from "uuid";
+import Service from "../../Service";
+import { ServiceStateChangedEvent } from "../../Service";
+import LoggingService from "../../LoggingService";
+import { MessageReceived, MQTTServiceState } from "../../MQTTService";
+import { babyStationsTopic, clientControlInboxTopic, parentStationsTopic } from "../../MQTTService/topics";
+import {
+    newBabyStationAnnouncementPayload,
+    newBabyStationControlAnnouncementPayload,
+    ParentStationAnnouncement,
+    SessionAnnouncement,
+} from "../../MQTTService/payloads";
 
-const RFC3339 = 'YYYY-MM-DDTHH:mm:ssZ';
+export type SessionState = Ready | SessionStarting | SessionRunning;
 
-export interface SessionState {
-    name: string;
-    start_session: (set_state: SetStateFunction<SessionState>, input: StartSessionInput) => Promise<void>;
-    end_session: (set_state: SetStateFunction<SessionState>) => Promise<void>;
+interface ServiceProxy {
+    mqtt_service: MQTTService;
+    set_state(state: SessionState): void;
 }
 
-interface NewNoSessionRunningInput {
-    logging_service: LoggingService;
-    authorization_service: AuthorizationService;
-}
-
-class NoSessionRunning implements SessionState {
-    public readonly name = 'no_session_running';
-    private authorization_service: AuthorizationService;
-    private logging_service: LoggingService;
-
-    constructor(input: NewNoSessionRunningInput) {
-        this.authorization_service = input.authorization_service;
-        this.logging_service = input.logging_service;
-    }
-
-    start_session = async (set_state: SetStateFunction<SessionState>, input: StartSessionInput): Promise<void> => {
-        set_state(new SessionStarting());
-
-        const session_id = uuid();
-        const access_token = await get_access_token_asap(this.authorization_service);
-        const response = await fetch(`https://${settings.API.host}/sessions/${session_id}`, {
-            method: 'PUT',
-            headers: {
-                Authorization: `Bearer ${access_token}`,
-            },
-            body: JSON.stringify({
-                id: session_id,
-                name: input.name,
-                host_connection_id: input.connection_id,
-                started_at: moment().format(RFC3339),
-            }),
-        });
-        if (!response.ok) {
-            const payload = await response.text();
-            if (isClientError(response.status))
-                throw new Error(`Failed to start session: ${payload}`);
-            this.logging_service.log({
-                severity: Severity.Error,
-                message: `Failed to start session: ${payload}`,
-            });
-            await sleep(5000);
-            return this.start_session(set_state, input);
-        }
-        set_state(new SessionRunning({
-            logging_service: this.logging_service,
-            authorization_service: this.authorization_service,
-            session_id: session_id,
-        }));
-    }
-
-    end_session = async (set_state: SetStateFunction<SessionState>) => {
-        throw new Error('Cannot end session when not running');
-    }
-}
-
-class SessionStarting implements SessionState {
-    public readonly name = 'session_starting';
-
-    start_session = async (set_state: SetStateFunction<SessionState>, input: StartSessionInput) => {
-        throw new Error('Cannot start session when already starting');
-    }
-
-    end_session = async (set_state: SetStateFunction<SessionState>) => {
-        throw new Error('Cannot end session when starting');
-    }
-}
-
-interface NewSessionRunningInput {
-    logging_service: LoggingService;
-    authorization_service: AuthorizationService;
-    session_id: string;
-}
-
-class SessionRunning implements SessionState {
-    public readonly name = 'session_running';
-    public readonly session_id: string;
-    private authorization_service: AuthorizationService;
-    private logging_service: LoggingService;
-
-    constructor(input: NewSessionRunningInput) {
-        this.session_id = input.session_id;
-        this.authorization_service = input.authorization_service;
-        this.logging_service = input.logging_service;
-    }
-
-    start_session = async (set_state: SetStateFunction<SessionState>) => {
-        throw new Error('Cannot start session when already running');
-    }
-
-    end_session = async (set_state: SetStateFunction<SessionState>): Promise<void> => {
-        set_state(new SessionEnding());
-        const access_token = await get_access_token_asap(this.authorization_service);
-        const response = await fetch(`https://${settings.API.host}/sessions/${this.session_id}`, {
-            method: 'DELETE',
-            headers: {
-                Authorization: `Bearer ${access_token}`,
-            },
-        });
-        if (!response.ok) {
-            const payload = await response.text();
-            if (isClientError(response.status))
-                throw new Error(`Failed to end session: ${payload}`);
-            this.logging_service.log({
-                severity: Severity.Error,
-                message: `Failed to end session: ${payload}`,
-            });
-            await sleep(5000);
-            return this.end_session(set_state);
-        }
-        set_state(new NoSessionRunning({
-            logging_service: this.logging_service,
-            authorization_service: this.authorization_service,
-        }));
-    }
-}
-
-class SessionEnding implements SessionState {
-    public readonly name = 'session_ending';
-
-    start_session = async (set_state: SetStateFunction<SessionState>) => {
-        throw new Error('Cannot start session when ending');
-    }
-
-    end_session = async (set_state: SetStateFunction<SessionState>) => {
-        throw new Error('Cannot end session when ending');
-    }
-}
-
-interface NewHostSessionServiceInput {
-    logging_service: LoggingService;
-    authorization_service: AuthorizationService;
+interface MQTTService extends EventTarget {
+    connect(): void;
+    disconnect(): void;
+    subscribe(topicFilter: string): void;
+    publish(topic: string, payload: string): void;
+    addEventListener(type: string, listener: EventListenerOrEventListenerObject, options?: boolean | AddEventListenerOptions): void;
 }
 
 interface StartSessionInput {
     name: string;
-    connection_id: string;
+}
+
+abstract class AbstractState {
+    public abstract readonly name: string;
+
+    public start_session(proxy: ServiceProxy, input: StartSessionInput): void {
+        // Default is to ignore start requests.
+    }
+
+    public handle_mqtt_service_state_changed(proxy: ServiceProxy, event: ServiceStateChangedEvent<MQTTServiceState>): void {
+        // Default is to ignore MQTT state changes.
+    }
+
+    public end_session(proxy: ServiceProxy): void {
+        // Default is to ignore end requests.
+    }
+
+    public handle_parent_station_announcement(proxy: ServiceProxy, announcement: ParentStationAnnouncement): void {
+        // Default is to ignore parent station announcements.
+    }
+}
+
+class Ready extends AbstractState {
+    public readonly name = "Ready";
+
+    public start_session(proxy: ServiceProxy, input: StartSessionInput): void {
+        proxy.mqtt_service.connect();
+        proxy.set_state(new SessionStarting(input.name));
+    }
+}
+
+class SessionStarting extends AbstractState {
+    public readonly name = "SessionStarting";
+    private readonly stationName: string;
+
+    constructor(name: string) {
+        super();
+        this.stationName = name;
+    }
+
+    public handle_mqtt_service_state_changed(proxy: ServiceProxy, event: ServiceStateChangedEvent<MQTTServiceState>): void {
+        if (event.current_state.name !== "Connected") return;
+        const connected = event.current_state;
+        const startedAtMillis = Date.now();
+        const announcement: SessionAnnouncement = {
+            client_id: connected.client_id,
+            connection_id: connected.connection_id,
+            session_id: uuid(),
+            name: this.stationName,
+            started_at_millis: startedAtMillis,
+        };
+        proxy.mqtt_service.subscribe(parentStationsTopic(connected.account_id));
+        proxy.mqtt_service.publish(babyStationsTopic(connected.account_id), JSON.stringify(newBabyStationAnnouncementPayload(announcement)));
+        proxy.set_state(new SessionRunning(connected.account_id, announcement));
+    }
+}
+
+class SessionRunning extends AbstractState {
+    public readonly name = "SessionRunning";
+    public readonly announcement: SessionAnnouncement;
+    private readonly accountID: string;
+
+    constructor(accountID: string, announcement: SessionAnnouncement) {
+        super();
+        this.accountID = accountID;
+        this.announcement = announcement;
+    }
+
+    public end_session(proxy: ServiceProxy): void {
+        proxy.mqtt_service.disconnect();
+        proxy.set_state(new Ready());
+    }
+
+    public handle_parent_station_announcement(proxy: ServiceProxy, announcement: ParentStationAnnouncement): void {
+        proxy.mqtt_service.publish(
+            clientControlInboxTopic(this.accountID, announcement.client_id),
+            JSON.stringify(newBabyStationControlAnnouncementPayload(this.announcement, Date.now())),
+        );
+    }
+}
+
+interface NewSessionServiceInput {
+    logging_service: LoggingService;
+    mqtt_service: MQTTService;
 }
 
 class SessionService extends Service<SessionState> {
-    protected readonly name = 'BabyStationSessionService';
+    protected readonly name = "BabyStationSessionService";
+    private readonly proxy: ServiceProxy;
 
-    constructor(input: NewHostSessionServiceInput) {
+    constructor(input: NewSessionServiceInput) {
         super({
             logging_service: input.logging_service,
-            initial_state: new NoSessionRunning({
-                logging_service: input.logging_service,
-                authorization_service: input.authorization_service,
-            }),
+            initial_state: new Ready(),
         });
+        this.proxy = {
+            mqtt_service: input.mqtt_service,
+            set_state: this.set_state,
+        };
+        input.mqtt_service.addEventListener("state_changed", this.handle_mqtt_service_state_changed as EventListener);
+        input.mqtt_service.addEventListener("message_received", this.handle_message as EventListener);
     }
 
-    protected to_string(state: SessionState): string {
+    protected to_string = (state: SessionState): string => {
         return state.name;
     }
 
-    public start_session = async (input: StartSessionInput): Promise<void> => {
-        const state = this.get_state();
-        state.start_session(this.set_state, input)
+    public start_session = (input: StartSessionInput): void => {
+        this.get_state().start_session(this.proxy, input);
     }
 
-    public end_session = async (): Promise<void> => {
-        const state = this.get_state();
-        state.end_session(this.set_state);
+    public end_session = (): void => {
+        this.get_state().end_session(this.proxy);
+    }
+
+    private handle_mqtt_service_state_changed = (event: ServiceStateChangedEvent<MQTTServiceState>): void => {
+        this.get_state().handle_mqtt_service_state_changed(this.proxy, event);
+    }
+
+    private handle_message = (event: MessageReceived): void => {
+        const announcement = parse_parent_station_announcement(event.topic, event.payload);
+        if (announcement === null) return;
+        this.get_state().handle_parent_station_announcement(this.proxy, announcement);
     }
 }
 
 export default SessionService;
+
+const parse_parent_station_announcement = (topic: string, payload: string): ParentStationAnnouncement | null => {
+    if (!topic.endsWith("/parent_stations")) return null;
+    const parsed = JSON.parse(payload);
+    if (parsed.type !== "announcement") return null;
+    return parsed.announcement;
+};

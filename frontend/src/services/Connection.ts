@@ -2,12 +2,13 @@ import { List } from 'immutable';
 import settings from '../settings';
 import Service, { SetStateFunction } from "./Service";
 import LoggingService, { Severity } from './LoggingService';
-import { SignalEvent, SignalService } from './SignalService/WebSocketSignalService';
+import MQTTService, { MessageReceived, Subscription } from './MQTTService';
+import { WebRTCInboxPayload } from './MQTTService/payloads';
 
 interface ServiceProxy {
     logging_service: LoggingService;
-    signal_service: SignalService;
-    other_connection_id: string; // TODO peer_client_id
+    mqtt_service: MQTTService;
+    peer_client_id: string;
     peer_connection: RTCPeerConnection;
     get_state: () => ConnectionState;
     set_state: SetStateFunction<ConnectionState>;
@@ -42,12 +43,7 @@ class AwaitingOffer extends AbstractState {
     private accept_offer = async (service: ServiceProxy, description: RTCSessionDescriptionInit) => {
         await service.peer_connection.setRemoteDescription(description)
         const answer = await service.peer_connection.createAnswer();
-        service.signal_service.send_signal({
-            to_connection_id: service.other_connection_id,
-            data: {
-                description: answer,
-            },
-        });
+        service.mqtt_service.publish_webrtc_description(service.peer_client_id, answer);
     }
 
     public handle_incoming_candidate = (service: ServiceProxy, candidate: RTCIceCandidateInit) => {
@@ -144,30 +140,31 @@ type ConnectionState = AwaitingOffer | AwaitingAnswer | AcceptingDescription | A
 
 interface NewConnectionInput {
     logging_service: LoggingService;
-    signal_service: SignalService;
-    other_connection_id: string; // TODO peer_client_id
+    mqtt_service: MQTTService;
+    peer_client_id: string;
     peer_connection: RTCPeerConnection;
     initial_state: ConnectionState;
 }
 
 interface InitiateInput {
     logging_service: LoggingService;
-    signal_service: SignalService;
-    other_connection_id: string; // TODO peer_client_id
+    mqtt_service: MQTTService;
+    peer_client_id: string;
 }
 
 interface AcceptInput {
     logging_service: LoggingService;
-    signal_service: SignalService;
-    other_connection_id: string; // TODO peer_client_id
+    mqtt_service: MQTTService;
+    peer_client_id: string;
     offer: RTCSessionDescriptionInit;
 }
 
 class Connection extends Service<ConnectionState> {
     protected readonly name = "Connection";
-    private readonly signal_service: SignalService;
-    private readonly other_connection_id: string;
+    private readonly mqtt_service: MQTTService;
+    private readonly peer_client_id: string;
     public readonly peer_connection: RTCPeerConnection;
+    private readonly subscription: Subscription;
     private readonly proxy: ServiceProxy;
 
     private constructor(input: NewConnectionInput) {
@@ -175,18 +172,18 @@ class Connection extends Service<ConnectionState> {
             logging_service: input.logging_service,
             initial_state: input.initial_state,
         });
-        this.signal_service = input.signal_service;
-        this.other_connection_id = input.other_connection_id;
+        this.mqtt_service = input.mqtt_service;
+        this.peer_client_id = input.peer_client_id;
         this.peer_connection = input.peer_connection;
+        this.subscription = input.mqtt_service.subscribe_to_webrtc_inbox(this.handle_webrtc_message);
         this.proxy = {
             logging_service: this.logging_service,
-            signal_service: this.signal_service,
-            other_connection_id: this.other_connection_id,
+            mqtt_service: this.mqtt_service,
+            peer_client_id: this.peer_client_id,
             peer_connection: input.peer_connection,
             get_state: this.get_state,
             set_state: this.set_state,
         };
-        this.signal_service.addEventListener("signal", this.handle_signal);
         input.peer_connection.addEventListener("icecandidate", this.handle_icecandidate);
     }
 
@@ -194,26 +191,31 @@ class Connection extends Service<ConnectionState> {
         return state.name;
     }
 
-    private handle_signal = (event: SignalEvent): void => {
-        if (event.signal.from_connection_id !== this.other_connection_id) return;
+    private handle_webrtc_message = (message: MessageReceived): void => {
+        const payload = JSON.parse(message.payload) as WebRTCInboxPayload;
+        if (payload.from_client_id !== this.peer_client_id) return;
         const state = this.get_state();
-        if (event.signal.data.description !== undefined)
-            state.handle_incoming_description(this.proxy, event.signal.data.description);
-        if (event.signal.data.candidate !== undefined)
-            state.handle_incoming_candidate(this.proxy, event.signal.data.candidate);
+        switch (payload.type) {
+            case "description":
+                state.handle_incoming_description(this.proxy, payload.description);
+                return;
+            case "candidate":
+                state.handle_incoming_candidate(this.proxy, payload.candidate);
+                return;
+            default:
+                const _exhaustive_check: never = payload;
+                throw new TypeError(`unhandled WebRTC payload: ${_exhaustive_check}`);
+        }
     }
 
     private handle_icecandidate = (event: RTCPeerConnectionIceEvent): void => {
         // TODO null indicates end of candidates. Should we do anything with that?
         if (event.candidate === null) return;
-        this.signal_service.send_signal({
-            to_connection_id: this.other_connection_id,
-            data: { candidate: event.candidate },
-        });
+        this.mqtt_service.publish_webrtc_candidate(this.peer_client_id, event.candidate);
     }
 
     public close = (): void => {
-        this.signal_service.removeEventListener("signal", this.handle_signal);
+        this.subscription.close();
         this.peer_connection.removeEventListener("icecandidate", this.handle_icecandidate);
         this.peer_connection.close();
     }
@@ -227,15 +229,13 @@ class Connection extends Service<ConnectionState> {
         peer_connection.addTransceiver("audio", { direction: "recvonly" });
 
         peer_connection.setLocalDescription().then(() => {
-            input.signal_service.send_signal({
-                to_connection_id: input.other_connection_id,
-                data: { description: peer_connection.localDescription },
-            });
+            if (peer_connection.localDescription === null) throw new Error("missing local description");
+            input.mqtt_service.publish_webrtc_description(input.peer_client_id, peer_connection.localDescription);
         });
         return new Connection({
             logging_service: input.logging_service,
-            signal_service: input.signal_service,
-            other_connection_id: input.other_connection_id,
+            mqtt_service: input.mqtt_service,
+            peer_client_id: input.peer_client_id,
             peer_connection,
             initial_state: new AwaitingAnswer({
                 candidates: List<RTCIceCandidateInit>(),
@@ -249,17 +249,14 @@ class Connection extends Service<ConnectionState> {
             .then(() => peer_connection.createAnswer())
             .then(async (answer) => {
                 await peer_connection.setLocalDescription(answer);
-                input.signal_service.send_signal({
-                    to_connection_id: input.other_connection_id,
-                    data: { description: answer },
-                });
+                input.mqtt_service.publish_webrtc_description(input.peer_client_id, answer);
             });
 
         const connection = new Connection({
             logging_service: input.logging_service,
-            signal_service: input.signal_service,
+            mqtt_service: input.mqtt_service,
             peer_connection,
-            other_connection_id: input.other_connection_id,
+            peer_client_id: input.peer_client_id,
             initial_state: new AcceptingDescription(List<RTCIceCandidateInit>()),
         });
 

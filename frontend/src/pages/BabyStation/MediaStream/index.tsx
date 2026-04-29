@@ -1,6 +1,6 @@
 import React from "react";
 import Connections from "../Connections";
-import { useSignalService } from "../../../services";
+import { useMQTTService } from "../../../services";
 import baby_station from "../../../services/instances/baby_station";
 import useServiceState from "../../../hooks/useServiceState";
 import GestureHandler from "./ZoomControls/GestureHandler";
@@ -20,7 +20,7 @@ gesture_handler.addEventListener('zoom', viewport_service.handle_zoom);
 const MediaStream: React.FunctionComponent<Props> = ({ sessionActive }) => {
     const media_device_service = baby_station.media_device_service;
     const media_device_state = useServiceState(media_device_service);
-    const signal_service = useSignalService();
+    const mqtt_service = useMQTTService();
     const videoRef = React.useRef<HTMLVideoElement>(null);
     const canvasRef = React.useRef<HTMLCanvasElement>(null);
     const viewport = useViewport(viewport_service);
@@ -83,12 +83,12 @@ const MediaStream: React.FunctionComponent<Props> = ({ sessionActive }) => {
 
         const connections = new Connections({
             logging_service: baby_station.logging_service,
-            signal_service: signal_service,
+            mqtt_service,
             audio_tracks,
             video_tracks,
         });
         return connections.close;
-    }, [signal_service, sessionActive, media_device_state.media_stream_state, renderer]);
+    }, [mqtt_service, sessionActive, media_device_state.media_stream_state, renderer]);
     if (media_device_state.media_stream_state.state === 'loading') return (<div>Getting stream...</div>)
     if (media_device_state.media_stream_state.state === 'rejected') return (
         <div className="mt-3">
