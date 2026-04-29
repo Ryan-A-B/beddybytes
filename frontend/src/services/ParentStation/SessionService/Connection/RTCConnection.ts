@@ -1,23 +1,23 @@
 import Service from "../../../Service";
 import LoggingService, { Severity } from '../../../LoggingService';
 import { ConnectionState, InitiatedBy } from ".";
-import { Session } from "../../types";
-import WebSocketSignalService from "../../../SignalService/WebSocketSignalService";
+import { BabyStation } from "../../types";
+import MQTTService from "../../../MQTTService";
 import Connection from "../../../Connection";
 
 const InitialState: ConnectionState = { state: 'new' };
 
 interface NewRTCConnectionInput {
     logging_service: LoggingService;
-    signal_service: WebSocketSignalService;
-    session: Session;
+    mqtt_service: MQTTService;
+    baby_station: BabyStation;
     parent_station_media_stream: MediaStream;
 }
 
 class RTCConnection extends Service<ConnectionState> {
     protected readonly name = 'RTCConnection';
-    private signal_service: WebSocketSignalService;
-    private session: Session;
+    private mqtt_service: MQTTService;
+    private baby_station: BabyStation;
     private media_stream: MediaStream;
     private connection: Connection;
 
@@ -26,8 +26,8 @@ class RTCConnection extends Service<ConnectionState> {
             logging_service: input.logging_service,
             initial_state: InitialState,
         });
-        this.signal_service = input.signal_service;
-        this.session = input.session;
+        this.mqtt_service = input.mqtt_service;
+        this.baby_station = input.baby_station;
         this.connection = this.create_connection();
         this.media_stream = input.parent_station_media_stream;
     }
@@ -39,8 +39,8 @@ class RTCConnection extends Service<ConnectionState> {
     private create_connection = (): Connection => {
         const connection = Connection.initiate({
             logging_service: this.logging_service,
-            signal_service: this.signal_service,
-            other_connection_id: this.session.host_connection_id,
+            mqtt_service: this.mqtt_service,
+            peer_client_id: this.baby_station.client_id,
         });
 
         const peer_connection = connection.peer_connection;
@@ -147,12 +147,6 @@ class RTCConnection extends Service<ConnectionState> {
     }
 
     public close(initiatedBy: InitiatedBy) {
-        if (initiatedBy === InitiatedBy.Client) {
-            this.signal_service.send_signal({
-                to_connection_id: this.session.host_connection_id,
-                data: { close: null },
-            });
-        }
         this.close_connection();
     }
 

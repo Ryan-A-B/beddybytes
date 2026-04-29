@@ -5,7 +5,7 @@ import Service, { ServiceStateChangedEvent } from "../Service";
 import AuthorizationService, { AuthorizationServiceState } from "../AuthorizationService";
 import { load_account_from_local_storage } from "../AuthorizationService/AuthorizationClient";
 import settings from "../../settings";
-import { client_webrtc_inbox_topic, clientStatusTopic } from "./topics";
+import { babyStationsTopic, client_webrtc_inbox_topic, clientControlInboxTopic, clientStatusTopic, clientStatusTopicFilter } from "./topics";
 import { new_webrtc_inbox_payload, newConnectedPayload, newDisconnectedPayload } from "./payloads";
 
 export type MQTTServiceState = WaitingForAccessTokenToBeAvailable | Ready | Connecting | Connected;
@@ -48,6 +48,18 @@ abstract class AbstractState {
 
     public subscribe_to_webrtc_inbox(proxy: ServiceProxy, callback: MessageHandler): Subscription {
         throw new Error("Cannot subscribe to WebRTC inbox until an access token is available");
+    }
+
+    public subscribe_to_client_status(proxy: ServiceProxy, callback: MessageHandler): Subscription {
+        throw new Error("Cannot subscribe to client status until an access token is available");
+    }
+
+    public subscribe_to_control_inbox(proxy: ServiceProxy, callback: MessageHandler): Subscription {
+        throw new Error("Cannot subscribe to control inbox until an access token is available");
+    }
+
+    public subscribe_to_baby_stations(proxy: ServiceProxy, callback: MessageHandler): Subscription {
+        throw new Error("Cannot subscribe to baby stations until an access token is available");
     }
 
     public unsubscribe(proxy: ServiceProxy, topic_filter: string): void {
@@ -142,6 +154,18 @@ class Ready extends AbstractState {
     public subscribe_to_webrtc_inbox(proxy: ServiceProxy, callback: MessageHandler): Subscription {
         return proxy.subscribe_with_callback(client_webrtc_inbox_topic(this.account_id, settings.API.clientID), callback);
     }
+
+    public subscribe_to_client_status(proxy: ServiceProxy, callback: MessageHandler): Subscription {
+        return proxy.subscribe_with_callback(clientStatusTopicFilter(this.account_id), callback);
+    }
+
+    public subscribe_to_control_inbox(proxy: ServiceProxy, callback: MessageHandler): Subscription {
+        return proxy.subscribe_with_callback(clientControlInboxTopic(this.account_id, settings.API.clientID), callback);
+    }
+
+    public subscribe_to_baby_stations(proxy: ServiceProxy, callback: MessageHandler): Subscription {
+        return proxy.subscribe_with_callback(babyStationsTopic(this.account_id), callback);
+    }
 }
 
 interface NewConnectingInput {
@@ -190,6 +214,18 @@ class Connecting extends AbstractState {
     public subscribe_to_webrtc_inbox(proxy: ServiceProxy, callback: MessageHandler): Subscription {
         return proxy.subscribe_with_callback(client_webrtc_inbox_topic(this.accountID, this.clientID), callback);
     }
+
+    public subscribe_to_client_status(proxy: ServiceProxy, callback: MessageHandler): Subscription {
+        return proxy.subscribe_with_callback(clientStatusTopicFilter(this.accountID), callback);
+    }
+
+    public subscribe_to_control_inbox(proxy: ServiceProxy, callback: MessageHandler): Subscription {
+        return proxy.subscribe_with_callback(clientControlInboxTopic(this.accountID, this.clientID), callback);
+    }
+
+    public subscribe_to_baby_stations(proxy: ServiceProxy, callback: MessageHandler): Subscription {
+        return proxy.subscribe_with_callback(babyStationsTopic(this.accountID), callback);
+    }
 }
 
 interface NewConnectedInput {
@@ -232,6 +268,18 @@ class Connected extends AbstractState {
 
     public subscribe_to_webrtc_inbox(proxy: ServiceProxy, callback: MessageHandler): Subscription {
         return proxy.subscribe_with_callback(client_webrtc_inbox_topic(this.account_id, this.client_id), callback);
+    }
+
+    public subscribe_to_client_status(proxy: ServiceProxy, callback: MessageHandler): Subscription {
+        return proxy.subscribe_with_callback(clientStatusTopicFilter(this.account_id), callback);
+    }
+
+    public subscribe_to_control_inbox(proxy: ServiceProxy, callback: MessageHandler): Subscription {
+        return proxy.subscribe_with_callback(clientControlInboxTopic(this.account_id, this.client_id), callback);
+    }
+
+    public subscribe_to_baby_stations(proxy: ServiceProxy, callback: MessageHandler): Subscription {
+        return proxy.subscribe_with_callback(babyStationsTopic(this.account_id), callback);
     }
 
     public unsubscribe(proxy: ServiceProxy, topic_filter: string): void {
@@ -340,6 +388,18 @@ class MQTTService extends Service<MQTTServiceState> {
 
     public subscribe_to_webrtc_inbox = (callback: MessageHandler): Subscription => {
         return this.get_state().subscribe_to_webrtc_inbox(this.proxy, callback);
+    }
+
+    public subscribe_to_client_status = (callback: MessageHandler): Subscription => {
+        return this.get_state().subscribe_to_client_status(this.proxy, callback);
+    }
+
+    public subscribe_to_control_inbox = (callback: MessageHandler): Subscription => {
+        return this.get_state().subscribe_to_control_inbox(this.proxy, callback);
+    }
+
+    public subscribe_to_baby_stations = (callback: MessageHandler): Subscription => {
+        return this.get_state().subscribe_to_baby_stations(this.proxy, callback);
     }
 
     public publish_webrtc_description = (peer_client_id: string, description: RTCSessionDescriptionInit): void => {

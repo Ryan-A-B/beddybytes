@@ -11,18 +11,18 @@ interface Props {
 
 const BabyStationDropdown: React.FunctionComponent<Props> = ({ session_service, baby_station_list_service }) => {
     const session_state = useServiceState(session_service);
-    const baby_station_list_state = useServiceState(baby_station_list_service);
+    useServiceState(baby_station_list_service);
 
     const active_session: Session | null = React.useMemo(() => session_state.get_active_session(), [session_state]);
 
-    const baby_stations = React.useMemo(() => baby_station_list_state.get_baby_station_list(), [baby_station_list_state]);
+    const baby_stations = baby_station_list_service.list_baby_stations();
 
     const handle_change = React.useCallback((event: React.ChangeEvent<HTMLSelectElement>) => {
         session_service.leave_session();
         const session_id = event.target.value;
         const baby_station = baby_stations.find((session) => session.session.id === session_id);
         if (baby_station === undefined) return;
-        session_service.join_session(baby_station.session);
+        session_service.join_session(baby_station);
     }, [session_service, baby_stations]);
 
     if (baby_stations.size === 0) return (

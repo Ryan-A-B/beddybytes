@@ -1,297 +1,160 @@
-import { Map, List } from 'immutable';
-import moment from 'moment';
-import settings from '../../../settings';
-import Service, { SetStateFunction } from '../../Service';
-import LoggingService, { Severity } from '../../LoggingService';
-import isClientError from '../../../utils/isClientError';
-import sleep from '../../../utils/sleep';
-import EventStreamService from './EventStreamService';
-import { EventConnectedEvent, EventDisconnectedEvent, ServerStartedEvent, SessionEndedEvent, SessionStartedEvent } from './EventStreamService/event';
-import { BabyStation, Connection, Session } from '../types';
-import AuthorizationService from '../../AuthorizationService';
-import get_access_token_asap from '../../AuthorizationService/get_access_token_asap';
+import { List, Map } from "immutable";
+import LoggingService from "../../LoggingService";
+import MQTTService, { MessageReceived, Subscription } from "../../MQTTService";
+import { parse_client_status_topic } from "../../MQTTService/topics";
+import { SessionAnnouncement } from "../../MQTTService/payloads";
+import Service, { ServiceStateChangedEvent, SetStateFunction } from "../../Service";
+import { BabyStation } from "../types";
 
-interface ForFriends {
-    logging_service: LoggingService;
-    authorization_service: AuthorizationService;
-    event_stream_service: EventStreamService;
+interface ServiceProxy {
+    mqtt_service: MQTTService;
     set_state: SetStateFunction<BabyStationListState>;
-    load_snapshot: (snapshot: Snapshot) => void;
+    handle_baby_stations(message: MessageReceived): void;
+    handle_control_inbox(message: MessageReceived): void;
+    handle_client_status(message: MessageReceived): void;
 }
 
 abstract class AbstractState {
-    public abstract name: string;
-    public abstract start: (service: ForFriends) => Promise<void>;
-    public abstract stop: (service: ForFriends) => Promise<void>;
-    public abstract get_snapshot: () => Snapshot;
+    public abstract readonly name: string;
 
-    public get_baby_station_list = (): List<BabyStation> => {
-        return get_baby_station_list(this.get_snapshot());
+    public start(proxy: ServiceProxy): void {
+        // Default is to ignore duplicate start requests.
     }
 
-    public abstract load_snapshot: (service: ForFriends, snapshot: Snapshot) => void;
-
-    public handle_session_started = (service: ForFriends, event: SessionStartedEvent): void => {
-        // do nothing
+    public stop(proxy: ServiceProxy): void {
+        // Default is to ignore duplicate stop requests.
     }
 
-    public handle_session_ended = (service: ForFriends, event: SessionEndedEvent): void => {
-        // do nothing
+    public list_baby_stations(): List<BabyStation> {
+        return List();
     }
 
-    public handle_client_connected = (service: ForFriends, event: EventConnectedEvent): void => {
-        // do nothing
+    public handle_baby_stations(proxy: ServiceProxy, message: MessageReceived): void {
+        // Default is to ignore messages while stopped.
     }
 
-    public handle_client_disconnected = (service: ForFriends, event: EventDisconnectedEvent): void => {
-        // do nothing
+    public handle_control_inbox(proxy: ServiceProxy, message: MessageReceived): void {
+        // Default is to ignore messages while stopped.
     }
 
-    public handle_server_started = (service: ForFriends, event: ServerStartedEvent): void => {
-        // do nothing
+    public handle_client_status(proxy: ServiceProxy, message: MessageReceived): void {
+        // Default is to ignore messages while stopped.
     }
 }
 
-class NotStarted extends AbstractState {
-    public readonly name = 'not_started';
+export class Stopped extends AbstractState {
+    public readonly name = "Stopped";
 
-    public start = async (service: ForFriends): Promise<void> => {
-        service.set_state(new LoadingSnapshot());
-        const snapshot = await this.fetch_snapshot(service);
-        service.load_snapshot(snapshot);
+    public start(proxy: ServiceProxy): void {
+        proxy.set_state(new Running({
+            baby_stations: Map(),
+            baby_stations_subscription: proxy.mqtt_service.subscribe_to_baby_stations(proxy.handle_baby_stations),
+            control_inbox_subscription: proxy.mqtt_service.subscribe_to_control_inbox(proxy.handle_control_inbox),
+            client_status_subscription: proxy.mqtt_service.subscribe_to_client_status(proxy.handle_client_status),
+        }));
+    }
+}
+
+interface NewRunningInput {
+    baby_stations: Map<string, BabyStation>;
+    baby_stations_subscription: Subscription;
+    control_inbox_subscription: Subscription;
+    client_status_subscription: Subscription;
+}
+
+export class Running extends AbstractState {
+    public readonly name = "Running";
+    private readonly baby_stations: Map<string, BabyStation>;
+    private readonly baby_stations_subscription: Subscription;
+    private readonly control_inbox_subscription: Subscription;
+    private readonly client_status_subscription: Subscription;
+
+    constructor(input: NewRunningInput) {
+        super();
+        this.baby_stations = input.baby_stations;
+        this.baby_stations_subscription = input.baby_stations_subscription;
+        this.control_inbox_subscription = input.control_inbox_subscription;
+        this.client_status_subscription = input.client_status_subscription;
     }
 
-    public stop = async (service: ForFriends): Promise<void> => {
-        // do nothing
+    public stop(proxy: ServiceProxy): void {
+        this.baby_stations_subscription.close();
+        this.control_inbox_subscription.close();
+        this.client_status_subscription.close();
+        proxy.set_state(new Stopped());
     }
 
-    public load_snapshot = (service: ForFriends, snapshot: Snapshot): void => {
-        throw new Error("load_snapshot should not be called when not started");
+    public list_baby_stations(): List<BabyStation> {
+        return this.baby_stations.valueSeq().toList();
     }
 
-    public get_snapshot = (): Snapshot => {
-        return EmptySnapshot;
+    public handle_baby_stations(proxy: ServiceProxy, message: MessageReceived): void {
+        const payload = JSON.parse(message.payload) as BabyStationsPayload;
+        if (payload.type !== "announcement") return;
+        this.add_announcement(proxy, payload.announcement);
     }
 
-    private fetch_snapshot = async (service: ForFriends): Promise<Snapshot> => {
-        const access_token = await get_access_token_asap(service.authorization_service);
-        const endpoint = `https://${settings.API.host}/baby_station_list_snapshot`;
-        const response = await fetch(endpoint, {
-            method: 'GET',
-            headers: {
-                Authorization: `Bearer ${access_token}`,
+    public handle_control_inbox(proxy: ServiceProxy, message: MessageReceived): void {
+        const payload = JSON.parse(message.payload) as ControlInboxPayload;
+        if (payload.type !== "baby_station_announcement") return;
+        this.add_announcement(proxy, payload.baby_station_announcement);
+    }
+
+    public handle_client_status(proxy: ServiceProxy, message: MessageReceived): void {
+        const topic = parse_client_status_topic(message.topic);
+        if (topic === null) return;
+        const payload = JSON.parse(message.payload) as ClientStatusPayload;
+        if (payload.type !== "disconnected") return;
+        const entry = this.baby_stations.findEntry((baby_station) => baby_station.client_id === topic.client_id);
+        if (entry === undefined) return;
+        const [session_id] = entry;
+        this.set_baby_stations(proxy, this.baby_stations.delete(session_id));
+    }
+
+    private add_announcement = (proxy: ServiceProxy, announcement: SessionAnnouncement): void => {
+        if (this.baby_stations.has(announcement.session_id)) return;
+        this.set_baby_stations(proxy, this.baby_stations.set(announcement.session_id, {
+            client_id: announcement.client_id,
+            session: {
+                id: announcement.session_id,
+                name: announcement.name,
+                started_at: announcement.started_at_millis,
             },
-        });
-        if (!response.ok) {
-            const payload = await response.text();
-            if (isClientError(response.status))
-                throw new Error(`Failed to list sessions: ${payload}`);
-            service.logging_service.log({
-                severity: Severity.Error,
-                message: `Failed to list sessions: ${payload}`,
-            });
-            await sleep(5000);
-            return this.fetch_snapshot(service);
-        }
-        const output = await response.json() as GetSnapshotOutput;
-        const session_by_id = Map<string, Session>(
-            Object.entries(output.session_by_id).map(([key, value]) => [
-                key,
-                {
-                    id: value.id,
-                    name: value.name,
-                    started_at: moment(value.started_at),
-                    host_connection_id: value.host_connection_id,
-                },
-            ]),
-        );
-        return {
-            cursor: output.cursor,
-            session_by_id,
-            session_id_by_connection_id: Map<string, string>(output.session_id_by_connection_id),
-            connection_by_id: Map<string, Connection>(output.connection_by_id),
-        };
-    }
-}
-
-abstract class Running extends AbstractState {
-    public start = async (service: ForFriends): Promise<void> => {
-        throw new Error('Cannot start when already running');
-    }
-}
-
-class LoadingSnapshot extends Running {
-    public readonly name = 'loading_snapshot';
-
-    public stop = async (service: ForFriends): Promise<void> => {
-        service.set_state(new PausedWaitingForSnapshot());
-    }
-
-    public load_snapshot = (service: ForFriends, snapshot: Snapshot): void => {
-        service.event_stream_service.start(snapshot.cursor);
-        service.set_state(new Projecting(snapshot));
-    }
-
-    public get_snapshot = (): Snapshot => {
-        return EmptySnapshot;
-    }
-}
-
-class Projecting extends Running {
-    public readonly name = 'projecting';
-    private readonly snapshot: Snapshot;
-
-    constructor(snapshot: Snapshot) {
-        super();
-        this.snapshot = snapshot;
-    }
-
-    public stop = async (service: ForFriends): Promise<void> => {
-        service.event_stream_service.stop();
-        service.set_state(new Paused(this.snapshot));
-    }
-
-    public load_snapshot = (service: ForFriends, snapshot: Snapshot): void => {
-        throw new Error("load_snapshot should not be called when projecting");
-    }
-
-    public get_snapshot = (): Snapshot => {
-        return this.snapshot;
-    }
-
-    public handle_session_started = (service: ForFriends, event: SessionStartedEvent): void => {
-        service.set_state(new Projecting({
-            ...this.snapshot,
-            session_by_id: this.snapshot.session_by_id.set(event.data.id, {
-                id: event.data.id,
-                name: event.data.name,
-                started_at: moment(event.data.started_at),
-                host_connection_id: event.data.host_connection_id,
-            }),
-            session_id_by_connection_id: this.snapshot.session_id_by_connection_id.set(event.data.host_connection_id, event.data.id),
-            cursor: event.logical_clock,
         }));
     }
 
-    public handle_session_ended = (service: ForFriends, event: SessionEndedEvent): void => {
-        const session = this.snapshot.session_by_id.get(event.data.id);
-        if (session === undefined) return;
-        service.set_state(new Projecting({
-            ...this.snapshot,
-            session_by_id: this.snapshot.session_by_id.delete(session.id),
-            session_id_by_connection_id: this.snapshot.session_id_by_connection_id.delete(session.host_connection_id),
-            cursor: event.logical_clock,
-        }));
-    }
-
-    public handle_client_connected = (service: ForFriends, event: EventConnectedEvent): void => {
-        service.set_state(new Projecting({
-            ...this.snapshot,
-            cursor: event.logical_clock,
-            connection_by_id: this.snapshot.connection_by_id.set(event.data.connection_id, {
-                client_id: event.data.client_id,
-                id: event.data.connection_id,
-                request_id: event.data.request_id,
-            }),
-        }));
-    }
-
-    public handle_client_disconnected = (service: ForFriends, event: EventDisconnectedEvent): void => {
-        service.set_state(new Projecting({
-            ...this.snapshot,
-            connection_by_id: this.snapshot.connection_by_id.delete(event.data.connection_id),
-            cursor: event.logical_clock,
-        }));
-    }
-
-    public handle_server_started = (service: ForFriends, event: ServerStartedEvent): void => {
-        service.set_state(new Projecting({
-            ...this.snapshot,
-            cursor: event.logical_clock,
-            connection_by_id: Map(),
+    private set_baby_stations = (proxy: ServiceProxy, baby_stations: Map<string, BabyStation>): void => {
+        proxy.set_state(new Running({
+            baby_stations,
+            baby_stations_subscription: this.baby_stations_subscription,
+            control_inbox_subscription: this.control_inbox_subscription,
+            client_status_subscription: this.client_status_subscription,
         }));
     }
 }
 
-class Paused extends AbstractState {
-    public readonly name = 'paused';
-    protected snapshot: Snapshot;
-
-    constructor(snapshot: Snapshot) {
-        super();
-        this.snapshot = snapshot;
-    }
-
-    public start = async (service: ForFriends): Promise<void> => {
-        service.event_stream_service.start(this.snapshot.cursor);
-        service.set_state(new Projecting(this.snapshot));
-    }
-
-    public stop = async (service: ForFriends): Promise<void> => {
-        throw new Error('Cannot stop when paused');
-    }
-
-    public load_snapshot = (service: ForFriends, snapshot: Snapshot): void => {
-        service.set_state(new Paused(snapshot));
-    }
-
-    public get_snapshot = (): Snapshot => {
-        return this.snapshot;
-    }
-}
-
-class PausedWaitingForSnapshot extends AbstractState {
-    public readonly name = 'paused_waiting_for_snapshot';
-
-    public start = async (service: ForFriends): Promise<void> => {
-        service.set_state(new LoadingSnapshot());
-    }
-
-    public stop = async (service: ForFriends): Promise<void> => {
-        throw new Error('Cannot stop when paused_waiting_for_snapshot');
-    }
-
-    public load_snapshot = (service: ForFriends, snapshot: Snapshot): void => {
-        service.set_state(new Paused(snapshot));
-    }
-
-    public get_snapshot = (): Snapshot => {
-        return EmptySnapshot;
-    }
-}
-
-export type BabyStationListState = NotStarted | LoadingSnapshot | Projecting | Paused | PausedWaitingForSnapshot;
+export type BabyStationListState = Stopped | Running;
 
 interface NewBabyStationListServiceInput {
     logging_service: LoggingService;
-    authorization_service: AuthorizationService;
+    mqtt_service: MQTTService;
 }
 
 class BabyStationListService extends Service<BabyStationListState> {
-    public readonly name = 'BabyStationListService';
-    private readonly event_stream_service: EventStreamService;
-    private readonly proxy: ForFriends;
+    protected readonly name = "BabyStationListService";
+    private readonly proxy: ServiceProxy;
 
     constructor(input: NewBabyStationListServiceInput) {
         super({
             logging_service: input.logging_service,
-            initial_state: new NotStarted(),
+            initial_state: new Stopped(),
         });
-        this.event_stream_service = new EventStreamService({
-            logging_service: input.logging_service,
-            authorization_service: input.authorization_service,
-        });
-        this.event_stream_service.addEventListener('session.started', this.handle_session_started);
-        this.event_stream_service.addEventListener('session.ended', this.handle_session_ended);
-        this.event_stream_service.addEventListener('client.connected', this.handle_client_connected);
-        this.event_stream_service.addEventListener('client.disconnected', this.handle_client_disconnected);
-        this.event_stream_service.addEventListener('server.started', this.handle_server_started);
         this.proxy = {
-            logging_service: input.logging_service,
-            authorization_service: input.authorization_service,
-            event_stream_service: this.event_stream_service,
+            mqtt_service: input.mqtt_service,
             set_state: this.set_state,
-            load_snapshot: this.load_snapshot,
+            handle_baby_stations: this.handle_baby_stations,
+            handle_control_inbox: this.handle_control_inbox,
+            handle_client_status: this.handle_client_status,
         };
     }
 
@@ -300,103 +163,50 @@ class BabyStationListService extends Service<BabyStationListState> {
     }
 
     public start = (): void => {
-        const state = this.get_state();
-        state.start(this.proxy);
+        this.get_state().start(this.proxy);
     }
 
     public stop = (): void => {
-        const state = this.get_state();
-        state.stop(this.proxy);
+        this.get_state().stop(this.proxy);
     }
 
-    public get_snapshot = (): Snapshot => {
-        const state = this.get_state();
-        return state.get_snapshot();
+    public list_baby_stations = (): List<BabyStation> => {
+        return this.get_state().list_baby_stations();
     }
 
-    public get_baby_station_list = (): List<BabyStation> => {
-        const state = this.get_state();
-        return get_baby_station_list(state.get_snapshot());
+    private handle_baby_stations = (message: MessageReceived): void => {
+        this.get_state().handle_baby_stations(this.proxy, message);
     }
 
-    private load_snapshot = async (snapshot: Snapshot): Promise<void> => {
-        const state = this.get_state();
-        state.load_snapshot(this.proxy, snapshot);
+    private handle_control_inbox = (message: MessageReceived): void => {
+        this.get_state().handle_control_inbox(this.proxy, message);
     }
 
-    private handle_session_started = (event: SessionStartedEvent): void => {
-        const state = this.get_state();
-        state.handle_session_started(this.proxy, event);
-    }
-
-    private handle_session_ended = (event: SessionEndedEvent): void => {
-        const state = this.get_state();
-        state.handle_session_ended(this.proxy, event);
-    }
-
-    private handle_client_connected = (event: EventConnectedEvent): void => {
-        const state = this.get_state();
-        state.handle_client_connected(this.proxy, event);
-    }
-
-    private handle_client_disconnected = (event: EventDisconnectedEvent): void => {
-        const state = this.get_state();
-        state.handle_client_disconnected(this.proxy, event);
-    }
-
-    private handle_server_started = (event: ServerStartedEvent): void => {
-        const state = this.get_state();
-        state.handle_server_started(this.proxy, event);
+    private handle_client_status = (message: MessageReceived): void => {
+        this.get_state().handle_client_status(this.proxy, message);
     }
 }
 
 export default BabyStationListService;
 
-interface Snapshot {
-    cursor: number;
-    session_by_id: Map<string, Session>;
-    session_id_by_connection_id: Map<string, string>;
-    connection_by_id: Map<string, Connection>;
+interface BabyStationsPayload {
+    type: "announcement";
+    announcement: SessionAnnouncement;
 }
 
-const EmptySnapshot: Snapshot = {
-    cursor: 0,
-    session_by_id: Map(),
-    session_id_by_connection_id: Map(),
-    connection_by_id: Map(),
+interface ControlInboxPayload {
+    type: "baby_station_announcement";
+    baby_station_announcement: SessionAnnouncement;
 }
 
-const get_baby_station_list = (snapshot: Snapshot): List<BabyStation> => {
-    return snapshot.connection_by_id.map((connection): Optional<BabyStation> => {
-        const sessionID = snapshot.session_id_by_connection_id.get(connection.id);
-        if (!sessionID) return null;
-        const session = snapshot.session_by_id.get(sessionID);
-        if (!session) throw new Error(`Session not found: ${sessionID}`);
-        return {
-            session,
-            connection,
-        };
-    }).filter((baby_station: Optional<BabyStation>): baby_station is BabyStation => baby_station !== null).toList();
-};
+interface ClientStatusPayload {
+    type: "connected" | "disconnected";
+}
 
-interface GetSnapshotOutput {
-    cursor: number;
-    session_by_id: {
-        [key: string]: {
-            id: string;
-            name: string;
-            started_at: string;
-            host_connection_id: string;
-        }
-    }
-    session_id_by_connection_id: {
-        [key: string]: string;
-    }
-    connection_by_id: {
-        [key: string]: {
-            client_id: string;
-            id: string;
-            request_id: string;
-        }
-    }
+interface BabyStationListService extends Service<BabyStationListState> {
+    addEventListener(type: "state_changed", listener: (this: EventSource, ev: ServiceStateChangedEvent<BabyStationListState>) => any, options?: boolean | AddEventListenerOptions): void;
+    addEventListener(type: string, listener: EventListenerOrEventListenerObject, options?: boolean | AddEventListenerOptions): void;
+
+    removeEventListener(type: "state_changed", listener: (this: EventSource, ev: ServiceStateChangedEvent<BabyStationListState>) => any, options?: boolean | EventListenerOptions): void;
+    removeEventListener(type: string, listener: EventListenerOrEventListenerObject, options?: boolean | EventListenerOptions): void;
 }

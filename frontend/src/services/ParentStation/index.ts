@@ -4,10 +4,10 @@ import SessionService, { SessionState } from "./SessionService";
 import MediaStreamTrackMonitor from './MediaStreamTrackMonitor';
 import { EventTypeStateChanged, ServiceStateChangedEvent } from '../Service';
 import BabyStationListService, { BabyStationListState } from './BabyStationListService';
-import WebSocketSignalService, { WebSocketSignalState } from '../SignalService/WebSocketSignalService';
 import WakeLockService from '../WakeLockService';
 import { ConnectionState } from './SessionService/Connection';
 import AuthorizationService from '../AuthorizationService';
+import MQTTService from "../MQTTService";
 
 const RecentVisibilityChangeThresholdMillis = 2000;
 
@@ -19,14 +19,14 @@ interface VisibilityChangeDetails {
 interface NewParentStationInput {
     logging_service: LoggingService;
     authorization_service: AuthorizationService;
-    signal_service: WebSocketSignalService;
+    mqtt_service: MQTTService;
     wake_lock_service: WakeLockService;
 }
 
 class ParentStation {
     readonly logging_service: LoggingService;
     readonly media_stream: MediaStream = new MediaStream();
-    readonly signal_service: WebSocketSignalService;
+    readonly mqtt_service: MQTTService;
     readonly baby_station_list_service: BabyStationListService;
     readonly session_service: SessionService;
     readonly media_stream_track_monitor: MediaStreamTrackMonitor;
@@ -34,16 +34,16 @@ class ParentStation {
     readonly wake_lock_service: WakeLockService;
     private last_visibilitychange_details: Optional<VisibilityChangeDetails> = null;
 
-    constructor({ logging_service, authorization_service, signal_service, wake_lock_service }: NewParentStationInput) {
+    constructor({ logging_service, authorization_service, mqtt_service, wake_lock_service }: NewParentStationInput) {
         this.logging_service = logging_service;
-        this.signal_service = signal_service;
+        this.mqtt_service = mqtt_service;
         this.baby_station_list_service = new BabyStationListService({
             logging_service,
-            authorization_service,
+            mqtt_service,
         });
         this.session_service = new SessionService({
             logging_service,
-            signal_service,
+            mqtt_service,
             parent_station_media_stream: this.media_stream,
         });
         this.media_stream_track_monitor = new MediaStreamTrackMonitor({
@@ -58,20 +58,21 @@ class ParentStation {
         this.wake_lock_service = wake_lock_service;
 
         document.addEventListener('visibilitychange', this.handle_visibilitychange);
-        this.signal_service.addEventListener(EventTypeStateChanged, this.handle_signal_state_changed);
+        // TODO: Add MQTT reconnect handling here once MQTTService has explicit reconnect state/logic.
+        // this.mqtt_service.addEventListener(EventTypeStateChanged, this.handle_mqtt_state_changed);
         this.session_service.addEventListener(EventTypeStateChanged, this.handle_session_state_changed);
         this.baby_station_list_service.addEventListener(EventTypeStateChanged, this.handle_baby_station_list_changed);
     }
 
     public start = () => {
-        this.signal_service.start();
+        this.mqtt_service.connect();
         this.baby_station_list_service.start();
         this.wake_lock_service.lock();
     }
 
     public stop = () => {
-        this.signal_service.stop();
         this.baby_station_list_service.stop();
+        this.mqtt_service.disconnect();
         this.wake_lock_service.unlock();
     }
 
@@ -89,19 +90,20 @@ class ParentStation {
         }
     }
 
-    private handle_signal_state_changed = (event: ServiceStateChangedEvent<WebSocketSignalState>) => {
-        this.reconnect_if_needed();
-
-        // We're using signal service reconnecting plus visibility change as a proxy that the app is back in the foreground
-        if (event.previous_state.name !== 'reconnecting') return;
-        if (event.current_state.name !== 'connected') return;
-        if (this.last_visibilitychange_details === null) return;
-        if (document.visibilityState !== 'visible') return;
-        const visibility_change_dt = performance.now() - this.last_visibilitychange_details.timestamp_millis;
-        const visibility_change_was_not_recent = visibility_change_dt > RecentVisibilityChangeThresholdMillis;
-        if (visibility_change_was_not_recent) return;
-        this.session_service.reconnect();
-    }
+    // TODO: Restore this behavior once MQTTService exposes reconnecting/connected transitions.
+    // private handle_mqtt_state_changed = (event: ServiceStateChangedEvent<MQTTServiceState>) => {
+    //     this.reconnect_if_needed();
+    //
+    //     // Use MQTT reconnecting plus visibility change as a proxy that the app is back in the foreground.
+    //     if (event.previous_state.name !== 'Reconnecting') return;
+    //     if (event.current_state.name !== 'Connected') return;
+    //     if (this.last_visibilitychange_details === null) return;
+    //     if (document.visibilityState !== 'visible') return;
+    //     const visibility_change_dt = performance.now() - this.last_visibilitychange_details.timestamp_millis;
+    //     const visibility_change_was_not_recent = visibility_change_dt > RecentVisibilityChangeThresholdMillis;
+    //     if (visibility_change_was_not_recent) return;
+    //     this.session_service.reconnect();
+    // }
 
     private remove_connection_event_listener: (() => void) | null = null;
     private handle_session_state_changed = (event: ServiceStateChangedEvent<SessionState>) => {
@@ -131,7 +133,6 @@ class ParentStation {
     private handle_baby_station_list_changed = (event: ServiceStateChangedEvent<BabyStationListState>) => {
         this.auto_connect_if_needed();
         this.reconnect_if_needed();
-        this.auto_leave_session_if_needed();
     }
 
     private handle_connection_state_changed = (event: ServiceStateChangedEvent<ConnectionState>) => {
@@ -148,15 +149,15 @@ class ParentStation {
         if (document.visibilityState !== 'visible') return;
         const session_state = this.session_service.get_state();
         if (session_state.name !== "not_joined") return;
-        const baby_station_list = this.baby_station_list_service.get_baby_station_list();
+        const baby_station_list = this.baby_station_list_service.list_baby_stations();
         const baby_station = baby_station_list.first();
         if (baby_station === undefined) return;
-        this.signal_service.start();
-        this.session_service.join_session(baby_station.session);
+        this.session_service.join_session(baby_station);
     }
 
     private auto_leave_session_if_needed = () => {
-        this.session_service.leave_session_if_ended(this.session_exists);
+        // MQTT session-list removal alone does not imply active WebRTC viewing
+        // should stop. Clean baby-station disconnects are handled explicitly.
     }
 
     private reconnect_if_needed = () => {
@@ -164,9 +165,9 @@ class ParentStation {
     }
 
     private session_exists = (session_id: string): boolean => {
-        const snapshot = this.baby_station_list_service.get_snapshot();
-        const session = snapshot.session_by_id.get(session_id);
-        return session !== undefined;
+        return this.baby_station_list_service
+            .list_baby_stations()
+            .some((baby_station) => baby_station.session.id === session_id);
     }
 
     private try_exit_picture_in_picture_if_needed = async () => {

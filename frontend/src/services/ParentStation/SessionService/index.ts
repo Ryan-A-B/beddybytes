@@ -2,12 +2,12 @@ import Service, { SetStateFunction } from "../../Service";
 import LoggingService from '../../LoggingService';
 import RTCConnection from "./Connection/RTCConnection";
 import { InitiatedBy } from "./Connection";
-import { Session } from "../types";
-import WebSocketSignalService from "../../SignalService/WebSocketSignalService";
+import { BabyStation, Session } from "../types";
+import MQTTService from "../../MQTTService";
 
 interface ServiceProxy {
     logging_service: LoggingService;
-    signal_service: WebSocketSignalService;
+    mqtt_service: MQTTService;
     parent_station_media_stream: MediaStream;
     set_state: SetStateFunction<SessionState>;
 }
@@ -18,7 +18,7 @@ abstract class AbstractState {
     public abstract name: string;
     public abstract get_active_session(): Session | null;
     public abstract get_active_connection(): RTCConnection | null;
-    public abstract join_session(service: ServiceProxy, session: Session): void;
+    public abstract join_session(service: ServiceProxy, baby_station: BabyStation): void;
     public abstract leave_session(service: ServiceProxy): void;
     public abstract leave_session_if_ended(service: ServiceProxy, session_exists: SessionExistsFunction): void;
     public abstract reconnect(service: ServiceProxy): void;
@@ -28,15 +28,15 @@ abstract class AbstractState {
 class NotJoined extends AbstractState {
     public name = 'not_joined';
 
-    public join_session(service: ServiceProxy, session: Session): void {
+    public join_session(service: ServiceProxy, baby_station: BabyStation): void {
         const rtc_connection = new RTCConnection({
             logging_service: service.logging_service,
-            signal_service: service.signal_service,
+            mqtt_service: service.mqtt_service,
             parent_station_media_stream: service.parent_station_media_stream,
-            session,
+            baby_station,
         });
         service.set_state(new Joined({
-            session,
+            baby_station,
             rtc_connection: rtc_connection
         }));
     }
@@ -67,23 +67,23 @@ class NotJoined extends AbstractState {
 }
 
 interface NewJoinedInput {
-    session: Session;
+    baby_station: BabyStation;
     rtc_connection: RTCConnection;
 }
 
 class Joined extends AbstractState {
     public name = 'joined';
-    public readonly session: Session;
+    public readonly baby_station: BabyStation;
     public readonly rtc_connection: RTCConnection;
 
     constructor(input: NewJoinedInput) {
         super();
-        this.session = input.session;
+        this.baby_station = input.baby_station;
         this.rtc_connection = input.rtc_connection;
     }
 
     public get_active_session(): Session | null {
-        return this.session;
+        return this.baby_station.session;
     }
 
     public get_active_connection(): RTCConnection | null {
@@ -91,17 +91,17 @@ class Joined extends AbstractState {
     }
 
     // TODO should switch_session be an explicit method?
-    public join_session = (service: ServiceProxy, session: Session): void => {
-        if (this.session.id === session.id) return;
+    public join_session = (service: ServiceProxy, baby_station: BabyStation): void => {
+        if (this.baby_station.session.id === baby_station.session.id) return;
         this.rtc_connection.close(InitiatedBy.Client);
         const rtc_connection = new RTCConnection({
             logging_service: service.logging_service,
-            signal_service: service.signal_service,
+            mqtt_service: service.mqtt_service,
             parent_station_media_stream: service.parent_station_media_stream,
-            session,
+            baby_station,
         });
         service.set_state(new Joined({
-            session,
+            baby_station,
             rtc_connection: rtc_connection
         }));
     }
@@ -112,7 +112,7 @@ class Joined extends AbstractState {
     }
 
     public leave_session_if_ended = (service: ServiceProxy, session_exists: SessionExistsFunction): void => {
-        if (session_exists(this.session.id)) return;
+        if (session_exists(this.baby_station.session.id)) return;
         this.leave_session(service);
     }
 
@@ -124,9 +124,8 @@ class Joined extends AbstractState {
     public reconnect_if_needed = (service: ServiceProxy, session_exists: SessionExistsFunction): void => {
         const rtc_connection_state = this.rtc_connection.get_state();
         if (rtc_connection_state.state !== "failed") return;
-        const signal_state = service.signal_service.get_state();
-        if (signal_state.name !== "connected") return;
-        if (!session_exists(this.session.id)) return;
+        if (service.mqtt_service.get_state().name !== "Connected") return;
+        if (!session_exists(this.baby_station.session.id)) return;
         this.rtc_connection.reconnect();
     }
 }
@@ -135,7 +134,7 @@ export type SessionState = NotJoined | Joined;
 
 interface NewSessionServiceInput {
     logging_service: LoggingService;
-    signal_service: WebSocketSignalService;
+    mqtt_service: MQTTService;
     parent_station_media_stream: MediaStream;
 }
 
@@ -150,7 +149,7 @@ class SessionService extends Service<SessionState> {
         });
         this.proxy = {
             logging_service: input.logging_service,
-            signal_service: input.signal_service,
+            mqtt_service: input.mqtt_service,
             parent_station_media_stream: input.parent_station_media_stream,
             set_state: this.set_state,
         };
@@ -172,9 +171,9 @@ class SessionService extends Service<SessionState> {
         return state.get_active_connection();
     }
 
-    public join_session = (session: Session) => {
+    public join_session = (baby_station: BabyStation) => {
         const state = this.get_state();
-        state.join_session(this.proxy, session);
+        state.join_session(this.proxy, baby_station);
     }
 
     public leave_session = () => {

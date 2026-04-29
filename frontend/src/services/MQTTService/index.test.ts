@@ -258,6 +258,39 @@ describe("MQTTService", () => {
         });
     });
 
+    test("subscribe to client status uses account scoped wildcard status topic", () => {
+        const service = new_connected_service();
+
+        service.subscribe_to_client_status(jest.fn());
+
+        expect(mqtt_client.calls[mqtt_client.calls.length - 1]).toEqual({
+            name: "subscribe",
+            topic: `accounts/${default_account.id}/clients/+/status`,
+        });
+    });
+
+    test("subscribe to control inbox uses local client control inbox", () => {
+        const service = new_connected_service();
+
+        service.subscribe_to_control_inbox(jest.fn());
+
+        expect(mqtt_client.calls[mqtt_client.calls.length - 1]).toEqual({
+            name: "subscribe",
+            topic: `accounts/${default_account.id}/clients/${settings.API.clientID}/control_inbox`,
+        });
+    });
+
+    test("subscribe to baby stations uses account baby stations topic", () => {
+        const service = new_connected_service();
+
+        service.subscribe_to_baby_stations(jest.fn());
+
+        expect(mqtt_client.calls[mqtt_client.calls.length - 1]).toEqual({
+            name: "subscribe",
+            topic: `accounts/${default_account.id}/baby_stations`,
+        });
+    });
+
     test("publish WebRTC helpers throw while not connected", () => {
         const authorization_service = new_authorization_service();
         authorization_service.apply_token_output(default_token_output);

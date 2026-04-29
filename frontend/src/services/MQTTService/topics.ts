@@ -21,3 +21,17 @@ export const parentStationsTopic = (accountID: string): string => {
 export const clientControlInboxTopic = (accountID: string, clientID: string): string => {
     return `accounts/${accountID}/clients/${clientID}/control_inbox`;
 };
+
+export interface ClientStatusTopicParts {
+    account_id: string;
+    client_id: string;
+}
+
+export const parse_client_status_topic = (topic: string): Nullable<ClientStatusTopicParts> => {
+    const match = topic.match(/^accounts\/([^/]+)\/clients\/([^/]+)\/status$/);
+    if (match === null) return null;
+    return {
+        account_id: match[1],
+        client_id: match[2],
+    };
+};
