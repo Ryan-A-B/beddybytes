@@ -10,6 +10,7 @@ import {
     ParentStationAnnouncement,
     SessionAnnouncement,
 } from "../../MQTTService/payloads";
+import settings from "../../../settings";
 
 export type SessionState = Ready | SessionStarting | SessionRunning;
 
@@ -73,7 +74,7 @@ class SessionStarting extends AbstractState {
         const connected = event.current_state;
         const startedAtMillis = Date.now();
         const announcement: SessionAnnouncement = {
-            client_id: connected.client_id,
+            client_id: settings.API.clientID,
             connection_id: connected.connection_id,
             session_id: uuid(),
             name: this.stationName,

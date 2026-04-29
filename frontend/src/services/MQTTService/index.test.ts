@@ -238,13 +238,59 @@ describe("MQTTService", () => {
         ]);
     });
 
+    test("stores plain subscription while connecting and subscribes MQTT client on connect", () => {
+        const authorization_service = new_authorization_service();
+        authorization_service.apply_token_output(default_token_output);
+        localStorage.setItem("account", JSON.stringify(default_account));
+        const service = new MQTTService({
+            authorization_service,
+            logging_service: new MockLoggingService(),
+        });
+
+        service.connect();
+        service.subscribe("accounts/test_account_id/clients/+/status");
+        expect(mqtt_client.calls).toEqual([]);
+        mqtt_client.emit("connect");
+
+        expect(mqtt_client.calls).toEqual([
+            expect.objectContaining({ name: "publish" }),
+            {
+                name: "subscribe",
+                topic: "accounts/test_account_id/clients/+/status",
+            },
+        ]);
+    });
+
+    test("stores callback subscription while connecting and subscribes MQTT client on connect", () => {
+        const authorization_service = new_authorization_service();
+        authorization_service.apply_token_output(default_token_output);
+        localStorage.setItem("account", JSON.stringify(default_account));
+        const service = new MQTTService({
+            authorization_service,
+            logging_service: new MockLoggingService(),
+        });
+
+        service.connect();
+        service.subscribe_with_callback("accounts/test_account_id/clients/client-1/webrtc_inbox", jest.fn());
+        expect(mqtt_client.calls).toEqual([]);
+        mqtt_client.emit("connect");
+
+        expect(mqtt_client.calls).toEqual([
+            expect.objectContaining({ name: "publish" }),
+            {
+                name: "subscribe",
+                topic: "accounts/test_account_id/clients/client-1/webrtc_inbox",
+            },
+        ]);
+    });
+
     test("subscribe to WebRTC inbox throws while waiting for access token", () => {
         const service = new MQTTService({
             authorization_service: new_authorization_service(),
             logging_service: new MockLoggingService(),
         });
 
-        expect(() => service.subscribe_to_webrtc_inbox(jest.fn())).toThrow("Cannot subscribe to WebRTC inbox until an access token is available");
+        expect(() => service.subscribe_to_webrtc_inbox(jest.fn())).toThrow("Cannot get MQTT account ID until an access token is available");
     });
 
     test("subscribe to WebRTC inbox uses local client inbox", () => {

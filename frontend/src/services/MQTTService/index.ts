@@ -19,7 +19,6 @@ interface ServiceProxy {
     handle_connect(): void;
     handle_message(topic: string, payload: Buffer): void;
     add_subscription(topic_filter: string, callback: MessageHandler): Subscription;
-    subscribe_with_callback(topic_filter: string, callback: MessageHandler): Subscription;
     list_topic_filters(): string[];
 }
 
@@ -38,40 +37,16 @@ abstract class AbstractState {
         // Default is to ignore publish requests.
     }
 
+    public is_connected(): boolean {
+        return false;
+    }
+
     public subscribe(proxy: ServiceProxy, topic_filter: string): void {
         // Default is to ignore subscribe requests.
     }
 
-    public subscribe_with_callback(proxy: ServiceProxy, topic_filter: string, callback: MessageHandler): Subscription {
-        return new NoopSubscription(topic_filter, callback);
-    }
-
-    public subscribe_to_webrtc_inbox(proxy: ServiceProxy, callback: MessageHandler): Subscription {
-        throw new Error("Cannot subscribe to WebRTC inbox until an access token is available");
-    }
-
-    public subscribe_to_client_status(proxy: ServiceProxy, callback: MessageHandler): Subscription {
-        throw new Error("Cannot subscribe to client status until an access token is available");
-    }
-
-    public subscribe_to_control_inbox(proxy: ServiceProxy, callback: MessageHandler): Subscription {
-        throw new Error("Cannot subscribe to control inbox until an access token is available");
-    }
-
-    public subscribe_to_baby_stations(proxy: ServiceProxy, callback: MessageHandler): Subscription {
-        throw new Error("Cannot subscribe to baby stations until an access token is available");
-    }
-
     public unsubscribe(proxy: ServiceProxy, topic_filter: string): void {
         // Default is to ignore unsubscribe requests.
-    }
-
-    public publish_webrtc_description(proxy: ServiceProxy, peer_client_id: string, description: RTCSessionDescriptionInit): void {
-        throw new Error("Cannot publish WebRTC description unless MQTT is connected");
-    }
-
-    public publish_webrtc_candidate(proxy: ServiceProxy, peer_client_id: string, candidate: RTCIceCandidateInit): void {
-        throw new Error("Cannot publish WebRTC candidate unless MQTT is connected");
     }
 
     public disconnect(proxy: ServiceProxy): void {
@@ -85,6 +60,11 @@ abstract class AbstractState {
     public handle_authorization_service_state_changed(proxy: ServiceProxy, event: ServiceStateChangedEvent<AuthorizationServiceState>): void {
         // Default is to ignore authorization changes.
     }
+
+    public get_account_id(): string {
+        throw new Error("Cannot get MQTT account ID until an access token is available");
+    }
+
 }
 
 class WaitingForAccessTokenToBeAvailable extends AbstractState {
@@ -145,33 +125,20 @@ class Ready extends AbstractState {
         proxy.set_state(new Connecting({
             client,
             accountID: this.account_id,
-            clientID: settings.API.clientID,
             connectionID,
             requestID,
         }));
     }
 
-    public subscribe_to_webrtc_inbox(proxy: ServiceProxy, callback: MessageHandler): Subscription {
-        return proxy.subscribe_with_callback(client_webrtc_inbox_topic(this.account_id, settings.API.clientID), callback);
+    public get_account_id(): string {
+        return this.account_id;
     }
 
-    public subscribe_to_client_status(proxy: ServiceProxy, callback: MessageHandler): Subscription {
-        return proxy.subscribe_with_callback(clientStatusTopicFilter(this.account_id), callback);
-    }
-
-    public subscribe_to_control_inbox(proxy: ServiceProxy, callback: MessageHandler): Subscription {
-        return proxy.subscribe_with_callback(clientControlInboxTopic(this.account_id, settings.API.clientID), callback);
-    }
-
-    public subscribe_to_baby_stations(proxy: ServiceProxy, callback: MessageHandler): Subscription {
-        return proxy.subscribe_with_callback(babyStationsTopic(this.account_id), callback);
-    }
 }
 
 interface NewConnectingInput {
     client: MQTTClient;
     accountID: string;
-    clientID: string;
     connectionID: string;
     requestID: string;
 }
@@ -180,7 +147,6 @@ class Connecting extends AbstractState {
     public readonly name = "Connecting";
     private readonly client: MQTTClient;
     private readonly accountID: string;
-    private readonly clientID: string;
     private readonly connectionID: string;
     private readonly requestID: string;
 
@@ -188,13 +154,12 @@ class Connecting extends AbstractState {
         super();
         this.client = input.client;
         this.accountID = input.accountID;
-        this.clientID = input.clientID;
         this.connectionID = input.connectionID;
         this.requestID = input.requestID;
     }
 
     public handle_connect(proxy: ServiceProxy): void {
-        this.client.publish(clientStatusTopic(this.accountID, this.clientID), JSON.stringify(newConnectedPayload({
+        this.client.publish(clientStatusTopic(this.accountID, settings.API.clientID), JSON.stringify(newConnectedPayload({
             connectionID: this.connectionID,
             requestID: this.requestID,
             atMillis: Date.now(),
@@ -205,33 +170,20 @@ class Connecting extends AbstractState {
         proxy.set_state(new Connected({
             client: this.client,
             accountID: this.accountID,
-            clientID: this.clientID,
             connectionID: this.connectionID,
             requestID: this.requestID,
         }));
     }
 
-    public subscribe_to_webrtc_inbox(proxy: ServiceProxy, callback: MessageHandler): Subscription {
-        return proxy.subscribe_with_callback(client_webrtc_inbox_topic(this.accountID, this.clientID), callback);
+    public get_account_id(): string {
+        return this.accountID;
     }
 
-    public subscribe_to_client_status(proxy: ServiceProxy, callback: MessageHandler): Subscription {
-        return proxy.subscribe_with_callback(clientStatusTopicFilter(this.accountID), callback);
-    }
-
-    public subscribe_to_control_inbox(proxy: ServiceProxy, callback: MessageHandler): Subscription {
-        return proxy.subscribe_with_callback(clientControlInboxTopic(this.accountID, this.clientID), callback);
-    }
-
-    public subscribe_to_baby_stations(proxy: ServiceProxy, callback: MessageHandler): Subscription {
-        return proxy.subscribe_with_callback(babyStationsTopic(this.accountID), callback);
-    }
 }
 
 interface NewConnectedInput {
     client: MQTTClient;
     accountID: string;
-    clientID: string;
     connectionID: string;
     requestID: string;
 }
@@ -240,7 +192,6 @@ class Connected extends AbstractState {
     public readonly name = "Connected";
     private readonly client: MQTTClient;
     public readonly account_id: string;
-    public readonly client_id: string;
     public readonly connection_id: string;
     private readonly requestID: string;
 
@@ -248,7 +199,6 @@ class Connected extends AbstractState {
         super();
         this.client = input.client;
         this.account_id = input.accountID;
-        this.client_id = input.clientID;
         this.connection_id = input.connectionID;
         this.requestID = input.requestID;
     }
@@ -257,29 +207,12 @@ class Connected extends AbstractState {
         this.client.publish(topic, payload);
     }
 
+    public is_connected(): boolean {
+        return true;
+    }
+
     public subscribe(proxy: ServiceProxy, topic_filter: string): void {
         this.client.subscribe(topic_filter);
-    }
-
-    public subscribe_with_callback(proxy: ServiceProxy, topic_filter: string, callback: MessageHandler): Subscription {
-        this.client.subscribe(topic_filter);
-        return proxy.add_subscription(topic_filter, callback);
-    }
-
-    public subscribe_to_webrtc_inbox(proxy: ServiceProxy, callback: MessageHandler): Subscription {
-        return proxy.subscribe_with_callback(client_webrtc_inbox_topic(this.account_id, this.client_id), callback);
-    }
-
-    public subscribe_to_client_status(proxy: ServiceProxy, callback: MessageHandler): Subscription {
-        return proxy.subscribe_with_callback(clientStatusTopicFilter(this.account_id), callback);
-    }
-
-    public subscribe_to_control_inbox(proxy: ServiceProxy, callback: MessageHandler): Subscription {
-        return proxy.subscribe_with_callback(clientControlInboxTopic(this.account_id, this.client_id), callback);
-    }
-
-    public subscribe_to_baby_stations(proxy: ServiceProxy, callback: MessageHandler): Subscription {
-        return proxy.subscribe_with_callback(babyStationsTopic(this.account_id), callback);
     }
 
     public unsubscribe(proxy: ServiceProxy, topic_filter: string): void {
@@ -287,7 +220,7 @@ class Connected extends AbstractState {
     }
 
     public disconnect(proxy: ServiceProxy): void {
-        this.client.publish(clientStatusTopic(this.account_id, this.client_id), JSON.stringify(newDisconnectedPayload({
+        this.client.publish(clientStatusTopic(this.account_id, settings.API.clientID), JSON.stringify(newDisconnectedPayload({
             connectionID: this.connection_id,
             requestID: this.requestID,
             atMillis: Date.now(),
@@ -303,19 +236,10 @@ class Connected extends AbstractState {
         proxy.call_subscriptions(message);
     }
 
-    public publish_webrtc_description(proxy: ServiceProxy, peer_client_id: string, description: RTCSessionDescriptionInit): void {
-        this.client.publish(
-            client_webrtc_inbox_topic(this.account_id, peer_client_id),
-            JSON.stringify(new_webrtc_inbox_payload(this.client_id, { description })),
-        );
+    public get_account_id(): string {
+        return this.account_id;
     }
 
-    public publish_webrtc_candidate(proxy: ServiceProxy, peer_client_id: string, candidate: RTCIceCandidateInit): void {
-        this.client.publish(
-            client_webrtc_inbox_topic(this.account_id, peer_client_id),
-            JSON.stringify(new_webrtc_inbox_payload(this.client_id, { candidate })),
-        );
-    }
 }
 
 interface NewMQTTServiceInput {
@@ -347,7 +271,6 @@ class MQTTService extends Service<MQTTServiceState> {
             handle_connect: this.handle_connect,
             handle_message: this.handle_message,
             add_subscription: this.add_subscription,
-            subscribe_with_callback: this.subscribe_with_callback,
             list_topic_filters: this.list_topic_filters,
         };
         this.authorization_service.addEventListener("state_changed", this.handle_authorization_service_state_changed);
@@ -371,9 +294,8 @@ class MQTTService extends Service<MQTTServiceState> {
     }
 
     public subscribe_with_callback = (topic_filter: string, callback: MessageHandler): Subscription => {
-        const should_subscribe = this.increment_topic_filter_ref_count(topic_filter);
         const subscription = this.add_subscription(topic_filter, callback);
-        if (should_subscribe) this.get_state().subscribe(this.proxy, topic_filter);
+        this.subscribe(topic_filter);
         return subscription;
     }
 
@@ -387,27 +309,27 @@ class MQTTService extends Service<MQTTServiceState> {
     }
 
     public subscribe_to_webrtc_inbox = (callback: MessageHandler): Subscription => {
-        return this.get_state().subscribe_to_webrtc_inbox(this.proxy, callback);
+        return this.subscribe_with_callback(client_webrtc_inbox_topic(this.get_state().get_account_id(), settings.API.clientID), callback);
     }
 
     public subscribe_to_client_status = (callback: MessageHandler): Subscription => {
-        return this.get_state().subscribe_to_client_status(this.proxy, callback);
+        return this.subscribe_with_callback(clientStatusTopicFilter(this.get_state().get_account_id()), callback);
     }
 
     public subscribe_to_control_inbox = (callback: MessageHandler): Subscription => {
-        return this.get_state().subscribe_to_control_inbox(this.proxy, callback);
+        return this.subscribe_with_callback(clientControlInboxTopic(this.get_state().get_account_id(), settings.API.clientID), callback);
     }
 
     public subscribe_to_baby_stations = (callback: MessageHandler): Subscription => {
-        return this.get_state().subscribe_to_baby_stations(this.proxy, callback);
+        return this.subscribe_with_callback(babyStationsTopic(this.get_state().get_account_id()), callback);
     }
 
     public publish_webrtc_description = (peer_client_id: string, description: RTCSessionDescriptionInit): void => {
-        this.get_state().publish_webrtc_description(this.proxy, peer_client_id, description);
+        this.publish_webrtc(peer_client_id, { description }, "Cannot publish WebRTC description unless MQTT is connected");
     }
 
     public publish_webrtc_candidate = (peer_client_id: string, candidate: RTCIceCandidateInit): void => {
-        this.get_state().publish_webrtc_candidate(this.proxy, peer_client_id, candidate);
+        this.publish_webrtc(peer_client_id, { candidate }, "Cannot publish WebRTC candidate unless MQTT is connected");
     }
 
     private handle_authorization_service_state_changed = (event: ServiceStateChangedEvent<AuthorizationServiceState>): void => {
@@ -472,6 +394,17 @@ class MQTTService extends Service<MQTTServiceState> {
     private list_topic_filters = (): string[] => {
         return Array.from(this.topic_filter_ref_counts.keys());
     }
+
+    private publish_webrtc = (peer_client_id: string, data: WebRTCSignalData, error_message: string): void => {
+        const state = this.get_state();
+        if (!state.is_connected()) {
+            throw new Error(error_message);
+        }
+        this.publish(
+            client_webrtc_inbox_topic(state.get_account_id(), peer_client_id),
+            JSON.stringify(new_webrtc_inbox_payload(settings.API.clientID, data)),
+        );
+    }
 }
 
 export default MQTTService;
@@ -489,24 +422,16 @@ export class MessageReceived extends Event {
 
 export type MessageHandler = (message: MessageReceived) => void;
 
+interface WebRTCSignalData {
+    description?: RTCSessionDescriptionInit;
+    candidate?: RTCIceCandidateInit;
+}
+
 export interface Subscription {
     readonly topic_filter: string;
     readonly callback: MessageHandler;
     readonly test: (topic: string) => boolean;
     close: () => void;
-}
-
-class NoopSubscription implements Subscription {
-    public readonly test = (): boolean => false;
-
-    constructor(
-        public readonly topic_filter: string,
-        public readonly callback: MessageHandler,
-    ) { }
-
-    public close = (): void => {
-        // Nothing to close.
-    }
 }
 
 class CallbackSubscription implements Subscription {

@@ -1,5 +1,6 @@
 import SessionService from ".";
 import LoggingService, { LogInput } from "../../LoggingService";
+import settings from "../../../settings";
 
 let date_now_spy: jest.SpyInstance<number, []>;
 
@@ -58,7 +59,7 @@ describe("BabyStation SessionService", () => {
             type: "announcement",
             at_millis: 123,
             announcement: {
-                client_id: "baby-client",
+                client_id: settings.API.clientID,
                 connection_id: "connection-1",
                 session_id: expect.any(String),
                 name: "Nursery",
@@ -100,7 +101,7 @@ describe("BabyStation SessionService", () => {
             type: "baby_station_announcement",
             at_millis: 123,
             baby_station_announcement: {
-                client_id: "baby-client",
+                client_id: settings.API.clientID,
                 connection_id: "connection-1",
                 session_id: expect.any(String),
                 name: "Nursery",
