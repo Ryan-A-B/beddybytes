@@ -48,12 +48,12 @@ describe("BabyStation SessionService", () => {
         mqtt_service.set_connected();
 
         expect(mqtt_service.calls[0]).toEqual({
-            name: "subscribe",
-            topic: "accounts/account-1/parent_stations",
+            name: "subscribe_to_parent_stations",
+            topic: "parent_stations",
         });
         expect(mqtt_service.calls[1]).toEqual(expect.objectContaining({
-            name: "publish",
-            topic: "accounts/account-1/baby_stations",
+            name: "publish_baby_station_announcement",
+            topic: "baby_stations",
         }));
         expect(JSON.parse(mqtt_service.calls[1].payload ?? "")).toEqual({
             type: "announcement",
@@ -75,6 +75,7 @@ describe("BabyStation SessionService", () => {
 
         service.end_session();
 
+        expect(mqtt_service.parent_stations_subscription.close).toHaveBeenCalledTimes(1);
         expect(mqtt_service.disconnect).toHaveBeenCalledTimes(1);
         expect(service.get_state().name).toBe("Ready");
     });
@@ -94,8 +95,8 @@ describe("BabyStation SessionService", () => {
 
         const publishCall = mqtt_service.calls[mqtt_service.calls.length - 1];
         expect(publishCall).toEqual(expect.objectContaining({
-            name: "publish",
-            topic: "accounts/account-1/clients/parent-client/control_inbox",
+            name: "publish_control_inbox",
+            topic: "clients/parent-client/control_inbox",
         }));
         expect(JSON.parse(publishCall.payload ?? "")).toEqual({
             type: "baby_station_announcement",
@@ -140,14 +141,26 @@ class MockLoggingService implements LoggingService {
 class MockMQTTService extends EventTarget {
     private state: any = { name: "Ready" };
     public readonly calls: Array<{ name: string; topic: string; payload?: string }> = [];
+    public parent_stations_callback: ((message: MockMessageReceived) => void) | null = null;
+    public readonly parent_stations_subscription = {
+        topic_filter: "parent_stations",
+        callback: jest.fn(),
+        test: jest.fn(),
+        close: jest.fn(),
+    };
 
     connect = jest.fn();
     disconnect = jest.fn();
-    subscribe = jest.fn((topic: string) => {
-        this.calls.push({ name: "subscribe", topic });
+    subscribe_to_parent_stations = jest.fn((callback: (message: MockMessageReceived) => void) => {
+        this.parent_stations_callback = callback;
+        this.calls.push({ name: "subscribe_to_parent_stations", topic: "parent_stations" });
+        return this.parent_stations_subscription;
     });
-    publish = jest.fn((topic: string, payload: string) => {
-        this.calls.push({ name: "publish", topic, payload });
+    publish_baby_station_announcement = jest.fn((payload: string) => {
+        this.calls.push({ name: "publish_baby_station_announcement", topic: "baby_stations", payload });
+    });
+    publish_control_inbox = jest.fn((client_id: string, payload: string) => {
+        this.calls.push({ name: "publish_control_inbox", topic: `clients/${client_id}/control_inbox`, payload });
     });
 
     get_state = jest.fn(() => this.state);
@@ -164,7 +177,7 @@ class MockMQTTService extends EventTarget {
     }
 
     dispatch_message(topic: string, payload: string): void {
-        this.dispatchEvent(new MockMessageReceived(topic, payload));
+        this.parent_stations_callback?.(new MockMessageReceived(topic, payload));
     }
 }
 

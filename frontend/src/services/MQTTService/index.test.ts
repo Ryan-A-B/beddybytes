@@ -46,13 +46,23 @@ describe("MQTTService", () => {
         date_now_spy.mockRestore();
     });
 
-    test("starts waiting for an access token when one is not available", () => {
+    test("starts awaiting login when login is required", () => {
         const service = new MQTTService({
             authorization_service: new_authorization_service(),
             logging_service: new MockLoggingService(),
         });
 
-        expect(service.get_state().name).toBe("WaitingForAccessTokenToBeAvailable");
+        expect(service.get_state().name).toBe("AwaitingLogin");
+    });
+
+    test("starts waiting for an access token when login is not required", () => {
+        localStorage.setItem("account", JSON.stringify(default_account));
+        const service = new MQTTService({
+            authorization_service: new_authorization_service(),
+            logging_service: new MockLoggingService(),
+        });
+
+        expect(service.get_state().name).toBe("WaitingForAccessTokenToBeReady");
     });
 
     test("starts ready when an access token is available", () => {
@@ -100,7 +110,7 @@ describe("MQTTService", () => {
         }));
     });
 
-    test("logs warning and stays waiting when connecting without an access token", () => {
+    test("logs warning and stays awaiting login when connecting before login", () => {
         const logging_service = new MockLoggingService();
         const service = new MQTTService({
             authorization_service: new_authorization_service(),
@@ -109,12 +119,25 @@ describe("MQTTService", () => {
 
         service.connect();
 
-        expect(service.get_state().name).toBe("WaitingForAccessTokenToBeAvailable");
+        expect(service.get_state().name).toBe("AwaitingLogin");
         expect(logging_service.logs).toEqual([
             expect.objectContaining({
-                message: "Cannot connect MQTT service until an access token is available",
+                message: "Cannot connect MQTT service until login is complete",
             }),
         ]);
+    });
+
+    test("connect while waiting for access token transitions to waiting to connect", () => {
+        localStorage.setItem("account", JSON.stringify(default_account));
+        const service = new MQTTService({
+            authorization_service: new_authorization_service(),
+            logging_service: new MockLoggingService(),
+        });
+
+        service.connect();
+
+        expect(service.get_state().name).toBe("WaitingForAccessTokenToConnect");
+        expect(mocked_mqtt.connect).not.toHaveBeenCalled();
     });
 
     test("connects MQTT client and transitions to connecting when ready", () => {
@@ -179,22 +202,22 @@ describe("MQTTService", () => {
         expect(service.get_state().name).toBe("Connected");
     });
 
-    test("publishes message while connected", () => {
+    test("publishes baby station announcement while connected", () => {
         const service = new_connected_service();
 
-        service.publish("accounts/test_account_id/example", "test payload");
+        service.publish_baby_station_announcement("test payload");
 
         expect(mqtt_client.calls[mqtt_client.calls.length - 1]).toEqual({
             name: "publish",
-            topic: "accounts/test_account_id/example",
+            topic: "accounts/test_account_id/baby_stations",
             payload: "test payload",
         });
     });
 
-    test("subscribes while connected", () => {
+    test("subscribes to client status while connected", () => {
         const service = new_connected_service();
 
-        service.subscribe("accounts/test_account_id/clients/+/status");
+        service.subscribe_to_client_status(jest.fn());
 
         expect(mqtt_client.calls[mqtt_client.calls.length - 1]).toEqual({
             name: "subscribe",
@@ -205,8 +228,8 @@ describe("MQTTService", () => {
     test("does not subscribe MQTT client twice for duplicate topic filter", () => {
         const service = new_connected_service();
 
-        service.subscribe("accounts/test_account_id/clients/+/status");
-        service.subscribe("accounts/test_account_id/clients/+/status");
+        service.subscribe_to_client_status(jest.fn());
+        service.subscribe_to_client_status(jest.fn());
 
         expect(mqtt_client.calls.filter((call) => call.name === "subscribe")).toEqual([
             {
@@ -216,7 +239,7 @@ describe("MQTTService", () => {
         ]);
     });
 
-    test("stores callback subscription before connected and subscribes MQTT client on connect", () => {
+    test("rejects callback subscription before connect while ready", () => {
         const authorization_service = new_authorization_service();
         authorization_service.apply_token_output(default_token_output);
         localStorage.setItem("account", JSON.stringify(default_account));
@@ -225,17 +248,7 @@ describe("MQTTService", () => {
             logging_service: new MockLoggingService(),
         });
 
-        service.subscribe_with_callback("accounts/test_account_id/clients/client-1/webrtc_inbox", jest.fn());
-        service.connect();
-        mqtt_client.emit("connect");
-
-        expect(mqtt_client.calls).toEqual([
-            expect.objectContaining({ name: "publish" }),
-            {
-                name: "subscribe",
-                topic: "accounts/test_account_id/clients/client-1/webrtc_inbox",
-            },
-        ]);
+        expect(() => service.subscribe_to_webrtc_inbox(jest.fn())).toThrow("Cannot subscribe to MQTT topic unless MQTT is connecting or connected");
     });
 
     test("stores plain subscription while connecting and subscribes MQTT client on connect", () => {
@@ -248,7 +261,7 @@ describe("MQTTService", () => {
         });
 
         service.connect();
-        service.subscribe("accounts/test_account_id/clients/+/status");
+        service.subscribe_to_client_status(jest.fn());
         expect(mqtt_client.calls).toEqual([]);
         mqtt_client.emit("connect");
 
@@ -271,7 +284,7 @@ describe("MQTTService", () => {
         });
 
         service.connect();
-        service.subscribe_with_callback("accounts/test_account_id/clients/client-1/webrtc_inbox", jest.fn());
+        service.subscribe_to_webrtc_inbox(jest.fn());
         expect(mqtt_client.calls).toEqual([]);
         mqtt_client.emit("connect");
 
@@ -279,18 +292,121 @@ describe("MQTTService", () => {
             expect.objectContaining({ name: "publish" }),
             {
                 name: "subscribe",
-                topic: "accounts/test_account_id/clients/client-1/webrtc_inbox",
+                topic: `accounts/test_account_id/clients/${settings.API.clientID}/webrtc_inbox`,
             },
         ]);
     });
 
-    test("subscribe to WebRTC inbox throws while waiting for access token", () => {
+    test("queues duplicate subscription once while connecting", () => {
+        const authorization_service = new_authorization_service();
+        authorization_service.apply_token_output(default_token_output);
+        localStorage.setItem("account", JSON.stringify(default_account));
         const service = new MQTTService({
-            authorization_service: new_authorization_service(),
+            authorization_service,
             logging_service: new MockLoggingService(),
         });
 
-        expect(() => service.subscribe_to_webrtc_inbox(jest.fn())).toThrow("Cannot get MQTT account ID until an access token is available");
+        service.connect();
+        service.subscribe_to_client_status(jest.fn());
+        service.subscribe_to_client_status(jest.fn());
+        mqtt_client.emit("connect");
+
+        expect(mqtt_client.calls.filter((call) => call.name === "subscribe")).toEqual([
+            {
+                name: "subscribe",
+                topic: "accounts/test_account_id/clients/+/status",
+            },
+        ]);
+    });
+
+    test("queues subscribe while waiting for access token to connect and subscribes when token and MQTT connect", async () => {
+        localStorage.setItem("account", JSON.stringify(default_account));
+        const authorization_service = new_authorization_service();
+        const service = new MQTTService({
+            authorization_service,
+            logging_service: new MockLoggingService(),
+        });
+
+        service.connect();
+        service.subscribe_to_client_status(jest.fn());
+        expect(mocked_mqtt.connect).not.toHaveBeenCalled();
+        await flush_promises();
+        mqtt_client.emit("connect");
+
+        expect(mqtt_client.calls).toEqual([
+            expect.objectContaining({ name: "publish" }),
+            {
+                name: "subscribe",
+                topic: "accounts/test_account_id/clients/+/status",
+            },
+        ]);
+    });
+
+    test("queues publish while waiting for access token to connect and publishes when token and MQTT connect", async () => {
+        localStorage.setItem("account", JSON.stringify(default_account));
+        const authorization_service = new_authorization_service();
+        const service = new MQTTService({
+            authorization_service,
+            logging_service: new MockLoggingService(),
+        });
+
+        service.connect();
+        service.publish_baby_station_announcement("test payload");
+        expect(mocked_mqtt.connect).not.toHaveBeenCalled();
+        await flush_promises();
+        mqtt_client.emit("connect");
+
+        expect(mqtt_client.calls).toEqual([
+            expect.objectContaining({ name: "publish" }),
+            {
+                name: "publish",
+                topic: "accounts/test_account_id/baby_stations",
+                payload: "test payload",
+            },
+        ]);
+    });
+
+    test("queues publish while connecting and publishes when MQTT connects", () => {
+        const authorization_service = new_authorization_service();
+        authorization_service.apply_token_output(default_token_output);
+        localStorage.setItem("account", JSON.stringify(default_account));
+        const service = new MQTTService({
+            authorization_service,
+            logging_service: new MockLoggingService(),
+        });
+
+        service.connect();
+        service.publish_baby_station_announcement("test payload");
+        expect(mqtt_client.calls).toEqual([]);
+        mqtt_client.emit("connect");
+
+        expect(mqtt_client.calls).toEqual([
+            expect.objectContaining({ name: "publish" }),
+            {
+                name: "publish",
+                topic: "accounts/test_account_id/baby_stations",
+                payload: "test payload",
+            },
+        ]);
+    });
+
+    test("does not subscribe queued topic after subscription closes before connect", () => {
+        const authorization_service = new_authorization_service();
+        authorization_service.apply_token_output(default_token_output);
+        localStorage.setItem("account", JSON.stringify(default_account));
+        const service = new MQTTService({
+            authorization_service,
+            logging_service: new MockLoggingService(),
+        });
+
+        service.connect();
+        const subscription = service.subscribe_to_client_status(jest.fn());
+        subscription.close();
+        mqtt_client.emit("connect");
+
+        expect(mqtt_client.calls).toEqual([
+            expect.objectContaining({ name: "publish" }),
+        ]);
     });
 
     test("subscribe to WebRTC inbox uses local client inbox", () => {
@@ -346,8 +462,8 @@ describe("MQTTService", () => {
             logging_service: new MockLoggingService(),
         });
 
-        expect(() => service.publish_webrtc_description("client-2", { type: "answer" })).toThrow("Cannot publish WebRTC description unless MQTT is connected");
-        expect(() => service.publish_webrtc_candidate("client-2", { candidate: "candidate:1" })).toThrow("Cannot publish WebRTC candidate unless MQTT is connected");
+        expect(() => service.publish_webrtc_description("client-2", { type: "answer" })).toThrow("Cannot publish WebRTC description unless MQTT is connecting or connected");
+        expect(() => service.publish_webrtc_candidate("client-2", { candidate: "candidate:1" })).toThrow("Cannot publish WebRTC candidate unless MQTT is connecting or connected");
     });
 
     test("publishes WebRTC description with local client id", () => {
@@ -388,12 +504,12 @@ describe("MQTTService", () => {
         const service = new_connected_service();
         const callback = jest.fn();
 
-        service.subscribe_with_callback("accounts/test_account_id/clients/client-1/webrtc_inbox", callback);
-        mqtt_client.emit("message", "accounts/test_account_id/clients/client-1/webrtc_inbox", Buffer.from("test payload"));
+        service.subscribe_to_webrtc_inbox(callback);
+        mqtt_client.emit("message", `accounts/test_account_id/clients/${settings.API.clientID}/webrtc_inbox`, Buffer.from("test payload"));
 
         expect(callback).toHaveBeenCalledTimes(1);
         expect(callback).toHaveBeenCalledWith(expect.objectContaining({
-            topic: "accounts/test_account_id/clients/client-1/webrtc_inbox",
+            topic: `accounts/test_account_id/clients/${settings.API.clientID}/webrtc_inbox`,
             payload: "test payload",
         }));
     });
@@ -402,7 +518,7 @@ describe("MQTTService", () => {
         const service = new_connected_service();
         const callback = jest.fn();
 
-        service.subscribe_with_callback("accounts/test_account_id/clients/client-1/webrtc_inbox", callback);
+        service.subscribe_to_webrtc_inbox(callback);
         mqtt_client.emit("message", "accounts/test_account_id/clients/client-2/webrtc_inbox", Buffer.from("test payload"));
 
         expect(callback).not.toHaveBeenCalled();
@@ -412,9 +528,9 @@ describe("MQTTService", () => {
         const service = new_connected_service();
         const callback = jest.fn();
 
-        const subscription = service.subscribe_with_callback("accounts/test_account_id/clients/client-1/webrtc_inbox", callback);
+        const subscription = service.subscribe_to_webrtc_inbox(callback);
         subscription.close();
-        mqtt_client.emit("message", "accounts/test_account_id/clients/client-1/webrtc_inbox", Buffer.from("test payload"));
+        mqtt_client.emit("message", `accounts/test_account_id/clients/${settings.API.clientID}/webrtc_inbox`, Buffer.from("test payload"));
 
         expect(callback).not.toHaveBeenCalled();
     });
@@ -422,35 +538,35 @@ describe("MQTTService", () => {
     test("unsubscribes when callback subscription ref count reaches zero", () => {
         const service = new_connected_service();
 
-        const subscription = service.subscribe_with_callback("accounts/test_account_id/clients/client-1/webrtc_inbox", jest.fn());
+        const subscription = service.subscribe_to_webrtc_inbox(jest.fn());
         subscription.close();
 
         expect(mqtt_client.calls[mqtt_client.calls.length - 1]).toEqual({
             name: "unsubscribe",
-            topic: "accounts/test_account_id/clients/client-1/webrtc_inbox",
+            topic: `accounts/test_account_id/clients/${settings.API.clientID}/webrtc_inbox`,
         });
     });
 
     test("unsubscribes only when the last ref for a topic filter closes", () => {
         const service = new_connected_service();
 
-        const subscription_1 = service.subscribe_with_callback("accounts/test_account_id/clients/client-1/webrtc_inbox", jest.fn());
-        const subscription_2 = service.subscribe_with_callback("accounts/test_account_id/clients/client-1/webrtc_inbox", jest.fn());
+        const subscription_1 = service.subscribe_to_webrtc_inbox(jest.fn());
+        const subscription_2 = service.subscribe_to_webrtc_inbox(jest.fn());
         subscription_1.close();
         expect(mqtt_client.calls.some((call) => call.name === "unsubscribe")).toBe(false);
         subscription_2.close();
 
         expect(mqtt_client.calls[mqtt_client.calls.length - 1]).toEqual({
             name: "unsubscribe",
-            topic: "accounts/test_account_id/clients/client-1/webrtc_inbox",
+            topic: `accounts/test_account_id/clients/${settings.API.clientID}/webrtc_inbox`,
         });
     });
 
-    test("unsubscribes when manual subscription ref count reaches zero", () => {
+    test("unsubscribes client status when subscription ref count reaches zero", () => {
         const service = new_connected_service();
 
-        service.subscribe("accounts/test_account_id/clients/+/status");
-        service.unsubscribe("accounts/test_account_id/clients/+/status");
+        const subscription = service.subscribe_to_client_status(jest.fn());
+        subscription.close();
 
         expect(mqtt_client.calls[mqtt_client.calls.length - 1]).toEqual({
             name: "unsubscribe",
@@ -561,6 +677,10 @@ const make_authorization_client = (): AuthorizationClient => ({
     request_password_reset: jest.fn(),
     reset_password: jest.fn(),
 });
+
+const flush_promises = async (): Promise<void> => {
+    await Promise.resolve();
+};
 
 const new_connected_service = (): MQTTService => {
     const authorization_service = new_authorization_service();

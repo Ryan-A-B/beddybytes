@@ -173,9 +173,9 @@ class MockMQTTService {
     public readonly baby_stations_subscription = new MockSubscription("baby_stations");
     public readonly control_inbox_subscription = new MockSubscription("control_inbox");
     public readonly client_status_subscription = new MockSubscription("client_status");
-    private baby_stations_handler: Nullable<MessageHandler> = null;
-    private control_inbox_handler: Nullable<MessageHandler> = null;
-    private client_status_handler: Nullable<MessageHandler> = null;
+    private baby_stations_handler: Optional<MessageHandler> = null;
+    private control_inbox_handler: Optional<MessageHandler> = null;
+    private client_status_handler: Optional<MessageHandler> = null;
 
     public subscribe_to_baby_stations = jest.fn((handler: MessageHandler): Subscription => {
         this.baby_stations_handler = handler;

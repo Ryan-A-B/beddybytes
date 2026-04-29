@@ -10,7 +10,7 @@ export type Services = {
     mqtt_service: MQTTService,
 }
 
-export const context = React.createContext<Nullable<Services>>(null);
+export const context = React.createContext<Optional<Services>>(null);
 
 type UseService<K extends keyof Services> = () => Services[K];
 

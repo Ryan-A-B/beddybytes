@@ -2,8 +2,7 @@ import { v4 as uuid } from "uuid";
 import Service from "../../Service";
 import { ServiceStateChangedEvent } from "../../Service";
 import LoggingService from "../../LoggingService";
-import { MessageReceived, MQTTServiceState } from "../../MQTTService";
-import { babyStationsTopic, clientControlInboxTopic, parentStationsTopic } from "../../MQTTService/topics";
+import { MessageReceived, MQTTServiceState, Subscription } from "../../MQTTService";
 import {
     newBabyStationAnnouncementPayload,
     newBabyStationControlAnnouncementPayload,
@@ -17,13 +16,15 @@ export type SessionState = Ready | SessionStarting | SessionRunning;
 interface ServiceProxy {
     mqtt_service: MQTTService;
     set_state(state: SessionState): void;
+    handle_message(message: MessageReceived): void;
 }
 
 interface MQTTService extends EventTarget {
     connect(): void;
     disconnect(): void;
-    subscribe(topicFilter: string): void;
-    publish(topic: string, payload: string): void;
+    subscribe_to_parent_stations(callback: (message: MessageReceived) => void): Subscription;
+    publish_baby_station_announcement(payload: string): void;
+    publish_control_inbox(client_id: string, payload: string): void;
     addEventListener(type: string, listener: EventListenerOrEventListenerObject, options?: boolean | AddEventListenerOptions): void;
 }
 
@@ -80,31 +81,32 @@ class SessionStarting extends AbstractState {
             name: this.stationName,
             started_at_millis: startedAtMillis,
         };
-        proxy.mqtt_service.subscribe(parentStationsTopic(connected.account_id));
-        proxy.mqtt_service.publish(babyStationsTopic(connected.account_id), JSON.stringify(newBabyStationAnnouncementPayload(announcement)));
-        proxy.set_state(new SessionRunning(connected.account_id, announcement));
+        const parent_stations_subscription = proxy.mqtt_service.subscribe_to_parent_stations(proxy.handle_message);
+        proxy.mqtt_service.publish_baby_station_announcement(JSON.stringify(newBabyStationAnnouncementPayload(announcement)));
+        proxy.set_state(new SessionRunning(announcement, parent_stations_subscription));
     }
 }
 
 class SessionRunning extends AbstractState {
     public readonly name = "SessionRunning";
     public readonly announcement: SessionAnnouncement;
-    private readonly accountID: string;
+    private readonly parent_stations_subscription: Subscription;
 
-    constructor(accountID: string, announcement: SessionAnnouncement) {
+    constructor(announcement: SessionAnnouncement, parent_stations_subscription: Subscription) {
         super();
-        this.accountID = accountID;
         this.announcement = announcement;
+        this.parent_stations_subscription = parent_stations_subscription;
     }
 
     public end_session(proxy: ServiceProxy): void {
+        this.parent_stations_subscription.close();
         proxy.mqtt_service.disconnect();
         proxy.set_state(new Ready());
     }
 
     public handle_parent_station_announcement(proxy: ServiceProxy, announcement: ParentStationAnnouncement): void {
-        proxy.mqtt_service.publish(
-            clientControlInboxTopic(this.accountID, announcement.client_id),
+        proxy.mqtt_service.publish_control_inbox(
+            announcement.client_id,
             JSON.stringify(newBabyStationControlAnnouncementPayload(this.announcement, Date.now())),
         );
     }
@@ -127,9 +129,9 @@ class SessionService extends Service<SessionState> {
         this.proxy = {
             mqtt_service: input.mqtt_service,
             set_state: this.set_state,
+            handle_message: this.handle_message,
         };
         input.mqtt_service.addEventListener("state_changed", this.handle_mqtt_service_state_changed as EventListener);
-        input.mqtt_service.addEventListener("message_received", this.handle_message as EventListener);
     }
 
     protected to_string = (state: SessionState): string => {

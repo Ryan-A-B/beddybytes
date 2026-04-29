@@ -146,7 +146,7 @@ class MockMQTTService {
         test: jest.fn(),
         close: jest.fn(),
     } satisfies Subscription;
-    private message_handler: Nullable<MessageHandler> = null;
+    private message_handler: Optional<MessageHandler> = null;
 
     subscribe_to_webrtc_inbox = jest.fn((message_handler: MessageHandler): Subscription => {
         this.message_handler = message_handler;

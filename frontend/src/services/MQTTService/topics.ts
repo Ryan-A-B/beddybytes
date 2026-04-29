@@ -27,7 +27,7 @@ export interface ClientStatusTopicParts {
     client_id: string;
 }
 
-export const parse_client_status_topic = (topic: string): Nullable<ClientStatusTopicParts> => {
+export const parse_client_status_topic = (topic: string): Optional<ClientStatusTopicParts> => {
     const match = topic.match(/^accounts\/([^/]+)\/clients\/([^/]+)\/status$/);
     if (match === null) return null;
     return {
