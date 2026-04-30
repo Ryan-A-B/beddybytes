@@ -55,6 +55,14 @@ export interface ParentStationAnnouncement {
     connection_id: string;
 }
 
+export const newParentStationAnnouncementPayload = (announcement: ParentStationAnnouncement, atMillis: number): unknown => {
+    return {
+        type: "announcement",
+        at_millis: atMillis,
+        announcement,
+    };
+};
+
 export const newBabyStationControlAnnouncementPayload = (announcement: SessionAnnouncement, atMillis: number): unknown => {
     return {
         type: "baby_station_announcement",

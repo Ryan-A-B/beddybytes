@@ -7,7 +7,7 @@ import AuthorizationService, { AuthorizationServiceState } from "../Authorizatio
 import { load_account_from_local_storage } from "../AuthorizationService/AuthorizationClient";
 import settings from "../../settings";
 import { clientStatusTopic } from "./topics";
-import { new_webrtc_inbox_payload, newConnectedPayload, newDisconnectedPayload } from "./payloads";
+import { new_webrtc_inbox_payload, newConnectedPayload, newDisconnectedPayload, newParentStationAnnouncementPayload } from "./payloads";
 
 export type MQTTServiceState = AwaitingLogin | WaitingForAccessTokenToBeReady | WaitingForAccessTokenToConnect | Ready | Connecting | Connected;
 
@@ -26,7 +26,11 @@ interface PublishCommand {
     };
 }
 
-type Command = SubscribeCommand | PublishCommand;
+interface PublishParentStationAnnouncementCommand {
+    action: "publish_parent_station_announcement";
+}
+
+type Command = SubscribeCommand | PublishCommand | PublishParentStationAnnouncementCommand;
 
 interface ServiceProxy {
     authorization_service: AuthorizationService;
@@ -52,6 +56,10 @@ abstract class AbstractState {
 
     public publish(proxy: ServiceProxy, topic: string, payload: string): void {
         throw new Error("Cannot publish MQTT message unless MQTT is connected or connecting");
+    }
+
+    public publish_parent_station_announcement(proxy: ServiceProxy): void {
+        throw new Error("Cannot publish parent station announcement unless MQTT is connecting or connected");
     }
 
     public is_connected(): boolean {
@@ -136,6 +144,12 @@ class WaitingForAccessTokenToConnect extends AbstractState {
         proxy.set_state(new WaitingForAccessTokenToConnect(this.commands.push({
             action: "publish",
             publish: { topic, payload },
+        })));
+    }
+
+    public publish_parent_station_announcement = (proxy: ServiceProxy): void => {
+        proxy.set_state(new WaitingForAccessTokenToConnect(this.commands.push({
+            action: "publish_parent_station_announcement",
         })));
     }
 
@@ -247,6 +261,10 @@ class Connecting extends AbstractState {
                 connected.subscribe(proxy, topic_filter);
                 return;
             }
+            if (command.action === "publish_parent_station_announcement") {
+                connected.publish_parent_station_announcement(proxy);
+                return;
+            }
             connected.publish(proxy, command.publish.topic, command.publish.payload);
         });
         proxy.set_state(connected);
@@ -274,6 +292,18 @@ class Connecting extends AbstractState {
             commands: this.commands.push({
                 action: "publish",
                 publish: { topic, payload },
+            }),
+        }));
+    }
+
+    public publish_parent_station_announcement = (proxy: ServiceProxy): void => {
+        proxy.set_state(new Connecting({
+            client: this.client,
+            accountID: this.accountID,
+            connectionID: this.connectionID,
+            requestID: this.requestID,
+            commands: this.commands.push({
+                action: "publish_parent_station_announcement",
             }),
         }));
     }
@@ -306,6 +336,13 @@ class Connected extends AbstractState {
 
     public publish = (proxy: ServiceProxy, topic: string, payload: string): void => {
         this.client.publish(this.account_scope + topic, payload);
+    }
+
+    public publish_parent_station_announcement = (proxy: ServiceProxy): void => {
+        this.publish(proxy, "parent_stations", JSON.stringify(newParentStationAnnouncementPayload({
+            client_id: settings.API.clientID,
+            connection_id: this.connection_id,
+        }, Date.now())));
     }
 
     public is_connected = (): boolean => {
@@ -438,6 +475,10 @@ class MQTTService extends Service<MQTTServiceState> {
 
     public publish_control_inbox = (client_id: string, payload: string): void => {
         this.publish(`clients/${client_id}/control_inbox`, payload);
+    }
+
+    public publish_parent_station_announcement = (): void => {
+        this.get_state().publish_parent_station_announcement(this.proxy);
     }
 
     public publish_webrtc_description = (peer_client_id: string, description: RTCSessionDescriptionInit): void => {

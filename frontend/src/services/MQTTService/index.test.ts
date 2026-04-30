@@ -390,6 +390,35 @@ describe("MQTTService", () => {
         ]);
     });
 
+    test("queues parent station announcement while connecting and publishes when MQTT connects", () => {
+        const authorization_service = new_authorization_service();
+        authorization_service.apply_token_output(default_token_output);
+        localStorage.setItem("account", JSON.stringify(default_account));
+        const service = new MQTTService({
+            authorization_service,
+            logging_service: new MockLoggingService(),
+        });
+
+        service.connect();
+        service.publish_parent_station_announcement();
+        expect(mqtt_client.calls).toEqual([]);
+        mqtt_client.emit("connect");
+
+        expect(mqtt_client.calls[1]).toEqual({
+            name: "publish",
+            topic: "accounts/test_account_id/parent_stations",
+            payload: expect.any(String),
+        });
+        expect(JSON.parse(mqtt_client.calls[1].payload ?? "")).toEqual({
+            type: "announcement",
+            at_millis: 123,
+            announcement: {
+                client_id: settings.API.clientID,
+                connection_id: expect.any(String),
+            },
+        });
+    });
+
     test("does not subscribe queued topic after subscription closes before connect", () => {
         const authorization_service = new_authorization_service();
         authorization_service.apply_token_output(default_token_output);
@@ -464,6 +493,26 @@ describe("MQTTService", () => {
 
         expect(() => service.publish_webrtc_description("client-2", { type: "answer" })).toThrow("Cannot publish WebRTC description unless MQTT is connecting or connected");
         expect(() => service.publish_webrtc_candidate("client-2", { candidate: "candidate:1" })).toThrow("Cannot publish WebRTC candidate unless MQTT is connecting or connected");
+    });
+
+    test("publishes parent station announcement with local client and connection id", () => {
+        const service = new_connected_service();
+
+        service.publish_parent_station_announcement();
+
+        expect(mqtt_client.calls[mqtt_client.calls.length - 1]).toEqual({
+            name: "publish",
+            topic: `accounts/${default_account.id}/parent_stations`,
+            payload: expect.any(String),
+        });
+        expect(JSON.parse(mqtt_client.calls[mqtt_client.calls.length - 1].payload ?? "")).toEqual({
+            type: "announcement",
+            at_millis: 123,
+            announcement: {
+                client_id: settings.API.clientID,
+                connection_id: expect.any(String),
+            },
+        });
     });
 
     test("publishes WebRTC description with local client id", () => {

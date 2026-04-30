@@ -67,6 +67,7 @@ class ParentStation {
     public start = () => {
         this.mqtt_service.connect();
         this.baby_station_list_service.start();
+        this.mqtt_service.publish_parent_station_announcement();
         this.wake_lock_service.lock();
     }
 
