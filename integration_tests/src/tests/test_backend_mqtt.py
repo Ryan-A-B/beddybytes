@@ -358,6 +358,7 @@ class TestBackendMQTT(unittest.TestCase):
         self.assertEqual(len(messages), 1)
         payload = messages[0]["payload"]
         self.assertEqual(payload["from_client_id"], sender_client_id)
+        self.assertEqual(payload["type"], "description")
         self.assertEqual(payload["description"], signal_data)
 
     def test_mqtt_webrtc_inbox_message_is_delivered_over_websocket(self):
@@ -412,6 +413,7 @@ class TestBackendMQTT(unittest.TestCase):
                 with MQTTPublisher() as publisher:
                     publisher.publish_json(target_webrtc_inbox_topic, {
                         "from_client_id": sender_client_id,
+                        "type": "description",
                         "description": signal_data,
                     })
 

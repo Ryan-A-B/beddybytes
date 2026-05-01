@@ -12,6 +12,8 @@ const (
 	ClientStatusTypeConnected    = "connected"
 	ClientStatusTypeDisconnected = "disconnected"
 	AnnouncementType             = "announcement"
+	WebRTCInboxTypeDescription   = "description"
+	WebRTCInboxTypeCandidate     = "candidate"
 )
 
 type DisconnectReason string
@@ -22,11 +24,11 @@ const (
 )
 
 type ClientStatusPayload struct {
-	Type         string                     `json:"type"`
-	ConnectionID string                     `json:"connection_id"`
-	RequestID    string                     `json:"request_id"`
-	AtMillis     int64                      `json:"at_millis"`
-	Disconnected *ClientStatusDisconnected  `json:"disconnected,omitempty"`
+	Type         string                    `json:"type"`
+	ConnectionID string                    `json:"connection_id"`
+	RequestID    string                    `json:"request_id"`
+	AtMillis     int64                     `json:"at_millis"`
+	Disconnected *ClientStatusDisconnected `json:"disconnected,omitempty"`
 }
 
 type ClientStatusDisconnected struct {
@@ -35,6 +37,7 @@ type ClientStatusDisconnected struct {
 
 type WebRTCInboxPayload struct {
 	FromClientID string          `json:"from_client_id"`
+	Type         string          `json:"type"`
 	Description  json.RawMessage `json:"description,omitempty"`
 	Candidate    json.RawMessage `json:"candidate,omitempty"`
 }
@@ -50,19 +53,28 @@ func NewWebRTCInboxPayload(fromClientID string, signalData json.RawMessage) WebR
 	if err := json.Unmarshal(signalData, &probe); err == nil {
 		switch probe.Type {
 		case "offer", "answer":
+			payload.Type = WebRTCInboxTypeDescription
 			payload.Description = signalData
 			return payload
 		}
 		if probe.Candidate != nil {
+			payload.Type = WebRTCInboxTypeCandidate
 			payload.Candidate = signalData
 			return payload
 		}
 	}
+	payload.Type = WebRTCInboxTypeCandidate
 	payload.Candidate = signalData
 	return payload
 }
 
 func (payload WebRTCInboxPayload) SignalData() json.RawMessage {
+	if payload.Type == WebRTCInboxTypeDescription && payload.Description != nil {
+		return payload.Description
+	}
+	if payload.Type == WebRTCInboxTypeCandidate && payload.Candidate != nil {
+		return payload.Candidate
+	}
 	if payload.Description != nil {
 		return payload.Description
 	}
