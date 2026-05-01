@@ -92,7 +92,7 @@ describe("ParentStation SessionService", () => {
         expect(mock_rtc_connections[0].close).not.toHaveBeenCalled();
     });
 
-    test("failed RTC connection leaves when active session no longer exists", () => {
+    test("failed RTC connection does not leave when active session no longer exists", () => {
         const mqtt_service = new MockMQTTService();
         const service = new_service(mqtt_service);
         service.join_session(baby_station("baby-client", "session-1"));
@@ -100,13 +100,13 @@ describe("ParentStation SessionService", () => {
 
         service.reconnect_if_needed(() => false);
 
-        expect(service.get_state().name).toBe("not_joined");
+        expect(service.get_state().name).toBe("joined");
         expect(mock_rtc_connections[0].reconnect).not.toHaveBeenCalled();
-        expect(mock_rtc_connections[0].close).toHaveBeenCalledTimes(1);
-        expect(mqtt_service.client_status_subscription.close).toHaveBeenCalledTimes(1);
+        expect(mock_rtc_connections[0].close).not.toHaveBeenCalled();
+        expect(mqtt_service.client_status_subscription.close).not.toHaveBeenCalled();
     });
 
-    test("disconnected RTC connection leaves when active session no longer exists", () => {
+    test("disconnected RTC connection does not leave when active session no longer exists", () => {
         const mqtt_service = new MockMQTTService();
         const service = new_service(mqtt_service);
         service.join_session(baby_station("baby-client", "session-1"));
@@ -114,10 +114,10 @@ describe("ParentStation SessionService", () => {
 
         service.reconnect_if_needed(() => false);
 
-        expect(service.get_state().name).toBe("not_joined");
+        expect(service.get_state().name).toBe("joined");
         expect(mock_rtc_connections[0].reconnect).not.toHaveBeenCalled();
-        expect(mock_rtc_connections[0].close).toHaveBeenCalledTimes(1);
-        expect(mqtt_service.client_status_subscription.close).toHaveBeenCalledTimes(1);
+        expect(mock_rtc_connections[0].close).not.toHaveBeenCalled();
+        expect(mqtt_service.client_status_subscription.close).not.toHaveBeenCalled();
     });
 
     test("disconnected RTC connection does nothing when active session still exists", () => {

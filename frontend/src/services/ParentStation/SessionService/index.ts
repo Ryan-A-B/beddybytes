@@ -139,14 +139,9 @@ class Joined extends AbstractState {
     // TODO move state checking into respective classes
     public reconnect_if_needed = (service: ServiceProxy, session_exists: SessionExistsFunction): void => {
         const rtc_connection_state = this.rtc_connection.get_state();
-        const connection_is_broken = rtc_connection_state.state === "failed" || rtc_connection_state.state === "disconnected";
-        if (!connection_is_broken) return;
-        if (!session_exists(this.baby_station.session.id)) {
-            this.leave_session(service);
-            return;
-        }
         if (rtc_connection_state.state !== "failed") return;
         if (service.mqtt_service.get_state().name !== "Connected") return;
+        if (!session_exists(this.baby_station.session.id)) return;
         this.rtc_connection.reconnect();
     }
 
