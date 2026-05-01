@@ -19,7 +19,7 @@ describe("BabyStationListService", () => {
         expect(service.get_state().name).toBe("Running");
         expect(mqtt_service.subscribe_to_baby_stations).toHaveBeenCalledTimes(1);
         expect(mqtt_service.subscribe_to_control_inbox).toHaveBeenCalledTimes(1);
-        expect(mqtt_service.subscribe_to_client_status).toHaveBeenCalledTimes(1);
+        expect(mqtt_service.subscribe_to_all_client_statuses).toHaveBeenCalledTimes(1);
     });
 
     test("start twice is no-op", () => {
@@ -31,7 +31,7 @@ describe("BabyStationListService", () => {
 
         expect(mqtt_service.subscribe_to_baby_stations).toHaveBeenCalledTimes(1);
         expect(mqtt_service.subscribe_to_control_inbox).toHaveBeenCalledTimes(1);
-        expect(mqtt_service.subscribe_to_client_status).toHaveBeenCalledTimes(1);
+        expect(mqtt_service.subscribe_to_all_client_statuses).toHaveBeenCalledTimes(1);
     });
 
     test("stop closes subscriptions and clears list", () => {
@@ -187,7 +187,7 @@ class MockMQTTService {
         return this.control_inbox_subscription;
     });
 
-    public subscribe_to_client_status = jest.fn((handler: MessageHandler): Subscription => {
+    public subscribe_to_all_client_statuses = jest.fn((handler: MessageHandler): Subscription => {
         this.client_status_handler = handler;
         return this.client_status_subscription;
     });

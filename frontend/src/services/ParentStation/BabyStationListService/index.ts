@@ -50,7 +50,7 @@ export class Stopped extends AbstractState {
             baby_stations: Map(),
             baby_stations_subscription: proxy.mqtt_service.subscribe_to_baby_stations(proxy.handle_baby_stations),
             control_inbox_subscription: proxy.mqtt_service.subscribe_to_control_inbox(proxy.handle_control_inbox),
-            client_status_subscription: proxy.mqtt_service.subscribe_to_client_status(proxy.handle_client_status),
+            client_status_subscription: proxy.mqtt_service.subscribe_to_all_client_statuses(proxy.handle_client_status),
         }));
     }
 }

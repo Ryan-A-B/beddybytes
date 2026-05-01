@@ -453,7 +453,11 @@ class MQTTService extends Service<MQTTServiceState> {
         return this.subscribe_with_callback(`clients/${settings.API.clientID}/webrtc_inbox`, callback);
     }
 
-    public subscribe_to_client_status = (callback: MessageHandler): Subscription => {
+    public subscribe_to_client_status = (client_id: string, callback: MessageHandler): Subscription => {
+        return this.subscribe_with_callback(`clients/${client_id}/status`, callback);
+    }
+
+    public subscribe_to_all_client_statuses = (callback: MessageHandler): Subscription => {
         return this.subscribe_with_callback("clients/+/status", callback);
     }
 

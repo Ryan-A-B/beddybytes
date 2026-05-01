@@ -217,7 +217,7 @@ describe("MQTTService", () => {
     test("subscribes to client status while connected", () => {
         const service = new_connected_service();
 
-        service.subscribe_to_client_status(jest.fn());
+        service.subscribe_to_all_client_statuses(jest.fn());
 
         expect(mqtt_client.calls[mqtt_client.calls.length - 1]).toEqual({
             name: "subscribe",
@@ -228,8 +228,8 @@ describe("MQTTService", () => {
     test("does not subscribe MQTT client twice for duplicate topic filter", () => {
         const service = new_connected_service();
 
-        service.subscribe_to_client_status(jest.fn());
-        service.subscribe_to_client_status(jest.fn());
+        service.subscribe_to_all_client_statuses(jest.fn());
+        service.subscribe_to_all_client_statuses(jest.fn());
 
         expect(mqtt_client.calls.filter((call) => call.name === "subscribe")).toEqual([
             {
@@ -261,7 +261,7 @@ describe("MQTTService", () => {
         });
 
         service.connect();
-        service.subscribe_to_client_status(jest.fn());
+        service.subscribe_to_all_client_statuses(jest.fn());
         expect(mqtt_client.calls).toEqual([]);
         mqtt_client.emit("connect");
 
@@ -307,8 +307,8 @@ describe("MQTTService", () => {
         });
 
         service.connect();
-        service.subscribe_to_client_status(jest.fn());
-        service.subscribe_to_client_status(jest.fn());
+        service.subscribe_to_all_client_statuses(jest.fn());
+        service.subscribe_to_all_client_statuses(jest.fn());
         mqtt_client.emit("connect");
 
         expect(mqtt_client.calls.filter((call) => call.name === "subscribe")).toEqual([
@@ -328,7 +328,7 @@ describe("MQTTService", () => {
         });
 
         service.connect();
-        service.subscribe_to_client_status(jest.fn());
+        service.subscribe_to_all_client_statuses(jest.fn());
         expect(mocked_mqtt.connect).not.toHaveBeenCalled();
         await flush_promises();
         mqtt_client.emit("connect");
@@ -429,7 +429,7 @@ describe("MQTTService", () => {
         });
 
         service.connect();
-        const subscription = service.subscribe_to_client_status(jest.fn());
+        const subscription = service.subscribe_to_all_client_statuses(jest.fn());
         subscription.close();
         mqtt_client.emit("connect");
 
@@ -449,14 +449,25 @@ describe("MQTTService", () => {
         });
     });
 
-    test("subscribe to client status uses account scoped wildcard status topic", () => {
+    test("subscribe to all client statuses uses account scoped wildcard status topic", () => {
         const service = new_connected_service();
 
-        service.subscribe_to_client_status(jest.fn());
+        service.subscribe_to_all_client_statuses(jest.fn());
 
         expect(mqtt_client.calls[mqtt_client.calls.length - 1]).toEqual({
             name: "subscribe",
             topic: `accounts/${default_account.id}/clients/+/status`,
+        });
+    });
+
+    test("subscribe to client status uses account scoped client status topic", () => {
+        const service = new_connected_service();
+
+        service.subscribe_to_client_status("baby-client", jest.fn());
+
+        expect(mqtt_client.calls[mqtt_client.calls.length - 1]).toEqual({
+            name: "subscribe",
+            topic: `accounts/${default_account.id}/clients/baby-client/status`,
         });
     });
 
@@ -614,7 +625,7 @@ describe("MQTTService", () => {
     test("unsubscribes client status when subscription ref count reaches zero", () => {
         const service = new_connected_service();
 
-        const subscription = service.subscribe_to_client_status(jest.fn());
+        const subscription = service.subscribe_to_all_client_statuses(jest.fn());
         subscription.close();
 
         expect(mqtt_client.calls[mqtt_client.calls.length - 1]).toEqual({
