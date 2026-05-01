@@ -9,7 +9,7 @@ import settings from "../../settings";
 import { clientStatusTopic } from "./topics";
 import { new_webrtc_inbox_payload, newConnectedPayload, newDisconnectedPayload, newParentStationAnnouncementPayload } from "./payloads";
 
-export type MQTTServiceState = AwaitingLogin | WaitingForAccessTokenToBeReady | WaitingForAccessTokenToConnect | Ready | Connecting | Connected;
+export type MQTTServiceState = AwaitingLogin | WaitingForAccessTokenToBeReady | WaitingForAccessTokenToConnect | Ready | Connecting | Offline | OfflineAndReconnecting | Connected;
 
 interface SubscribeCommand {
     action: "subscribe";
@@ -40,6 +40,10 @@ interface ServiceProxy {
     set_state(state: MQTTServiceState): void;
     handle_connect(): void;
     handle_message(topic: string, payload: Buffer): void;
+    handle_reconnect(): void;
+    handle_close(): void;
+    handle_offline(): void;
+    handle_error(error: Error): void;
     list_topic_filters(): string[];
 }
 
@@ -54,20 +58,43 @@ abstract class AbstractState {
         // Default is to ignore MQTT connect events.
     }
 
+    public handle_reconnect(proxy: ServiceProxy): void {
+        // Default is to ignore MQTT reconnect events.
+    }
+
+    public handle_close(proxy: ServiceProxy): void {
+        // Default is to ignore MQTT close events.
+    }
+
+    public handle_offline(proxy: ServiceProxy): void {
+        // Default is to ignore MQTT offline events.
+    }
+
+    public handle_error(proxy: ServiceProxy, error: Error): void {
+        proxy.logging_service.log({
+            severity: Severity.Warning,
+            message: `MQTT client error: ${error.message}`,
+        });
+    }
+
     public publish(proxy: ServiceProxy, topic: string, payload: string): void {
-        throw new Error("Cannot publish MQTT message unless MQTT is connected or connecting");
+        throw new Error("Cannot publish MQTT message unless MQTT is connecting, offline, reconnecting, or connected");
     }
 
     public publish_parent_station_announcement(proxy: ServiceProxy): void {
-        throw new Error("Cannot publish parent station announcement unless MQTT is connecting or connected");
+        throw new Error("Cannot publish parent station announcement unless MQTT is connecting, offline, reconnecting, or connected");
     }
 
     public is_connected(): boolean {
         return false;
     }
 
+    public is_offline(): boolean {
+        return false;
+    }
+
     public subscribe(proxy: ServiceProxy, topic_filter: string): void {
-        throw new Error("Cannot subscribe to MQTT topic unless MQTT is connecting or connected");
+        throw new Error("Cannot subscribe to MQTT topic unless MQTT is connecting, offline, reconnecting, or connected");
     }
 
     public unsubscribe(proxy: ServiceProxy, topic_filter: string): void {
@@ -176,6 +203,10 @@ class Ready extends AbstractState {
         connect_mqtt(proxy, this.account_id, List());
     }
 
+    public handle_close = (proxy: ServiceProxy): void => {
+        // MQTT.js emits close after a clean end(). Ready already represents idle.
+    }
+
 }
 
 const connect_mqtt = (proxy: ServiceProxy, account_id: string, commands: List<Command>): void => {
@@ -208,6 +239,10 @@ const connect_mqtt = (proxy: ServiceProxy, account_id: string, commands: List<Co
     });
     client.on("connect", proxy.handle_connect);
     client.on("message", proxy.handle_message);
+    client.on("reconnect", proxy.handle_reconnect);
+    client.on("close", proxy.handle_close);
+    client.on("offline", proxy.handle_offline);
+    client.on("error", proxy.handle_error);
     proxy.set_state(new Connecting({
         client,
         accountID: account_id,
@@ -243,30 +278,15 @@ class Connecting extends AbstractState {
     }
 
     public handle_connect = (proxy: ServiceProxy): void => {
-        this.client.publish(clientStatusTopic(this.accountID, settings.API.clientID), JSON.stringify(newConnectedPayload({
-            connectionID: this.connectionID,
-            requestID: this.requestID,
-            atMillis: Date.now(),
-        })));
         const connected = new Connected({
             client: this.client,
             accountID: this.accountID,
             connectionID: this.connectionID,
             requestID: this.requestID,
         });
-        this.commands.forEach((command) => {
-            if (command.action === "subscribe") {
-                const topic_filter = command.subscribe.topic_filter;
-                if (!proxy.list_topic_filters().includes(topic_filter)) return;
-                connected.subscribe(proxy, topic_filter);
-                return;
-            }
-            if (command.action === "publish_parent_station_announcement") {
-                connected.publish_parent_station_announcement(proxy);
-                return;
-            }
-            connected.publish(proxy, command.publish.topic, command.publish.payload);
-        });
+        connected.publish_connected_status();
+        proxy.list_topic_filters().forEach((topic_filter) => connected.subscribe(proxy, topic_filter));
+        replay_publish_commands(proxy, connected, this.commands);
         proxy.set_state(connected);
     }
 
@@ -310,6 +330,186 @@ class Connecting extends AbstractState {
 
 }
 
+class Offline extends AbstractState {
+    public readonly name = "Offline";
+    private readonly client: MQTTClient;
+    private readonly accountID: string;
+    private readonly connectionID: string;
+    private readonly requestID: string;
+    private readonly commands: List<Command>;
+
+    constructor(input: NewConnectingInput) {
+        super();
+        this.client = input.client;
+        this.accountID = input.accountID;
+        this.connectionID = input.connectionID;
+        this.requestID = input.requestID;
+        this.commands = input.commands;
+    }
+
+    public is_offline = (): boolean => {
+        return true;
+    }
+
+    public handle_connect = (proxy: ServiceProxy): void => {
+        const connected = new Connected({
+            client: this.client,
+            accountID: this.accountID,
+            connectionID: this.connectionID,
+            requestID: this.requestID,
+        });
+        connected.publish_connected_status();
+        proxy.list_topic_filters().forEach((topic_filter) => connected.subscribe(proxy, topic_filter));
+        replay_publish_commands(proxy, connected, this.commands);
+        proxy.set_state(connected);
+    }
+
+    public handle_reconnect = (proxy: ServiceProxy): void => {
+        super.handle_reconnect(proxy);
+        proxy.set_state(new OfflineAndReconnecting({
+            client: this.client,
+            accountID: this.accountID,
+            connectionID: this.connectionID,
+            requestID: uuid(),
+            commands: this.commands,
+        }));
+    }
+
+    public handle_close = (proxy: ServiceProxy): void => {
+        super.handle_close(proxy);
+    }
+
+    public handle_offline = (proxy: ServiceProxy): void => {
+        super.handle_offline(proxy);
+    }
+
+    public subscribe = (proxy: ServiceProxy, topic_filter: string): void => {
+        // Active topic filters are replayed from the service ref counts after reconnect.
+    }
+
+    public publish = (proxy: ServiceProxy, topic: string, payload: string): void => {
+        proxy.set_state(new Offline({
+            client: this.client,
+            accountID: this.accountID,
+            connectionID: this.connectionID,
+            requestID: this.requestID,
+            commands: this.commands.push({
+                action: "publish",
+                publish: { topic, payload },
+            }),
+        }));
+    }
+
+    public publish_parent_station_announcement = (proxy: ServiceProxy): void => {
+        proxy.set_state(new Offline({
+            client: this.client,
+            accountID: this.accountID,
+            connectionID: this.connectionID,
+            requestID: this.requestID,
+            commands: this.commands.push({
+                action: "publish_parent_station_announcement",
+            }),
+        }));
+    }
+}
+
+class OfflineAndReconnecting extends AbstractState {
+    public readonly name = "OfflineAndReconnecting";
+    private readonly client: MQTTClient;
+    private readonly accountID: string;
+    private readonly connectionID: string;
+    private readonly requestID: string;
+    private readonly commands: List<Command>;
+
+    constructor(input: NewConnectingInput) {
+        super();
+        this.client = input.client;
+        this.accountID = input.accountID;
+        this.connectionID = input.connectionID;
+        this.requestID = input.requestID;
+        this.commands = input.commands;
+    }
+
+    public is_offline = (): boolean => {
+        return true;
+    }
+
+    public handle_connect = (proxy: ServiceProxy): void => {
+        const connected = new Connected({
+            client: this.client,
+            accountID: this.accountID,
+            connectionID: this.connectionID,
+            requestID: this.requestID,
+        });
+        connected.publish_connected_status();
+        proxy.list_topic_filters().forEach((topic_filter) => connected.subscribe(proxy, topic_filter));
+        replay_publish_commands(proxy, connected, this.commands);
+        proxy.set_state(connected);
+    }
+
+    public handle_reconnect = (proxy: ServiceProxy): void => {
+        super.handle_reconnect(proxy);
+        proxy.set_state(new OfflineAndReconnecting({
+            client: this.client,
+            accountID: this.accountID,
+            connectionID: this.connectionID,
+            requestID: uuid(),
+            commands: this.commands,
+        }));
+    }
+
+    public handle_close = (proxy: ServiceProxy): void => {
+        super.handle_close(proxy);
+        proxy.set_state(new Offline({
+            client: this.client,
+            accountID: this.accountID,
+            connectionID: this.connectionID,
+            requestID: this.requestID,
+            commands: this.commands,
+        }));
+    }
+
+    public handle_offline = (proxy: ServiceProxy): void => {
+        super.handle_offline(proxy);
+        proxy.set_state(new Offline({
+            client: this.client,
+            accountID: this.accountID,
+            connectionID: this.connectionID,
+            requestID: this.requestID,
+            commands: this.commands,
+        }));
+    }
+
+    public subscribe = (proxy: ServiceProxy, topic_filter: string): void => {
+        // Active topic filters are replayed from the service ref counts after reconnect.
+    }
+
+    public publish = (proxy: ServiceProxy, topic: string, payload: string): void => {
+        proxy.set_state(new OfflineAndReconnecting({
+            client: this.client,
+            accountID: this.accountID,
+            connectionID: this.connectionID,
+            requestID: this.requestID,
+            commands: this.commands.push({
+                action: "publish",
+                publish: { topic, payload },
+            }),
+        }));
+    }
+
+    public publish_parent_station_announcement = (proxy: ServiceProxy): void => {
+        proxy.set_state(new OfflineAndReconnecting({
+            client: this.client,
+            accountID: this.accountID,
+            connectionID: this.connectionID,
+            requestID: this.requestID,
+            commands: this.commands.push({
+                action: "publish_parent_station_announcement",
+            }),
+        }));
+    }
+}
+
 interface NewConnectedInput {
     client: MQTTClient;
     accountID: string;
@@ -336,6 +536,14 @@ class Connected extends AbstractState {
 
     public publish = (proxy: ServiceProxy, topic: string, payload: string): void => {
         this.client.publish(this.account_scope + topic, payload);
+    }
+
+    public publish_connected_status = (): void => {
+        this.client.publish(clientStatusTopic(this.account_id, settings.API.clientID), JSON.stringify(newConnectedPayload({
+            connectionID: this.connection_id,
+            requestID: this.requestID,
+            atMillis: Date.now(),
+        })));
     }
 
     public publish_parent_station_announcement = (proxy: ServiceProxy): void => {
@@ -374,7 +582,51 @@ class Connected extends AbstractState {
         proxy.call_subscriptions(message);
     }
 
+    public handle_reconnect = (proxy: ServiceProxy): void => {
+        super.handle_reconnect(proxy);
+        proxy.set_state(new OfflineAndReconnecting({
+            client: this.client,
+            accountID: this.account_id,
+            connectionID: this.connection_id,
+            requestID: uuid(),
+            commands: List(),
+        }));
+    }
+
+    public handle_close = (proxy: ServiceProxy): void => {
+        super.handle_close(proxy);
+        proxy.set_state(new Offline({
+            client: this.client,
+            accountID: this.account_id,
+            connectionID: this.connection_id,
+            requestID: this.requestID,
+            commands: List(),
+        }));
+    }
+
+    public handle_offline = (proxy: ServiceProxy): void => {
+        super.handle_offline(proxy);
+        proxy.set_state(new Offline({
+            client: this.client,
+            accountID: this.account_id,
+            connectionID: this.connection_id,
+            requestID: this.requestID,
+            commands: List(),
+        }));
+    }
+
 }
+
+const replay_publish_commands = (proxy: ServiceProxy, connected: Connected, commands: List<Command>): void => {
+    commands.forEach((command) => {
+        if (command.action === "subscribe") return;
+        if (command.action === "publish_parent_station_announcement") {
+            connected.publish_parent_station_announcement(proxy);
+            return;
+        }
+        connected.publish(proxy, command.publish.topic, command.publish.payload);
+    });
+};
 
 interface NewMQTTServiceInput {
     authorization_service: AuthorizationService;
@@ -402,6 +654,10 @@ class MQTTService extends Service<MQTTServiceState> {
             set_state: this.set_state,
             handle_connect: this.handle_connect,
             handle_message: this.handle_message,
+            handle_reconnect: this.handle_reconnect,
+            handle_close: this.handle_close,
+            handle_offline: this.handle_offline,
+            handle_error: this.handle_error,
             list_topic_filters: this.list_topic_filters,
         };
         this.authorization_service.addEventListener("state_changed", this.handle_authorization_service_state_changed);
@@ -413,6 +669,10 @@ class MQTTService extends Service<MQTTServiceState> {
 
     public connect = (): void => {
         this.get_state().connect(this.proxy);
+    }
+
+    public is_offline = (): boolean => {
+        return this.get_state().is_offline();
     }
 
     private publish = (topic: string, payload: string): void => {
@@ -486,11 +746,11 @@ class MQTTService extends Service<MQTTServiceState> {
     }
 
     public publish_webrtc_description = (peer_client_id: string, description: RTCSessionDescriptionInit): void => {
-        this.publish_webrtc(peer_client_id, { description }, "Cannot publish WebRTC description unless MQTT is connecting or connected");
+        this.publish_webrtc(peer_client_id, { description }, "Cannot publish WebRTC description unless MQTT is connecting, offline, reconnecting, or connected");
     }
 
     public publish_webrtc_candidate = (peer_client_id: string, candidate: RTCIceCandidateInit): void => {
-        this.publish_webrtc(peer_client_id, { candidate }, "Cannot publish WebRTC candidate unless MQTT is connecting or connected");
+        this.publish_webrtc(peer_client_id, { candidate }, "Cannot publish WebRTC candidate unless MQTT is connecting, offline, reconnecting, or connected");
     }
 
     private handle_authorization_service_state_changed = (event: ServiceStateChangedEvent<AuthorizationServiceState>): void => {
@@ -503,6 +763,22 @@ class MQTTService extends Service<MQTTServiceState> {
 
     private handle_message = (topic: string, payload: Buffer): void => {
         this.get_state().handle_message(this.proxy, topic, payload);
+    }
+
+    private handle_reconnect = (): void => {
+        this.get_state().handle_reconnect(this.proxy);
+    }
+
+    private handle_close = (): void => {
+        this.get_state().handle_close(this.proxy);
+    }
+
+    private handle_offline = (): void => {
+        this.get_state().handle_offline(this.proxy);
+    }
+
+    private handle_error = (error: Error): void => {
+        this.get_state().handle_error(this.proxy, error);
     }
 
     private dispatch_event = (event: Event): void => {
@@ -658,6 +934,10 @@ interface MQTTService extends Service<MQTTServiceState> {
 interface MQTTClient {
     on(event: "connect", listener: () => void): MQTTClient;
     on(event: "message", listener: (topic: string, payload: Buffer) => void): MQTTClient;
+    on(event: "reconnect", listener: () => void): MQTTClient;
+    on(event: "close", listener: () => void): MQTTClient;
+    on(event: "offline", listener: () => void): MQTTClient;
+    on(event: "error", listener: (error: Error) => void): MQTTClient;
     subscribe(topic: string): void;
     unsubscribe(topic: string): void;
     publish(topic: string, payload: string): void;

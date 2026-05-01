@@ -171,6 +171,10 @@ describe("MQTTService", () => {
         expect(transformedURL).toBe("wss://mqtt.example.test/mqtt?access_token=test_access_token");
         expect(mqtt_client.listenersByEvent.connect).toHaveLength(1);
         expect(mqtt_client.listenersByEvent.message).toHaveLength(1);
+        expect(mqtt_client.listenersByEvent.reconnect).toHaveLength(1);
+        expect(mqtt_client.listenersByEvent.close).toHaveLength(1);
+        expect(mqtt_client.listenersByEvent.offline).toHaveLength(1);
+        expect(mqtt_client.listenersByEvent.error).toHaveLength(1);
         expect(service.get_state().name).toBe("Connecting");
     });
 
@@ -200,6 +204,210 @@ describe("MQTTService", () => {
             },
         });
         expect(service.get_state().name).toBe("Connected");
+    });
+
+    test("logs MQTT close, offline, and error events", () => {
+        const authorization_service = new_authorization_service();
+        authorization_service.apply_token_output(default_token_output);
+        localStorage.setItem("account", JSON.stringify(default_account));
+        const logging_service = new MockLoggingService();
+        const service = new MQTTService({
+            authorization_service,
+            logging_service,
+        });
+
+        service.connect();
+        mqtt_client.emit("close");
+        mqtt_client.emit("offline");
+        mqtt_client.emit("error", new Error("connection refused"));
+
+        expect(logging_service.logs).toEqual(expect.arrayContaining([
+            expect.objectContaining({ message: "MQTT client closed" }),
+            expect.objectContaining({ message: "MQTT client offline" }),
+            expect.objectContaining({ message: "MQTT client error: connection refused" }),
+        ]));
+    });
+
+    test("reconnect transitions connected service to offline and reconnecting", () => {
+        const logging_service = new MockLoggingService();
+        const service = new_connected_service(logging_service);
+
+        mqtt_client.emit("reconnect");
+
+        expect(service.get_state().name).toBe("OfflineAndReconnecting");
+        expect(service.is_offline()).toBe(true);
+        expect(logging_service.logs).toEqual(expect.arrayContaining([
+            expect.objectContaining({ message: "MQTT client reconnecting" }),
+        ]));
+    });
+
+    test("offline transitions connected service to offline", () => {
+        const logging_service = new MockLoggingService();
+        const service = new_connected_service(logging_service);
+
+        mqtt_client.emit("offline");
+
+        expect(service.get_state().name).toBe("Offline");
+        expect(service.is_offline()).toBe(true);
+        expect(logging_service.logs).toEqual(expect.arrayContaining([
+            expect.objectContaining({ message: "MQTT client offline" }),
+        ]));
+    });
+
+    test("close transitions connected service to offline", () => {
+        const logging_service = new MockLoggingService();
+        const service = new_connected_service(logging_service);
+
+        mqtt_client.emit("close");
+
+        expect(service.get_state().name).toBe("Offline");
+        expect(service.is_offline()).toBe(true);
+        expect(logging_service.logs).toEqual(expect.arrayContaining([
+            expect.objectContaining({ message: "MQTT client closed" }),
+        ]));
+    });
+
+    test("error logs without transitioning connected service offline", () => {
+        const logging_service = new MockLoggingService();
+        const service = new_connected_service(logging_service);
+
+        mqtt_client.emit("error", new Error("connection refused"));
+
+        expect(service.get_state().name).toBe("Connected");
+        expect(service.is_offline()).toBe(false);
+        expect(logging_service.logs).toEqual(expect.arrayContaining([
+            expect.objectContaining({ message: "MQTT client error: connection refused" }),
+        ]));
+    });
+
+    test("close while offline and reconnecting transitions to offline", () => {
+        const service = new_connected_service();
+
+        mqtt_client.emit("reconnect");
+        mqtt_client.emit("close");
+
+        expect(service.get_state().name).toBe("Offline");
+        expect(service.is_offline()).toBe(true);
+    });
+
+    test("reconnect while offline transitions to offline and reconnecting", () => {
+        const service = new_connected_service();
+
+        mqtt_client.emit("offline");
+        mqtt_client.emit("reconnect");
+
+        expect(service.get_state().name).toBe("OfflineAndReconnecting");
+        expect(service.is_offline()).toBe(true);
+    });
+
+    test("close after clean disconnect is ignored while ready", () => {
+        const logging_service = new MockLoggingService();
+        const service = new_connected_service(logging_service);
+
+        service.disconnect();
+        mqtt_client.emit("close");
+
+        expect(service.get_state().name).toBe("Ready");
+        expect(logging_service.logs).not.toEqual(expect.arrayContaining([
+            expect.objectContaining({ message: "MQTT client closed" }),
+        ]));
+    });
+
+    test("reconnect connect publishes connected status with same connection id and new request id", () => {
+        const service = new_connected_service();
+        const initial_connected_payload = JSON.parse(mqtt_client.calls[0].payload ?? "");
+
+        mqtt_client.emit("reconnect");
+        mqtt_client.emit("connect");
+
+        const reconnected_payload = JSON.parse(mqtt_client.calls[mqtt_client.calls.length - 1].payload ?? "");
+        expect(reconnected_payload).toEqual({
+            type: "connected",
+            connected: {
+                connection_id: initial_connected_payload.connected.connection_id,
+                request_id: expect.any(String),
+                at_millis: 123,
+            },
+        });
+        expect(reconnected_payload.connected.request_id).not.toBe(initial_connected_payload.connected.request_id);
+        expect(service.get_state().name).toBe("Connected");
+    });
+
+    test("reconnect event while already offline and reconnecting refreshes request id", () => {
+        const service = new_connected_service();
+        const initial_connected_payload = JSON.parse(mqtt_client.calls[0].payload ?? "");
+
+        mqtt_client.emit("reconnect");
+        mqtt_client.emit("reconnect");
+        mqtt_client.emit("connect");
+
+        const reconnected_payload = JSON.parse(mqtt_client.calls[mqtt_client.calls.length - 1].payload ?? "");
+        expect(reconnected_payload.connected.connection_id).toBe(initial_connected_payload.connected.connection_id);
+        expect(reconnected_payload.connected.request_id).not.toBe(initial_connected_payload.connected.request_id);
+    });
+
+    test("reconnect resubscribes active topic filters", () => {
+        const service = new_connected_service();
+        service.subscribe_to_all_client_statuses(jest.fn());
+
+        mqtt_client.emit("reconnect");
+        mqtt_client.emit("connect");
+
+        expect(mqtt_client.calls.filter((call) => call.name === "subscribe")).toEqual([
+            {
+                name: "subscribe",
+                topic: "accounts/test_account_id/clients/+/status",
+            },
+            {
+                name: "subscribe",
+                topic: "accounts/test_account_id/clients/+/status",
+            },
+        ]);
+    });
+
+    test("subscription added while reconnecting is subscribed on connect", () => {
+        const service = new_connected_service();
+
+        mqtt_client.emit("reconnect");
+        service.subscribe_to_all_client_statuses(jest.fn());
+        mqtt_client.emit("connect");
+
+        expect(mqtt_client.calls.filter((call) => call.name === "subscribe")).toEqual([
+            {
+                name: "subscribe",
+                topic: "accounts/test_account_id/clients/+/status",
+            },
+        ]);
+    });
+
+    test("publish queued while reconnecting is published on connect", () => {
+        const service = new_connected_service();
+
+        mqtt_client.emit("reconnect");
+        service.publish_baby_station_announcement("test payload");
+        expect(mqtt_client.calls.filter((call) => call.topic === "accounts/test_account_id/baby_stations")).toEqual([]);
+        mqtt_client.emit("connect");
+
+        expect(mqtt_client.calls).toContainEqual({
+            name: "publish",
+            topic: "accounts/test_account_id/baby_stations",
+            payload: "test payload",
+        });
+    });
+
+    test("parent announcement queued while reconnecting is published on connect", () => {
+        const service = new_connected_service();
+
+        mqtt_client.emit("reconnect");
+        service.publish_parent_station_announcement();
+        expect(mqtt_client.calls.filter((call) => call.topic === "accounts/test_account_id/parent_stations")).toEqual([]);
+        mqtt_client.emit("connect");
+
+        expect(mqtt_client.calls[mqtt_client.calls.length - 1]).toEqual({
+            name: "publish",
+            topic: "accounts/test_account_id/parent_stations",
+            payload: expect.any(String),
+        });
     });
 
     test("publishes baby station announcement while connected", () => {
@@ -248,7 +456,7 @@ describe("MQTTService", () => {
             logging_service: new MockLoggingService(),
         });
 
-        expect(() => service.subscribe_to_webrtc_inbox(jest.fn())).toThrow("Cannot subscribe to MQTT topic unless MQTT is connecting or connected");
+        expect(() => service.subscribe_to_webrtc_inbox(jest.fn())).toThrow("Cannot subscribe to MQTT topic unless MQTT is connecting, offline, reconnecting, or connected");
     });
 
     test("stores plain subscription while connecting and subscribes MQTT client on connect", () => {
@@ -502,8 +710,8 @@ describe("MQTTService", () => {
             logging_service: new MockLoggingService(),
         });
 
-        expect(() => service.publish_webrtc_description("client-2", { type: "answer" })).toThrow("Cannot publish WebRTC description unless MQTT is connecting or connected");
-        expect(() => service.publish_webrtc_candidate("client-2", { candidate: "candidate:1" })).toThrow("Cannot publish WebRTC candidate unless MQTT is connecting or connected");
+        expect(() => service.publish_webrtc_description("client-2", { type: "answer" })).toThrow("Cannot publish WebRTC description unless MQTT is connecting, offline, reconnecting, or connected");
+        expect(() => service.publish_webrtc_candidate("client-2", { candidate: "candidate:1" })).toThrow("Cannot publish WebRTC candidate unless MQTT is connecting, offline, reconnecting, or connected");
     });
 
     test("publishes parent station announcement with local client and connection id", () => {
@@ -742,13 +950,13 @@ const flush_promises = async (): Promise<void> => {
     await Promise.resolve();
 };
 
-const new_connected_service = (): MQTTService => {
+const new_connected_service = (logging_service: LoggingService = new MockLoggingService()): MQTTService => {
     const authorization_service = new_authorization_service();
     authorization_service.apply_token_output(default_token_output);
     localStorage.setItem("account", JSON.stringify(default_account));
     const service = new MQTTService({
         authorization_service,
-        logging_service: new MockLoggingService(),
+        logging_service,
     });
     service.connect();
     mqtt_client.emit("connect");
