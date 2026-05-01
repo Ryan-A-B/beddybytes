@@ -27,15 +27,18 @@ class Connections {
         this.subscription = this.mqtt_service.subscribe_to_webrtc_inbox(this.handle_webrtc_message);
     }
 
-    private handle_webrtc_message = async (message: MessageReceived): Promise<void> => {
+    private handle_webrtc_message = (message: MessageReceived): void => {
         const payload = JSON.parse(message.payload) as WebRTCInboxPayload;
         if (payload.type !== "description") return;
         if (payload.description.type !== "offer") return;
-        if (this.connections.has(payload.from_client_id)) return;
-        await this.handle_offer(payload.from_client_id, payload.description);
+        this.handle_offer(payload.from_client_id, payload.description);
     }
 
-    private handle_offer = async (peer_client_id: string, offer: RTCSessionDescriptionInit): Promise<void> => {
+    private handle_offer = (peer_client_id: string, offer: RTCSessionDescriptionInit): void => {
+        const existing_connection = this.connections.get(peer_client_id);
+        if (existing_connection !== undefined) {
+            existing_connection.close();
+        }
         const connection = Connection.accept_offer({
             logging_service: this.logging_service,
             mqtt_service: this.mqtt_service,

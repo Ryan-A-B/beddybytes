@@ -30,7 +30,7 @@ describe("Connections", () => {
         expect(mqtt_service.subscribe_to_webrtc_inbox).toHaveBeenCalledTimes(1);
     });
 
-    test("ignores candidate messages", async () => {
+    test("ignores candidate messages", () => {
         const mqtt_service = new MockMQTTService();
         new Connections({
             logging_service: new MockLoggingService(),
@@ -39,7 +39,7 @@ describe("Connections", () => {
             video_tracks: [],
         });
 
-        await mqtt_service.dispatch_webrtc_message({
+        mqtt_service.dispatch_webrtc_message({
             from_client_id: "client-1",
             type: "candidate",
             candidate: { candidate: "candidate:1" },
@@ -48,7 +48,7 @@ describe("Connections", () => {
         expect(mock_accept_offer).not.toHaveBeenCalled();
     });
 
-    test("ignores non-offer descriptions", async () => {
+    test("ignores non-offer descriptions", () => {
         const mqtt_service = new MockMQTTService();
         new Connections({
             logging_service: new MockLoggingService(),
@@ -57,7 +57,7 @@ describe("Connections", () => {
             video_tracks: [],
         });
 
-        await mqtt_service.dispatch_webrtc_message({
+        mqtt_service.dispatch_webrtc_message({
             from_client_id: "client-1",
             type: "description",
             description: { type: "answer" },
@@ -66,7 +66,7 @@ describe("Connections", () => {
         expect(mock_accept_offer).not.toHaveBeenCalled();
     });
 
-    test("accepts first offer from a client and adds tracks", async () => {
+    test("accepts first offer from a client and adds tracks", () => {
         const mqtt_service = new MockMQTTService();
         const logging_service = new MockLoggingService();
         const audio_track = {} as MediaStreamTrack;
@@ -81,7 +81,7 @@ describe("Connections", () => {
         });
         const offer = { type: "offer", sdp: "dummy_sdp" } as RTCSessionDescriptionInit;
 
-        await mqtt_service.dispatch_webrtc_message({
+        mqtt_service.dispatch_webrtc_message({
             from_client_id: "client-1",
             type: "description",
             description: offer,
@@ -97,14 +97,20 @@ describe("Connections", () => {
         expect(connection.peer_connection.addTrack).toHaveBeenCalledWith(video_track);
     });
 
-    test("ignores offer from client that already has a connection", async () => {
+    test("replaces connection when an offer arrives from a client that already has a connection", () => {
         const mqtt_service = new MockMQTTService();
-        mock_accept_offer.mockReturnValue(new MockConnection());
+        const first_connection = new MockConnection();
+        const second_connection = new MockConnection();
+        const audio_track = {} as MediaStreamTrack;
+        const video_track = {} as MediaStreamTrack;
+        mock_accept_offer
+            .mockReturnValueOnce(first_connection)
+            .mockReturnValueOnce(second_connection);
         new Connections({
             logging_service: new MockLoggingService(),
             mqtt_service: mqtt_service as any,
-            audio_tracks: [],
-            video_tracks: [],
+            audio_tracks: [audio_track],
+            video_tracks: [video_track],
         });
         const payload = {
             from_client_id: "client-1",
@@ -112,13 +118,16 @@ describe("Connections", () => {
             description: { type: "offer" },
         };
 
-        await mqtt_service.dispatch_webrtc_message(payload);
-        await mqtt_service.dispatch_webrtc_message(payload);
+        mqtt_service.dispatch_webrtc_message(payload);
+        mqtt_service.dispatch_webrtc_message(payload);
 
-        expect(mock_accept_offer).toHaveBeenCalledTimes(1);
+        expect(mock_accept_offer).toHaveBeenCalledTimes(2);
+        expect(first_connection.close).toHaveBeenCalledTimes(1);
+        expect(second_connection.peer_connection.addTrack).toHaveBeenCalledWith(audio_track);
+        expect(second_connection.peer_connection.addTrack).toHaveBeenCalledWith(video_track);
     });
 
-    test("closes subscription and active connections", async () => {
+    test("closes subscription and active connections", () => {
         const mqtt_service = new MockMQTTService();
         const connection = new MockConnection();
         mock_accept_offer.mockReturnValue(connection);
@@ -128,7 +137,7 @@ describe("Connections", () => {
             audio_tracks: [],
             video_tracks: [],
         });
-        await mqtt_service.dispatch_webrtc_message({
+        mqtt_service.dispatch_webrtc_message({
             from_client_id: "client-1",
             type: "description",
             description: { type: "offer" },
@@ -163,9 +172,9 @@ class MockMQTTService {
         return this.subscription;
     });
 
-    public dispatch_webrtc_message = async (payload: unknown): Promise<void> => {
+    public dispatch_webrtc_message = (payload: unknown): void => {
         if (this.message_handler === null) throw new Error("missing message handler");
-        await this.message_handler(new MessageReceived("webrtc_inbox", JSON.stringify(payload)));
+        this.message_handler(new MessageReceived("webrtc_inbox", JSON.stringify(payload)));
     }
 }
 
