@@ -18,7 +18,7 @@ type SessionExistsFunction = (session_id: string) => boolean;
 
 abstract class AbstractState {
     public abstract name: string;
-    public abstract get_active_session(): Session | null;
+    public abstract get_baby_station(): BabyStation | null;
     public abstract get_active_connection(): RTCConnection | null;
     public abstract join_session(service: ServiceProxy, baby_station: BabyStation): void;
     public abstract leave_session(service: ServiceProxy): void;
@@ -46,7 +46,7 @@ class NotJoined extends AbstractState {
         }));
     }
 
-    public get_active_session = (): Session | null => {
+    public get_baby_station = (): BabyStation | null => {
         return null;
     }
 
@@ -94,8 +94,8 @@ class Joined extends AbstractState {
         this.client_status_subscription = input.client_status_subscription;
     }
 
-    public get_active_session = (): Session | null => {
-        return this.baby_station.session;
+    public get_baby_station = (): BabyStation | null => {
+        return this.baby_station;
     }
 
     public get_active_connection = (): RTCConnection | null => {
@@ -188,8 +188,12 @@ class SessionService extends Service<SessionState> {
 
     // TODO remove backdoor
     public get_active_session = (): Session | null => {
+        return this.get_baby_station()?.session ?? null;
+    }
+
+    public get_baby_station = (): BabyStation | null => {
         const state = this.get_state();
-        return state.get_active_session();
+        return state.get_baby_station();
     }
 
     // TODO remove backdoor

@@ -21,7 +21,7 @@ const Video: React.ForwardRefRenderFunction<HTMLVideoElement> = (props, ref) => 
     const [isPlaying, setIsPlaying] = useState(false);
 
     const [session_id, session_name] = React.useMemo(() => {
-        const session = session_state.get_active_session();
+        const session = parent_station.session_service.get_active_session();
         if (session === null) return ["", ""];
         return [session.id, session.name];
     }, [session_state]);

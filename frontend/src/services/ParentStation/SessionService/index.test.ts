@@ -33,6 +33,16 @@ describe("ParentStation SessionService", () => {
         expect(mqtt_service.client_status_subscription.topic_filter).toBe("clients/baby-client/status");
     });
 
+    test("provides active baby station when joined", () => {
+        const service = new_service(new MockMQTTService());
+        const station = baby_station("baby-client", "session-1");
+
+        service.join_session(station);
+
+        expect(service.get_baby_station()).toBe(station);
+        expect(service.get_active_session()).toBe(station.session);
+    });
+
     test("clean disconnect from active baby station ends the session", () => {
         const mqtt_service = new MockMQTTService();
         const service = new_service(mqtt_service);

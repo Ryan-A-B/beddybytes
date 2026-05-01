@@ -13,7 +13,7 @@ const BabyStationDropdown: React.FunctionComponent<Props> = ({ session_service, 
     const session_state = useServiceState(session_service);
     useServiceState(baby_station_list_service);
 
-    const active_session: Session | null = React.useMemo(() => session_state.get_active_session(), [session_state]);
+    const active_session: Session | null = React.useMemo(() => session_service.get_active_session(), [session_service, session_state]);
 
     const baby_stations = baby_station_list_service.list_baby_stations();
 

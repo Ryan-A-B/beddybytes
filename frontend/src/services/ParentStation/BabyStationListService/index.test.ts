@@ -104,6 +104,30 @@ describe("BabyStationListService", () => {
         expect(service.list_baby_stations().first()?.session.name).toBe("Original");
     });
 
+    test("replaces old session from same client id", () => {
+        const mqtt_service = new MockMQTTService();
+        const service = new_service(mqtt_service);
+        service.start();
+
+        mqtt_service.dispatch_baby_stations(announcement_payload("Original", {
+            session_id: "session-1",
+            started_at_millis: 123,
+        }));
+        mqtt_service.dispatch_baby_stations(announcement_payload("Replacement", {
+            session_id: "session-2",
+            started_at_millis: 456,
+        }));
+
+        expect(service.list_baby_stations().toArray()).toEqual([{
+            client_id: "baby-client",
+            session: {
+                id: "session-2",
+                name: "Replacement",
+                started_at: 456,
+            },
+        }]);
+    });
+
     test("removes baby station on clean disconnect", () => {
         const mqtt_service = new MockMQTTService();
         const service = new_service(mqtt_service);
@@ -145,18 +169,23 @@ const new_service = (mqtt_service = new MockMQTTService()): BabyStationListServi
     });
 };
 
-const announcement_payload = (name: string): unknown => ({
+interface AnnouncementOverrides {
+    session_id?: string;
+    started_at_millis?: number;
+}
+
+const announcement_payload = (name: string, overrides: AnnouncementOverrides = {}): unknown => ({
     type: "announcement",
-    at_millis: 123,
-    announcement: announcement(name),
+    at_millis: overrides.started_at_millis ?? 123,
+    announcement: announcement(name, overrides),
 });
 
-const announcement = (name: string): unknown => ({
+const announcement = (name: string, overrides: AnnouncementOverrides = {}): unknown => ({
     client_id: "baby-client",
     connection_id: "connection-1",
-    session_id: "session-1",
+    session_id: overrides.session_id ?? "session-1",
     name,
-    started_at_millis: 123,
+    started_at_millis: overrides.started_at_millis ?? 123,
 });
 
 const disconnected_payload = (reason: "clean" | "unexpected"): unknown => ({

@@ -113,14 +113,17 @@ export class Running extends AbstractState {
 
     private add_announcement = (proxy: ServiceProxy, announcement: SessionAnnouncement): void => {
         if (this.baby_stations.has(announcement.session_id)) return;
-        this.set_baby_stations(proxy, this.baby_stations.set(announcement.session_id, {
+        const baby_stations = this.baby_stations
+            .filter((baby_station) => baby_station.client_id !== announcement.client_id)
+            .set(announcement.session_id, {
             client_id: announcement.client_id,
             session: {
                 id: announcement.session_id,
                 name: announcement.name,
                 started_at: announcement.started_at_millis,
             },
-        }));
+        });
+        this.set_baby_stations(proxy, baby_stations);
     }
 
     private set_baby_stations = (proxy: ServiceProxy, baby_stations: Map<string, BabyStation>): void => {

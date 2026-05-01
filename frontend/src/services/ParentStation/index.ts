@@ -132,6 +132,7 @@ class ParentStation {
     }
 
     private handle_baby_station_list_changed = (event: ServiceStateChangedEvent<BabyStationListState>) => {
+        this.leave_replaced_session_if_needed();
         this.auto_connect_if_needed();
         this.reconnect_if_needed();
     }
@@ -159,6 +160,16 @@ class ParentStation {
     private auto_leave_session_if_needed = () => {
         // MQTT session-list removal alone does not imply active WebRTC viewing
         // should stop. Clean baby-station disconnects are handled explicitly.
+    }
+
+    private leave_replaced_session_if_needed = () => {
+        const active_baby_station = this.session_service.get_baby_station();
+        if (active_baby_station === null) return;
+        const baby_station_list = this.baby_station_list_service.list_baby_stations();
+        const current_baby_station = baby_station_list.find((baby_station) => baby_station.client_id === active_baby_station.client_id);
+        if (current_baby_station === undefined) return;
+        if (current_baby_station.session.id === active_baby_station.session.id) return;
+        this.session_service.leave_session();
     }
 
     private reconnect_if_needed = () => {
