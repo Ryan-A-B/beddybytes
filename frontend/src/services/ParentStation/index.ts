@@ -7,7 +7,7 @@ import BabyStationListService, { BabyStationListState } from './BabyStationListS
 import WakeLockService from '../WakeLockService';
 import { ConnectionState } from './SessionService/Connection';
 import AuthorizationService from '../AuthorizationService';
-import MQTTService from "../MQTTService";
+import MQTTService, { MQTTServiceState } from "../MQTTService";
 
 const RecentVisibilityChangeThresholdMillis = 2000;
 
@@ -58,8 +58,7 @@ class ParentStation {
         this.wake_lock_service = wake_lock_service;
 
         document.addEventListener('visibilitychange', this.handle_visibilitychange);
-        // TODO: Add MQTT reconnect handling here once MQTTService has explicit reconnect state/logic.
-        // this.mqtt_service.addEventListener(EventTypeStateChanged, this.handle_mqtt_state_changed);
+        this.mqtt_service.addEventListener(EventTypeStateChanged, this.handle_mqtt_state_changed);
         this.session_service.addEventListener(EventTypeStateChanged, this.handle_session_state_changed);
         this.baby_station_list_service.addEventListener(EventTypeStateChanged, this.handle_baby_station_list_changed);
     }
@@ -91,26 +90,27 @@ class ParentStation {
         }
     }
 
-    // TODO: Restore this behavior once MQTTService exposes reconnecting/connected transitions.
-    // private handle_mqtt_state_changed = (event: ServiceStateChangedEvent<MQTTServiceState>) => {
-    //     this.reconnect_if_needed();
-    //
-    //     // Use MQTT reconnecting plus visibility change as a proxy that the app is back in the foreground.
-    //     if (event.previous_state.name !== 'Reconnecting') return;
-    //     if (event.current_state.name !== 'Connected') return;
-    //     if (this.last_visibilitychange_details === null) return;
-    //     if (document.visibilityState !== 'visible') return;
-    //     const visibility_change_dt = performance.now() - this.last_visibilitychange_details.timestamp_millis;
-    //     const visibility_change_was_not_recent = visibility_change_dt > RecentVisibilityChangeThresholdMillis;
-    //     if (visibility_change_was_not_recent) return;
-    //     this.session_service.reconnect();
-    // }
+    private handle_mqtt_state_changed = (event: ServiceStateChangedEvent<MQTTServiceState>) => {
+        this.reconnect_if_needed();
+        this.restore_session_service_connection_if_needed(event);
+    }
+
+    private restore_session_service_connection_if_needed = (event: ServiceStateChangedEvent<MQTTServiceState>) => {
+        // MQTT reconnect plus recent visibility change is the fastest foreground-return signal we have on mobile.
+        if (event.previous_state.name !== 'OfflineAndReconnecting') return;
+        if (event.current_state.name !== 'Connected') return;
+        if (this.last_visibilitychange_details === null) return;
+        if (document.visibilityState !== 'visible') return;
+        const visibility_change_dt = performance.now() - this.last_visibilitychange_details.timestamp_millis;
+        const visibility_change_was_not_recent = visibility_change_dt > RecentVisibilityChangeThresholdMillis;
+        if (visibility_change_was_not_recent) return;
+        this.session_service.reconnect();
+    }
 
     private remove_connection_event_listener: (() => void) | null = null;
     private handle_session_state_changed = (event: ServiceStateChangedEvent<SessionState>) => {
         this.auto_connect_if_needed();
         this.reconnect_if_needed();
-        this.auto_leave_session_if_needed();
         this.try_exit_picture_in_picture_if_needed();
 
         const joined_session = event.previous_state.name !== "joined" && event.current_state.name === "joined";
@@ -155,11 +155,6 @@ class ParentStation {
         const baby_station = baby_station_list.first();
         if (baby_station === undefined) return;
         this.session_service.join_session(baby_station);
-    }
-
-    private auto_leave_session_if_needed = () => {
-        // MQTT session-list removal alone does not imply active WebRTC viewing
-        // should stop. Clean baby-station disconnects are handled explicitly.
     }
 
     private leave_replaced_session_if_needed = () => {
