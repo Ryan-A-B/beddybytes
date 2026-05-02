@@ -1,8 +1,8 @@
-import { client_webrtc_inbox_topic, parse_client_status_topic } from "./topics";
+import { clientStatusTopic, parse_client_status_topic } from "./topics";
 
 describe("MQTTService topics", () => {
-    test("creates client WebRTC inbox topic", () => {
-        expect(client_webrtc_inbox_topic("account-1", "client-2")).toBe("accounts/account-1/clients/client-2/webrtc_inbox");
+    test("creates client status topic", () => {
+        expect(clientStatusTopic("account-1", "client-2")).toBe("accounts/account-1/clients/client-2/status");
     });
 
     test("parses client status topic", () => {
