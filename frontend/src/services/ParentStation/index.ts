@@ -66,7 +66,6 @@ class ParentStation {
     public start = () => {
         this.mqtt_service.connect();
         this.baby_station_list_service.start();
-        this.mqtt_service.publish_parent_station_announcement();
         this.wake_lock_service.lock();
     }
 
@@ -91,8 +90,14 @@ class ParentStation {
     }
 
     private handle_mqtt_state_changed = (event: ServiceStateChangedEvent<MQTTServiceState>) => {
+        this.publish_parent_station_announcement_if_needed(event);
         this.reconnect_if_needed();
         this.restore_session_service_connection_if_needed(event);
+    }
+
+    private publish_parent_station_announcement_if_needed = (event: ServiceStateChangedEvent<MQTTServiceState>) => {
+        if (event.current_state.name !== 'Connected') return;
+        this.mqtt_service.publish_parent_station_announcement();
     }
 
     private restore_session_service_connection_if_needed = (event: ServiceStateChangedEvent<MQTTServiceState>) => {
