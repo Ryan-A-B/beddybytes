@@ -9,7 +9,7 @@ import settings from "../../settings";
 import { clientStatusTopic } from "./topics";
 import { new_webrtc_inbox_payload, newConnectedPayload, newDisconnectedPayload, newParentStationAnnouncementPayload } from "./payloads";
 
-export type MQTTServiceState = AwaitingLogin | WaitingForAccessTokenToBeReady | WaitingForAccessTokenToConnect | Ready | Connecting | Offline | OfflineAndReconnecting | Connected;
+export type MQTTServiceState = AwaitingLogin | WaitingForAccessTokenToBeReady | WaitingForAccessTokenToConnect | Ready | Connecting | Offline | OfflineAndReconnecting | SubscribingOnConnect | SubscribingAfterConnected | Connected;
 
 interface SubscribeCommand {
     action: "subscribe";
@@ -44,6 +44,7 @@ interface ServiceProxy {
     handle_close(): void;
     handle_offline(): void;
     handle_error(error: Error): void;
+    handle_subscribe_callback(topic_filters: string[], error: Optional<Error>): void;
     list_topic_filters(): string[];
 }
 
@@ -59,15 +60,24 @@ abstract class AbstractState {
     }
 
     public handle_reconnect(proxy: ServiceProxy): void {
-        // Default is to ignore MQTT reconnect events.
+        proxy.logging_service.log({
+            severity: Severity.Warning,
+            message: "MQTT client reconnecting",
+        });
     }
 
     public handle_close(proxy: ServiceProxy): void {
-        // Default is to ignore MQTT close events.
+        proxy.logging_service.log({
+            severity: Severity.Warning,
+            message: "MQTT client closed",
+        });
     }
 
     public handle_offline(proxy: ServiceProxy): void {
-        // Default is to ignore MQTT offline events.
+        proxy.logging_service.log({
+            severity: Severity.Warning,
+            message: "MQTT client offline",
+        });
     }
 
     public handle_error(proxy: ServiceProxy, error: Error): void {
@@ -75,6 +85,10 @@ abstract class AbstractState {
             severity: Severity.Warning,
             message: `MQTT client error: ${error.message}`,
         });
+    }
+
+    public handle_subscribe_callback(proxy: ServiceProxy, topic_filters: string[], error: Optional<Error>): void {
+        // Default is to ignore MQTT subscribe callbacks.
     }
 
     public publish(proxy: ServiceProxy, topic: string, payload: string): void {
@@ -278,6 +292,18 @@ class Connecting extends AbstractState {
     }
 
     public handle_connect = (proxy: ServiceProxy): void => {
+        const topic_filters = proxy.list_topic_filters();
+        if (topic_filters.length > 0) {
+            transition_to_subscribing_on_connect(proxy, {
+                client: this.client,
+                accountID: this.accountID,
+                connectionID: this.connectionID,
+                requestID: this.requestID,
+                commands: this.commands,
+                topic_filters,
+            });
+            return;
+        }
         const connected = new Connected({
             client: this.client,
             accountID: this.accountID,
@@ -285,7 +311,6 @@ class Connecting extends AbstractState {
             requestID: this.requestID,
         });
         connected.publish_connected_status();
-        proxy.list_topic_filters().forEach((topic_filter) => connected.subscribe(proxy, topic_filter));
         replay_publish_commands(proxy, connected, this.commands);
         proxy.set_state(connected);
     }
@@ -352,16 +377,10 @@ class Offline extends AbstractState {
     }
 
     public handle_connect = (proxy: ServiceProxy): void => {
-        const connected = new Connected({
-            client: this.client,
-            accountID: this.accountID,
-            connectionID: this.connectionID,
-            requestID: this.requestID,
+        proxy.logging_service.log({
+            severity: Severity.Warning,
+            message: "MQTT client connected while offline",
         });
-        connected.publish_connected_status();
-        proxy.list_topic_filters().forEach((topic_filter) => connected.subscribe(proxy, topic_filter));
-        replay_publish_commands(proxy, connected, this.commands);
-        proxy.set_state(connected);
     }
 
     public handle_reconnect = (proxy: ServiceProxy): void => {
@@ -435,6 +454,18 @@ class OfflineAndReconnecting extends AbstractState {
     }
 
     public handle_connect = (proxy: ServiceProxy): void => {
+        const topic_filters = proxy.list_topic_filters();
+        if (topic_filters.length > 0) {
+            transition_to_subscribing_on_connect(proxy, {
+                client: this.client,
+                accountID: this.accountID,
+                connectionID: this.connectionID,
+                requestID: this.requestID,
+                commands: this.commands,
+                topic_filters,
+            });
+            return;
+        }
         const connected = new Connected({
             client: this.client,
             accountID: this.accountID,
@@ -442,7 +473,6 @@ class OfflineAndReconnecting extends AbstractState {
             requestID: this.requestID,
         });
         connected.publish_connected_status();
-        proxy.list_topic_filters().forEach((topic_filter) => connected.subscribe(proxy, topic_filter));
         replay_publish_commands(proxy, connected, this.commands);
         proxy.set_state(connected);
     }
@@ -517,6 +547,187 @@ interface NewConnectedInput {
     requestID: string;
 }
 
+interface NewSubscribingInput extends NewConnectedInput {
+    commands: List<Command>;
+    topic_filters: string[];
+}
+
+abstract class AbstractSubscribing extends AbstractState {
+    public abstract readonly name: string;
+    protected readonly client: MQTTClient;
+    public readonly account_id: string;
+    public readonly connection_id: string;
+    protected readonly requestID: string;
+    protected readonly account_scope: string;
+    protected readonly commands: List<Command>;
+    protected readonly pending_topic_filters: Set<string>;
+
+    constructor(input: NewSubscribingInput) {
+        super();
+        this.client = input.client;
+        this.account_id = input.accountID;
+        this.connection_id = input.connectionID;
+        this.requestID = input.requestID;
+        this.account_scope = `accounts/${input.accountID}/`;
+        this.commands = input.commands;
+        this.pending_topic_filters = new Set(input.topic_filters);
+    }
+
+    public start_subscribing = (proxy: ServiceProxy): void => {
+        const topic_filters = Array.from(this.pending_topic_filters);
+        const topics = topic_filters.map((topic_filter) => this.account_scope + topic_filter);
+        this.client.subscribe(topics, make_subscribe_callback(proxy, topic_filters));
+        console.log("subscribe", { topics });
+    }
+
+    public publish = (proxy: ServiceProxy, topic: string, payload: string): void => {
+        this.set_subscribing_state(proxy, this.commands.push({
+            action: "publish",
+            publish: { topic, payload },
+        }), Array.from(this.pending_topic_filters));
+    }
+
+    public publish_parent_station_announcement = (proxy: ServiceProxy): void => {
+        this.set_subscribing_state(proxy, this.commands.push({
+            action: "publish_parent_station_announcement",
+        }), Array.from(this.pending_topic_filters));
+    }
+
+    public subscribe = (proxy: ServiceProxy, topic_filter: string): void => {
+        if (this.pending_topic_filters.has(topic_filter)) return;
+        this.set_subscribing_state(proxy, this.commands, [...Array.from(this.pending_topic_filters), topic_filter]);
+        this.client.subscribe([this.account_scope + topic_filter], make_subscribe_callback(proxy, [topic_filter]));
+        console.log("subscribe", { topic_filter });
+    }
+
+    public unsubscribe = (proxy: ServiceProxy, topic_filter: string): void => {
+        this.client.unsubscribe(this.account_scope + topic_filter);
+        const pending_topic_filters = Array.from(this.pending_topic_filters).filter((pending_topic_filter) => {
+            return pending_topic_filter !== topic_filter;
+        });
+        if (pending_topic_filters.length > 0) {
+            this.set_subscribing_state(proxy, this.commands, pending_topic_filters);
+            return;
+        }
+        this.transition_to_connected(proxy, this.commands);
+    }
+
+    public disconnect = (proxy: ServiceProxy): void => {
+        this.client.end();
+        proxy.set_state(new Ready(this.account_id));
+    }
+
+    public handle_message = (proxy: ServiceProxy, topic: string, payload: Buffer): void => {
+        const message = new MessageReceived(topic, payload.toString());
+        proxy.dispatch_event(message);
+        proxy.call_subscriptions(message);
+    }
+
+    public handle_subscribe_callback = (proxy: ServiceProxy, topic_filters: string[], error: Optional<Error>): void => {
+        if (error !== null) {
+            proxy.logging_service.log({
+                severity: Severity.Warning,
+                message: `MQTT subscribe failed for ${topic_filters.join(", ")}: ${error.message}`,
+            });
+        }
+        const pending_topic_filters = Array.from(this.pending_topic_filters).filter((pending_topic_filter) => {
+            return !topic_filters.includes(pending_topic_filter);
+        });
+        if (pending_topic_filters.length === this.pending_topic_filters.size) return;
+        if (pending_topic_filters.length > 0) {
+            this.set_subscribing_state(proxy, this.commands, pending_topic_filters);
+            return;
+        }
+        this.transition_to_connected(proxy, this.commands);
+    }
+
+    public handle_reconnect = (proxy: ServiceProxy): void => {
+        super.handle_reconnect(proxy);
+        proxy.set_state(new OfflineAndReconnecting({
+            client: this.client,
+            accountID: this.account_id,
+            connectionID: this.connection_id,
+            requestID: uuid(),
+            commands: this.commands,
+        }));
+    }
+
+    public handle_close = (proxy: ServiceProxy): void => {
+        super.handle_close(proxy);
+        proxy.set_state(new Offline({
+            client: this.client,
+            accountID: this.account_id,
+            connectionID: this.connection_id,
+            requestID: this.requestID,
+            commands: this.commands,
+        }));
+    }
+
+    public handle_offline = (proxy: ServiceProxy): void => {
+        super.handle_offline(proxy);
+        proxy.set_state(new Offline({
+            client: this.client,
+            accountID: this.account_id,
+            connectionID: this.connection_id,
+            requestID: this.requestID,
+            commands: this.commands,
+        }));
+    }
+
+    protected new_connected = (): Connected => {
+        return new Connected({
+            client: this.client,
+            accountID: this.account_id,
+            connectionID: this.connection_id,
+            requestID: this.requestID,
+        });
+    }
+
+    protected new_input = (commands: List<Command>, topic_filters: string[]): NewSubscribingInput => {
+        return {
+            client: this.client,
+            accountID: this.account_id,
+            connectionID: this.connection_id,
+            requestID: this.requestID,
+            commands,
+            topic_filters,
+        };
+    }
+
+    protected abstract set_subscribing_state(proxy: ServiceProxy, commands: List<Command>, topic_filters: string[]): void;
+
+    protected abstract transition_to_connected(proxy: ServiceProxy, commands: List<Command>): void;
+}
+
+class SubscribingOnConnect extends AbstractSubscribing {
+    public readonly name = "SubscribingOnConnect";
+
+    protected set_subscribing_state = (proxy: ServiceProxy, commands: List<Command>, topic_filters: string[]): void => {
+        proxy.set_state(new SubscribingOnConnect(this.new_input(commands, topic_filters)));
+    }
+
+    protected transition_to_connected = (proxy: ServiceProxy, commands: List<Command>): void => {
+        const connected = this.new_connected();
+        connected.publish_connected_status();
+        replay_publish_commands(proxy, connected, commands);
+        proxy.set_state(connected);
+    }
+}
+
+class SubscribingAfterConnected extends AbstractSubscribing {
+    public readonly name = "SubscribingAfterConnected";
+
+    protected set_subscribing_state = (proxy: ServiceProxy, commands: List<Command>, topic_filters: string[]): void => {
+        proxy.set_state(new SubscribingAfterConnected(this.new_input(commands, topic_filters)));
+    }
+
+    protected transition_to_connected = (proxy: ServiceProxy, commands: List<Command>): void => {
+        const connected = this.new_connected();
+        replay_publish_commands(proxy, connected, commands);
+        proxy.set_state(connected);
+    }
+}
+
 class Connected extends AbstractState {
     public readonly name = "Connected";
     private readonly client: MQTTClient;
@@ -536,14 +747,17 @@ class Connected extends AbstractState {
 
     public publish = (proxy: ServiceProxy, topic: string, payload: string): void => {
         this.client.publish(this.account_scope + topic, payload);
+        console.log('publish', { topic, payload });
     }
 
     public publish_connected_status = (): void => {
-        this.client.publish(clientStatusTopic(this.account_id, settings.API.clientID), JSON.stringify(newConnectedPayload({
+        const payload = JSON.stringify(newConnectedPayload({
             connectionID: this.connection_id,
             requestID: this.requestID,
             atMillis: Date.now(),
-        })));
+        }));
+        this.client.publish(clientStatusTopic(this.account_id, settings.API.clientID), payload);
+        console.log('publish', { topic: `clients/${settings.API.clientID}/status`, payload });
     }
 
     public publish_parent_station_announcement = (proxy: ServiceProxy): void => {
@@ -558,7 +772,14 @@ class Connected extends AbstractState {
     }
 
     public subscribe = (proxy: ServiceProxy, topic_filter: string): void => {
-        this.client.subscribe(this.account_scope + topic_filter);
+        transition_to_subscribing_after_connect(proxy, {
+            client: this.client,
+            accountID: this.account_id,
+            connectionID: this.connection_id,
+            requestID: this.requestID,
+            commands: List(),
+            topic_filters: [topic_filter],
+        });
     }
 
     public unsubscribe = (proxy: ServiceProxy, topic_filter: string): void => {
@@ -566,12 +787,14 @@ class Connected extends AbstractState {
     }
 
     public disconnect = (proxy: ServiceProxy): void => {
-        this.client.publish(clientStatusTopic(this.account_id, settings.API.clientID), JSON.stringify(newDisconnectedPayload({
+        const payload = JSON.stringify(newDisconnectedPayload({
             connectionID: this.connection_id,
             requestID: this.requestID,
             atMillis: Date.now(),
             reason: "clean",
-        })));
+        }));
+        this.client.publish(clientStatusTopic(this.account_id, settings.API.clientID), payload);
+        console.log('publish', { topic: `clients/${settings.API.clientID}/status`, payload });
         this.client.end();
         proxy.set_state(new Ready(this.account_id));
     }
@@ -628,6 +851,25 @@ const replay_publish_commands = (proxy: ServiceProxy, connected: Connected, comm
     });
 };
 
+const transition_to_subscribing_on_connect = (proxy: ServiceProxy, input: NewSubscribingInput): void => {
+    const state = new SubscribingOnConnect(input);
+    proxy.set_state(state);
+    state.start_subscribing(proxy);
+};
+
+const transition_to_subscribing_after_connect = (proxy: ServiceProxy, input: NewSubscribingInput): void => {
+    const state = new SubscribingAfterConnected(input);
+    proxy.set_state(state);
+    state.start_subscribing(proxy);
+};
+
+const make_subscribe_callback = (proxy: ServiceProxy, topic_filters: string[]): MQTTSubscribeCallback => {
+    return (error) => {
+        // Prevent re-entrant state transitions if a client/mock invokes the subscribe callback synchronously.
+        queueMicrotask(() => proxy.handle_subscribe_callback(topic_filters, error));
+    };
+};
+
 interface NewMQTTServiceInput {
     authorization_service: AuthorizationService;
     logging_service: LoggingService;
@@ -658,6 +900,7 @@ class MQTTService extends Service<MQTTServiceState> {
             handle_close: this.handle_close,
             handle_offline: this.handle_offline,
             handle_error: this.handle_error,
+            handle_subscribe_callback: this.handle_subscribe_callback,
             list_topic_filters: this.list_topic_filters,
         };
         this.authorization_service.addEventListener("state_changed", this.handle_authorization_service_state_changed);
@@ -779,6 +1022,10 @@ class MQTTService extends Service<MQTTServiceState> {
 
     private handle_error = (error: Error): void => {
         this.get_state().handle_error(this.proxy, error);
+    }
+
+    private handle_subscribe_callback = (topic_filters: string[], error: Optional<Error>): void => {
+        this.get_state().handle_subscribe_callback(this.proxy, topic_filters, error);
     }
 
     private dispatch_event = (event: Event): void => {
@@ -938,8 +1185,10 @@ interface MQTTClient {
     on(event: "close", listener: () => void): MQTTClient;
     on(event: "offline", listener: () => void): MQTTClient;
     on(event: "error", listener: (error: Error) => void): MQTTClient;
-    subscribe(topic: string): void;
+    subscribe(topics: string[], callback: MQTTSubscribeCallback): void;
     unsubscribe(topic: string): void;
     publish(topic: string, payload: string): void;
     end(): void;
 }
+
+type MQTTSubscribeCallback = (error: Optional<Error>) => void;

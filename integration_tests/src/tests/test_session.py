@@ -7,7 +7,7 @@ from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.support.ui import Select
 
 from settings import hub_url, app_base_url, chrome_options
-from utils import can_control_backend_container, create_account, login, get_browser_logs, generate_random_string, stop_backend_container, start_backend_container, wait_for_element_to_be_displayed, wait_for_element_to_be_removed, wait_for_element_to_not_be_displayed, select_first_video_device_and_wait_for_preview, wait_for_parent_station_ready, wait_for_session_running
+from utils import can_control_backend_container, can_control_mosquitto_container, create_account, login, get_browser_logs, generate_random_string, stop_backend_container, start_backend_container, stop_mosquitto_container, start_mosquitto_container, wait_for_element_to_be_displayed, wait_for_element_to_be_removed, wait_for_element_to_not_be_displayed, select_first_video_device_and_wait_for_preview, wait_for_parent_station_ready, wait_for_session_running
 
 class TestSession(unittest.TestCase):
     def setUp(self):
@@ -246,3 +246,63 @@ class TestSession(unittest.TestCase):
 
             session_toggle.click()
             wait_for_element_to_not_be_displayed(driver_2, "video-parent-station")
+
+    def test_parent_station_recovers_baby_station_list_after_mosquitto_restarts(self):
+        if not can_control_mosquitto_container():
+            self.skipTest("docker CLI unavailable; cannot restart mosquitto container in this environment")
+
+        email = f'{generate_random_string(10)}@integrationtests.com'
+        password = generate_random_string(20)
+
+        with webdriver.Remote(command_executor=hub_url, options=chrome_options) as driver_1, webdriver.Remote(command_executor=hub_url, options=chrome_options) as driver_2:
+            driver_1.get(f"{app_base_url}")
+            create_account(driver_1, email, password)
+            driver_1.find_element(By.ID, "nav-link-baby").click()
+            driver_1_wait = WebDriverWait(driver_1, 5)
+            continue_button = driver_1_wait.until(lambda driver: driver.find_element(By.ID, "button-continue-media-stream-permission-check"))
+            continue_button.click()
+
+            session_name = generate_random_string(10)
+            session_name_input = driver_1_wait.until(lambda driver: driver.find_element(By.ID, "input-session-name"))
+            session_name_input.clear()
+            session_name_input.send_keys(session_name)
+
+            select_first_video_device_and_wait_for_preview(driver_1)
+            session_toggle = driver_1_wait.until(lambda driver: driver.find_element(By.ID, "session-toggle"))
+            session_toggle.click()
+            wait_for_session_running(driver_1)
+
+            driver_2.get(f"{app_base_url}")
+            login(driver_2, email, password)
+            driver_2.find_element(By.ID, "nav-link-parent").click()
+
+            driver_2_wait = WebDriverWait(driver_2, 5)
+            video_element = driver_2_wait.until(lambda driver: driver.find_element(By.ID, "video-parent-station"))
+            wait_for_parent_station_ready(driver_2)
+
+            baby_station_dropdown_element = driver_2_wait.until(lambda driver: driver.find_element(By.ID, "baby-station-dropdown"))
+            baby_station_dropdown = Select(baby_station_dropdown_element)
+            self.assertEqual(len(baby_station_dropdown.options), 1)
+            self.assertEqual(baby_station_dropdown.options[0].text, session_name)
+            self.assertTrue(video_element.is_displayed())
+
+            try:
+                stop_mosquitto_container()
+                for _ in range(10):
+                    time.sleep(1)
+                    self.assertTrue(video_element.is_displayed())
+
+                start_mosquitto_container()
+                wait_for_parent_station_ready(driver_2, expected_station_count=1, timeout=5)
+                baby_station_dropdown_element = driver_2_wait.until(lambda driver: driver.find_element(By.ID, "baby-station-dropdown"))
+                baby_station_dropdown = Select(baby_station_dropdown_element)
+                self.assertEqual(len(baby_station_dropdown.options), 1)
+                self.assertEqual(baby_station_dropdown.options[0].text, session_name)
+                self.assertTrue(video_element.is_displayed())
+            finally:
+                start_mosquitto_container()
+
+            # driver_1_logs = get_browser_logs(driver_1)
+            # driver_2_logs = get_browser_logs(driver_2)
+            # self.assertEqual(len(driver_1_logs), 0)
+            # self.assertEqual(len(driver_2_logs), 0)
