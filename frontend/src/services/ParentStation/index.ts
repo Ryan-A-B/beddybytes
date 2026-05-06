@@ -33,6 +33,7 @@ class ParentStation {
     readonly recording_service: RecordingService;
     readonly wake_lock_service: WakeLockService;
     private last_visibilitychange_details: Optional<VisibilityChangeDetails> = null;
+    private running = false;
 
     constructor({ logging_service, authorization_service, mqtt_service, wake_lock_service }: NewParentStationInput) {
         this.logging_service = logging_service;
@@ -58,18 +59,23 @@ class ParentStation {
         this.wake_lock_service = wake_lock_service;
 
         document.addEventListener('visibilitychange', this.handle_visibilitychange);
-        this.mqtt_service.addEventListener(EventTypeStateChanged, this.handle_mqtt_state_changed);
         this.session_service.addEventListener(EventTypeStateChanged, this.handle_session_state_changed);
         this.baby_station_list_service.addEventListener(EventTypeStateChanged, this.handle_baby_station_list_changed);
     }
 
     public start = () => {
+        if (this.running) return;
+        this.running = true;
+        this.mqtt_service.addEventListener(EventTypeStateChanged, this.handle_mqtt_state_changed);
         this.mqtt_service.connect();
         this.baby_station_list_service.start();
         this.wake_lock_service.lock();
     }
 
     public stop = () => {
+        if (!this.running) return;
+        this.running = false;
+        this.mqtt_service.removeEventListener(EventTypeStateChanged, this.handle_mqtt_state_changed);
         this.baby_station_list_service.stop();
         this.mqtt_service.disconnect();
         this.wake_lock_service.unlock();

@@ -37,6 +37,7 @@ describe("ParentStation", () => {
     test("restores session service connection after MQTT reconnects during recent foreground return", () => {
         const mqtt_service = new MockMQTTService();
         const parent_station = new_parent_station(mqtt_service);
+        parent_station.start();
         parent_station.session_service.join_session(baby_station());
 
         set_recent_visibility_change(parent_station, 1000);
@@ -56,9 +57,31 @@ describe("ParentStation", () => {
         expect(mqtt_service.publish_parent_station_announcement).not.toHaveBeenCalled();
     });
 
+    test("start is a no-op while already running", () => {
+        const mqtt_service = new MockMQTTService();
+        const parent_station = new_parent_station(mqtt_service);
+
+        parent_station.start();
+        parent_station.start();
+
+        expect(mqtt_service.connect).toHaveBeenCalledTimes(1);
+        mqtt_service.dispatch_state_change("Connecting", "Connected");
+        expect(mqtt_service.publish_parent_station_announcement).toHaveBeenCalledTimes(1);
+    });
+
+    test("stop is a no-op while already stopped", () => {
+        const mqtt_service = new MockMQTTService();
+        const parent_station = new_parent_station(mqtt_service);
+
+        parent_station.stop();
+
+        expect(mqtt_service.disconnect).not.toHaveBeenCalled();
+    });
+
     test("publishes parent station announcement when MQTT connects", () => {
         const mqtt_service = new MockMQTTService();
-        new_parent_station(mqtt_service);
+        const parent_station = new_parent_station(mqtt_service);
+        parent_station.start();
 
         mqtt_service.dispatch_state_change("Connecting", "Connected");
 
@@ -67,16 +90,38 @@ describe("ParentStation", () => {
 
     test("publishes parent station announcement when MQTT reconnects", () => {
         const mqtt_service = new MockMQTTService();
-        new_parent_station(mqtt_service);
+        const parent_station = new_parent_station(mqtt_service);
+        parent_station.start();
 
         mqtt_service.dispatch_state_change("OfflineAndReconnecting", "Connected");
 
         expect(mqtt_service.publish_parent_station_announcement).toHaveBeenCalledTimes(1);
     });
 
+    test("does not publish parent station announcement before parent station starts", () => {
+        const mqtt_service = new MockMQTTService();
+        new_parent_station(mqtt_service);
+
+        mqtt_service.dispatch_state_change("Connecting", "Connected");
+
+        expect(mqtt_service.publish_parent_station_announcement).not.toHaveBeenCalled();
+    });
+
+    test("does not publish parent station announcement after parent station stops", () => {
+        const mqtt_service = new MockMQTTService();
+        const parent_station = new_parent_station(mqtt_service);
+
+        parent_station.start();
+        parent_station.stop();
+        mqtt_service.dispatch_state_change("Connecting", "Connected");
+
+        expect(mqtt_service.publish_parent_station_announcement).not.toHaveBeenCalled();
+    });
+
     test("does not restore session service connection when foreground return is stale", () => {
         const mqtt_service = new MockMQTTService();
         const parent_station = new_parent_station(mqtt_service);
+        parent_station.start();
         parent_station.session_service.join_session(baby_station());
 
         set_recent_visibility_change(parent_station, 1000);
