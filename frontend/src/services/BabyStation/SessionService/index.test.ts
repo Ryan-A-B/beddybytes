@@ -111,6 +111,44 @@ describe("BabyStation SessionService", () => {
         });
     });
 
+    test("publishes same baby station announcement when MQTT reconnects while running", () => {
+        const mqtt_service = new MockMQTTService();
+        new_started_service(mqtt_service);
+        const initial_announcement_call = mqtt_service.calls.find((call) => {
+            return call.name === "publish_baby_station_announcement";
+        });
+        mqtt_service.calls.length = 0;
+
+        mqtt_service.dispatch_state_change("SubscribingOnConnect", "Connected");
+
+        expect(mqtt_service.calls).toHaveLength(1);
+        expect(mqtt_service.calls[0]).toEqual({
+            name: "publish_baby_station_announcement",
+            topic: "baby_stations",
+            payload: initial_announcement_call?.payload,
+        });
+    });
+
+    test("does not publish baby station announcement again after initial parent station subscription completes", () => {
+        const mqtt_service = new MockMQTTService();
+        new_started_service(mqtt_service);
+        mqtt_service.calls.length = 0;
+
+        mqtt_service.dispatch_state_change("SubscribingAfterConnected", "Connected");
+
+        expect(mqtt_service.calls).toEqual([]);
+    });
+
+    test("does not publish baby station announcement before reconnect subscriptions complete", () => {
+        const mqtt_service = new MockMQTTService();
+        new_started_service(mqtt_service);
+        mqtt_service.calls.length = 0;
+
+        mqtt_service.dispatch_state_change("OfflineAndReconnecting", "Connected");
+
+        expect(mqtt_service.calls).toEqual([]);
+    });
+
     test("ignores unrelated MQTT messages while running", () => {
         const mqtt_service = new MockMQTTService();
         new_started_service(mqtt_service);
@@ -166,9 +204,18 @@ class MockMQTTService extends EventTarget {
     get_state = jest.fn(() => this.state);
 
     set_connected(): void {
-        const previous_state = this.state;
+        this.dispatch_state_change(this.state.name, "Connected");
+    }
+
+    dispatch_state_change(previous_state_name: string, current_state_name: string): void {
+        const previous_state = {
+            name: previous_state_name,
+            account_id: "account-1",
+            client_id: "baby-client",
+            connection_id: "connection-1",
+        };
         this.state = {
-            name: "Connected",
+            name: current_state_name,
             account_id: "account-1",
             client_id: "baby-client",
             connection_id: "connection-1",

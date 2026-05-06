@@ -98,6 +98,12 @@ class SessionRunning extends AbstractState {
         this.parent_stations_subscription = parent_stations_subscription;
     }
 
+    public handle_mqtt_service_state_changed(proxy: ServiceProxy, event: ServiceStateChangedEvent<MQTTServiceState>): void {
+        if (event.current_state.name !== "Connected") return;
+        if (event.previous_state.name !== "SubscribingOnConnect") return;
+        proxy.mqtt_service.publish_baby_station_announcement(JSON.stringify(newBabyStationAnnouncementPayload(this.announcement)));
+    }
+
     public end_session(proxy: ServiceProxy): void {
         this.parent_stations_subscription.close();
         proxy.mqtt_service.disconnect();
