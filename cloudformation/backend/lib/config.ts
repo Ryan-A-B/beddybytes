@@ -20,6 +20,7 @@ export const env_hosted_zone_or_throw = (scope: Construct): cdk.aws_route53.IHos
 export interface HostNames {
     app: string; // TODO this shouldn't be necessary. The BE needs to use info from the request instead
     api: string;
+    mqtt: string;
 }
 
 export const get_host_names = (domain_name: string, deploy_env: string): HostNames => {
@@ -27,6 +28,7 @@ export const get_host_names = (domain_name: string, deploy_env: string): HostNam
     return {
         app: `app.${env_prefix}${domain_name}`,
         api: `api.${env_prefix}${domain_name}`,
+        mqtt: `mqtt.${env_prefix}${domain_name}`,
     };
 };
 

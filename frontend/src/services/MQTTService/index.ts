@@ -231,7 +231,7 @@ const connect_mqtt = (proxy: ServiceProxy, account_id: string, commands: List<Co
         protocolId: "MQTT",
         protocolVersion: 4,
         clean: true,
-        reconnectPeriod: 1000,
+        reconnectPeriod: 1 * 1000,
         connectTimeout: 10 * 1000,
         clientId: settings.API.clientID,
         will: {

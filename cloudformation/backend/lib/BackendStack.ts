@@ -14,9 +14,11 @@ interface StackProps extends cdk.StackProps {
     deploy_env: DeployEnv;
     docker_repository: cdk.aws_ecr.IRepository;
     docker_image_digest: string;
+    iot_authorizer_sha: string;
     cluster: cdk.aws_ecs.ICluster;
     signing_key: cdk.aws_secretsmanager.ISecret;
     elastic_ip: cdk.aws_ec2.CfnEIP;
+    bucket: cdk.aws_s3.IBucket;
 }
 
 export class BackendStack extends cdk.Stack {
@@ -160,6 +162,76 @@ export class BackendStack extends cdk.Stack {
         const policy_attachment = new cdk.aws_iot.CfnPolicyPrincipalAttachment(this, `thing-policy-attachment`, {
             policyName: policy.ref,
             principal: certificate.attrArn,
+        });
+
+        const iot_authorizer_function = new cdk.aws_lambda.Function(this, "iot-authorizer-function", {
+            architecture: cdk.aws_lambda.Architecture.ARM_64,
+            runtime: cdk.aws_lambda.Runtime.PROVIDED_AL2023,
+            code: cdk.aws_lambda.Code.fromBucket(props.bucket, `lambda/iot-authorizer/${props.iot_authorizer_sha}.zip`),
+            handler: 'bootstrap',
+            timeout: cdk.Duration.seconds(10),
+            environment: {
+                AWS_ACCOUNT_ID: this.account,
+                SIGNING_KEY_SECRET_ARN: props.signing_key.secretArn,
+            },
+        });
+        props.signing_key.grantRead(iot_authorizer_function);
+
+        const iot_authorizer_name = `beddybytes-${props.deploy_env}-jwt-authorizer`;
+        const iot_authorizer = new cdk.aws_iot.CfnAuthorizer(this, "iot-authorizer", {
+            authorizerName: iot_authorizer_name,
+            authorizerFunctionArn: iot_authorizer_function.functionArn,
+            signingDisabled: true,
+            enableCachingForHttp: true,
+            status: 'ACTIVE',
+        });
+        iot_authorizer_function.addPermission("allow-iot-invoke-authorizer", {
+            principal: new cdk.aws_iam.ServicePrincipal("iot.amazonaws.com"),
+            action: "lambda:InvokeFunction",
+            sourceArn: iot_authorizer.attrArn,
+        });
+
+        const mqtt_certificate = new cdk.aws_certificatemanager.Certificate(this, "mqtt-certificate", {
+            domainName: host_names.mqtt,
+            validation: cdk.aws_certificatemanager.CertificateValidation.fromDns(hosted_zone),
+        });
+        const mqtt_domain_configuration = new cdk.aws_iot.CfnDomainConfiguration(this, "mqtt-domain-configuration", {
+            domainConfigurationName: `beddybytes-${props.deploy_env}-mqtt`,
+            domainConfigurationStatus: 'ENABLED',
+            domainName: host_names.mqtt,
+            serverCertificateArns: [mqtt_certificate.certificateArn],
+            serviceType: 'DATA',
+            authenticationType: 'CUSTOM_AUTH',
+            applicationProtocol: 'MQTT_WSS',
+            authorizerConfig: {
+                defaultAuthorizerName: iot_authorizer_name,
+                allowAuthorizerOverride: false,
+            },
+        });
+        mqtt_domain_configuration.addDependency(iot_authorizer);
+
+        const iot_data_endpoint = new cdk.custom_resources.AwsCustomResource(this, "iot-data-endpoint", {
+            onUpdate: {
+                service: "Iot",
+                action: "describeEndpoint",
+                parameters: {
+                    endpointType: "iot:Data-ATS",
+                },
+                physicalResourceId: cdk.custom_resources.PhysicalResourceId.of(`iot-data-endpoint-${props.deploy_env}`),
+            },
+            policy: cdk.custom_resources.AwsCustomResourcePolicy.fromSdkCalls({
+                resources: cdk.custom_resources.AwsCustomResourcePolicy.ANY_RESOURCE,
+            }),
+        });
+        new cdk.aws_route53.CnameRecord(this, "mqtt-dns", {
+            zone: hosted_zone,
+            recordName: host_names.mqtt,
+            domainName: iot_data_endpoint.getResponseField("endpointAddress"),
+            ttl: cdk.Duration.minutes(15),
+        });
+
+        new cdk.CfnOutput(this, "mqtt-host", {
+            value: host_names.mqtt,
         });
     }
 }

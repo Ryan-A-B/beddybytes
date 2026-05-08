@@ -12,7 +12,7 @@ import (
 func main() {
 	var err error
 	options := mqtt.NewClientOptions()
-	options.AddBroker("wss://mosquitto.beddybytes.local:443")
+	options.AddBroker("wss://mqtt.beddybytes.local:443")
 	options.SetTLSConfig(&tls.Config{
 		InsecureSkipVerify: true,
 	})

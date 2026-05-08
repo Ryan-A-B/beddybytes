@@ -64,7 +64,7 @@ func main() {
 func createClientOne() mqtt.Client {
 	const clientID = "test-client-one"
 	options := mqtt.NewClientOptions()
-	options.AddBroker("wss://mosquitto.beddybytes.local:443")
+	options.AddBroker("wss://mqtt.beddybytes.local:443")
 	options.SetClientID(clientID)
 	options.SetCleanSession(false)
 	options.SetResumeSubs(true)
@@ -77,7 +77,7 @@ func createClientOne() mqtt.Client {
 func createClientTwo() mqtt.Client {
 	const clientID = "test-client-two"
 	options := mqtt.NewClientOptions()
-	options.AddBroker("wss://mosquitto.beddybytes.local:443")
+	options.AddBroker("wss://mqtt.beddybytes.local:443")
 	options.SetClientID(clientID)
 	options.SetTLSConfig(&tls.Config{
 		InsecureSkipVerify: true,

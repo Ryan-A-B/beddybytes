@@ -37,9 +37,10 @@ const get_client_id = (): string => {
 }
 
 const get_mqtt_host = (): string => {
-    const mqtt_host = process.env.MQTT_HOST;
-    if (mqtt_host !== undefined && mqtt_host !== "") return mqtt_host;
-    return "mosquitto.beddybytes.local";
+    const mqtt_host = try_get_item_from_local_storage("MQTT_HOST")
+    if (mqtt_host !== null) return mqtt_host
+    const app_host = window.location.hostname;
+    return app_host.replace("app.", "mqtt.")
 }
 
 const settings: Settings = {
@@ -61,10 +62,16 @@ export default settings
 declare global {
     interface Window {
         set_api_host: (host: string) => void
+        set_mqtt_host: (host: string) => void
     }
 }
 
 window.set_api_host = (host: string) => {
     localStorage.setItem("API_HOST", host)
+    window.location.reload()
+}
+
+window.set_mqtt_host = (host: string) => {
+    localStorage.setItem("MQTT_HOST", host)
     window.location.reload()
 }
