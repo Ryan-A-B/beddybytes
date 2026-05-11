@@ -353,6 +353,11 @@ class Connecting extends AbstractState {
         }));
     }
 
+    public disconnect = (proxy: ServiceProxy): void => {
+        this.client.end();
+        proxy.set_state(new Ready(this.accountID));
+    }
+
 }
 
 class Offline extends AbstractState {
@@ -429,6 +434,11 @@ class Offline extends AbstractState {
                 action: "publish_parent_station_announcement",
             }),
         }));
+    }
+
+    public disconnect = (proxy: ServiceProxy): void => {
+        this.client.end();
+        proxy.set_state(new Ready(this.accountID));
     }
 }
 
@@ -537,6 +547,11 @@ class OfflineAndReconnecting extends AbstractState {
                 action: "publish_parent_station_announcement",
             }),
         }));
+    }
+
+    public disconnect = (proxy: ServiceProxy): void => {
+        this.client.end();
+        proxy.set_state(new Ready(this.accountID));
     }
 }
 

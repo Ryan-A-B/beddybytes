@@ -313,6 +313,71 @@ describe("MQTTService", () => {
         ]));
     });
 
+    test.each([
+        {
+            state_name: "Connecting",
+            arrange: (service: MQTTService): void => {
+                service.connect();
+            },
+        },
+        {
+            state_name: "SubscribingOnConnect",
+            arrange: (service: MQTTService): void => {
+                mqtt_client.auto_ack_subscribe = false;
+                service.connect();
+                service.subscribe_to_all_client_statuses(jest.fn());
+                mqtt_client.emit("connect");
+            },
+        },
+        {
+            state_name: "Connected",
+            arrange: (service: MQTTService): void => {
+                service.connect();
+                mqtt_client.emit("connect");
+            },
+        },
+        {
+            state_name: "SubscribingAfterConnected",
+            arrange: (service: MQTTService): void => {
+                mqtt_client.auto_ack_subscribe = false;
+                service.connect();
+                mqtt_client.emit("connect");
+                service.subscribe_to_all_client_statuses(jest.fn());
+            },
+        },
+        {
+            state_name: "Offline",
+            arrange: (service: MQTTService): void => {
+                service.connect();
+                mqtt_client.emit("connect");
+                mqtt_client.emit("offline");
+            },
+        },
+        {
+            state_name: "OfflineAndReconnecting",
+            arrange: (service: MQTTService): void => {
+                service.connect();
+                mqtt_client.emit("connect");
+                mqtt_client.emit("reconnect");
+            },
+        },
+    ])("ends MQTT client when disconnecting from $state_name", ({ state_name, arrange }) => {
+        const authorization_service = new_authorization_service();
+        authorization_service.apply_token_output(default_token_output);
+        localStorage.setItem("account", JSON.stringify(default_account));
+        const service = new MQTTService({
+            authorization_service,
+            logging_service: new MockLoggingService(),
+        });
+        arrange(service);
+        expect(service.get_state().name).toBe(state_name);
+
+        service.disconnect();
+
+        expect(mqtt_client.end).toHaveBeenCalledTimes(1);
+        expect(service.get_state().name).toBe("Ready");
+    });
+
     test("reconnect connect publishes connected status with same connection id and new request id", () => {
         const service = new_connected_service();
         const initial_connected_payload = JSON.parse(mqtt_client.calls[0].payload ?? "");
