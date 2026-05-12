@@ -21,7 +21,7 @@ class MQTTSubscription:
         self.client.on_message = self._on_message
 
     def __enter__(self):
-        self.client.connect("mosquitto.beddybytes.local", 443, 60)
+        self.client.connect("mqtt.beddybytes.local", 443, 60)
         self.client.loop_start()
         if not self.connected.wait(timeout=5):
             raise AssertionError("timed out waiting for MQTT connection")
@@ -79,7 +79,7 @@ class MQTTPublisher:
         self.client.on_connect = self._on_connect
 
     def __enter__(self):
-        self.client.connect("mosquitto.beddybytes.local", 443, 60)
+        self.client.connect("mqtt.beddybytes.local", 443, 60)
         self.client.loop_start()
         if not self.connected.wait(timeout=5):
             raise AssertionError("timed out waiting for MQTT connection")

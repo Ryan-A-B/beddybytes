@@ -6,6 +6,9 @@ export interface Settings {
         host: string
         clientID: string
     }
+    MQTT: {
+        host: string
+    }
 }
 
 const try_get_item_from_local_storage = (key: string): string | null => {
@@ -33,6 +36,13 @@ const get_client_id = (): string => {
     return newClientID;
 }
 
+const get_mqtt_host = (): string => {
+    const mqtt_host = try_get_item_from_local_storage("MQTT_HOST")
+    if (mqtt_host !== null) return mqtt_host
+    const app_host = window.location.hostname;
+    return app_host.replace("app.", "mqtt.")
+}
+
 const settings: Settings = {
     RTC: {
         iceServers: [],
@@ -42,6 +52,9 @@ const settings: Settings = {
         host: get_api_host(),
         clientID: get_client_id(),
     },
+    MQTT: {
+        host: get_mqtt_host(),
+    },
 }
 
 export default settings
@@ -49,10 +62,16 @@ export default settings
 declare global {
     interface Window {
         set_api_host: (host: string) => void
+        set_mqtt_host: (host: string) => void
     }
 }
 
 window.set_api_host = (host: string) => {
     localStorage.setItem("API_HOST", host)
+    window.location.reload()
+}
+
+window.set_mqtt_host = (host: string) => {
+    localStorage.setItem("MQTT_HOST", host)
     window.location.reload()
 }

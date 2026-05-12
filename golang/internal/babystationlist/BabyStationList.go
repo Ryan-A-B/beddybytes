@@ -9,6 +9,7 @@ import (
 	"github.com/Ryan-A-B/beddybytes/golang/internal/contextx"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/eventlog"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/fatal"
+	"github.com/Ryan-A-B/beddybytes/golang/internal/logx"
 )
 
 type Snapshot struct {
@@ -21,9 +22,15 @@ func (snapshot *Snapshot) List() []BabyStation {
 	babyStations := make([]BabyStation, 0, len(snapshot.ConnectionByID))
 	for connectionID, connection := range snapshot.ConnectionByID {
 		sessionID, ok := snapshot.SessionIDByConnectionID[connectionID]
-		fatal.Unless(ok, "session not found: "+sessionID)
+		if !ok {
+			logx.Warnln("session not found for connection:", connectionID)
+			continue
+		}
 		session, ok := snapshot.SessionByID[sessionID]
-		fatal.Unless(ok, "session not found: "+sessionID)
+		if !ok {
+			logx.Warnln("session not found:", sessionID)
+			continue
+		}
 		babyStation := BabyStation{
 			Name:     session.Name,
 			ClientID: connection.ClientID,

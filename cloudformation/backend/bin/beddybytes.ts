@@ -35,18 +35,22 @@ new BackendStack(app, 'beddybytes-backend-prod', {
   deploy_env: 'prod',
   docker_repository: ci_stack.docker_repository,
   docker_image_digest: 'sha256:99274c7e364c3a4716f18cf85ae690a606b0ddec34628620b0c6d5252d629736',
+  iot_authorizer_sha: 'd02e1ad2414b6a1f29406a5a8bd8d3257af535593da74e4db76b2671347abdb6',
   cluster: core_stack.cluster,
   signing_key: secrets_stack.signing_key,
   elastic_ip: core_stack.elastic_ip,
+  bucket: core_stack.bucket,
 });
 
 new BackendStack(app, 'beddybytes-backend-qa', {
   deploy_env: 'qa',
   docker_repository: ci_stack.docker_repository,
   docker_image_digest: 'sha256:1091c6f3d00f9bfe10f9fa43cf243f9a82a639ff200ca6e26b762fc263014961',
+  iot_authorizer_sha: 'd02e1ad2414b6a1f29406a5a8bd8d3257af535593da74e4db76b2671347abdb6',
   cluster: core_stack.cluster,
   signing_key: secrets_stack.signing_key,
   elastic_ip: core_stack.elastic_ip,
+  bucket: core_stack.bucket,
 });
 
 new EmailStack(app, 'beddybytes-email');

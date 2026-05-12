@@ -1,16 +1,16 @@
 import React from "react"
 
 import LoggingService from "./LoggingService"
-import WebSocketSignalService from "./SignalService/WebSocketSignalService";
 import AuthorizationService from "./AuthorizationService";
+import MQTTService from "./MQTTService";
 
 export type Services = {
     logging_service: LoggingService,
     authorization_service: AuthorizationService,
-    signal_service: WebSocketSignalService,
+    mqtt_service: MQTTService,
 }
 
-export const context = React.createContext<Nullable<Services>>(null);
+export const context = React.createContext<Optional<Services>>(null);
 
 type UseService<K extends keyof Services> = () => Services[K];
 
@@ -25,4 +25,4 @@ function makeUseService<K extends keyof Services>(key: K): UseService<K> {
 
 export const useLoggingService = makeUseService('logging_service');
 export const useAuthorizationService = makeUseService('authorization_service');
-export const useSignalService = makeUseService('signal_service');
+export const useMQTTService = makeUseService('mqtt_service');

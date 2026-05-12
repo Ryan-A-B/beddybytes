@@ -4,10 +4,10 @@ import SessionService, { SessionState } from "./SessionService";
 import MediaStreamTrackMonitor from './MediaStreamTrackMonitor';
 import { EventTypeStateChanged, ServiceStateChangedEvent } from '../Service';
 import BabyStationListService, { BabyStationListState } from './BabyStationListService';
-import WebSocketSignalService, { WebSocketSignalState } from '../SignalService/WebSocketSignalService';
 import WakeLockService from '../WakeLockService';
 import { ConnectionState } from './SessionService/Connection';
 import AuthorizationService from '../AuthorizationService';
+import MQTTService, { MQTTServiceState } from "../MQTTService";
 
 const RecentVisibilityChangeThresholdMillis = 2000;
 
@@ -19,31 +19,32 @@ interface VisibilityChangeDetails {
 interface NewParentStationInput {
     logging_service: LoggingService;
     authorization_service: AuthorizationService;
-    signal_service: WebSocketSignalService;
+    mqtt_service: MQTTService;
     wake_lock_service: WakeLockService;
 }
 
 class ParentStation {
     readonly logging_service: LoggingService;
     readonly media_stream: MediaStream = new MediaStream();
-    readonly signal_service: WebSocketSignalService;
+    readonly mqtt_service: MQTTService;
     readonly baby_station_list_service: BabyStationListService;
     readonly session_service: SessionService;
     readonly media_stream_track_monitor: MediaStreamTrackMonitor;
     readonly recording_service: RecordingService;
     readonly wake_lock_service: WakeLockService;
     private last_visibilitychange_details: Optional<VisibilityChangeDetails> = null;
+    private running = false;
 
-    constructor({ logging_service, authorization_service, signal_service, wake_lock_service }: NewParentStationInput) {
+    constructor({ logging_service, authorization_service, mqtt_service, wake_lock_service }: NewParentStationInput) {
         this.logging_service = logging_service;
-        this.signal_service = signal_service;
+        this.mqtt_service = mqtt_service;
         this.baby_station_list_service = new BabyStationListService({
             logging_service,
-            authorization_service,
+            mqtt_service,
         });
         this.session_service = new SessionService({
             logging_service,
-            signal_service,
+            mqtt_service,
             parent_station_media_stream: this.media_stream,
         });
         this.media_stream_track_monitor = new MediaStreamTrackMonitor({
@@ -58,20 +59,25 @@ class ParentStation {
         this.wake_lock_service = wake_lock_service;
 
         document.addEventListener('visibilitychange', this.handle_visibilitychange);
-        this.signal_service.addEventListener(EventTypeStateChanged, this.handle_signal_state_changed);
         this.session_service.addEventListener(EventTypeStateChanged, this.handle_session_state_changed);
         this.baby_station_list_service.addEventListener(EventTypeStateChanged, this.handle_baby_station_list_changed);
     }
 
     public start = () => {
-        this.signal_service.start();
+        if (this.running) return;
+        this.running = true;
+        this.mqtt_service.addEventListener(EventTypeStateChanged, this.handle_mqtt_state_changed);
+        this.mqtt_service.connect();
         this.baby_station_list_service.start();
         this.wake_lock_service.lock();
     }
 
     public stop = () => {
-        this.signal_service.stop();
+        if (!this.running) return;
+        this.running = false;
+        this.mqtt_service.removeEventListener(EventTypeStateChanged, this.handle_mqtt_state_changed);
         this.baby_station_list_service.stop();
+        this.mqtt_service.disconnect();
         this.wake_lock_service.unlock();
     }
 
@@ -89,12 +95,21 @@ class ParentStation {
         }
     }
 
-    private handle_signal_state_changed = (event: ServiceStateChangedEvent<WebSocketSignalState>) => {
+    private handle_mqtt_state_changed = (event: ServiceStateChangedEvent<MQTTServiceState>) => {
+        this.publish_parent_station_announcement_if_needed(event);
         this.reconnect_if_needed();
+        this.restore_session_service_connection_if_needed(event);
+    }
 
-        // We're using signal service reconnecting plus visibility change as a proxy that the app is back in the foreground
-        if (event.previous_state.name !== 'reconnecting') return;
-        if (event.current_state.name !== 'connected') return;
+    private publish_parent_station_announcement_if_needed = (event: ServiceStateChangedEvent<MQTTServiceState>) => {
+        if (event.current_state.name !== 'Connected') return;
+        this.mqtt_service.publish_parent_station_announcement();
+    }
+
+    private restore_session_service_connection_if_needed = (event: ServiceStateChangedEvent<MQTTServiceState>) => {
+        // MQTT reconnect plus recent visibility change is the fastest foreground-return signal we have on mobile.
+        if (event.previous_state.name !== 'OfflineAndReconnecting') return;
+        if (event.current_state.name !== 'Connected') return;
         if (this.last_visibilitychange_details === null) return;
         if (document.visibilityState !== 'visible') return;
         const visibility_change_dt = performance.now() - this.last_visibilitychange_details.timestamp_millis;
@@ -107,7 +122,6 @@ class ParentStation {
     private handle_session_state_changed = (event: ServiceStateChangedEvent<SessionState>) => {
         this.auto_connect_if_needed();
         this.reconnect_if_needed();
-        this.auto_leave_session_if_needed();
         this.try_exit_picture_in_picture_if_needed();
 
         const joined_session = event.previous_state.name !== "joined" && event.current_state.name === "joined";
@@ -129,9 +143,9 @@ class ParentStation {
     }
 
     private handle_baby_station_list_changed = (event: ServiceStateChangedEvent<BabyStationListState>) => {
+        this.leave_replaced_session_if_needed();
         this.auto_connect_if_needed();
         this.reconnect_if_needed();
-        this.auto_leave_session_if_needed();
     }
 
     private handle_connection_state_changed = (event: ServiceStateChangedEvent<ConnectionState>) => {
@@ -148,15 +162,20 @@ class ParentStation {
         if (document.visibilityState !== 'visible') return;
         const session_state = this.session_service.get_state();
         if (session_state.name !== "not_joined") return;
-        const baby_station_list = this.baby_station_list_service.get_baby_station_list();
+        const baby_station_list = this.baby_station_list_service.list_baby_stations();
         const baby_station = baby_station_list.first();
         if (baby_station === undefined) return;
-        this.signal_service.start();
-        this.session_service.join_session(baby_station.session);
+        this.session_service.join_session(baby_station);
     }
 
-    private auto_leave_session_if_needed = () => {
-        this.session_service.leave_session_if_ended(this.session_exists);
+    private leave_replaced_session_if_needed = () => {
+        const active_baby_station = this.session_service.get_baby_station();
+        if (active_baby_station === null) return;
+        const baby_station_list = this.baby_station_list_service.list_baby_stations();
+        const current_baby_station = baby_station_list.find((baby_station) => baby_station.client_id === active_baby_station.client_id);
+        if (current_baby_station === undefined) return;
+        if (current_baby_station.session.id === active_baby_station.session.id) return;
+        this.session_service.leave_session();
     }
 
     private reconnect_if_needed = () => {
@@ -164,9 +183,9 @@ class ParentStation {
     }
 
     private session_exists = (session_id: string): boolean => {
-        const snapshot = this.baby_station_list_service.get_snapshot();
-        const session = snapshot.session_by_id.get(session_id);
-        return session !== undefined;
+        return this.baby_station_list_service
+            .list_baby_stations()
+            .some((baby_station) => baby_station.session.id === session_id);
     }
 
     private try_exit_picture_in_picture_if_needed = async () => {

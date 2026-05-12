@@ -36,6 +36,22 @@ func TestBabyStationList(t *testing.T) {
 			So(output.Snapshot.List(), ShouldHaveLength, 0)
 			So(output.Cursor, ShouldEqual, 0)
 		})
+		Convey("Snapshot list skips connections without matching sessions", func() {
+			connectionID := uuid.NewV4().String()
+			snapshot := &babystationlist.Snapshot{
+				SessionByID:             map[string]*babystationlist.Session{},
+				SessionIDByConnectionID: map[string]string{},
+				ConnectionByID: map[string]*babystationlist.Connection{
+					connectionID: {
+						ClientID:  uuid.NewV4().String(),
+						ID:        connectionID,
+						RequestID: uuid.NewV4().String(),
+					},
+				},
+			}
+
+			So(snapshot.List(), ShouldHaveLength, 0)
+		})
 		Convey("Starting a session isn't enough for a baby station to show", func() {
 			clientID := uuid.NewV4().String()
 			connectionID := uuid.NewV4().String()

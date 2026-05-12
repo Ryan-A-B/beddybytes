@@ -63,6 +63,7 @@ def generate_random_string(length):
     return ''.join(secrets.choice(alphabet) for _ in range(length))
 
 backend_container_name = "beddybytes-api-1"
+mosquitto_container_name = "beddybytes-mosquitto-1"
 
 def can_control_backend_container():
     return shutil.which("docker") is not None
@@ -72,6 +73,15 @@ def stop_backend_container():
 
 def start_backend_container():
     subprocess.run(["docker", "start", backend_container_name], stderr=subprocess.DEVNULL, stdout=subprocess.DEVNULL)
+
+def can_control_mosquitto_container():
+    return shutil.which("docker") is not None
+
+def stop_mosquitto_container():
+    subprocess.run(["docker", "stop", mosquitto_container_name], stderr=subprocess.DEVNULL, stdout=subprocess.DEVNULL)
+
+def start_mosquitto_container():
+    subprocess.run(["docker", "start", mosquitto_container_name], stderr=subprocess.DEVNULL, stdout=subprocess.DEVNULL)
 
 def get_random_bool(probability_of_true):
     """Return True with probability_of_true, False with 1 - probability_of_true."""

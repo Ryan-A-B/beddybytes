@@ -22,6 +22,10 @@ export class CoreStack extends cdk.Stack {
         super(scope, id_prefix, props);
 
         this.bucket = new cdk.aws_s3.Bucket(this, `bucket`);
+        new cdk.CfnOutput(this, "bucket-name", {
+            value: this.bucket.bucketName,
+            exportName: "beddybytes-core:bucket-name",
+        });
 
         this.vpc = new cdk.aws_ec2.Vpc(this, `vpc`, {
             vpcName: vpc_name,

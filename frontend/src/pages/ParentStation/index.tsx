@@ -26,7 +26,7 @@ const ParentStation: React.FunctionComponent = () => {
     const session_state = useServiceState(session_service);
     const media_stream_track_state = useServiceState(parent_station.media_stream_track_monitor);
 
-    const session = React.useMemo(() => session_state.get_active_session(), [session_state]);
+    const session = React.useMemo(() => session_service.get_active_session(), [session_service, session_state]);
 
     // TODO detect audio-only and empty streams
 

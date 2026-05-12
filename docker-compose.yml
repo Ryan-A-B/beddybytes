@@ -22,7 +22,7 @@ services:
         aliases:
           - app.beddybytes.local
           - api.beddybytes.local
-          - mosquitto.beddybytes.local
+          - mqtt.beddybytes.local
           - influx.beddybytes.local
           - grafana.beddybytes.local
           - analytics.beddybytes.local
@@ -30,7 +30,7 @@ services:
         aliases:
           - app.beddybytes.local
           - api.beddybytes.local
-          - mosquitto.beddybytes.local
+          - mqtt.beddybytes.local
           - influx.beddybytes.local
           - grafana.beddybytes.local
           - analytics.beddybytes.local
@@ -58,7 +58,7 @@ services:
       - MAILER_CONSOLE_APP_HOST=app.beddybytes.local
       - MQTT_CLIENT_ID=backend-local
       - MQTT_IMPLEMENTATION=mosquitto
-      - MQTT_BROKER=wss://mosquitto.beddybytes.local
+      - MQTT_BROKER=wss://mqtt.beddybytes.local
       # - MQTT_IMPLEMENTATION=aws_iot
       # - MQTT_BROKER=ssl://a2g6cxhf9lu5os-ats.iot.us-east-1.amazonaws.com:8883
       # - MQTT_AWS_IOT_ROOT_CA_FILE=AmazonRootCA1.pem
@@ -83,7 +83,7 @@ services:
       - ./mosquitto/config/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.mosquitto.rule=Host(`mosquitto.beddybytes.local`)"
+      - "traefik.http.routers.mosquitto.rule=Host(`mqtt.beddybytes.local`)"
       - "traefik.http.routers.mosquitto.entrypoints=websecure"
       - "traefik.http.routers.mosquitto.tls=true"
   app:
