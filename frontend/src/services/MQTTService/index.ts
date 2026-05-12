@@ -604,7 +604,6 @@ abstract class AbstractSubscribing extends AbstractState {
         const topic_filters = Array.from(this.pending_topic_filters);
         const topics = topic_filters.map((topic_filter) => this.account_scope + topic_filter);
         this.client.subscribe(topics, make_subscribe_callback(proxy, topic_filters));
-        console.log("subscribe", { topics });
     }
 
     public publish = (proxy: ServiceProxy, topic: string, payload: string): void => {
@@ -624,7 +623,6 @@ abstract class AbstractSubscribing extends AbstractState {
         if (this.pending_topic_filters.has(topic_filter)) return;
         this.set_subscribing_state(proxy, this.commands, [...Array.from(this.pending_topic_filters), topic_filter]);
         this.client.subscribe([this.account_scope + topic_filter], make_subscribe_callback(proxy, [topic_filter]));
-        console.log("subscribe", { topic_filter });
     }
 
     public unsubscribe = (proxy: ServiceProxy, topic_filter: string): void => {
@@ -777,7 +775,6 @@ class Connected extends AbstractState {
 
     public publish = (proxy: ServiceProxy, topic: string, payload: string): void => {
         this.client.publish(this.account_scope + topic, payload);
-        console.log('publish', { topic, payload });
     }
 
     public publish_connected_status = (): void => {
@@ -788,7 +785,6 @@ class Connected extends AbstractState {
             at_millis: Date.now(),
         } satisfies ConnectedPayload);
         this.client.publish(clientStatusTopic(this.account_id, settings.API.clientID), payload);
-        console.log('publish', { topic: `clients/${settings.API.clientID}/status`, payload });
     }
 
     public publish_parent_station_announcement = (proxy: ServiceProxy): void => {
@@ -828,7 +824,6 @@ class Connected extends AbstractState {
             },
         } satisfies DisconnectedPayload);
         this.client.publish(clientStatusTopic(this.account_id, settings.API.clientID), payload);
-        console.log('publish', { topic: `clients/${settings.API.clientID}/status`, payload });
         this.client.end();
         proxy.set_state(new Ready(this.account_id));
     }
