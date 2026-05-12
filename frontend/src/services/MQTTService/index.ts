@@ -7,7 +7,7 @@ import AuthorizationService, { AuthorizationServiceState } from "../Authorizatio
 import { load_account_from_local_storage } from "../AuthorizationService/AuthorizationClient";
 import settings from "../../settings";
 import { clientStatusTopic } from "./topics";
-import { new_webrtc_inbox_payload, newConnectedPayload, newDisconnectedPayload, newParentStationAnnouncementPayload } from "./payloads";
+import { ConnectedPayload, DisconnectedPayload, new_webrtc_inbox_payload, newParentStationAnnouncementPayload } from "./payloads";
 
 export type MQTTServiceState = AwaitingLogin | WaitingForAccessTokenToBeReady | WaitingForAccessTokenToConnect | Ready | Connecting | Offline | OfflineAndReconnecting | SubscribingOnConnect | SubscribingAfterConnected | Connected;
 
@@ -236,12 +236,15 @@ const connect_mqtt = (proxy: ServiceProxy, account_id: string, commands: List<Co
         clientId: settings.API.clientID,
         will: {
             topic: clientStatusTopic(account_id, settings.API.clientID),
-            payload: JSON.stringify(newDisconnectedPayload({
-                connectionID,
-                requestID,
-                atMillis: 0,
-                reason: "unexpected",
-            })),
+            payload: JSON.stringify({
+                type: "disconnected",
+                connection_id: connectionID,
+                request_id: requestID,
+                at_millis: 0,
+                disconnected: {
+                    reason: "unexpected",
+                },
+            } satisfies DisconnectedPayload),
             qos: 1,
             retain: false,
         },
@@ -778,11 +781,12 @@ class Connected extends AbstractState {
     }
 
     public publish_connected_status = (): void => {
-        const payload = JSON.stringify(newConnectedPayload({
-            connectionID: this.connection_id,
-            requestID: this.requestID,
-            atMillis: Date.now(),
-        }));
+        const payload = JSON.stringify({
+            type: "connected",
+            connection_id: this.connection_id,
+            request_id: this.requestID,
+            at_millis: Date.now(),
+        } satisfies ConnectedPayload);
         this.client.publish(clientStatusTopic(this.account_id, settings.API.clientID), payload);
         console.log('publish', { topic: `clients/${settings.API.clientID}/status`, payload });
     }
@@ -814,12 +818,15 @@ class Connected extends AbstractState {
     }
 
     public disconnect = (proxy: ServiceProxy): void => {
-        const payload = JSON.stringify(newDisconnectedPayload({
-            connectionID: this.connection_id,
-            requestID: this.requestID,
-            atMillis: Date.now(),
-            reason: "clean",
-        }));
+        const payload = JSON.stringify({
+            type: "disconnected",
+            connection_id: this.connection_id,
+            request_id: this.requestID,
+            at_millis: Date.now(),
+            disconnected: {
+                reason: "clean",
+            },
+        } satisfies DisconnectedPayload);
         this.client.publish(clientStatusTopic(this.account_id, settings.API.clientID), payload);
         console.log('publish', { topic: `clients/${settings.API.clientID}/status`, payload });
         this.client.end();

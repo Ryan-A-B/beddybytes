@@ -225,7 +225,7 @@ export class BackendStack extends cdk.Stack {
         });
         new cdk.aws_route53.CnameRecord(this, "mqtt-dns", {
             zone: hosted_zone,
-            recordName: host_names.mqtt,
+            recordName: `${host_names.mqtt}.`,
             domainName: iot_data_endpoint.getResponseField("endpointAddress"),
             ttl: cdk.Duration.minutes(15),
         });

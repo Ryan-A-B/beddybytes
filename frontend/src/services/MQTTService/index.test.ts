@@ -160,10 +160,10 @@ describe("MQTTService", () => {
         const options = mocked_mqtt.connect.mock.calls[0][1];
         expect(JSON.parse(options.will.payload)).toEqual({
             type: "disconnected",
+            connection_id: expect.any(String),
+            request_id: expect.any(String),
+            at_millis: 0,
             disconnected: {
-                connection_id: expect.any(String),
-                request_id: expect.any(String),
-                at_millis: 0,
                 reason: "unexpected",
             },
         });
@@ -197,11 +197,9 @@ describe("MQTTService", () => {
         }));
         expect(JSON.parse(mqtt_client.calls[0].payload ?? "")).toEqual({
             type: "connected",
-            connected: {
-                connection_id: expect.any(String),
-                request_id: expect.any(String),
-                at_millis: 123,
-            },
+            connection_id: expect.any(String),
+            request_id: expect.any(String),
+            at_millis: 123,
         });
         expect(service.get_state().name).toBe("Connected");
     });
@@ -409,13 +407,11 @@ describe("MQTTService", () => {
         const reconnected_payload = JSON.parse(mqtt_client.calls[mqtt_client.calls.length - 1].payload ?? "");
         expect(reconnected_payload).toEqual({
             type: "connected",
-            connected: {
-                connection_id: initial_connected_payload.connected.connection_id,
-                request_id: expect.any(String),
-                at_millis: 123,
-            },
+            connection_id: initial_connected_payload.connection_id,
+            request_id: expect.any(String),
+            at_millis: 123,
         });
-        expect(reconnected_payload.connected.request_id).not.toBe(initial_connected_payload.connected.request_id);
+        expect(reconnected_payload.request_id).not.toBe(initial_connected_payload.request_id);
         expect(service.get_state().name).toBe("Connected");
     });
 
@@ -428,8 +424,8 @@ describe("MQTTService", () => {
         mqtt_client.emit("connect");
 
         const reconnected_payload = JSON.parse(mqtt_client.calls[mqtt_client.calls.length - 1].payload ?? "");
-        expect(reconnected_payload.connected.connection_id).toBe(initial_connected_payload.connected.connection_id);
-        expect(reconnected_payload.connected.request_id).not.toBe(initial_connected_payload.connected.request_id);
+        expect(reconnected_payload.connection_id).toBe(initial_connected_payload.connection_id);
+        expect(reconnected_payload.request_id).not.toBe(initial_connected_payload.request_id);
     });
 
     test("reconnect resubscribes active topic filters", () => {
@@ -1119,10 +1115,10 @@ describe("MQTTService", () => {
         }));
         expect(JSON.parse(mqtt_client.calls[mqtt_client.calls.length - 1].payload ?? "")).toEqual({
             type: "disconnected",
+            connection_id: expect.any(String),
+            request_id: expect.any(String),
+            at_millis: 123,
             disconnected: {
-                connection_id: expect.any(String),
-                request_id: expect.any(String),
-                at_millis: 123,
                 reason: "clean",
             },
         });
@@ -1147,10 +1143,10 @@ describe("MQTTService", () => {
         const willPayload = JSON.parse(connectOptions.will.payload);
         const connectedPayload = JSON.parse(mqtt_client.calls[0].payload ?? "");
         const disconnectedPayload = JSON.parse(mqtt_client.calls[mqtt_client.calls.length - 1].payload ?? "");
-        expect(connectedPayload.connected.connection_id).toBe(willPayload.disconnected.connection_id);
-        expect(connectedPayload.connected.request_id).toBe(willPayload.disconnected.request_id);
-        expect(disconnectedPayload.disconnected.connection_id).toBe(willPayload.disconnected.connection_id);
-        expect(disconnectedPayload.disconnected.request_id).toBe(willPayload.disconnected.request_id);
+        expect(connectedPayload.connection_id).toBe(willPayload.connection_id);
+        expect(connectedPayload.request_id).toBe(willPayload.request_id);
+        expect(disconnectedPayload.connection_id).toBe(willPayload.connection_id);
+        expect(disconnectedPayload.request_id).toBe(willPayload.request_id);
     });
 });
 
