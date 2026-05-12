@@ -13,7 +13,6 @@ import (
 const testSigningKey = "test-signing-key"
 
 func TestAuthorizeAllowsAccountScopedMQTTAccessForValidAccessToken(t *testing.T) {
-	t.Skip("policy is temporarily broad while debugging AWS IoT authorization")
 	accessToken := newAccessToken(t, time.Now().Add(time.Hour), internal.URN{
 		Service:      "iam",
 		AccountID:    "beddybytes-account-1",
@@ -41,10 +40,13 @@ func TestAuthorizeAllowsAccountScopedMQTTAccessForValidAccessToken(t *testing.T)
 		"arn:aws:iot:ap-southeast-2:123456789012:topic/accounts/beddybytes-account-1/clients/*/control_inbox",
 		"arn:aws:iot:ap-southeast-2:123456789012:topic/accounts/beddybytes-account-1/baby_stations",
 		"arn:aws:iot:ap-southeast-2:123456789012:topic/accounts/beddybytes-account-1/parent_stations",
+		"arn:aws:iot:ap-southeast-2:123456789012:topic/accounts/beddybytes-account-1/*",
 		"arn:aws:iot:ap-southeast-2:123456789012:topicfilter/accounts/beddybytes-account-1/clients/client-1/webrtc_inbox",
 		"arn:aws:iot:ap-southeast-2:123456789012:topicfilter/accounts/beddybytes-account-1/clients/client-1/control_inbox",
+		"arn:aws:iot:ap-southeast-2:123456789012:topicfilter/accounts/beddybytes-account-1/clients/*/status",
 		"arn:aws:iot:ap-southeast-2:123456789012:topicfilter/accounts/beddybytes-account-1/clients/+/status",
-		"arn:aws:iot:ap-southeast-2:123456789012:topic/accounts/beddybytes-account-1/clients/*/status",
+		"arn:aws:iot:ap-southeast-2:123456789012:topicfilter/accounts/beddybytes-account-1/baby_stations",
+		"arn:aws:iot:ap-southeast-2:123456789012:topicfilter/accounts/beddybytes-account-1/parent_stations",
 	})
 	connectStatement := policy.Statement[0]
 	if connectStatement.Effect != "Allow" {
@@ -120,7 +122,6 @@ func TestAuthorizeRejectsMissingMQTTClientID(t *testing.T) {
 }
 
 func TestPolicyDocumentFitsIOTAuthorizerLimit(t *testing.T) {
-	t.Skip("policy is temporarily broad while debugging AWS IoT authorization")
 	policy := newPolicyDocument("ap-southeast-2", "123456789012", "beddybytes-account-1", "client-1")
 	encoded, err := json.Marshal(policy)
 	if err != nil {

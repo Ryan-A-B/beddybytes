@@ -97,7 +97,6 @@ services:
     environment:
       - WDS_SOCKET_HOST=app.beddybytes.local
       - WDS_SOCKET_PORT=443
-      - MQTT_HOST=mqtt.qa.beddybytes.com
     working_dir: /opt/app
     labels:
       - "traefik.enable=true"
