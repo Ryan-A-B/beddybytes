@@ -38,12 +38,12 @@ interface ServiceProxy {
     dispatch_event(event: Event): void;
     call_subscriptions(message: MessageReceived): void;
     set_state(state: MQTTServiceState): void;
-    handle_connect(): void;
+    handle_connect(connection_id: string): void;
     handle_message(topic: string, payload: Buffer): void;
-    handle_reconnect(): void;
-    handle_close(): void;
-    handle_offline(): void;
-    handle_error(error: Error): void;
+    handle_reconnect(connection_id: string): void;
+    handle_close(connection_id: string): void;
+    handle_offline(connection_id: string): void;
+    handle_error(connection_id: string, error: Error): void;
     handle_subscribe_callback(topic_filters: string[], error: Optional<Error>): void;
     list_topic_filters(): string[];
 }
@@ -55,32 +55,32 @@ abstract class AbstractState {
         // Default is to ignore connect requests.
     }
 
-    public handle_connect(proxy: ServiceProxy): void {
+    public handle_connect(proxy: ServiceProxy, connection_id: string): void {
         // Default is to ignore MQTT connect events.
     }
 
-    public handle_reconnect(proxy: ServiceProxy): void {
+    public handle_reconnect(proxy: ServiceProxy, connection_id: string): void {
         proxy.logging_service.log({
             severity: Severity.Warning,
             message: "MQTT client reconnecting",
         });
     }
 
-    public handle_close(proxy: ServiceProxy): void {
+    public handle_close(proxy: ServiceProxy, connection_id: string): void {
         proxy.logging_service.log({
             severity: Severity.Warning,
             message: "MQTT client closed",
         });
     }
 
-    public handle_offline(proxy: ServiceProxy): void {
+    public handle_offline(proxy: ServiceProxy, connection_id: string): void {
         proxy.logging_service.log({
             severity: Severity.Warning,
             message: "MQTT client offline",
         });
     }
 
-    public handle_error(proxy: ServiceProxy, error: Error): void {
+    public handle_error(proxy: ServiceProxy, connection_id: string, error: Error): void {
         proxy.logging_service.log({
             severity: Severity.Warning,
             message: `MQTT client error: ${error.message}`,
@@ -217,7 +217,7 @@ class Ready extends AbstractState {
         connect_mqtt(proxy, this.account_id, List());
     }
 
-    public handle_close = (proxy: ServiceProxy): void => {
+    public handle_close = (proxy: ServiceProxy, connection_id: string): void => {
         // MQTT.js emits close after a clean end(). Ready already represents idle.
     }
 
@@ -251,12 +251,12 @@ const connect_mqtt = (proxy: ServiceProxy, account_id: string, commands: List<Co
             return transformedURL.toString();
         },
     });
-    client.on("connect", proxy.handle_connect);
+    client.on("connect", () => proxy.handle_connect(connectionID));
     client.on("message", proxy.handle_message);
-    client.on("reconnect", proxy.handle_reconnect);
-    client.on("close", proxy.handle_close);
-    client.on("offline", proxy.handle_offline);
-    client.on("error", proxy.handle_error);
+    client.on("reconnect", () => proxy.handle_reconnect(connectionID));
+    client.on("close", () => proxy.handle_close(connectionID));
+    client.on("offline", () => proxy.handle_offline(connectionID));
+    client.on("error", (error) => proxy.handle_error(connectionID, error));
     proxy.set_state(new Connecting({
         client,
         accountID: account_id,
@@ -291,7 +291,8 @@ class Connecting extends AbstractState {
         this.commands = input.commands;
     }
 
-    public handle_connect = (proxy: ServiceProxy): void => {
+    public handle_connect = (proxy: ServiceProxy, connection_id: string): void => {
+        if (connection_id !== this.connectionID) return;
         const topic_filters = proxy.list_topic_filters();
         if (topic_filters.length > 0) {
             transition_to_subscribing_on_connect(proxy, {
@@ -381,15 +382,17 @@ class Offline extends AbstractState {
         return true;
     }
 
-    public handle_connect = (proxy: ServiceProxy): void => {
+    public handle_connect = (proxy: ServiceProxy, connection_id: string): void => {
+        if (connection_id !== this.connectionID) return;
         proxy.logging_service.log({
             severity: Severity.Warning,
             message: "MQTT client connected while offline",
         });
     }
 
-    public handle_reconnect = (proxy: ServiceProxy): void => {
-        super.handle_reconnect(proxy);
+    public handle_reconnect = (proxy: ServiceProxy, connection_id: string): void => {
+        if (connection_id !== this.connectionID) return;
+        super.handle_reconnect(proxy, connection_id);
         proxy.set_state(new OfflineAndReconnecting({
             client: this.client,
             accountID: this.accountID,
@@ -399,12 +402,14 @@ class Offline extends AbstractState {
         }));
     }
 
-    public handle_close = (proxy: ServiceProxy): void => {
-        super.handle_close(proxy);
+    public handle_close = (proxy: ServiceProxy, connection_id: string): void => {
+        if (connection_id !== this.connectionID) return;
+        super.handle_close(proxy, connection_id);
     }
 
-    public handle_offline = (proxy: ServiceProxy): void => {
-        super.handle_offline(proxy);
+    public handle_offline = (proxy: ServiceProxy, connection_id: string): void => {
+        if (connection_id !== this.connectionID) return;
+        super.handle_offline(proxy, connection_id);
     }
 
     public subscribe = (proxy: ServiceProxy, topic_filter: string): void => {
@@ -463,7 +468,8 @@ class OfflineAndReconnecting extends AbstractState {
         return true;
     }
 
-    public handle_connect = (proxy: ServiceProxy): void => {
+    public handle_connect = (proxy: ServiceProxy, connection_id: string): void => {
+        if (connection_id !== this.connectionID) return;
         const topic_filters = proxy.list_topic_filters();
         if (topic_filters.length > 0) {
             transition_to_subscribing_on_connect(proxy, {
@@ -487,8 +493,9 @@ class OfflineAndReconnecting extends AbstractState {
         proxy.set_state(connected);
     }
 
-    public handle_reconnect = (proxy: ServiceProxy): void => {
-        super.handle_reconnect(proxy);
+    public handle_reconnect = (proxy: ServiceProxy, connection_id: string): void => {
+        if (connection_id !== this.connectionID) return;
+        super.handle_reconnect(proxy, connection_id);
         proxy.set_state(new OfflineAndReconnecting({
             client: this.client,
             accountID: this.accountID,
@@ -498,8 +505,9 @@ class OfflineAndReconnecting extends AbstractState {
         }));
     }
 
-    public handle_close = (proxy: ServiceProxy): void => {
-        super.handle_close(proxy);
+    public handle_close = (proxy: ServiceProxy, connection_id: string): void => {
+        if (connection_id !== this.connectionID) return;
+        super.handle_close(proxy, connection_id);
         proxy.set_state(new Offline({
             client: this.client,
             accountID: this.accountID,
@@ -509,8 +517,9 @@ class OfflineAndReconnecting extends AbstractState {
         }));
     }
 
-    public handle_offline = (proxy: ServiceProxy): void => {
-        super.handle_offline(proxy);
+    public handle_offline = (proxy: ServiceProxy, connection_id: string): void => {
+        if (connection_id !== this.connectionID) return;
+        super.handle_offline(proxy, connection_id);
         proxy.set_state(new Offline({
             client: this.client,
             accountID: this.accountID,
@@ -656,8 +665,9 @@ abstract class AbstractSubscribing extends AbstractState {
         this.transition_to_connected(proxy, this.commands);
     }
 
-    public handle_reconnect = (proxy: ServiceProxy): void => {
-        super.handle_reconnect(proxy);
+    public handle_reconnect = (proxy: ServiceProxy, connection_id: string): void => {
+        if (connection_id !== this.connection_id) return;
+        super.handle_reconnect(proxy, connection_id);
         proxy.set_state(new OfflineAndReconnecting({
             client: this.client,
             accountID: this.account_id,
@@ -667,8 +677,9 @@ abstract class AbstractSubscribing extends AbstractState {
         }));
     }
 
-    public handle_close = (proxy: ServiceProxy): void => {
-        super.handle_close(proxy);
+    public handle_close = (proxy: ServiceProxy, connection_id: string): void => {
+        if (connection_id !== this.connection_id) return;
+        super.handle_close(proxy, connection_id);
         proxy.set_state(new Offline({
             client: this.client,
             accountID: this.account_id,
@@ -678,8 +689,9 @@ abstract class AbstractSubscribing extends AbstractState {
         }));
     }
 
-    public handle_offline = (proxy: ServiceProxy): void => {
-        super.handle_offline(proxy);
+    public handle_offline = (proxy: ServiceProxy, connection_id: string): void => {
+        if (connection_id !== this.connection_id) return;
+        super.handle_offline(proxy, connection_id);
         proxy.set_state(new Offline({
             client: this.client,
             accountID: this.account_id,
@@ -820,8 +832,9 @@ class Connected extends AbstractState {
         proxy.call_subscriptions(message);
     }
 
-    public handle_reconnect = (proxy: ServiceProxy): void => {
-        super.handle_reconnect(proxy);
+    public handle_reconnect = (proxy: ServiceProxy, connection_id: string): void => {
+        if (connection_id !== this.connection_id) return;
+        super.handle_reconnect(proxy, connection_id);
         proxy.set_state(new OfflineAndReconnecting({
             client: this.client,
             accountID: this.account_id,
@@ -831,8 +844,9 @@ class Connected extends AbstractState {
         }));
     }
 
-    public handle_close = (proxy: ServiceProxy): void => {
-        super.handle_close(proxy);
+    public handle_close = (proxy: ServiceProxy, connection_id: string): void => {
+        if (connection_id !== this.connection_id) return;
+        super.handle_close(proxy, connection_id);
         proxy.set_state(new Offline({
             client: this.client,
             accountID: this.account_id,
@@ -842,8 +856,9 @@ class Connected extends AbstractState {
         }));
     }
 
-    public handle_offline = (proxy: ServiceProxy): void => {
-        super.handle_offline(proxy);
+    public handle_offline = (proxy: ServiceProxy, connection_id: string): void => {
+        if (connection_id !== this.connection_id) return;
+        super.handle_offline(proxy, connection_id);
         proxy.set_state(new Offline({
             client: this.client,
             accountID: this.account_id,
@@ -1015,28 +1030,28 @@ class MQTTService extends Service<MQTTServiceState> {
         this.get_state().handle_authorization_service_state_changed(this.proxy, event);
     }
 
-    private handle_connect = (): void => {
-        this.get_state().handle_connect(this.proxy);
+    private handle_connect = (connection_id: string): void => {
+        this.get_state().handle_connect(this.proxy, connection_id);
     }
 
     private handle_message = (topic: string, payload: Buffer): void => {
         this.get_state().handle_message(this.proxy, topic, payload);
     }
 
-    private handle_reconnect = (): void => {
-        this.get_state().handle_reconnect(this.proxy);
+    private handle_reconnect = (connection_id: string): void => {
+        this.get_state().handle_reconnect(this.proxy, connection_id);
     }
 
-    private handle_close = (): void => {
-        this.get_state().handle_close(this.proxy);
+    private handle_close = (connection_id: string): void => {
+        this.get_state().handle_close(this.proxy, connection_id);
     }
 
-    private handle_offline = (): void => {
-        this.get_state().handle_offline(this.proxy);
+    private handle_offline = (connection_id: string): void => {
+        this.get_state().handle_offline(this.proxy, connection_id);
     }
 
-    private handle_error = (error: Error): void => {
-        this.get_state().handle_error(this.proxy, error);
+    private handle_error = (connection_id: string, error: Error): void => {
+        this.get_state().handle_error(this.proxy, connection_id, error);
     }
 
     private handle_subscribe_callback = (topic_filters: string[], error: Optional<Error>): void => {

@@ -208,6 +208,7 @@ func newPolicyDocument(awsRegion string, awsAccountID string, beddybytesAccountI
 				Resource: []string{
 					topicFilter(accountTopic(fmt.Sprintf("clients/%s/webrtc_inbox", mqttClientID))),
 					topicFilter(accountTopic(fmt.Sprintf("clients/%s/control_inbox", mqttClientID))),
+					topicFilter(accountTopic("clients/*/status")),
 					topicFilter(accountTopic("clients/+/status")),
 					topicFilter(accountTopic("baby_stations")),
 					topicFilter(accountTopic("parent_stations")),

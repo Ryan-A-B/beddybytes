@@ -313,6 +313,27 @@ describe("MQTTService", () => {
         ]));
     });
 
+    test("stale close from previous MQTT client does not affect current connection attempt", () => {
+        const authorization_service = new_authorization_service();
+        authorization_service.apply_token_output(default_token_output);
+        localStorage.setItem("account", JSON.stringify(default_account));
+        const service = new MQTTService({
+            authorization_service,
+            logging_service: new MockLoggingService(),
+        });
+
+        service.connect();
+        const stale_client = mqtt_client;
+        service.disconnect();
+        mqtt_client = new MockMQTTClient();
+        mocked_mqtt.connect.mockReturnValue(mqtt_client);
+        service.connect();
+        stale_client.emit("close");
+
+        expect(service.get_state().name).toBe("Connecting");
+        expect(mqtt_client.end).not.toHaveBeenCalled();
+    });
+
     test.each([
         {
             state_name: "Connecting",
