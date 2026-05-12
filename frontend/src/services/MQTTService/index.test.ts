@@ -110,6 +110,23 @@ describe("MQTTService", () => {
         }));
     });
 
+    test("connects with an AWS IoT compatible keepalive timer", () => {
+        const authorization_service = new_authorization_service();
+        authorization_service.apply_token_output(default_token_output);
+        localStorage.setItem("account", JSON.stringify(default_account));
+        const service = new MQTTService({
+            authorization_service,
+            logging_service: new MockLoggingService(),
+        });
+
+        service.connect();
+
+        expect(mocked_mqtt.connect).toHaveBeenCalledWith(`wss://${settings.MQTT.host}`, expect.objectContaining({
+            keepalive: 30,
+            timerVariant: "native",
+        }));
+    });
+
     test("logs warning and stays awaiting login when connecting before login", () => {
         const logging_service = new MockLoggingService();
         const service = new MQTTService({

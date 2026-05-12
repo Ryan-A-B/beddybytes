@@ -32,6 +32,8 @@ interface PublishParentStationAnnouncementCommand {
 
 type Command = SubscribeCommand | PublishCommand | PublishParentStationAnnouncementCommand;
 
+const AWS_IOT_MINIMUM_KEEPALIVE_SECONDS = 30;
+
 interface ServiceProxy {
     authorization_service: AuthorizationService;
     logging_service: LoggingService;
@@ -227,7 +229,8 @@ const connect_mqtt = (proxy: ServiceProxy, account_id: string, commands: List<Co
     const connectionID = uuid();
     const requestID = uuid();
     const client = mqtt.connect(`wss://${settings.MQTT.host}`, {
-        keepalive: 3,
+        keepalive: AWS_IOT_MINIMUM_KEEPALIVE_SECONDS,
+        timerVariant: "native",
         protocolId: "MQTT",
         protocolVersion: 4,
         clean: true,
