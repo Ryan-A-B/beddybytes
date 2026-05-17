@@ -1,0 +1,47 @@
+@import './tokens/brand.css';
+@import './tokens/alias.css';
+@import './tokens/mapping.css';
+@import './tokens/responsive.css';
+@import './tokens/themes/dark.css';
+@import './tokens/themes/light.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  body {
+    margin: 0;
+    min-width: 320px;
+    min-height: 100vh;
+    background: var(--bb-background-page);
+    color: rgb(var(--bb-color-text));
+    font-family: var(--bb-font-sans);
+    font-size: var(--bb-font-size-md);
+    line-height: var(--bb-line-height-body);
+    letter-spacing: 0;
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
+    letter-spacing: 0;
+  }
+
+  a {
+    color: rgb(var(--bb-color-action));
+  }
+
+  :focus-visible {
+    outline: none;
+    box-shadow: var(--bb-focus-ring);
+  }
+}

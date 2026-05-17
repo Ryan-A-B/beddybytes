@@ -1,0 +1,91 @@
+:root {
+  --bb-brand-white: 255 255 255;
+  --bb-brand-black: 0 0 0;
+
+  --bb-brand-gray-100: 244 247 248;
+  --bb-brand-gray-200: 200 204 207;
+  --bb-brand-gray-300: 156 162 166;
+  --bb-brand-gray-400: 112 119 124;
+  --bb-brand-gray-500: 68 77 83;
+  --bb-brand-gray-600: 54 62 66;
+  --bb-brand-gray-700: 41 46 50;
+  --bb-brand-gray-800: 27 31 33;
+
+  --bb-brand-indigo-100: 209 209 235;
+  --bb-brand-indigo-200: 162 162 215;
+  --bb-brand-indigo-300: 116 116 195;
+  --bb-brand-indigo-400: 69 69 175;
+  --bb-brand-indigo-500: 23 23 155;
+  --bb-brand-indigo-600: 18 18 124;
+  --bb-brand-indigo-700: 14 14 93;
+  --bb-brand-indigo-800: 9 9 62;
+  --bb-brand-indigo-900: 5 5 31;
+  --bb-brand-indigo-950: 2 2 16;
+
+  --bb-brand-sky-100: 204 238 246;
+  --bb-brand-sky-200: 153 221 237;
+  --bb-brand-sky-300: 102 204 228;
+  --bb-brand-sky-400: 51 187 219;
+  --bb-brand-sky-500: 0 170 210;
+  --bb-brand-sky-600: 0 136 168;
+  --bb-brand-sky-700: 0 102 126;
+  --bb-brand-sky-800: 0 68 84;
+
+  --bb-brand-mint-100: 204 242 229;
+  --bb-brand-mint-200: 153 229 204;
+  --bb-brand-mint-300: 102 216 178;
+  --bb-brand-mint-400: 51 203 153;
+  --bb-brand-mint-500: 0 190 127;
+  --bb-brand-mint-600: 0 152 102;
+  --bb-brand-mint-700: 0 114 76;
+  --bb-brand-mint-800: 0 76 51;
+
+  --bb-brand-gold-100: 254 236 204;
+  --bb-brand-gold-200: 253 217 153;
+  --bb-brand-gold-300: 253 199 102;
+  --bb-brand-gold-400: 252 180 51;
+  --bb-brand-gold-500: 251 161 0;
+  --bb-brand-gold-600: 201 129 0;
+  --bb-brand-gold-700: 151 97 0;
+  --bb-brand-gold-800: 100 64 0;
+
+  --bb-brand-coral-100: 251 215 214;
+  --bb-brand-coral-200: 246 176 173;
+  --bb-brand-coral-300: 242 136 132;
+  --bb-brand-coral-400: 237 97 91;
+  --bb-brand-coral-500: 233 57 50;
+  --bb-brand-coral-600: 186 46 40;
+  --bb-brand-coral-700: 140 34 30;
+  --bb-brand-coral-800: 93 23 20;
+
+  --bb-font-sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --bb-brand-icon-family: "Font Awesome 6 Free";
+  --bb-brand-icon-baby: "baby";
+  --bb-brand-icon-parent-station: "display";
+  --bb-brand-icon-microphone: "microphone";
+  --bb-brand-icon-camera: "video";
+  --bb-brand-icon-configuration: "gear";
+  --bb-brand-icon-station-name: "tag";
+  --bb-brand-icon-edit: "pen-to-square";
+  --bb-brand-icon-select: "chevron-down";
+  --bb-brand-icon-menu: "bars";
+  --bb-brand-icon-close: "xmark";
+  --bb-brand-icon-active: "circle-dot";
+  --bb-brand-icon-sparkle: "wand-magic-sparkles";
+
+  --bb-scale-0: 0;
+  --bb-scale-25: 2px;
+  --bb-scale-50: 4px;
+  --bb-scale-100: 8px;
+  --bb-scale-150: 12px;
+  --bb-scale-200: 16px;
+  --bb-scale-250: 20px;
+  --bb-scale-300: 24px;
+  --bb-scale-350: 28px;
+  --bb-scale-400: 32px;
+  --bb-scale-500: 40px;
+  --bb-scale-600: 48px;
+  --bb-scale-700: 64px;
+  --bb-scale-800: 96px;
+  --bb-scale-900: 128px;
+}
