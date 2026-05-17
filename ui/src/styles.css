@@ -45,3 +45,34 @@
     box-shadow: var(--bb-focus-ring);
   }
 }
+
+@layer components {
+  .bb-container {
+    width: min(100% - 32px, 100%);
+    margin-inline: auto;
+  }
+
+  @media (min-width: 768px) {
+    .bb-container {
+      width: min(100% - 48px, 720px);
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .bb-container {
+      width: min(100% - 56px, 960px);
+    }
+  }
+
+  @media (min-width: 1280px) {
+    .bb-container {
+      width: min(100% - 64px, 1120px);
+    }
+  }
+
+  @media (min-width: 1536px) {
+    .bb-container {
+      width: min(100% - 80px, 1280px);
+    }
+  }
+}

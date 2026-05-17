@@ -57,8 +57,8 @@ const AppPrototypeNavigation: React.FunctionComponent<{ active_item?: AppNavItem
 }
 
 const AppPrototypeHeader: React.FunctionComponent<{ active_item?: AppNavItem }> = ({ active_item }) => (
-  <header className="flex min-w-0 items-center justify-between gap-4">
-    <div className="flex min-w-0 items-center gap-3 sm:gap-8">
+  <header className="w-full">
+    <div className="bb-container flex min-w-0 items-center gap-3 sm:gap-8">
       <a href="#home" className="flex items-center gap-3 text-text no-underline">
         <span className="grid h-8 w-8 place-items-center rounded-lg bg-action/25">
           <span className="h-3.5 w-3.5 rounded-full bg-action" />
@@ -71,33 +71,35 @@ const AppPrototypeHeader: React.FunctionComponent<{ active_item?: AppNavItem }> 
 )
 
 const AppPrototypeFooter: React.FunctionComponent = () => (
-  <footer className="grid gap-6 border-t border-[rgb(var(--bb-color-border)/var(--bb-border-opacity-default,0.22))] pt-5 text-sm text-subdued sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
-    <div className="grid max-w-sm gap-2">
-      <strong className="text-xl font-medium text-text">BeddyBytes</strong>
-      <p className="m-0 leading-relaxed">Designed and built with love by parents, for parents.</p>
-    </div>
-    <div className="grid gap-2 sm:min-w-[220px]">
-      <strong className="text-xl font-semibold text-text">Build</strong>
-      <dl className="m-0 grid gap-1">
-        <div className="grid grid-cols-[auto_minmax(0,1fr)] gap-1">
-          <dt>Date:</dt>
-          <dd className="m-0 truncate">%REACT_APP_BUILD_DATE%</dd>
-        </div>
-        <div className="grid grid-cols-[auto_minmax(0,1fr)] gap-1">
-          <dt>Hash:</dt>
-          <dd className="m-0 truncate">%REACT_APP_BUILD_HASH%</dd>
-        </div>
-      </dl>
+  <footer className="w-full border-t border-[rgb(var(--bb-color-border)/var(--bb-border-opacity-default,0.22))] pt-5 text-sm text-subdued">
+    <div className="bb-container grid gap-6 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
+      <div className="grid max-w-sm gap-2">
+        <strong className="text-xl font-medium text-text">BeddyBytes</strong>
+        <p className="m-0 leading-relaxed">Designed and built with love by parents, for parents.</p>
+      </div>
+      <div className="grid gap-2 sm:min-w-[220px]">
+        <strong className="text-xl font-semibold text-text">Build</strong>
+        <dl className="m-0 grid gap-1">
+          <div className="grid grid-cols-[auto_minmax(0,1fr)] gap-1">
+            <dt>Date:</dt>
+            <dd className="m-0 truncate">%REACT_APP_BUILD_DATE%</dd>
+          </div>
+          <div className="grid grid-cols-[auto_minmax(0,1fr)] gap-1">
+            <dt>Hash:</dt>
+            <dd className="m-0 truncate">%REACT_APP_BUILD_HASH%</dd>
+          </div>
+        </dl>
+      </div>
     </div>
   </footer>
 )
 
 export const AppHomePrototypeOne: React.FunctionComponent = () => (
   <StarryNight seed="app-home-quiet-connection" count={100} className="min-h-screen bg-[var(--bb-background-page)]">
-    <div className="flex min-h-screen flex-col gap-8 p-4 sm:gap-12 sm:p-7">
+    <div className="flex min-h-screen flex-col gap-8 py-4 sm:gap-12 sm:py-7">
       <AppPrototypeHeader />
 
-      <main className="grid min-w-0 flex-1 gap-7 lg:grid-cols-[minmax(0,1fr)_minmax(420px,0.86fr)] lg:gap-10 lg:items-start">
+      <main className="bb-container grid min-w-0 flex-1 gap-7 lg:grid-cols-[minmax(0,1fr)_minmax(420px,0.86fr)] lg:gap-10 lg:items-start">
         <div className="contents lg:order-2 lg:col-start-2 lg:grid lg:min-w-0 lg:content-start lg:gap-6">
           <div className="order-1 grid gap-3 sm:grid-cols-2 lg:order-2">
             <Button size="lg" full_width className="whitespace-nowrap border-[rgb(var(--bb-colour-role-baby-action))] bg-[rgb(var(--bb-colour-role-baby-action))] text-base text-[rgb(var(--bb-colour-role-baby-on-action))]">
@@ -185,7 +187,7 @@ export const AppHomePrototypeOne: React.FunctionComponent = () => (
       </main>
     </div>
 
-    <div className="p-4 pt-0 sm:p-7 sm:pt-0">
+    <div className="pb-4 sm:pb-7">
       <AppPrototypeFooter />
     </div>
   </StarryNight>
@@ -193,10 +195,10 @@ export const AppHomePrototypeOne: React.FunctionComponent = () => (
 
 export const AppBabyStationStartPrototype: React.FunctionComponent = () => (
   <StarryNight seed="app-baby-station-ready" count={100} className="min-h-screen bg-[var(--bb-background-page)]">
-    <div className="flex min-h-screen flex-col gap-8 p-4 sm:gap-12 sm:p-7">
+    <div className="flex min-h-screen flex-col gap-8 py-4 sm:gap-12 sm:py-7">
       <AppPrototypeHeader active_item="Baby Station" />
 
-      <main className="grid flex-1 place-items-center px-0 py-8 sm:px-6">
+      <main className="bb-container grid flex-1 place-items-center py-8">
         <section className="relative grid w-full max-w-[480px] justify-items-center gap-6 overflow-hidden rounded-2xl border border-[rgb(var(--bb-colour-role-baby-border)/var(--bb-border-opacity-default,0.72))] bg-[var(--bb-background-role-baby-panel)] px-6 py-10 text-center shadow-[var(--bb-shadow-soft)] sm:px-10">
           <StarryNight seed="app-baby-station-ready-panel" count={32} className="absolute inset-0" />
           <div className="relative grid justify-items-center gap-6">
@@ -236,7 +238,7 @@ export const AppBabyStationStartPrototype: React.FunctionComponent = () => (
       </main>
     </div>
 
-    <div className="p-4 pt-0 sm:p-7 sm:pt-0">
+    <div className="pb-4 sm:pb-7">
       <AppPrototypeFooter />
     </div>
   </StarryNight>
@@ -247,11 +249,11 @@ export const AppBabyStationLivePrototype: React.FunctionComponent = () => {
 
   return (
     <StarryNight seed="app-baby-station-live" count={100} className="min-h-screen bg-[var(--bb-background-page)]">
-      <div className="flex min-h-screen flex-col gap-4 p-3 sm:p-5">
+      <div className="flex min-h-screen flex-col gap-4 py-3 sm:py-5">
         <AppPrototypeHeader active_item="Baby Station" />
 
         <main
-          className="mx-auto grid min-h-0 w-full max-w-[1040px] flex-1 gap-4"
+          className="bb-container grid min-h-0 flex-1 gap-4"
           style={{
             gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)',
             gridTemplateRows: 'auto minmax(0, 1fr) auto',
@@ -336,7 +338,7 @@ export const AppBabyStationLivePrototype: React.FunctionComponent = () => {
         aria-hidden={!is_configuration_open}
       >
         <StarryNight seed="app-baby-station-configuration-sheet" count={42} className="pointer-events-none absolute inset-0 rounded-t-2xl" />
-        <form className="relative mx-auto grid max-w-[1040px] gap-4">
+        <form className="bb-container relative grid gap-4">
           <div className="flex items-center justify-between gap-4">
             <h2 className="m-0 flex items-center gap-3 text-xl font-bold text-text">
               <FontAwesomeIcon icon={faTag} className="text-[rgb(var(--bb-colour-role-baby-info))]" />
@@ -410,7 +412,7 @@ export const AppBabyStationLivePrototype: React.FunctionComponent = () => {
         />
       ) : null}
 
-      <div className="p-4 pt-0 sm:p-7 sm:pt-0">
+      <div className="pb-4 sm:pb-7">
         <AppPrototypeFooter />
       </div>
     </StarryNight>

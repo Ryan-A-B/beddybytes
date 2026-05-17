@@ -121,6 +121,8 @@ Headings can be confident but should not become oversized inside controls, panel
 
 Use a named numeric scale for values that need a number: font size, spacing, radius, border width, line height, fixed dimensions, and layout gaps. The concrete scale lives in `brand.css`; contextual use of that scale lives in `alias.css`, `mapping.css`, and `responsive.css`.
 
+All normal page content uses the shared `.bb-container` class. That includes navigation content, main page content, sheets that behave like page sections, and footer content. Full-bleed backgrounds can extend to the viewport edge, but readable and interactive content should sit inside the container. Mobile widths are fluid with side gutters; tablet and desktop widths step through fixed maximum content widths so pages do not drift into arbitrary one-off `max-width` values.
+
 Responsive type mappings live in `responsive.css`. Tablet currently follows the desktop type rhythm unless a component or layout needs a tablet-specific adjustment. Line heights should be rounded to the scale and paragraph spacing should remain stable across breakpoints so copy does not feel cramped on mobile.
 
 Mobile layouts should stack early and avoid cramped two-column forms. Desktop layouts can become denser, especially in the app, but status, action, and error areas must remain easy to scan.
