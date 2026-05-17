@@ -818,6 +818,12 @@ const ComponentsPage: React.FunctionComponent = () => (
             <option value="baby">Baby Station</option>
           </Select>
         </FormField>
+        <FormField label="Station with icon" html_for="station-icon">
+          <Select id="station-icon" defaultValue="baby" leading_icon={<FontAwesomeIcon icon={faBaby} />}>
+            <option value="parent">Parent Station</option>
+            <option value="baby">Baby Station</option>
+          </Select>
+        </FormField>
         <FormField label="Invalid field" html_for="invalid" error="Choose a different station name.">
           <TextInput id="invalid" invalid defaultValue="Nursery" />
         </FormField>

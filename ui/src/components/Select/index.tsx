@@ -83,7 +83,8 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
           aria-controls={listbox_id}
           disabled={disabled}
           className={classNames(
-            'grid h-[var(--bb-input-height)] w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center rounded-md border bg-[var(--bb-input-background)] text-left text-text',
+            'grid h-[var(--bb-input-height)] w-full items-center rounded-md border bg-[var(--bb-input-background)] text-left text-text',
+            leading_icon ? 'grid-cols-[auto_minmax(0,1fr)_auto]' : 'grid-cols-[minmax(0,1fr)_auto]',
             leading_icon ? 'pl-0' : 'pl-[var(--bb-input-padding-x)]',
             'pr-3 transition disabled:cursor-not-allowed disabled:opacity-55',
             'focus-visible:outline-none focus-visible:shadow-[var(--bb-focus-ring)]',
