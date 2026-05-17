@@ -83,11 +83,11 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
           aria-controls={listbox_id}
           disabled={disabled}
           className={classNames(
-            'grid h-[var(--bb-input-height)] w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center rounded-md border bg-surface text-left text-text',
+            'grid h-[var(--bb-input-height)] w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center rounded-md border bg-[var(--bb-input-background)] text-left text-text',
             leading_icon ? 'pl-0' : 'pl-[var(--bb-input-padding-x)]',
             'pr-3 transition disabled:cursor-not-allowed disabled:opacity-55',
             'focus-visible:outline-none focus-visible:shadow-[var(--bb-focus-ring)]',
-            invalid ? 'border-danger' : 'border-border hover:border-[rgb(var(--bb-color-border-strong))]',
+            invalid ? 'border-danger' : 'border-[var(--bb-input-border)] hover:border-[rgb(var(--bb-color-border-strong))]',
             select_className
           )}
           onClick={() => set_is_open((current) => !current)}
@@ -123,10 +123,10 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
                 aria-selected={option.value === selected_value}
                 disabled={option.disabled}
                 className={classNames(
-                  'grid min-h-9 w-full items-center rounded px-3 text-left text-sm text-text disabled:cursor-not-allowed disabled:opacity-55',
+                  'grid min-h-9 w-full items-center rounded px-3 text-left text-sm disabled:cursor-not-allowed disabled:opacity-55',
                   option.value === selected_value
-                    ? 'bg-action text-[rgb(var(--bb-color-text-inverse))]'
-                    : 'hover:bg-[rgb(var(--bb-colour-primary-300)/0.28)] hover:text-text'
+                    ? 'bg-[var(--bb-select-option-selected)] text-[var(--bb-select-option-on-selected)]'
+                    : 'text-text hover:bg-[var(--bb-select-option-hover)] hover:text-text'
                 )}
                 onMouseDown={(event) => event.preventDefault()}
                 onClick={() => select_option(option.value)}

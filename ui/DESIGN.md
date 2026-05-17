@@ -94,6 +94,12 @@ Readable text/background pairings are part of the mapped layer:
 - On tinted role/status surfaces, prefer heading/body text tokens unless a role/action token has an explicit `on-*` pairing.
 - Permission badges use default text on a high-opacity neutral/default surface, not subdued text.
 
+On-action colour is chosen by contrast, not by palette preference. For every non-neutral colour scale, use black text on light-to-mid stops and white text on dark stops. As a working rule for the current scales, stops `100` through `400` use black on-action text, while stops `500` and above use white on-action text. Role mappings may choose a different stop than the generic status/action mapping, but the on-action token must follow the same contrast rule.
+
+Selected options in custom selects are action surfaces. They use the mapped selected-option background and selected-option text tokens so they inherit the same contrast rule as buttons.
+
+Text inputs and select controls share the same mapped input background and border tokens. Do not give selects an opaque surface while text inputs use a translucent one, or vice versa; a form group should read as one control family.
+
 Role colours are carried through the app home prototype:
 
 - Baby station uses `role-baby-info` for the `01` identifier and `role-baby-action` for the baby station command.

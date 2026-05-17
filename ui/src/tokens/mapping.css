@@ -83,6 +83,11 @@
   --bb-input-radius: var(--bb-border-radius-100);
   --bb-input-border-width: var(--bb-border-width-sm);
   --bb-input-padding-x: var(--bb-space-4);
+  --bb-input-background: var(--bb-background-default);
+  --bb-input-border: rgb(var(--bb-color-border) / var(--bb-border-opacity-default, 1));
+  --bb-select-option-selected: rgb(var(--bb-colour-surface-action));
+  --bb-select-option-on-selected: rgb(var(--bb-colour-text-on-action));
+  --bb-select-option-hover: rgb(var(--bb-colour-primary-300) / 0.28);
 
   --bb-panel-radius: var(--bb-border-radius-200);
   --bb-panel-border-width: var(--bb-border-width-sm);
@@ -108,7 +113,7 @@
   --bb-colour-text-action-hover: var(--bb-colour-primary-100);
   --bb-colour-text-disabled: var(--bb-colour-neutral-400);
   --bb-colour-text-information: var(--bb-colour-info-200);
-  --bb-colour-text-on-action: var(--bb-colour-primary-800);
+  --bb-colour-text-on-action: var(--bb-colour-neutral-black);
 
   --bb-colour-icon-default: var(--bb-colour-text-body);
   --bb-colour-icon-action: var(--bb-colour-text-action);

@@ -354,7 +354,7 @@ export const AppBabyStationLivePrototype: React.FunctionComponent = () => {
 
           <label className="grid gap-2 text-sm text-subdued">
             Station Name
-            <span className="grid grid-cols-[minmax(0,1fr)_40px] overflow-hidden rounded-lg border border-[rgb(var(--bb-colour-role-baby-border)/var(--bb-border-opacity-default,0.22))] bg-[var(--bb-background-default)]">
+            <span className="grid grid-cols-[minmax(0,1fr)_40px] overflow-hidden rounded-lg border border-[var(--bb-input-border)] bg-[var(--bb-input-background)]">
               <input className="min-h-10 min-w-0 bg-transparent px-3 text-sm text-text outline-none" defaultValue="Little Bear" />
               <button type="button" aria-label="Edit station name" className="grid place-items-center bg-[rgb(var(--bb-colour-role-baby-surface)/0.34)] text-text">
                 <FontAwesomeIcon icon={faPenToSquare} />
@@ -369,7 +369,7 @@ export const AppBabyStationLivePrototype: React.FunctionComponent = () => {
               <Select
                 defaultValue="default-microphone"
                 leading_icon={<FontAwesomeIcon icon={faMicrophone} />}
-                select_className="border-[rgb(var(--bb-colour-role-baby-border)/var(--bb-border-opacity-default,0.22))] bg-[var(--bb-background-default)] text-sm"
+                select_className="text-sm"
               >
                 <option value="default-microphone">Default microphone</option>
                 <option value="usb-microphone">USB microphone</option>
@@ -381,7 +381,7 @@ export const AppBabyStationLivePrototype: React.FunctionComponent = () => {
                 defaultValue="integrated-webcam"
                 leading_icon={<FontAwesomeIcon icon={faVideo} />}
                 menu_placement="top"
-                select_className="border-[rgb(var(--bb-colour-role-baby-border)/var(--bb-border-opacity-default,0.22))] bg-[var(--bb-background-default)] text-sm"
+                select_className="text-sm"
               >
                 <option value="integrated-webcam">Integrated_Webcam_FHD (V4L2)</option>
                 <option value="no-camera">No camera</option>
