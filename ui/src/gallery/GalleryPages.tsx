@@ -22,7 +22,6 @@ import {
   TextInput,
   VideoControls,
 } from '../index'
-import { AppShellPrototype } from '../examples/prototype/AppShellPrototype'
 import {
   AppBabyStationLivePrototype,
   AppBabyStationStartPrototype,
@@ -33,7 +32,7 @@ import {
 import { MarketingPagePrototype } from '../examples/prototype/MarketingPagePrototype'
 
 type ThemeName = 'dark' | 'light'
-type PageName = 'brand' | 'alias' | 'mapped' | 'components' | 'design' | 'prototype-app-home' | 'prototype-baby-station-start' | 'prototype-baby-station-live' | 'prototype-parent-station' | 'prototype-parent-station-live' | 'prototype-app-shell' | 'prototype-marketing'
+type PageName = 'brand' | 'alias' | 'mapped' | 'components' | 'design' | 'prototype-app-home' | 'prototype-baby-station-start' | 'prototype-baby-station-live' | 'prototype-parent-station' | 'prototype-parent-station-live' | 'prototype-marketing'
 
 interface DesignDocParts {
   metadata: string
@@ -152,7 +151,6 @@ const prototype_pages: Array<{ id: PageName; label: string }> = [
   { id: 'prototype-baby-station-live', label: 'Baby Station Live' },
   { id: 'prototype-parent-station', label: 'Parent Station' },
   { id: 'prototype-parent-station-live', label: 'Parent Station Live' },
-  { id: 'prototype-app-shell', label: 'App Shell' },
   { id: 'prototype-marketing', label: 'Marketing' },
 ]
 
@@ -164,7 +162,6 @@ const themed_pages: PageName[] = [
   'prototype-baby-station-live',
   'prototype-parent-station',
   'prototype-parent-station-live',
-  'prototype-app-shell',
   'prototype-marketing',
 ]
 
@@ -179,7 +176,6 @@ const page_routes: Record<PageName, string> = {
   'prototype-baby-station-live': '/prototypes/baby-station-live',
   'prototype-parent-station': '/prototypes/parent-station',
   'prototype-parent-station-live': '/prototypes/parent-station-live',
-  'prototype-app-shell': '/prototypes/app-shell',
   'prototype-marketing': '/prototypes/marketing',
 }
 
@@ -645,7 +641,6 @@ const GalleryItemContent: React.FunctionComponent<{ page: PageName }> = ({ page 
     {page === 'prototype-baby-station-live' && <PrototypePane><AppBabyStationLivePrototype /></PrototypePane>}
     {page === 'prototype-parent-station' && <PrototypePane><AppParentStationPrototype /></PrototypePane>}
     {page === 'prototype-parent-station-live' && <PrototypePane><AppParentStationLivePrototype /></PrototypePane>}
-    {page === 'prototype-app-shell' && <PrototypePane><AppShellPrototype /></PrototypePane>}
     {page === 'prototype-marketing' && <PrototypePane><MarketingPagePrototype /></PrototypePane>}
   </>
 )

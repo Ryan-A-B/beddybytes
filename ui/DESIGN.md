@@ -138,7 +138,7 @@ The current app home prototype uses a mobile-first order:
 - Video preview next.
 - Baby station, parent station, and support notes last.
 
-On desktop, the overview and instruction cards form one left-column stack. The video preview and station action buttons form one right-column stack. The word/logo links to the home overview; the visible nav only contains Baby Station and Parent Station. On mobile, that nav collapses into a burger menu.
+On desktop, the overview and instruction cards form one left-column stack. The video preview and station action buttons form one right-column stack. The word/logo links to the home overview. The app nav contains Baby Station and Parent Station; the selected page uses a top-flush translucent gradient block background rather than pill tabs. On mobile, that nav collapses into a burger menu.
 
 The Baby Station start screen keeps the same app shell decisions: no Home item in the nav, the word/logo remains the home link, and Baby Station is the active nav item. It centres a single permission card on desktop and stacks naturally on mobile.
 

@@ -1,6 +1,5 @@
 import React from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faCircleDot } from '@fortawesome/free-regular-svg-icons'
 import { faBars, faDisplay, faGear, faMicrophone, faPenToSquare, faTag, faVideo, faWandMagicSparkles, faXmark } from '@fortawesome/free-solid-svg-icons'
 import { ArrowRight, Play, Sparkles } from 'lucide-react'
 import { Badge, Button, ConnectionStatusBadge, Panel, Select, SessionTimer, StarryNight, VideoControls } from '../../index'
@@ -9,9 +8,13 @@ type AppNavItem = 'Baby Station' | 'Parent Station'
 
 const app_nav_items: AppNavItem[] = ['Baby Station', 'Parent Station']
 
-const get_nav_role_colour = (item: AppNavItem): string => (
-  item === 'Parent Station' ? 'rgb(var(--bb-colour-role-parent-info))' : 'rgb(var(--bb-colour-role-baby-info))'
-)
+const get_nav_active_background = (item: AppNavItem): string => {
+  if (item === 'Parent Station') {
+    return 'linear-gradient(135deg, rgb(var(--bb-colour-role-parent-info) / 0.28), rgb(var(--bb-colour-role-parent-action) / 0.12))'
+  }
+
+  return 'linear-gradient(135deg, rgb(var(--bb-colour-role-baby-info) / 0.30), rgb(var(--bb-colour-role-baby-action) / 0.14))'
+}
 
 const AppPrototypeNavigation: React.FunctionComponent<{ active_item?: AppNavItem }> = ({ active_item }) => {
   const [is_open, set_is_open] = React.useState(false)
@@ -28,14 +31,14 @@ const AppPrototypeNavigation: React.FunctionComponent<{ active_item?: AppNavItem
         <FontAwesomeIcon icon={is_open ? faXmark : faBars} />
       </button>
 
-      <nav className="hidden max-w-full rounded-full border border-border bg-surface/70 p-1 text-sm text-subdued sm:flex">
+      <nav className="hidden min-h-16 max-w-full overflow-hidden text-sm text-text/70 sm:grid sm:grid-cols-2">
         {app_nav_items.map((item) => (
           <button
             key={item}
             type="button"
-            className={`flex items-center gap-2 whitespace-nowrap rounded-full px-5 py-2 ${active_item === item ? 'bg-muted font-semibold text-text' : ''}`}
+            className={`grid min-w-40 place-items-center whitespace-nowrap px-8 py-4 transition hover:bg-[var(--bb-background-default)] hover:text-text ${active_item === item ? 'font-semibold text-text' : ''}`}
+            style={active_item === item ? { background: get_nav_active_background(item) } : undefined}
           >
-            {active_item === item ? <FontAwesomeIcon icon={faCircleDot} style={{ color: get_nav_role_colour(item) }} /> : null}
             {item}
           </button>
         ))}
@@ -47,10 +50,10 @@ const AppPrototypeNavigation: React.FunctionComponent<{ active_item?: AppNavItem
             <button
               key={item}
               type="button"
-              className={`flex w-full items-center gap-2 rounded-md px-4 py-3 text-left ${active_item === item ? 'bg-muted font-semibold text-text' : 'text-text/80'}`}
+              className={`flex w-full items-center gap-2 rounded-md px-4 py-3 text-left ${active_item === item ? 'font-semibold text-text' : 'text-text/80'}`}
+              style={active_item === item ? { background: get_nav_active_background(item) } : undefined}
               onClick={() => set_is_open(false)}
             >
-              {active_item === item ? <FontAwesomeIcon icon={faCircleDot} style={{ color: get_nav_role_colour(item) }} /> : null}
               {item}
             </button>
           ))}
@@ -62,7 +65,7 @@ const AppPrototypeNavigation: React.FunctionComponent<{ active_item?: AppNavItem
 
 const AppPrototypeHeader: React.FunctionComponent<{ active_item?: AppNavItem }> = ({ active_item }) => (
   <header className="w-full">
-    <div className="bb-container flex min-w-0 items-center gap-3 sm:gap-8">
+    <div className="bb-container flex min-w-0 items-stretch gap-3 sm:gap-7">
       <a href="#home" className="flex items-center gap-3 text-text no-underline">
         <span className="grid h-8 w-8 place-items-center rounded-lg bg-action/25">
           <span className="h-3.5 w-3.5 rounded-full bg-action" />
@@ -100,7 +103,7 @@ const AppPrototypeFooter: React.FunctionComponent = () => (
 
 export const AppHomePrototypeOne: React.FunctionComponent = () => (
   <StarryNight seed="app-home-quiet-connection" count={100} className="min-h-screen bg-[var(--bb-background-page)]">
-    <div className="flex min-h-screen flex-col gap-8 py-4 sm:gap-12 sm:py-7">
+    <div className="flex min-h-screen flex-col gap-8 pb-4 sm:gap-12 sm:pb-7">
       <AppPrototypeHeader />
 
       <main className="bb-container grid min-w-0 flex-1 gap-7 lg:grid-cols-[minmax(0,1fr)_minmax(420px,0.86fr)] lg:gap-10 lg:items-start">
@@ -199,7 +202,7 @@ export const AppHomePrototypeOne: React.FunctionComponent = () => (
 
 export const AppBabyStationStartPrototype: React.FunctionComponent = () => (
   <StarryNight seed="app-baby-station-ready" count={100} className="min-h-screen bg-[var(--bb-background-page)]">
-    <div className="flex min-h-screen flex-col gap-8 py-4 sm:gap-12 sm:py-7">
+    <div className="flex min-h-screen flex-col gap-8 pb-4 sm:gap-12 sm:pb-7">
       <AppPrototypeHeader active_item="Baby Station" />
 
       <main className="bb-container grid flex-1 place-items-center py-8">
@@ -253,7 +256,7 @@ export const AppBabyStationLivePrototype: React.FunctionComponent = () => {
 
   return (
     <StarryNight seed="app-baby-station-live" count={100} className="min-h-screen bg-[var(--bb-background-page)]">
-      <div className="flex min-h-screen flex-col gap-4 py-4 sm:py-7">
+      <div className="flex min-h-screen flex-col gap-4 pb-4 sm:pb-7">
         <AppPrototypeHeader active_item="Baby Station" />
 
         <main
@@ -425,7 +428,7 @@ export const AppBabyStationLivePrototype: React.FunctionComponent = () => {
 
 export const AppParentStationPrototype: React.FunctionComponent = () => (
   <StarryNight seed="app-parent-station-waiting" count={100} className="min-h-screen bg-[var(--bb-background-page)]">
-    <div className="flex min-h-screen flex-col gap-8 py-4 sm:gap-10 sm:py-7">
+    <div className="flex min-h-screen flex-col gap-8 pb-4 sm:gap-10 sm:pb-7">
       <AppPrototypeHeader active_item="Parent Station" />
 
       <main className="bb-container grid flex-1 place-items-center py-8">
@@ -472,12 +475,12 @@ export const AppParentStationPrototype: React.FunctionComponent = () => (
 
 export const AppParentStationLivePrototype: React.FunctionComponent = () => (
   <StarryNight seed="app-parent-station-live" count={100} className="min-h-screen bg-[var(--bb-background-page)]">
-    <div className="flex min-h-screen flex-col gap-4 py-4 sm:py-7">
+    <div className="flex min-h-screen flex-col gap-4 pb-4 sm:pb-7">
       <AppPrototypeHeader active_item="Parent Station" />
 
       <main className="bb-container grid min-h-0 flex-1 grid-rows-[auto_minmax(0,1fr)] gap-4 sm:gap-5">
         <section
-          className="grid min-w-0 gap-3 rounded-2xl border border-[rgb(var(--bb-color-border)/var(--bb-border-opacity-default,0.22))] bg-[var(--bb-background-default)] p-3 lg:grid-cols-[minmax(220px,360px)_minmax(0,1fr)_minmax(220px,360px)] lg:items-center lg:p-4"
+          className="grid min-w-0 gap-3 lg:grid-cols-[minmax(220px,360px)_minmax(0,1fr)_minmax(220px,360px)] lg:items-center"
           aria-label="Parent station connection"
         >
           <Select
