@@ -66,7 +66,11 @@ Parent Station uses the mint family because it represents the watching and conne
 
 Do not use `success-*` aliases to colour Parent Station UI. Use parent role aliases. Likewise, do not use `primary-*` directly for Baby Station UI. Use baby role aliases.
 
-Icon aliases exist to keep icon use consistent. Station icons identify station roles, permission icons identify browser media access, configuration icons expose station settings and renaming, select icons expose dropdown controls, navigation icons control responsive menus, active-state icons indicate selection, and reassurance icons are reserved for small trust notes.
+Icon aliases exist to keep icon use consistent. Station icons identify station roles, permission icons identify browser media access, configuration icons expose station settings and renaming, select icons expose dropdown controls, session controls show compact monitoring actions, video controls operate live streams, navigation icons control responsive menus, active-state icons indicate selection, and reassurance icons are reserved for small trust notes.
+
+Session control aliases exist for monitoring controls that are compact but persistent. Timer, play, and restart icons should be used together when the UI is showing elapsed session time or a listening control group.
+
+Video control aliases exist for controls that operate the live video itself. Record, volume, mute, full-screen, and picture-in-picture icons should stay grouped at the bottom edge of the video rather than scattered around the page.
 
 ## Mapped
 
@@ -140,6 +144,12 @@ The Baby Station start screen keeps the same app shell decisions: no Home item i
 
 The Baby Station live screen is mobile first and optimised around the video feed. Its first viewport uses a three-row grid: configuration summary, video, then Start and Screen Saver actions. The configuration row spans both columns, the video spans both columns and grows to take available height, and the bottom actions split into two equal columns. The cog opens a bottom sheet so station naming and device selection do not compete with the video.
 
+The Parent Station waiting screen is the state before a baby station has appeared. It keeps the same app shell, removes decorative top-right status badges, and puts connection status, station-empty messaging, and elapsed session controls in the centre of the viewport. Signal and stream status badges are compact technical indicators; they should not compete with the primary message. The timer groups elapsed time with listening actions so parents can see whether the parent station is actively waiting without reading a larger panel.
+
+The Parent Station live screen is the state after selecting or discovering an active baby station. The video is the primary content and should take as much of the first viewport as possible. The station bar above the video uses a select so homes with multiple baby stations can switch context without leaving the page. When only one baby station is available, the caret may use disabled text colour to signal that switching is not currently useful while keeping the same control shape.
+
+Live video controls sit along the bottom of the video: record, volume or mute, full screen, and picture in picture. Do not place a separate zoom control in the top-right corner of the video.
+
 The app footer is retained across app prototype pages. It carries product attribution on the left and build metadata on the right. It should stay quiet, neutral, and utility-focused; it is not a marketing footer or a place for extra calls to action.
 
 App pages use a full-height content wrapper. The content wrapper owns the first viewport, has a minimum height of one viewport, and lets its main content area grow to fill available space. The footer sits after that wrapper, not inside it, so it starts below the fold when the screen content is short.
@@ -156,6 +166,8 @@ Use FontAwesome as the UI icon set. The concrete approved icon names live in `br
 - **Permissions:** `microphone` and `video` are used for browser media access requests and troubleshooting.
 - **Configuration:** `gear`, `tag`, and `pen-to-square` are used for station configuration, station naming, and explicit rename actions.
 - **Select controls:** `chevron-down` is used on the right edge of custom select controls.
+- **Session controls:** `clock`, `play`, and `rotate-right` are used for compact monitoring session controls.
+- **Video controls:** `circle`, `volume-high`, `volume-xmark`, `expand`, and `picture-in-picture` are used for live stream controls.
 - **Navigation:** `bars` and `xmark` are used for mobile menu open and close controls.
 - **Active states:** `circle-dot` uses the regular style to indicate a selected navigation item or mode.
 - **Reassurance:** `wand-magic-sparkles` is reserved for small trust notes and should not become general decoration.
@@ -181,6 +193,12 @@ Avoid pill-shaped controls except for badges and compact status chips. Cards sho
 Buttons are clear commands with primary, secondary, ghost, and danger variants. Inputs and selects should have visible labels through `FormField`. Alerts must state what happened and, when useful, what the parent can do next.
 
 Panels group related UI without becoming decorative cards. Badges are for state and metadata. `StarrySky` and `StarryNight` create deterministic dark-mode surfaces from `seed` and `count`; the same inputs must render the same star positions. Use higher counts for larger surfaces: around `100` for a full page and `20` to `40` for card-sized surfaces.
+
+`ConnectionStatusBadge` is for compact technical monitoring state such as Signal/MQTT and Stream/waiting. Signal connected states use parent role information colour when shown in the Parent Station context. Stream live states use baby role information colour because the stream is the baby station feed. Waiting and idle states stay neutral so they do not read as success or failure.
+
+`SessionTimer` is for compact elapsed monitoring time plus session actions. It uses the parent role action mapping for the play control because it operates the Parent Station listening role, not a generic success action.
+
+`VideoControls` is for live video command clusters. It belongs on the video surface itself, normally aligned to the bottom centre over a dark gradient so controls remain readable without covering the main view.
 
 ## Do's and Don'ts
 

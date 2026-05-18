@@ -68,6 +68,14 @@
   --bb-brand-icon-station-name: "tag";
   --bb-brand-icon-edit: "pen-to-square";
   --bb-brand-icon-select: "chevron-down";
+  --bb-brand-icon-timer: "clock";
+  --bb-brand-icon-play: "play";
+  --bb-brand-icon-restart: "rotate-right";
+  --bb-brand-icon-record: "circle";
+  --bb-brand-icon-volume: "volume-high";
+  --bb-brand-icon-mute: "volume-xmark";
+  --bb-brand-icon-full-screen: "expand";
+  --bb-brand-icon-picture-in-picture: "picture-in-picture";
   --bb-brand-icon-menu: "bars";
   --bb-brand-icon-close: "xmark";
   --bb-brand-icon-active: "circle-dot";

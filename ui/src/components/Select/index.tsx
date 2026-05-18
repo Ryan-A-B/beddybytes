@@ -4,6 +4,7 @@ import { faChevronDown } from '@fortawesome/free-solid-svg-icons'
 import { classNames } from '../classNames'
 
 export interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
+  caret_tone?: 'default' | 'disabled'
   invalid?: boolean
   leading_icon?: React.ReactNode
   menu_placement?: 'bottom' | 'top'
@@ -33,7 +34,7 @@ const get_options = (children: React.ReactNode): SelectOption[] => {
 }
 
 export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
-  ({ invalid = false, leading_icon, menu_placement = 'bottom', className, select_className, children, disabled, value, defaultValue, onChange, name, id, required, ...props }, ref) => {
+  ({ caret_tone = 'default', invalid = false, leading_icon, menu_placement = 'bottom', className, select_className, children, disabled, value, defaultValue, onChange, name, id, required, ...props }, ref) => {
     const options = React.useMemo(() => get_options(children), [children])
     const initial_value = defaultValue?.toString() ?? options[0]?.value ?? ''
     const [internal_value, set_internal_value] = React.useState(initial_value)
@@ -104,7 +105,7 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
             </span>
           ) : null}
           <span className="truncate">{selected_option?.label}</span>
-          <FontAwesomeIcon icon={faChevronDown} className="ml-3 text-subdued" />
+          <FontAwesomeIcon icon={faChevronDown} className={classNames('ml-3', caret_tone === 'disabled' ? 'text-[rgb(var(--bb-colour-text-disabled))]' : 'text-subdued')} />
         </button>
 
         {is_open ? (

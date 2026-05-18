@@ -133,6 +133,14 @@
   --bb-icon-station-name: var(--bb-brand-icon-station-name);
   --bb-icon-edit: var(--bb-brand-icon-edit);
   --bb-icon-select: var(--bb-brand-icon-select);
+  --bb-icon-session-timer: var(--bb-brand-icon-timer);
+  --bb-icon-session-play: var(--bb-brand-icon-play);
+  --bb-icon-session-restart: var(--bb-brand-icon-restart);
+  --bb-icon-video-record: var(--bb-brand-icon-record);
+  --bb-icon-video-volume: var(--bb-brand-icon-volume);
+  --bb-icon-video-mute: var(--bb-brand-icon-mute);
+  --bb-icon-video-full-screen: var(--bb-brand-icon-full-screen);
+  --bb-icon-video-picture-in-picture: var(--bb-brand-icon-picture-in-picture);
   --bb-icon-navigation-menu: var(--bb-brand-icon-menu);
   --bb-icon-navigation-close: var(--bb-brand-icon-close);
   --bb-icon-navigation-active: var(--bb-brand-icon-active);

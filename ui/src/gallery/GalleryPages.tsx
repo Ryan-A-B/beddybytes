@@ -2,7 +2,7 @@ import React from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import type { IconDefinition } from '@fortawesome/fontawesome-svg-core'
 import { faCircleDot } from '@fortawesome/free-regular-svg-icons'
-import { faBaby, faBars, faChevronDown, faDisplay, faGear, faMicrophone, faPenToSquare, faTag, faVideo, faWandMagicSparkles, faXmark } from '@fortawesome/free-solid-svg-icons'
+import { faBaby, faBars, faChevronDown, faCircle, faClock, faDisplay, faExpand, faGear, faMicrophone, faPenToSquare, faPictureInPicture, faPlay, faRotateRight, faTag, faVideo, faVolumeHigh, faVolumeXmark, faWandMagicSparkles, faXmark } from '@fortawesome/free-solid-svg-icons'
 import { AlignLeft, Ban, Bell, Camera, Info, Moon, MousePointer, Settings, Sun, Type } from 'lucide-react'
 import design_markdown from '../../DESIGN.md?raw'
 import {
@@ -10,25 +10,30 @@ import {
   Badge,
   Button,
   Checkbox,
+  ConnectionStatusBadge,
   FormField,
   IconButton,
   Panel,
   PasswordInput,
   Select,
+  SessionTimer,
   StarryNight,
   StarrySky,
   TextInput,
+  VideoControls,
 } from '../index'
 import { AppShellPrototype } from '../examples/prototype/AppShellPrototype'
 import {
   AppBabyStationLivePrototype,
   AppBabyStationStartPrototype,
   AppHomePrototypeOne,
+  AppParentStationLivePrototype,
+  AppParentStationPrototype,
 } from '../examples/prototype/AppHomePrototypes'
 import { MarketingPagePrototype } from '../examples/prototype/MarketingPagePrototype'
 
 type ThemeName = 'dark' | 'light'
-type PageName = 'brand' | 'alias' | 'mapped' | 'components' | 'design' | 'prototype-app-home' | 'prototype-baby-station-start' | 'prototype-baby-station-live' | 'prototype-app-shell' | 'prototype-marketing'
+type PageName = 'brand' | 'alias' | 'mapped' | 'components' | 'design' | 'prototype-app-home' | 'prototype-baby-station-start' | 'prototype-baby-station-live' | 'prototype-parent-station' | 'prototype-parent-station-live' | 'prototype-app-shell' | 'prototype-marketing'
 
 interface DesignDocParts {
   metadata: string
@@ -145,6 +150,8 @@ const prototype_pages: Array<{ id: PageName; label: string }> = [
   { id: 'prototype-app-home', label: 'App Home' },
   { id: 'prototype-baby-station-start', label: 'Baby Station Start' },
   { id: 'prototype-baby-station-live', label: 'Baby Station Live' },
+  { id: 'prototype-parent-station', label: 'Parent Station' },
+  { id: 'prototype-parent-station-live', label: 'Parent Station Live' },
   { id: 'prototype-app-shell', label: 'App Shell' },
   { id: 'prototype-marketing', label: 'Marketing' },
 ]
@@ -155,6 +162,8 @@ const themed_pages: PageName[] = [
   'prototype-app-home',
   'prototype-baby-station-start',
   'prototype-baby-station-live',
+  'prototype-parent-station',
+  'prototype-parent-station-live',
   'prototype-app-shell',
   'prototype-marketing',
 ]
@@ -168,6 +177,8 @@ const page_routes: Record<PageName, string> = {
   'prototype-app-home': '/prototypes/app-home',
   'prototype-baby-station-start': '/prototypes/baby-station-start',
   'prototype-baby-station-live': '/prototypes/baby-station-live',
+  'prototype-parent-station': '/prototypes/parent-station',
+  'prototype-parent-station-live': '/prototypes/parent-station-live',
   'prototype-app-shell': '/prototypes/app-shell',
   'prototype-marketing': '/prototypes/marketing',
 }
@@ -186,14 +197,23 @@ const get_theme_from_search = (search: string): ThemeName => {
   return theme === 'dark' ? 'dark' : 'light'
 }
 
-const get_route = (page: PageName, theme: ThemeName): string => {
-  const route = page_routes[page]
+const is_embed_route = (search: string): boolean => new URLSearchParams(search).get('embed') === '1'
 
-  if (!is_themed_page(page)) {
-    return route
+const get_route = (page: PageName, theme: ThemeName, embed = false): string => {
+  const route = page_routes[page]
+  const params = new URLSearchParams()
+
+  if (is_themed_page(page)) {
+    params.set('theme', theme)
   }
 
-  return `${route}?theme=${theme}`
+  if (embed) {
+    params.set('embed', '1')
+  }
+
+  const query = params.toString()
+
+  return query ? `${route}?${query}` : route
 }
 
 const split_design_doc = (source: string): DesignDocParts => {
@@ -323,6 +343,14 @@ const brand_icons: Array<{ name: string; icon: IconDefinition; style: 'Solid' | 
   { name: 'Station name', icon: faTag, style: 'Solid' },
   { name: 'Edit', icon: faPenToSquare, style: 'Solid' },
   { name: 'Select', icon: faChevronDown, style: 'Solid' },
+  { name: 'Session timer', icon: faClock, style: 'Solid' },
+  { name: 'Session play', icon: faPlay, style: 'Solid' },
+  { name: 'Session restart', icon: faRotateRight, style: 'Solid' },
+  { name: 'Video record', icon: faCircle, style: 'Solid' },
+  { name: 'Video volume', icon: faVolumeHigh, style: 'Solid' },
+  { name: 'Video mute', icon: faVolumeXmark, style: 'Solid' },
+  { name: 'Video full screen', icon: faExpand, style: 'Solid' },
+  { name: 'Picture in picture', icon: faPictureInPicture, style: 'Solid' },
   { name: 'Menu', icon: faBars, style: 'Solid' },
   { name: 'Close', icon: faXmark, style: 'Solid' },
   { name: 'Active state', icon: faCircleDot, style: 'Regular' },
@@ -334,6 +362,8 @@ const alias_icon_usages = [
   { name: 'Permissions', usage: 'Use microphone and camera when requesting, confirming, or troubleshooting browser media access.' },
   { name: 'Configuration', usage: 'Use gear for station settings, tag for station naming, and edit for explicit rename actions.' },
   { name: 'Select controls', usage: 'Use chevron-down on the right edge of custom select controls.' },
+  { name: 'Session controls', usage: 'Use clock, play, and restart for compact monitoring session timing controls.' },
+  { name: 'Video controls', usage: 'Use record, volume, mute, full-screen, and picture-in-picture icons for live video controls.' },
   { name: 'Navigation', usage: 'Use menu and close for collapsible navigation controls on mobile.' },
   { name: 'Active states', usage: 'Use the regular active-state icon when a navigation item or mode is currently selected.' },
   { name: 'Reassurance', usage: 'Use sparkle sparingly for small trust notes, not as general decoration.' },
@@ -540,12 +570,15 @@ const MappedSurfaceCard: React.FunctionComponent<(typeof mapped_surface_roles)[n
   )
 }
 
-const GalleryContent: React.FunctionComponent<{ page: PageName; theme: ThemeName; set_page: (page: PageName) => void; set_theme: (theme: ThemeName) => void }> = ({
+const GalleryShell: React.FunctionComponent<{ page: PageName; theme: ThemeName; set_page: (page: PageName) => void; set_theme: (theme: ThemeName) => void }> = ({
   page,
   theme,
   set_page,
   set_theme,
-}) => (
+}) => {
+  const iframe_src = get_route(page, theme, true)
+
+  return (
   <>
     <aside className="gallery-sidebar">
       <div>
@@ -588,6 +621,20 @@ const GalleryContent: React.FunctionComponent<{ page: PageName; theme: ThemeName
       )}
     </aside>
 
+    <main className="gallery-frame-main">
+      <iframe
+        key={iframe_src}
+        className="gallery-item-frame"
+        src={iframe_src}
+        title={`${page.replace(/-/g, ' ')} gallery item`}
+      />
+    </main>
+  </>
+  )
+}
+
+const GalleryItemContent: React.FunctionComponent<{ page: PageName }> = ({ page }) => (
+  <>
     {page === 'brand' && <BrandPage />}
     {page === 'alias' && <AliasPage />}
     {page === 'mapped' && <MappedPage />}
@@ -596,6 +643,8 @@ const GalleryContent: React.FunctionComponent<{ page: PageName; theme: ThemeName
     {page === 'prototype-app-home' && <PrototypePane><AppHomePrototypeOne /></PrototypePane>}
     {page === 'prototype-baby-station-start' && <PrototypePane><AppBabyStationStartPrototype /></PrototypePane>}
     {page === 'prototype-baby-station-live' && <PrototypePane><AppBabyStationLivePrototype /></PrototypePane>}
+    {page === 'prototype-parent-station' && <PrototypePane><AppParentStationPrototype /></PrototypePane>}
+    {page === 'prototype-parent-station-live' && <PrototypePane><AppParentStationLivePrototype /></PrototypePane>}
     {page === 'prototype-app-shell' && <PrototypePane><AppShellPrototype /></PrototypePane>}
     {page === 'prototype-marketing' && <PrototypePane><MarketingPagePrototype /></PrototypePane>}
   </>
@@ -831,6 +880,17 @@ const ComponentsPage: React.FunctionComponent = () => (
       </div>
     </GallerySection>
 
+    <GallerySection title="Monitoring">
+      <div className="component-row">
+        <ConnectionStatusBadge label="Signal" value="MQTT" tone="connected" />
+        <ConnectionStatusBadge label="Stream" value="live" tone="streaming" />
+        <ConnectionStatusBadge label="Stream" value="waiting" tone="waiting" />
+        <ConnectionStatusBadge label="Stream" value="idle" tone="idle" />
+        <SessionTimer elapsed="0:00:34" />
+        <VideoControls />
+      </div>
+    </GallerySection>
+
     <GallerySection title="Feedback">
       <div className="feedback-grid">
         <Alert tone="info" title="Local network only">BeddyBytes is built for monitoring around the house.</Alert>
@@ -881,6 +941,7 @@ const DesignDocPage: React.FunctionComponent = () => {
 
 export const GalleryPages: React.FunctionComponent = () => {
   const initial_page = get_page_from_path(window.location.pathname)
+  const is_embedded = is_embed_route(window.location.search)
   const [theme, set_theme_state] = React.useState<ThemeName>(() => (
     is_themed_page(initial_page) ? get_theme_from_search(window.location.search) : 'light'
   ))
@@ -922,7 +983,21 @@ export const GalleryPages: React.FunctionComponent = () => {
     document.documentElement.dataset.theme = theme
   }, [page, theme])
 
-  const content = <GalleryContent page={page} theme={theme} set_page={set_page} set_theme={set_theme} />
+  if (is_embedded) {
+    const content = <GalleryItemContent page={page} />
+
+    if (is_themed_page(page) && theme === 'dark') {
+      return (
+        <StarryNight seed="gallery-page" count={100} className="gallery-item-document">
+          {content}
+        </StarryNight>
+      )
+    }
+
+    return <div className="gallery-item-document">{content}</div>
+  }
+
+  const content = <GalleryShell page={page} theme={theme} set_page={set_page} set_theme={set_theme} />
 
   if (is_themed_page(page) && theme === 'dark') {
     return (

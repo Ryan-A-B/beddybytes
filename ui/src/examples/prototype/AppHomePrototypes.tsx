@@ -1,13 +1,17 @@
 import React from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faCircleDot } from '@fortawesome/free-regular-svg-icons'
-import { faBars, faGear, faMicrophone, faPenToSquare, faTag, faVideo, faWandMagicSparkles, faXmark } from '@fortawesome/free-solid-svg-icons'
+import { faBars, faDisplay, faGear, faMicrophone, faPenToSquare, faTag, faVideo, faWandMagicSparkles, faXmark } from '@fortawesome/free-solid-svg-icons'
 import { ArrowRight, Play, Sparkles } from 'lucide-react'
-import { Badge, Button, Panel, Select, StarryNight } from '../../index'
+import { Badge, Button, ConnectionStatusBadge, Panel, Select, SessionTimer, StarryNight, VideoControls } from '../../index'
 
 type AppNavItem = 'Baby Station' | 'Parent Station'
 
 const app_nav_items: AppNavItem[] = ['Baby Station', 'Parent Station']
+
+const get_nav_role_colour = (item: AppNavItem): string => (
+  item === 'Parent Station' ? 'rgb(var(--bb-colour-role-parent-info))' : 'rgb(var(--bb-colour-role-baby-info))'
+)
 
 const AppPrototypeNavigation: React.FunctionComponent<{ active_item?: AppNavItem }> = ({ active_item }) => {
   const [is_open, set_is_open] = React.useState(false)
@@ -31,7 +35,7 @@ const AppPrototypeNavigation: React.FunctionComponent<{ active_item?: AppNavItem
             type="button"
             className={`flex items-center gap-2 whitespace-nowrap rounded-full px-5 py-2 ${active_item === item ? 'bg-muted font-semibold text-text' : ''}`}
           >
-            {active_item === item ? <FontAwesomeIcon icon={faCircleDot} className="text-[rgb(var(--bb-colour-role-baby-info))]" /> : null}
+            {active_item === item ? <FontAwesomeIcon icon={faCircleDot} style={{ color: get_nav_role_colour(item) }} /> : null}
             {item}
           </button>
         ))}
@@ -46,7 +50,7 @@ const AppPrototypeNavigation: React.FunctionComponent<{ active_item?: AppNavItem
               className={`flex w-full items-center gap-2 rounded-md px-4 py-3 text-left ${active_item === item ? 'bg-muted font-semibold text-text' : 'text-text/80'}`}
               onClick={() => set_is_open(false)}
             >
-              {active_item === item ? <FontAwesomeIcon icon={faCircleDot} className="text-[rgb(var(--bb-colour-role-baby-info))]" /> : null}
+              {active_item === item ? <FontAwesomeIcon icon={faCircleDot} style={{ color: get_nav_role_colour(item) }} /> : null}
               {item}
             </button>
           ))}
@@ -249,7 +253,7 @@ export const AppBabyStationLivePrototype: React.FunctionComponent = () => {
 
   return (
     <StarryNight seed="app-baby-station-live" count={100} className="min-h-screen bg-[var(--bb-background-page)]">
-      <div className="flex min-h-screen flex-col gap-4 py-3 sm:py-5">
+      <div className="flex min-h-screen flex-col gap-4 py-4 sm:py-7">
         <AppPrototypeHeader active_item="Baby Station" />
 
         <main
@@ -418,3 +422,102 @@ export const AppBabyStationLivePrototype: React.FunctionComponent = () => {
     </StarryNight>
   )
 }
+
+export const AppParentStationPrototype: React.FunctionComponent = () => (
+  <StarryNight seed="app-parent-station-waiting" count={100} className="min-h-screen bg-[var(--bb-background-page)]">
+    <div className="flex min-h-screen flex-col gap-8 py-4 sm:gap-10 sm:py-7">
+      <AppPrototypeHeader active_item="Parent Station" />
+
+      <main className="bb-container grid flex-1 place-items-center py-8">
+        <section className="grid w-full max-w-3xl justify-items-center gap-9 text-center">
+          <div className="inline-flex flex-wrap justify-center gap-2 rounded-full border border-[rgb(var(--bb-color-border)/var(--bb-border-opacity-default,0.22))] bg-[var(--bb-background-default)] p-1">
+            <ConnectionStatusBadge label="Signal" value="MQTT" tone="connected" />
+            <ConnectionStatusBadge label="Stream" value="waiting" tone="waiting" />
+          </div>
+
+          <div className="relative grid h-48 w-48 place-items-center sm:h-64 sm:w-64">
+            <span className="absolute inset-0 rounded-full border border-[rgb(var(--bb-colour-role-parent-info)/0.22)]" />
+            <span className="absolute inset-4 rounded-full border border-[rgb(var(--bb-colour-role-parent-info)/0.18)]" />
+            <span className="absolute inset-8 rounded-full border border-[rgb(var(--bb-colour-role-parent-info)/0.14)]" />
+            <span className="absolute inset-12 rounded-full border border-[rgb(var(--bb-colour-role-parent-info)/0.10)]" />
+            <span
+              className="absolute h-24 w-24 rounded-full shadow-[0_0_50px_rgb(var(--bb-colour-warning-200)/0.16)] sm:h-28 sm:w-28"
+              style={{
+                background: 'radial-gradient(circle at 32% 30%, rgb(var(--bb-colour-warning-100)), rgb(var(--bb-colour-danger-200)) 85%)',
+              }}
+            />
+            <span className="absolute left-[38%] top-[42%] h-4 w-4 rounded-full bg-[rgb(var(--bb-colour-warning-300)/0.32)]" />
+            <span className="absolute left-[50%] top-[50%] h-3 w-3 rounded-full bg-[rgb(var(--bb-colour-danger-300)/0.34)]" />
+          </div>
+
+          <div className="grid gap-4">
+            <h2 className="m-0 text-4xl font-bold leading-tight text-text sm:text-5xl">
+              No baby stations <span className="text-[rgb(var(--bb-colour-role-parent-info))]">yet.</span>
+            </h2>
+            <p className="m-0 max-w-xl text-lg leading-relaxed text-subdued">
+              Open BeddyBytes on the device by the crib and press Start. It'll show up here within a few seconds.
+            </p>
+          </div>
+
+          <SessionTimer elapsed="0:00:34" />
+        </section>
+      </main>
+    </div>
+
+    <div className="pb-4 sm:pb-7">
+      <AppPrototypeFooter />
+    </div>
+  </StarryNight>
+)
+
+export const AppParentStationLivePrototype: React.FunctionComponent = () => (
+  <StarryNight seed="app-parent-station-live" count={100} className="min-h-screen bg-[var(--bb-background-page)]">
+    <div className="flex min-h-screen flex-col gap-4 py-4 sm:py-7">
+      <AppPrototypeHeader active_item="Parent Station" />
+
+      <main className="bb-container grid min-h-0 flex-1 grid-rows-[auto_minmax(0,1fr)] gap-4 sm:gap-5">
+        <section
+          className="grid min-w-0 gap-3 rounded-2xl border border-[rgb(var(--bb-color-border)/var(--bb-border-opacity-default,0.22))] bg-[var(--bb-background-default)] p-3 lg:grid-cols-[minmax(220px,360px)_minmax(0,1fr)_minmax(220px,360px)] lg:items-center lg:p-4"
+          aria-label="Parent station connection"
+        >
+          <Select
+            aria-label="Baby station"
+            caret_tone="disabled"
+            defaultValue="nursery"
+            leading_icon={<FontAwesomeIcon icon={faDisplay} />}
+            select_className="font-semibold"
+          >
+            <option value="nursery">Nursery</option>
+          </Select>
+
+          <SessionTimer elapsed="0:00:34" className="lg:justify-self-center" />
+
+          <div className="flex min-w-0 flex-wrap gap-2 lg:justify-end">
+            <ConnectionStatusBadge label="Signal" value="MQTT" tone="connected" />
+            <ConnectionStatusBadge label="Stream" value="live" tone="streaming" />
+          </div>
+        </section>
+
+        <section className="relative min-h-[420px] min-w-0 overflow-hidden bg-black shadow-[var(--bb-shadow-soft)] sm:min-h-[640px]" aria-label="Nursery live video">
+          <div
+            className="absolute inset-0"
+            style={{
+              background: [
+                'radial-gradient(circle at 52% 46%, rgb(255 255 255 / 0.055), transparent 24%)',
+                'radial-gradient(circle at 45% 60%, rgb(255 255 255 / 0.032), transparent 18%)',
+                'linear-gradient(180deg, rgb(0 0 0), rgb(0 0 0))',
+              ].join(', '),
+            }}
+          />
+          <div className="absolute inset-x-0 bottom-0 grid justify-items-center bg-gradient-to-t from-black/80 via-black/28 to-transparent px-4 pb-4 pt-16">
+            <VideoControls />
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <div className="pb-4 sm:pb-7">
+      <AppPrototypeFooter />
+    </div>
+  </StarryNight>
+)
