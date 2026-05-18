@@ -3,7 +3,8 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import type { IconDefinition } from '@fortawesome/fontawesome-svg-core'
 import { faCircleDot } from '@fortawesome/free-regular-svg-icons'
 import { faBaby, faBars, faChevronDown, faCircle, faClock, faDisplay, faExpand, faGear, faMicrophone, faPenToSquare, faPictureInPicture, faPlay, faRotateRight, faTag, faVideo, faVolumeHigh, faVolumeXmark, faWandMagicSparkles, faXmark } from '@fortawesome/free-solid-svg-icons'
-import { AlignLeft, Ban, Bell, Camera, Info, Moon, MousePointer, Settings, Sun, Type } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
+import { AlignLeft, Ban, Bell, Camera, Info, Monitor, Moon, MousePointer, Settings, Smartphone, Sun, Tablet, Type } from 'lucide-react'
 import design_markdown from '../../DESIGN.md?raw'
 import {
   Alert,
@@ -32,6 +33,7 @@ import {
 import { MarketingPagePrototype } from '../examples/prototype/MarketingPagePrototype'
 
 type ThemeName = 'dark' | 'light'
+type ViewportName = 'mobile' | 'tablet' | 'desktop'
 type PageName = 'brand' | 'alias' | 'mapped' | 'components' | 'design' | 'prototype-app-home' | 'prototype-baby-station-start' | 'prototype-baby-station-live' | 'prototype-parent-station' | 'prototype-parent-station-live' | 'prototype-marketing'
 
 interface DesignDocParts {
@@ -165,6 +167,12 @@ const themed_pages: PageName[] = [
   'prototype-marketing',
 ]
 
+const viewport_options: Array<{ name: ViewportName; label: string; Icon: LucideIcon }> = [
+  { name: 'mobile', label: 'Mobile', Icon: Smartphone },
+  { name: 'tablet', label: 'Tablet', Icon: Tablet },
+  { name: 'desktop', label: 'Desktop', Icon: Monitor },
+]
+
 const page_routes: Record<PageName, string> = {
   brand: '/brand',
   alias: '/alias',
@@ -193,9 +201,23 @@ const get_theme_from_search = (search: string): ThemeName => {
   return theme === 'dark' ? 'dark' : 'light'
 }
 
+const get_viewport_from_search = (search: string): ViewportName => {
+  const viewport = new URLSearchParams(search).get('viewport')
+
+  if (viewport === 'mobile' || viewport === 'tablet') {
+    return viewport
+  }
+
+  return 'desktop'
+}
+
 const is_embed_route = (search: string): boolean => new URLSearchParams(search).get('embed') === '1'
 
-const get_route = (page: PageName, theme: ThemeName, embed = false): string => {
+const get_route = (
+  page: PageName,
+  theme: ThemeName,
+  options: { embed?: boolean; viewport?: ViewportName } = {}
+): string => {
   const route = page_routes[page]
   const params = new URLSearchParams()
 
@@ -203,8 +225,12 @@ const get_route = (page: PageName, theme: ThemeName, embed = false): string => {
     params.set('theme', theme)
   }
 
-  if (embed) {
+  if (options.embed) {
     params.set('embed', '1')
+  }
+
+  if (!options.embed && options.viewport && options.viewport !== 'desktop') {
+    params.set('viewport', options.viewport)
   }
 
   const query = params.toString()
@@ -566,13 +592,22 @@ const MappedSurfaceCard: React.FunctionComponent<(typeof mapped_surface_roles)[n
   )
 }
 
-const GalleryShell: React.FunctionComponent<{ page: PageName; theme: ThemeName; set_page: (page: PageName) => void; set_theme: (theme: ThemeName) => void }> = ({
+const GalleryShell: React.FunctionComponent<{
+  page: PageName
+  theme: ThemeName
+  viewport: ViewportName
+  set_page: (page: PageName) => void
+  set_theme: (theme: ThemeName) => void
+  set_viewport: (viewport: ViewportName) => void
+}> = ({
   page,
   theme,
+  viewport,
   set_page,
   set_theme,
+  set_viewport,
 }) => {
-  const iframe_src = get_route(page, theme, true)
+  const iframe_src = get_route(page, theme, { embed: true })
 
   return (
   <>
@@ -615,9 +650,22 @@ const GalleryShell: React.FunctionComponent<{ page: PageName; theme: ThemeName; 
           </button>
         </div>
       )}
+
+      <div className="gallery-viewport-switcher" aria-label="Iframe size">
+        {viewport_options.map(({ name, label, Icon }) => (
+          <button
+            key={name}
+            type="button"
+            className={viewport === name ? 'active' : ''}
+            onClick={() => set_viewport(name)}
+          >
+            <Icon size={16} /> {label}
+          </button>
+        ))}
+      </div>
     </aside>
 
-    <main className="gallery-frame-main">
+    <main className={`gallery-frame-main gallery-frame-main--${viewport}`}>
       <iframe
         key={iframe_src}
         className="gallery-item-frame"
@@ -940,29 +988,36 @@ export const GalleryPages: React.FunctionComponent = () => {
   const [theme, set_theme_state] = React.useState<ThemeName>(() => (
     is_themed_page(initial_page) ? get_theme_from_search(window.location.search) : 'light'
   ))
+  const [viewport, set_viewport_state] = React.useState<ViewportName>(() => get_viewport_from_search(window.location.search))
   const [page, set_page_state] = React.useState<PageName>(initial_page)
 
-  const set_route = React.useCallback((next_page: PageName, next_theme: ThemeName) => {
-    window.history.pushState(null, '', get_route(next_page, next_theme))
+  const set_route = React.useCallback((next_page: PageName, next_theme: ThemeName, next_viewport: ViewportName) => {
+    window.history.pushState(null, '', get_route(next_page, next_theme, { viewport: next_viewport }))
   }, [])
 
   const set_page = React.useCallback((next_page: PageName) => {
     const next_theme = is_themed_page(next_page) ? theme : 'light'
     set_page_state(next_page)
     set_theme_state(next_theme)
-    set_route(next_page, next_theme)
-  }, [set_route, theme])
+    set_route(next_page, next_theme, viewport)
+  }, [set_route, theme, viewport])
 
   const set_theme = React.useCallback((next_theme: ThemeName) => {
     set_theme_state(next_theme)
-    set_route(page, next_theme)
-  }, [page, set_route])
+    set_route(page, next_theme, viewport)
+  }, [page, set_route, viewport])
+
+  const set_viewport = React.useCallback((next_viewport: ViewportName) => {
+    set_viewport_state(next_viewport)
+    set_route(page, theme, next_viewport)
+  }, [page, set_route, theme])
 
   React.useEffect(() => {
     const handle_popstate = () => {
       const next_page = get_page_from_path(window.location.pathname)
       set_page_state(next_page)
       set_theme_state(is_themed_page(next_page) ? get_theme_from_search(window.location.search) : 'light')
+      set_viewport_state(get_viewport_from_search(window.location.search))
     }
 
     window.addEventListener('popstate', handle_popstate)
@@ -992,7 +1047,16 @@ export const GalleryPages: React.FunctionComponent = () => {
     return <div className="gallery-item-document">{content}</div>
   }
 
-  const content = <GalleryShell page={page} theme={theme} set_page={set_page} set_theme={set_theme} />
+  const content = (
+    <GalleryShell
+      page={page}
+      theme={theme}
+      viewport={viewport}
+      set_page={set_page}
+      set_theme={set_theme}
+      set_viewport={set_viewport}
+    />
+  )
 
   if (is_themed_page(page) && theme === 'dark') {
     return (
