@@ -29,6 +29,7 @@ html {
 
   --color-success: var(--color-success-200);
   --color-success-soft: var(--color-success-800);
+  --color-info: var(--color-info-200);
   --color-warning: var(--color-warning-200);
   --color-warning-soft: var(--color-warning-800);
   --color-danger: var(--color-danger-200);

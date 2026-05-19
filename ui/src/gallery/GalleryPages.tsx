@@ -142,8 +142,8 @@ const alias_colour_categories = [
 ]
 
 const alias_role_colour_categories = [
-  { name: 'Baby station', source: 'Indigo', token: 'role-baby' },
-  { name: 'Parent station', source: 'Mint', token: 'role-parent' },
+  { name: 'Baby station', source: 'Indigo', token: 'baby' },
+  { name: 'Parent station', source: 'Mint', token: 'parent' },
 ]
 
 const prototype_pages: Array<{ id: PageName; label: string }> = [
@@ -374,40 +374,40 @@ const device_sizes = [
 ]
 
 const text_roles = [
-  { name: 'Heading', text_token: '--colour-text-heading', icon_token: '--colour-icon-default', Icon: Type },
-  { name: 'Body', text_token: '--colour-text-body', icon_token: '--colour-icon-default', Icon: AlignLeft },
-  { name: 'Action', text_token: '--colour-text-action', icon_token: '--colour-icon-action', Icon: MousePointer },
-  { name: 'Disabled', text_token: '--colour-text-disabled', icon_token: '--colour-icon-disabled', Icon: Ban },
-  { name: 'Information', text_token: '--colour-text-information', icon_token: '--colour-icon-information', Icon: Info },
+  { name: 'Heading', text_token: '--color-heading', icon_token: '--color-text', Icon: Type },
+  { name: 'Body', text_token: '--color-text', icon_token: '--color-text', Icon: AlignLeft },
+  { name: 'Action', text_token: '--color-action', icon_token: '--color-action', Icon: MousePointer },
+  { name: 'Disabled', text_token: '--color-disabled', icon_token: '--color-disabled', Icon: Ban },
+  { name: 'Information', text_token: '--color-info', icon_token: '--color-info', Icon: Info },
 ]
 
 const mapped_surface_roles = [
   {
     name: 'Page',
-    surface_token: '--colour-surface-page',
-    border_token: '--colour-border-page',
+    surface_token: '--color-page',
+    border_token: 'transparent',
     background_token: '--background-page',
     star_count: 40,
     roles: text_roles,
   },
   {
     name: 'Default',
-    surface_token: '--colour-surface-default',
-    border_token: '--colour-border-default',
+    surface_token: '--color-surface',
+    border_token: '--color-input-border',
     background_token: '--background-default',
     star_count: 32,
     roles: text_roles,
   },
-  { name: 'Success', surface_token: '--colour-surface-success', border_token: '--colour-border-success', roles: text_roles },
-  { name: 'Warning', surface_token: '--colour-surface-warning', border_token: '--colour-border-warning', roles: text_roles },
+  { name: 'Success', surface_token: '--color-success-soft', border_token: '--color-success', roles: text_roles },
+  { name: 'Warning', surface_token: '--color-warning-soft', border_token: '--color-warning', roles: text_roles },
   {
     name: 'Information',
-    surface_token: '--colour-surface-information',
-    border_token: '--colour-border-information',
+    surface_token: '--color-action-soft',
+    border_token: '--color-info',
     roles: text_roles,
   },
-  { name: 'Error', surface_token: '--colour-surface-error', border_token: '--colour-border-error', roles: text_roles },
-  { name: 'Disabled', surface_token: '--colour-surface-disabled', border_token: '--colour-border-disabled', roles: text_roles },
+  { name: 'Error', surface_token: '--color-danger-soft', border_token: '--color-danger', roles: text_roles },
+  { name: 'Disabled', surface_token: '--color-muted', border_token: '--color-border', roles: text_roles },
 ]
 
 const desktop_type_sizes = [
@@ -448,7 +448,7 @@ const ColourScaleCard: React.FunctionComponent<{ scale: ColourScale }> = ({ scal
       {scale.stops.map((stop) => {
         return (
           <div key={stop.token} className="colour-stop">
-            <span className="colour-swatch" style={{ background: `rgb(var(--color-${stop.token}))` }} />
+            <span className="colour-swatch" style={{ background: `var(--color-${stop.token})` }} />
             <span className="colour-stop-copy">
               <strong>{stop.index}</strong>
               <code>{stop.hex}</code>
@@ -472,14 +472,14 @@ const AliasColourCategoryCard: React.FunctionComponent<{ name: string; source: s
     </div>
     <div className="alias-colour-range">
       {alias_colour_stops.map((stop) => {
-        const variable_name = `--colour-${token}-${stop}`
+        const variable_name = `--color-${token}-${stop}`
 
         return (
           <span
             key={variable_name}
             className="alias-colour-swatch"
             title={variable_name}
-            style={{ background: `rgb(var(${variable_name}))` }}
+            style={{ background: `var(${variable_name})` }}
           />
         )
       })}
@@ -525,7 +525,7 @@ const MappedSurfaceCard: React.FunctionComponent<(typeof mapped_surface_roles)[n
 }) => {
   const content = (
     <>
-      <h3 style={{ color: `rgb(var(${roles[0]?.text_token ?? '--colour-text-heading'}))` }}>{name}</h3>
+      <h3 style={{ color: `var(${roles[0]?.text_token ?? '--color-heading'})` }}>{name}</h3>
       <div className="mapped-text-role-list">
         {roles.map(({ name: role_name, text_token, icon_token, Icon }) => (
           role_name === 'Action' ? (
@@ -534,8 +534,8 @@ const MappedSurfaceCard: React.FunctionComponent<(typeof mapped_surface_roles)[n
               <span>{role_name}</span>
             </a>
           ) : (
-            <div key={role_name} className="mapped-text-role" style={{ color: `rgb(var(${text_token}))` }}>
-              <Icon size={18} color={`rgb(var(${icon_token}))`} />
+            <div key={role_name} className="mapped-text-role" style={{ color: `var(${text_token})` }}>
+              <Icon size={18} color={`var(${icon_token})`} />
               <span>{role_name}</span>
             </div>
           )
@@ -544,8 +544,8 @@ const MappedSurfaceCard: React.FunctionComponent<(typeof mapped_surface_roles)[n
     </>
   )
   const style = {
-    background: background_token ? `var(${background_token})` : `rgb(var(${surface_token}))`,
-    borderColor: border_token === '--colour-border-page' ? 'transparent' : `rgb(var(${border_token}))`,
+    background: background_token ? `var(${background_token})` : `var(${surface_token})`,
+    borderColor: border_token === 'transparent' ? 'transparent' : `var(${border_token})`,
   }
 
   if (star_count) {
@@ -684,8 +684,8 @@ const TypeSizeCard: React.FunctionComponent<{ title: string; sizes: string[][] }
   <section
     className="type-size-card"
     style={{
-      background: 'rgb(var(--colour-surface-success))',
-      borderColor: 'rgb(var(--colour-border-success))',
+      background: 'var(--color-success-soft)',
+      borderColor: 'var(--color-success)',
     }}
   >
     <h3>{title}</h3>
