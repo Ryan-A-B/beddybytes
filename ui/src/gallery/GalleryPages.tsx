@@ -4,7 +4,7 @@ import type { IconDefinition } from '@fortawesome/fontawesome-svg-core'
 import { faCircleDot } from '@fortawesome/free-regular-svg-icons'
 import { faBaby, faBars, faChevronDown, faCircle, faClock, faDisplay, faExpand, faGear, faMicrophone, faPenToSquare, faPictureInPicture, faPlay, faRotateRight, faTag, faVideo, faVolumeHigh, faVolumeXmark, faWandMagicSparkles, faXmark } from '@fortawesome/free-solid-svg-icons'
 import type { LucideIcon } from 'lucide-react'
-import { AlignLeft, Ban, Bell, Camera, Info, Monitor, Moon, MousePointer, Settings, Smartphone, Sun, Tablet, Type } from 'lucide-react'
+import { AlignLeft, Ban, Bell, Camera, Info, Monitor, MousePointer, Settings, Smartphone, Tablet, Type } from 'lucide-react'
 import design_markdown from '../../DESIGN.md?raw'
 import {
   Alert,
@@ -26,13 +26,12 @@ import {
 import {
   AppBabyStationLivePrototype,
   AppBabyStationStartPrototype,
-  AppHomePrototypeOne,
+  AppHomePrototype,
   AppParentStationLivePrototype,
   AppParentStationPrototype,
 } from '../examples/prototype/AppHomePrototypes'
 import { MarketingPagePrototype } from '../examples/prototype/MarketingPagePrototype'
 
-type ThemeName = 'dark' | 'light'
 type ViewportName = 'mobile' | 'tablet' | 'desktop'
 type PageName = 'brand' | 'alias' | 'mapped' | 'components' | 'design' | 'prototype-app-home' | 'prototype-baby-station-start' | 'prototype-baby-station-live' | 'prototype-parent-station' | 'prototype-parent-station-live' | 'prototype-marketing'
 
@@ -156,17 +155,6 @@ const prototype_pages: Array<{ id: PageName; label: string }> = [
   { id: 'prototype-marketing', label: 'Marketing' },
 ]
 
-const themed_pages: PageName[] = [
-  'mapped',
-  'components',
-  'prototype-app-home',
-  'prototype-baby-station-start',
-  'prototype-baby-station-live',
-  'prototype-parent-station',
-  'prototype-parent-station-live',
-  'prototype-marketing',
-]
-
 const viewport_options: Array<{ name: ViewportName; label: string; Icon: LucideIcon }> = [
   { name: 'mobile', label: 'Mobile', Icon: Smartphone },
   { name: 'tablet', label: 'Tablet', Icon: Tablet },
@@ -192,14 +180,7 @@ const route_pages = Object.entries(page_routes).reduce<Record<string, PageName>>
   return routes
 }, {})
 
-const is_themed_page = (page: PageName): boolean => themed_pages.includes(page)
-
 const get_page_from_path = (pathname: string): PageName => route_pages[pathname] ?? 'brand'
-
-const get_theme_from_search = (search: string): ThemeName => {
-  const theme = new URLSearchParams(search).get('theme')
-  return theme === 'dark' ? 'dark' : 'light'
-}
 
 const get_viewport_from_search = (search: string): ViewportName => {
   const viewport = new URLSearchParams(search).get('viewport')
@@ -215,15 +196,10 @@ const is_embed_route = (search: string): boolean => new URLSearchParams(search).
 
 const get_route = (
   page: PageName,
-  theme: ThemeName,
   options: { embed?: boolean; viewport?: ViewportName } = {}
 ): string => {
   const route = page_routes[page]
   const params = new URLSearchParams()
-
-  if (is_themed_page(page)) {
-    params.set('theme', theme)
-  }
 
   if (options.embed) {
     params.set('embed', '1')
@@ -318,17 +294,17 @@ const render_design_markdown = (source: string): React.ReactNode[] => {
 const alias_colour_stops = ['100', '200', '300', '400', '500', '600', '700', '800']
 
 const border_width_tokens = [
-  ['None', '--bb-border-width-none'],
-  ['Sm', '--bb-border-width-sm'],
-  ['Md', '--bb-border-width-md'],
-  ['Lg', '--bb-border-width-lg'],
+  ['None', '--border-width-none'],
+  ['Sm', '--border-width-sm'],
+  ['Md', '--border-width-md'],
+  ['Lg', '--border-width-lg'],
 ]
 
 const border_radius_tokens = [
-  ['0', '--bb-border-radius-0'],
-  ['50', '--bb-border-radius-50'],
-  ['100', '--bb-border-radius-100'],
-  ['200', '--bb-border-radius-200'],
+  ['0', '--border-radius-0'],
+  ['50', '--border-radius-50'],
+  ['100', '--border-radius-100'],
+  ['200', '--border-radius-200'],
 ]
 
 const font_weights = [
@@ -398,40 +374,40 @@ const device_sizes = [
 ]
 
 const text_roles = [
-  { name: 'Heading', text_token: '--bb-colour-text-heading', icon_token: '--bb-colour-icon-default', Icon: Type },
-  { name: 'Body', text_token: '--bb-colour-text-body', icon_token: '--bb-colour-icon-default', Icon: AlignLeft },
-  { name: 'Action', text_token: '--bb-colour-text-action', icon_token: '--bb-colour-icon-action', Icon: MousePointer },
-  { name: 'Disabled', text_token: '--bb-colour-text-disabled', icon_token: '--bb-colour-icon-disabled', Icon: Ban },
-  { name: 'Information', text_token: '--bb-colour-text-information', icon_token: '--bb-colour-icon-information', Icon: Info },
+  { name: 'Heading', text_token: '--colour-text-heading', icon_token: '--colour-icon-default', Icon: Type },
+  { name: 'Body', text_token: '--colour-text-body', icon_token: '--colour-icon-default', Icon: AlignLeft },
+  { name: 'Action', text_token: '--colour-text-action', icon_token: '--colour-icon-action', Icon: MousePointer },
+  { name: 'Disabled', text_token: '--colour-text-disabled', icon_token: '--colour-icon-disabled', Icon: Ban },
+  { name: 'Information', text_token: '--colour-text-information', icon_token: '--colour-icon-information', Icon: Info },
 ]
 
 const mapped_surface_roles = [
   {
     name: 'Page',
-    surface_token: '--bb-colour-surface-page',
-    border_token: '--bb-colour-border-page',
-    background_token: '--bb-background-page',
+    surface_token: '--colour-surface-page',
+    border_token: '--colour-border-page',
+    background_token: '--background-page',
     star_count: 40,
     roles: text_roles,
   },
   {
     name: 'Default',
-    surface_token: '--bb-colour-surface-default',
-    border_token: '--bb-colour-border-default',
-    background_token: '--bb-background-default',
+    surface_token: '--colour-surface-default',
+    border_token: '--colour-border-default',
+    background_token: '--background-default',
     star_count: 32,
     roles: text_roles,
   },
-  { name: 'Success', surface_token: '--bb-colour-surface-success', border_token: '--bb-colour-border-success', roles: text_roles },
-  { name: 'Warning', surface_token: '--bb-colour-surface-warning', border_token: '--bb-colour-border-warning', roles: text_roles },
+  { name: 'Success', surface_token: '--colour-surface-success', border_token: '--colour-border-success', roles: text_roles },
+  { name: 'Warning', surface_token: '--colour-surface-warning', border_token: '--colour-border-warning', roles: text_roles },
   {
     name: 'Information',
-    surface_token: '--bb-colour-surface-information',
-    border_token: '--bb-colour-border-information',
+    surface_token: '--colour-surface-information',
+    border_token: '--colour-border-information',
     roles: text_roles,
   },
-  { name: 'Error', surface_token: '--bb-colour-surface-error', border_token: '--bb-colour-border-error', roles: text_roles },
-  { name: 'Disabled', surface_token: '--bb-colour-surface-disabled', border_token: '--bb-colour-border-disabled', roles: text_roles },
+  { name: 'Error', surface_token: '--colour-surface-error', border_token: '--colour-border-error', roles: text_roles },
+  { name: 'Disabled', surface_token: '--colour-surface-disabled', border_token: '--colour-border-disabled', roles: text_roles },
 ]
 
 const desktop_type_sizes = [
@@ -470,11 +446,9 @@ const ColourScaleCard: React.FunctionComponent<{ scale: ColourScale }> = ({ scal
     <h3>{scale.name}</h3>
     <div className="colour-range">
       {scale.stops.map((stop) => {
-        const variable_name = `--bb-brand-${stop.token}`
-
         return (
           <div key={stop.token} className="colour-stop">
-            <span className="colour-swatch" style={{ background: `rgb(var(${variable_name}))` }} />
+            <span className="colour-swatch" style={{ background: `rgb(var(--color-${stop.token}))` }} />
             <span className="colour-stop-copy">
               <strong>{stop.index}</strong>
               <code>{stop.hex}</code>
@@ -498,7 +472,7 @@ const AliasColourCategoryCard: React.FunctionComponent<{ name: string; source: s
     </div>
     <div className="alias-colour-range">
       {alias_colour_stops.map((stop) => {
-        const variable_name = `--bb-colour-${token}-${stop}`
+        const variable_name = `--colour-${token}-${stop}`
 
         return (
           <span
@@ -551,7 +525,7 @@ const MappedSurfaceCard: React.FunctionComponent<(typeof mapped_surface_roles)[n
 }) => {
   const content = (
     <>
-      <h3 style={{ color: `rgb(var(${roles[0]?.text_token ?? '--bb-colour-text-heading'}))` }}>{name}</h3>
+      <h3 style={{ color: `rgb(var(${roles[0]?.text_token ?? '--colour-text-heading'}))` }}>{name}</h3>
       <div className="mapped-text-role-list">
         {roles.map(({ name: role_name, text_token, icon_token, Icon }) => (
           role_name === 'Action' ? (
@@ -571,7 +545,7 @@ const MappedSurfaceCard: React.FunctionComponent<(typeof mapped_surface_roles)[n
   )
   const style = {
     background: background_token ? `var(${background_token})` : `rgb(var(${surface_token}))`,
-    borderColor: border_token === '--bb-colour-border-page' ? 'transparent' : `rgb(var(${border_token}))`,
+    borderColor: border_token === '--colour-border-page' ? 'transparent' : `rgb(var(${border_token}))`,
   }
 
   if (star_count) {
@@ -594,20 +568,16 @@ const MappedSurfaceCard: React.FunctionComponent<(typeof mapped_surface_roles)[n
 
 const GalleryShell: React.FunctionComponent<{
   page: PageName
-  theme: ThemeName
   viewport: ViewportName
   set_page: (page: PageName) => void
-  set_theme: (theme: ThemeName) => void
   set_viewport: (viewport: ViewportName) => void
 }> = ({
   page,
-  theme,
   viewport,
   set_page,
-  set_theme,
   set_viewport,
 }) => {
-  const iframe_src = get_route(page, theme, { embed: true })
+  const iframe_src = get_route(page, { embed: true })
 
   return (
   <>
@@ -630,8 +600,13 @@ const GalleryShell: React.FunctionComponent<{
               <button
                 key={prototype_page.id}
                 type="button"
+                disabled={prototype_page.id === 'prototype-marketing'}
                 className={page === prototype_page.id ? 'active' : ''}
-                onClick={() => set_page(prototype_page.id)}
+                onClick={() => {
+                  if (prototype_page.id !== 'prototype-marketing') {
+                    set_page(prototype_page.id)
+                  }
+                }}
               >
                 {prototype_page.label}
               </button>
@@ -639,17 +614,6 @@ const GalleryShell: React.FunctionComponent<{
           </div>
         </div>
       </nav>
-
-      {is_themed_page(page) && (
-        <div className="gallery-theme-switcher" aria-label="Theme">
-          <button type="button" className={theme === 'dark' ? 'active' : ''} onClick={() => set_theme('dark')}>
-            <Moon size={16} /> Dark
-          </button>
-          <button type="button" className={theme === 'light' ? 'active' : ''} onClick={() => set_theme('light')}>
-            <Sun size={16} /> Light
-          </button>
-        </div>
-      )}
 
       <div className="gallery-viewport-switcher" aria-label="Iframe size">
         {viewport_options.map(({ name, label, Icon }) => (
@@ -684,7 +648,7 @@ const GalleryItemContent: React.FunctionComponent<{ page: PageName }> = ({ page 
     {page === 'mapped' && <MappedPage />}
     {page === 'components' && <ComponentsPage />}
     {page === 'design' && <DesignDocPage />}
-    {page === 'prototype-app-home' && <PrototypePane><AppHomePrototypeOne /></PrototypePane>}
+    {page === 'prototype-app-home' && <PrototypePane><AppHomePrototype /></PrototypePane>}
     {page === 'prototype-baby-station-start' && <PrototypePane><AppBabyStationStartPrototype /></PrototypePane>}
     {page === 'prototype-baby-station-live' && <PrototypePane><AppBabyStationLivePrototype /></PrototypePane>}
     {page === 'prototype-parent-station' && <PrototypePane><AppParentStationPrototype /></PrototypePane>}
@@ -720,8 +684,8 @@ const TypeSizeCard: React.FunctionComponent<{ title: string; sizes: string[][] }
   <section
     className="type-size-card"
     style={{
-      background: 'rgb(var(--bb-colour-surface-success))',
-      borderColor: 'rgb(var(--bb-colour-border-success))',
+      background: 'rgb(var(--colour-surface-success))',
+      borderColor: 'rgb(var(--colour-border-success))',
     }}
   >
     <h3>{title}</h3>
@@ -885,11 +849,10 @@ const ComponentsPage: React.FunctionComponent = () => (
   <main className="gallery-main">
     <GallerySection title="Buttons">
       <div className="component-row">
-        <Button>Primary</Button>
-        <Button variant="secondary">Secondary</Button>
-        <Button variant="ghost">Ghost</Button>
-        <Button variant="danger">Danger</Button>
-        <Button loading>Loading</Button>
+        <Button variant="baby-action">Baby Action</Button>
+        <Button variant="parent-action">Parent Action</Button>
+        <Button variant="secondary">Info</Button>
+        <Button variant="baby-action" loading>Loading</Button>
         <IconButton label="Camera"><Camera size={18} /></IconButton>
         <IconButton label="Notifications" variant="secondary"><Bell size={18} /></IconButton>
         <IconButton label="Settings" variant="ghost"><Settings size={18} /></IconButton>
@@ -985,38 +948,27 @@ const DesignDocPage: React.FunctionComponent = () => {
 export const GalleryPages: React.FunctionComponent = () => {
   const initial_page = get_page_from_path(window.location.pathname)
   const is_embedded = is_embed_route(window.location.search)
-  const [theme, set_theme_state] = React.useState<ThemeName>(() => (
-    is_themed_page(initial_page) ? get_theme_from_search(window.location.search) : 'light'
-  ))
   const [viewport, set_viewport_state] = React.useState<ViewportName>(() => get_viewport_from_search(window.location.search))
   const [page, set_page_state] = React.useState<PageName>(initial_page)
 
-  const set_route = React.useCallback((next_page: PageName, next_theme: ThemeName, next_viewport: ViewportName) => {
-    window.history.pushState(null, '', get_route(next_page, next_theme, { viewport: next_viewport }))
+  const set_route = React.useCallback((next_page: PageName, next_viewport: ViewportName) => {
+    window.history.pushState(null, '', get_route(next_page, { viewport: next_viewport }))
   }, [])
 
   const set_page = React.useCallback((next_page: PageName) => {
-    const next_theme = is_themed_page(next_page) ? theme : 'light'
     set_page_state(next_page)
-    set_theme_state(next_theme)
-    set_route(next_page, next_theme, viewport)
-  }, [set_route, theme, viewport])
-
-  const set_theme = React.useCallback((next_theme: ThemeName) => {
-    set_theme_state(next_theme)
-    set_route(page, next_theme, viewport)
-  }, [page, set_route, viewport])
+    set_route(next_page, viewport)
+  }, [set_route, viewport])
 
   const set_viewport = React.useCallback((next_viewport: ViewportName) => {
     set_viewport_state(next_viewport)
-    set_route(page, theme, next_viewport)
-  }, [page, set_route, theme])
+    set_route(page, next_viewport)
+  }, [page, set_route])
 
   React.useEffect(() => {
     const handle_popstate = () => {
       const next_page = get_page_from_path(window.location.pathname)
       set_page_state(next_page)
-      set_theme_state(is_themed_page(next_page) ? get_theme_from_search(window.location.search) : 'light')
       set_viewport_state(get_viewport_from_search(window.location.search))
     }
 
@@ -1024,47 +976,27 @@ export const GalleryPages: React.FunctionComponent = () => {
     return () => window.removeEventListener('popstate', handle_popstate)
   }, [])
 
-  React.useEffect(() => {
-    if (!is_themed_page(page)) {
-      delete document.documentElement.dataset.theme
-      return
-    }
-
-    document.documentElement.dataset.theme = theme
-  }, [page, theme])
-
   if (is_embedded) {
     const content = <GalleryItemContent page={page} />
-
-    if (is_themed_page(page) && theme === 'dark') {
-      return (
-        <StarryNight seed="gallery-page" count={100} className="gallery-item-document">
-          {content}
-        </StarryNight>
-      )
-    }
-
-    return <div className="gallery-item-document">{content}</div>
-  }
-
-  const content = (
-    <GalleryShell
-      page={page}
-      theme={theme}
-      viewport={viewport}
-      set_page={set_page}
-      set_theme={set_theme}
-      set_viewport={set_viewport}
-    />
-  )
-
-  if (is_themed_page(page) && theme === 'dark') {
     return (
-      <StarryNight seed="gallery-page" count={100} className="gallery-shell">
+      <StarryNight seed="gallery-page" count={100} className="gallery-item-document">
         {content}
       </StarryNight>
     )
   }
 
-  return <div className="gallery-shell">{content}</div>
+  const content = (
+    <GalleryShell
+      page={page}
+      viewport={viewport}
+      set_page={set_page}
+      set_viewport={set_viewport}
+    />
+  )
+
+  return (
+    <StarryNight seed="gallery-page" count={100} className="gallery-shell">
+      {content}
+    </StarryNight>
+  )
 }

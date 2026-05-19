@@ -2,7 +2,7 @@ import React from 'react'
 import { Badge, Button, Panel } from '../../index'
 
 export const MarketingPagePrototype: React.FunctionComponent = () => (
-  <div data-theme="light" className="rounded-xl border border-border bg-canvas text-text">
+  <div className="rounded-xl border border-border bg-canvas text-text">
     <header className="flex flex-wrap items-center justify-between gap-4 border-b border-border px-6 py-4">
       <strong className="text-lg">BeddyBytes</strong>
       <nav className="flex items-center gap-4 text-sm text-subdued">
@@ -22,7 +22,7 @@ export const MarketingPagePrototype: React.FunctionComponent = () => (
           BeddyBytes keeps video on your local network and works across phones, tablets, and laptops.
         </p>
         <div className="mt-6 flex flex-wrap gap-3">
-          <Button>See pricing</Button>
+          <Button variant="primary">See pricing</Button>
           <Button variant="secondary">Check compatibility</Button>
         </div>
       </section>

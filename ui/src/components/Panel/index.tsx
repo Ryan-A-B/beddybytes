@@ -6,7 +6,7 @@ export interface PanelProps extends React.HTMLAttributes<HTMLDivElement> {
 }
 
 const tone_classes = {
-  default: 'bg-[var(--bb-background-default)] border-[rgb(var(--bb-color-border)/var(--bb-border-opacity-default,1))]',
+  default: 'bg-surface border-input-border',
   muted: 'bg-muted border-border',
   raised: 'bg-raised border-border shadow-raised',
 }
@@ -19,7 +19,7 @@ export const Panel: React.FunctionComponent<PanelProps> = ({
 }) => (
   <div
     {...props}
-    className={classNames('rounded-lg border p-[var(--bb-panel-padding)] text-text', tone_classes[tone], className)}
+    className={classNames('rounded-lg border p-6 text-text', tone_classes[tone], className)}
   >
     {children}
   </div>

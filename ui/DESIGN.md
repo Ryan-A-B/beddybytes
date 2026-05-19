@@ -125,7 +125,7 @@ Headings can be confident but should not become oversized inside controls, panel
 
 Use a named numeric scale for values that need a number: font size, spacing, radius, border width, line height, fixed dimensions, and layout gaps. The concrete scale lives in `brand.css`; contextual use of that scale lives in `alias.css`, `mapping.css`, and `responsive.css`.
 
-All normal page content uses the shared `.bb-container` class. That includes navigation content, main page content, sheets that behave like page sections, and footer content. Full-bleed backgrounds can extend to the viewport edge, but readable and interactive content should sit inside the container. Mobile widths are fluid with side gutters; tablet and desktop widths step through fixed maximum content widths so pages do not drift into arbitrary one-off `max-width` values.
+All normal page content uses the shared `.container` class. That includes navigation content, main page content, sheets that behave like page sections, and footer content. Full-bleed backgrounds can extend to the viewport edge, but readable and interactive content should sit inside the container. Mobile widths are fluid with side gutters; tablet and desktop widths step through fixed maximum content widths so pages do not drift into arbitrary one-off `max-width` values.
 
 Responsive type mappings live in `responsive.css`. Tablet currently follows the desktop type rhythm unless a component or layout needs a tablet-specific adjustment. Line heights should be rounded to the scale and paragraph spacing should remain stable across breakpoints so copy does not feel cramped on mobile.
 
@@ -190,7 +190,7 @@ Avoid pill-shaped controls except for badges and compact status chips. Cards sho
 
 ## Components
 
-Buttons are clear commands with primary, secondary, ghost, and danger variants. Inputs and selects should have visible labels through `FormField`. Alerts must state what happened and, when useful, what the parent can do next.
+Buttons are clear commands with primary, secondary, ghost, and danger variants. `btn-primary` is the first mapped button treatment: it is specific to the primary command role rather than a broad button system. In dark mode it uses a primary radial gradient with light text so the action reads as deliberate and remains legible on the dark app canvas. Inputs and selects should have visible labels through `FormField`. Alerts must state what happened and, when useful, what the parent can do next.
 
 Panels group related UI without becoming decorative cards. Badges are for state and metadata. `StarrySky` and `StarryNight` create deterministic dark-mode surfaces from `seed` and `count`; the same inputs must render the same star positions. Use higher counts for larger surfaces: around `100` for a full page and `20` to `40` for card-sized surfaces.
 

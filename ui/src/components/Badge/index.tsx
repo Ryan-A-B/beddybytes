@@ -10,9 +10,9 @@ export interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
 const tone_classes: Record<BadgeTone, string> = {
   neutral: 'bg-muted text-text border-border',
   action: 'bg-action/15 text-action border-action/25',
-  success: 'bg-[rgb(var(--bb-color-success-soft)/0.9)] text-success border-success/25',
-  warning: 'bg-[rgb(var(--bb-color-warning-soft)/0.9)] text-warning border-warning/25',
-  danger: 'bg-[rgb(var(--bb-color-danger-soft)/0.9)] text-danger border-danger/25',
+  success: 'bg-success-soft/90 text-success border-success/25',
+  warning: 'bg-warning-soft/90 text-warning border-warning/25',
+  danger: 'bg-danger-soft/90 text-danger border-danger/25',
 }
 
 export const Badge: React.FunctionComponent<BadgeProps> = ({

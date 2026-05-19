@@ -13,9 +13,9 @@ export interface AlertProps {
 
 const tone_classes: Record<AlertTone, string> = {
   info: 'border-action/35 bg-action/10 text-text',
-  success: 'border-success/35 bg-[rgb(var(--bb-color-success-soft)/0.72)] text-text',
-  warning: 'border-warning/35 bg-[rgb(var(--bb-color-warning-soft)/0.72)] text-text',
-  danger: 'border-danger/35 bg-[rgb(var(--bb-color-danger-soft)/0.72)] text-text',
+  success: 'border-success/35 bg-success-soft/70 text-text',
+  warning: 'border-warning/35 bg-warning-soft/70 text-text',
+  danger: 'border-danger/35 bg-danger-soft/70 text-text',
 }
 
 const icons: Record<AlertTone, React.ReactNode> = {

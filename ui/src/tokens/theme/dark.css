@@ -1,0 +1,73 @@
+html {
+  color-scheme: dark;
+}
+
+@theme {
+  --color-page: var(--color-primary-900);
+  --color-canvas: var(--color-primary-900);
+  --color-surface: color-mix(in srgb, var(--color-neutral-700) 38%, transparent);
+  --color-raised: var(--color-neutral-600);
+  --color-muted: var(--color-neutral-700);
+  --color-media: color-mix(in srgb, var(--color-primary-900) 70%, transparent);
+  --color-border: var(--color-neutral-200);
+  --color-border-strong: var(--color-primary-300);
+  --color-text: var(--color-neutral-100);
+  --color-heading: var(--color-neutral-white);
+  --color-subdued: var(--color-neutral-400);
+  --color-disabled: var(--color-neutral-400);
+  --color-on-action: var(--color-neutral-white);
+  --color-action: var(--color-primary-700);
+  --color-action-hover: var(--color-primary-600);
+  --color-action-soft: var(--color-info-800);
+  --color-primary-action: var(--color-action);
+  --color-primary-action-hover: var(--color-action-hover);
+  --color-primary-on-action: var(--color-on-action);
+
+  --color-secondary: var(--color-sky-400);
+  --color-secondary-hover: var(--color-sky-300);
+  --color-on-secondary: var(--color-neutral-white);
+
+  --color-success: var(--color-success-200);
+  --color-success-soft: var(--color-success-800);
+  --color-warning: var(--color-warning-200);
+  --color-warning-soft: var(--color-warning-800);
+  --color-danger: var(--color-danger-200);
+  --color-danger-soft: var(--color-danger-800);
+  --color-focus: var(--color-primary-300);
+
+  --color-baby-info: var(--color-baby-200);
+  --color-baby-action: var(--color-primary-action);
+  --color-baby-action-hover: var(--color-primary-action-hover);
+  --color-baby-on-action: var(--color-primary-on-action);
+  --color-baby-surface: var(--color-surface);
+  --color-baby-border: var(--color-neutral-200);
+
+  --color-parent-info: var(--color-parent-200);
+  --color-parent-action: var(--color-parent-700);
+  --color-parent-action-hover: var(--color-parent-600);
+  --color-parent-on-action: var(--color-neutral-white);
+
+  --color-record: var(--color-coral-500);
+
+  --color-input: var(--color-surface);
+  --color-input-border: color-mix(in srgb, var(--color-border) 22%, transparent);
+  --color-input-border-hover: color-mix(in srgb, var(--color-border-strong) 72%, transparent);
+  --color-select-option-hover: color-mix(in srgb, var(--color-primary-300) 28%, transparent);
+  --color-select-option-selected: var(--color-action);
+  --color-select-option-on-selected: var(--color-on-action);
+
+  --background-page:
+    radial-gradient(circle at 18% 8%, color-mix(in srgb, var(--color-primary-800) 22%, transparent), transparent 34%),
+    linear-gradient(180deg, var(--color-primary-900), var(--color-indigo-900));
+  --background-default: var(--color-surface);
+  --background-media: var(--color-media);
+  --background-role-baby-panel: var(--color-surface);
+
+  --focus-ring: 0 0 0 3px color-mix(in srgb, var(--color-focus) 35%, transparent);
+  --starry-sky-star: rgb(245 250 255);
+  --starry-sky-glow: var(--color-info-200);
+  --starry-sky-background:
+    radial-gradient(circle at 16% 8%, color-mix(in srgb, var(--color-primary-500) 16%, transparent), transparent 152px),
+    radial-gradient(circle at 78% 18%, color-mix(in srgb, var(--color-warning-500) 12%, transparent), transparent 136px),
+    linear-gradient(180deg, var(--color-primary-900), var(--color-indigo-900));
+}

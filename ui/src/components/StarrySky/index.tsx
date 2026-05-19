@@ -69,20 +69,20 @@ export const StarrySky: React.FunctionComponent<StarrySkyProps> = ({
   return (
     <div
       {...props}
-      className={classNames('relative isolate overflow-hidden bg-[var(--bb-starry-sky-background)] text-text', className)}
+      className={classNames('relative isolate overflow-hidden bg-[var(--starry-sky-background)] text-text', className)}
     >
       <div aria-hidden="true" className={classNames('absolute inset-0 -z-10', intensity_classes[intensity])}>
         {stars.map((star, index) => (
           <span
             key={`${seed}-${count}-${index}`}
-            className="absolute rounded-full bg-[rgb(var(--bb-starry-sky-star))]"
+            className="absolute rounded-full bg-[var(--starry-sky-star)]"
             style={{
               left: `${star.left}%`,
               top: `${star.top}%`,
               width: `${star.size}px`,
               height: `${star.size}px`,
               opacity: star.opacity,
-              boxShadow: star.blur ? `0 0 ${star.blur}px rgb(var(--bb-starry-sky-glow))` : undefined,
+              boxShadow: star.blur ? `0 0 ${star.blur}px var(--starry-sky-glow)` : undefined,
             }}
           />
         ))}

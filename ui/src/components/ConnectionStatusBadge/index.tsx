@@ -10,15 +10,15 @@ export interface ConnectionStatusBadgeProps extends React.HTMLAttributes<HTMLSpa
 }
 
 const tone_classes: Record<ConnectionStatusTone, string> = {
-  connected: 'border-[rgb(var(--bb-colour-role-parent-info)/0.42)] bg-[rgb(var(--bb-colour-role-parent-info)/0.14)] text-[rgb(var(--bb-colour-role-parent-info))]',
-  streaming: 'border-[rgb(var(--bb-colour-role-baby-info)/0.42)] bg-[rgb(var(--bb-colour-role-baby-info)/0.14)] text-[rgb(var(--bb-colour-role-baby-info))]',
-  waiting: 'border-[rgb(var(--bb-color-border)/var(--bb-border-opacity-default,0.22))] bg-[var(--bb-background-default)] text-subdued',
-  idle: 'border-[rgb(var(--bb-color-border)/var(--bb-border-opacity-default,0.22))] bg-[var(--bb-background-default)] text-text',
+  connected: 'border-parent-info/40 bg-parent-info/15 text-parent-info',
+  streaming: 'border-baby-info/40 bg-baby-info/15 text-baby-info',
+  waiting: 'border-input-border bg-surface text-subdued',
+  idle: 'border-input-border bg-surface text-text',
 }
 
 const dot_classes: Record<ConnectionStatusTone, string> = {
-  connected: 'bg-[rgb(var(--bb-colour-role-parent-info))] shadow-[0_0_10px_rgb(var(--bb-colour-role-parent-info)/0.52)]',
-  streaming: 'bg-[rgb(var(--bb-colour-role-baby-info))] shadow-[0_0_10px_rgb(var(--bb-colour-role-baby-info)/0.52)]',
+  connected: 'bg-parent-info',
+  streaming: 'bg-baby-info',
   waiting: 'bg-subdued',
   idle: 'bg-text',
 }

@@ -1,78 +1,40 @@
+@import 'tailwindcss';
 @import './tokens/brand.css';
 @import './tokens/alias.css';
-@import './tokens/mapping.css';
 @import './tokens/responsive.css';
-@import './tokens/themes/dark.css';
-@import './tokens/themes/light.css';
+@import './tokens/theme/dark.css';
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
-@layer base {
-  *,
-  *::before,
-  *::after {
-    box-sizing: border-box;
-  }
-
-  body {
-    margin: 0;
-    min-width: 320px;
-    min-height: 100vh;
-    background: var(--bb-background-page);
-    color: rgb(var(--bb-color-text));
-    font-family: var(--bb-font-sans);
-    font-size: var(--bb-font-size-md);
-    line-height: var(--bb-line-height-body);
-    letter-spacing: 0;
-  }
-
-  button,
-  input,
-  select,
-  textarea {
-    font: inherit;
-    letter-spacing: 0;
-  }
-
-  a {
-    color: rgb(var(--bb-color-action));
-  }
-
-  :focus-visible {
-    outline: none;
-    box-shadow: var(--bb-focus-ring);
-  }
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
 }
 
-@layer components {
-  .bb-container {
-    width: min(100% - 32px, 100%);
-    margin-inline: auto;
-  }
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background: var(--background-page);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  line-height: var(--leading-normal);
+  letter-spacing: 0;
+}
 
-  @media (min-width: 768px) {
-    .bb-container {
-      width: min(100% - 48px, 720px);
-    }
-  }
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  letter-spacing: 0;
+}
 
-  @media (min-width: 1024px) {
-    .bb-container {
-      width: min(100% - 56px, 960px);
-    }
-  }
+a {
+  color: var(--color-action);
+}
 
-  @media (min-width: 1280px) {
-    .bb-container {
-      width: min(100% - 64px, 1120px);
-    }
-  }
-
-  @media (min-width: 1536px) {
-    .bb-container {
-      width: min(100% - 80px, 1280px);
-    }
-  }
+:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
 }

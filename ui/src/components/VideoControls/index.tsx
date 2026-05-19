@@ -28,10 +28,10 @@ const VideoControlButton: React.FunctionComponent<VideoControlButtonProps> = ({
     type="button"
     aria-label={label}
     className={classNames(
-      'grid h-11 w-11 place-items-center rounded-full border transition focus-visible:outline-none focus-visible:shadow-[var(--bb-focus-ring)]',
+      'grid h-11 w-11 place-items-center rounded-full border transition focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
       tone === 'record'
-        ? 'border-[rgb(var(--bb-colour-danger-400)/0.56)] bg-[rgb(var(--bb-colour-danger-500)/0.16)] text-[rgb(var(--bb-colour-danger-200))] hover:bg-[rgb(var(--bb-colour-danger-500)/0.26)]'
-        : 'border-[rgb(var(--bb-color-border)/var(--bb-border-opacity-default,0.26))] bg-[var(--bb-background-default)] text-text hover:border-[rgb(var(--bb-colour-role-parent-info)/0.42)]'
+        ? 'border-danger/55 bg-record/15 text-danger hover:bg-record/25'
+        : 'border-input-border bg-surface text-text hover:border-parent-info/40'
     )}
     onClick={on_click}
   >
@@ -51,7 +51,7 @@ export const VideoControls: React.FunctionComponent<VideoControlsProps> = ({
   <div
     {...props}
     className={classNames(
-      'inline-flex items-center gap-2 rounded-full border border-[rgb(var(--bb-color-border)/var(--bb-border-opacity-default,0.24))] bg-[rgb(var(--bb-colour-neutral-black)/0.62)] p-1.5 shadow-[var(--bb-shadow-soft)] backdrop-blur',
+      'inline-flex items-center gap-2 rounded-full border border-input-border bg-black/60 p-1.5 shadow-soft backdrop-blur',
       className
     )}
   >

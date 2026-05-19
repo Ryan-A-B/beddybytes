@@ -12,7 +12,7 @@ export const Checkbox = React.forwardRef<HTMLInputElement, CheckboxProps>(
         {...props}
         ref={ref}
         type="checkbox"
-        className="mt-1 h-4 w-4 rounded border-border bg-surface text-action focus-visible:outline-none focus-visible:shadow-[var(--bb-focus-ring)]"
+        className="mt-1 h-4 w-4 rounded border-border bg-surface text-action focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]"
       />
       {label && <span>{label}</span>}
     </label>
