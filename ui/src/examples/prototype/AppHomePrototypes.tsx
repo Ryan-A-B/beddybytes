@@ -415,7 +415,7 @@ export const AppParentStationPrototype: React.FunctionComponent = () => (
       <main className="container mx-auto grid flex-1 place-items-center py-8">
         <section className="grid w-full max-w-3xl justify-items-center gap-9 text-center">
           <div className="inline-flex flex-wrap justify-center gap-2 rounded-full border border-input-border bg-surface p-1">
-            <ConnectionStatusBadge label="Signal" value="MQTT" tone="connected" />
+            <ConnectionStatusBadge label="Ready" value="to connect" tone="connected" />
             <ConnectionStatusBadge label="Stream" value="waiting" tone="waiting" />
           </div>
 
@@ -473,12 +473,7 @@ export const AppParentStationLivePrototype: React.FunctionComponent = () => (
             <option value="nursery">Nursery</option>
           </Select>
 
-          <SessionTimer elapsed="0:00:34" className="lg:justify-self-center" />
-
-          <div className="flex min-w-0 flex-wrap gap-2 lg:justify-end">
-            <ConnectionStatusBadge label="Signal" value="MQTT" tone="connected" />
-            <ConnectionStatusBadge label="Stream" value="live" tone="streaming" />
-          </div>
+          <SessionTimer elapsed="0:00:34" className="justify-self-center" />
         </section>
 
         <section className="relative min-h-[420px] min-w-0 overflow-hidden bg-black shadow-[var(--shadow-soft)] sm:min-h-[640px]" aria-label="Nursery live video">
@@ -492,6 +487,12 @@ export const AppParentStationLivePrototype: React.FunctionComponent = () => (
               ].join(', '),
             }}
           />
+          <div className="absolute inset-x-0 top-0 z-10 bg-gradient-to-b from-black/75 via-black/25 to-transparent px-4 pb-12 pt-4 sm:flex sm:justify-end sm:pt-5">
+            <div className="flex min-w-0 justify-between gap-2 sm:flex-wrap sm:justify-end">
+              <ConnectionStatusBadge label="Ready" value="connected" tone="connected" />
+              <ConnectionStatusBadge label="Stream" value="live" tone="streaming" />
+            </div>
+          </div>
           <div className="absolute inset-x-0 bottom-0 grid justify-items-center bg-gradient-to-t from-black/80 via-black/28 to-transparent px-4 pb-4 pt-16">
             <VideoControls />
           </div>
