@@ -1,8 +1,8 @@
 import React from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faBars, faDisplay, faGear, faMicrophone, faMoon, faPenToSquare, faPlay, faTag, faVideo, faWandMagicSparkles, faXmark } from '@fortawesome/free-solid-svg-icons'
-import { ArrowRight, Play, Sparkles } from 'lucide-react'
-import { Badge, Button, ConnectionStatusBadge, Panel, Select, SessionTimer, StarryNight, VideoControls } from '../../index'
+import { faBars, faDisplay, faGear, faMicrophone, faMoon, faPlay, faTag, faVideo, faWandMagicSparkles, faXmark } from '@fortawesome/free-solid-svg-icons'
+import { ArrowRight, Play, Radio, VolumeX, Wifi } from 'lucide-react'
+import { Badge, Button, ConnectionStatusBadge, Panel, Select, SessionTimer, StarryNight, TextInput, VideoControls } from '../../index'
 
 type AppNavItem = 'Baby Station' | 'Parent Station'
 
@@ -20,7 +20,7 @@ const AppPrototypeNavigation: React.FunctionComponent<{ active_item?: AppNavItem
   const [is_open, set_is_open] = React.useState(false)
 
   return (
-    <div className="relative">
+    <div className="relative ml-auto sm:ml-0">
       <button
         type="button"
         aria-label={is_open ? 'Close navigation' : 'Open navigation'}
@@ -63,7 +63,7 @@ const AppPrototypeNavigation: React.FunctionComponent<{ active_item?: AppNavItem
 
 const AppPrototypeHeader: React.FunctionComponent<{ active_item?: AppNavItem }> = ({ active_item }) => (
   <header className="w-full">
-    <div className="container mx-auto flex min-w-0 items-stretch gap-3 sm:gap-7">
+    <div className="container mx-auto flex min-w-0 items-center gap-3 sm:items-stretch sm:gap-7">
       <a href="#home" className="flex items-center gap-3 text-text no-underline">
         <span className="grid h-8 w-8 place-items-center rounded-lg bg-action/25">
           <span className="h-3.5 w-3.5 rounded-full bg-white" />
@@ -106,7 +106,7 @@ export const AppHomePrototype: React.FunctionComponent = () => (
 
       <main className="container mx-auto grid min-w-0 flex-1 gap-7 lg:grid-cols-[minmax(0,1fr)_minmax(420px,0.86fr)] lg:gap-10 lg:items-start">
         <div className="contents lg:order-2 lg:col-start-2 lg:grid lg:min-w-0 lg:content-start lg:gap-6">
-          <div className="order-1 grid gap-3 sm:grid-cols-2 lg:order-2">
+          <div className="order-1 grid items-start gap-3 sm:order-4 sm:grid-cols-2 lg:order-2">
             <Button variant="baby-action" size="md" full_width>
               Open Baby Station <ArrowRight size={18} />
             </Button>
@@ -137,10 +137,7 @@ export const AppHomePrototype: React.FunctionComponent = () => (
             <div className="mb-5 flex flex-wrap items-center gap-3">
               <p className="m-0 text-xs font-bold uppercase tracking-[0.28em] text-info">How to use BeddyBytes</p>
             </div>
-            <h2 className="m-0 max-w-2xl text-3xl font-bold leading-tight sm:text-5xl">
-              Two devices. One quiet <span className="text-success">connection.</span>
-            </h2>
-            <p className="mt-5 max-w-2xl text-base leading-relaxed text-subdued sm:text-lg">
+            <p className="m-0 max-w-2xl text-base leading-relaxed text-subdued sm:text-lg">
               You'll need at least two devices: one as the <strong className="text-text">Baby Station</strong> and one or more as <strong className="text-text">Parent Stations</strong>. Both must be on the same Wi-Fi.
             </p>
           </section>
@@ -179,9 +176,9 @@ export const AppHomePrototype: React.FunctionComponent = () => (
             </Panel>
 
             <Panel className="grid gap-3 p-5 text-sm text-subdued">
-              <p className="m-0 flex gap-3"><Sparkles size={16} className="mt-0.5 shrink-0 text-warning" /> Stations won't appear in the parent dropdown until the baby station has started a session.</p>
-              <p className="m-0 flex gap-3"><Sparkles size={16} className="mt-0.5 shrink-0 text-warning" /> Mute the parent device or keep it away from the baby's station to prevent audio feedback.</p>
-              <p className="m-0 flex gap-3"><Sparkles size={16} className="mt-0.5 shrink-0 text-warning" /> Once connected, audio and video stream directly peer-to-peer. Devices on different networks won't connect.</p>
+              <p className="m-0 flex gap-3"><Radio size={16} className="mt-0.5 shrink-0 text-info" /> Start the Baby Station before looking for it from a Parent Station.</p>
+              <p className="m-0 flex gap-3"><VolumeX size={16} className="mt-0.5 shrink-0 text-warning" /> Mute the parent device or keep it away from the baby's station to prevent audio feedback.</p>
+              <p className="m-0 flex gap-3"><Wifi size={16} className="mt-0.5 shrink-0 text-success" /> Audio and video work between devices on the same home Wi-Fi.</p>
             </Panel>
           </section>
         </div>
@@ -200,18 +197,17 @@ export const AppBabyStationStartPrototype: React.FunctionComponent = () => (
       <AppPrototypeHeader active_item="Baby Station" />
 
       <main className="container mx-auto grid flex-1 place-items-center py-8">
-        <section className="relative grid w-full max-w-[480px] justify-items-center gap-6 overflow-hidden rounded-2xl border border-[rgb(var(--colour-role-baby-border)/var(--border-opacity-default,0.72))] bg-[var(--background-role-baby-panel)] px-6 py-10 text-center shadow-[var(--shadow-soft)] sm:px-10">
+        <section className="relative grid w-full max-w-[480px] justify-items-center gap-6 overflow-hidden rounded-2xl border border-input-border bg-surface px-6 py-10 text-center shadow-soft sm:px-10">
           <StarryNight seed="app-baby-station-ready-panel" count={32} className="absolute inset-0" />
           <div className="relative grid justify-items-center gap-6">
-            <div className="relative grid h-20 w-20 place-items-center rounded-2xl border border-[rgb(var(--colour-role-baby-border)/0.46)] bg-[rgb(var(--colour-role-baby-surface)/0.44)] text-[rgb(var(--colour-role-baby-info))] shadow-[var(--shadow-soft)]">
+            <div className="relative grid h-20 w-20 place-items-center rounded-2xl border border-baby-info/40 bg-baby-info/15 text-baby-info shadow-soft">
               <FontAwesomeIcon icon={faMicrophone} className="text-3xl" />
-              <FontAwesomeIcon icon={faWandMagicSparkles} className="absolute -right-2 top-1 text-xs text-[rgb(var(--colour-role-baby-action))]" />
             </div>
 
             <div className="grid max-w-sm gap-3">
               <h2 className="m-0 text-3xl font-bold leading-tight text-text">Ready to start?</h2>
               <p className="m-0 text-base leading-relaxed text-subdued">
-                To use this device as a Baby Station, BeddyBytes needs access to your <span className="text-[rgb(var(--colour-role-baby-info))]">microphone</span> and <span className="text-[rgb(var(--colour-role-baby-info))]">camera</span>. Your browser will ask next.
+                To use this device as a Baby Station, BeddyBytes needs access to your <span className="text-baby-info">microphone</span> and <span className="text-baby-info">camera</span>. Your browser will ask next.
               </p>
             </div>
 
@@ -229,11 +225,6 @@ export const AppBabyStationStartPrototype: React.FunctionComponent = () => (
             <Button variant="baby-action" size="lg" full_width>
               Continue
             </Button>
-
-            <p className="m-0 flex items-center justify-center gap-2 text-sm text-subdued">
-              Nothing leaves your Wi-Fi. Promise.
-              <FontAwesomeIcon icon={faWandMagicSparkles} className="text-xs text-[rgb(var(--colour-role-baby-info))]" />
-            </p>
           </div>
         </section>
       </main>
@@ -243,6 +234,47 @@ export const AppBabyStationStartPrototype: React.FunctionComponent = () => (
       <AppPrototypeFooter />
     </div>
   </StarryNight>
+)
+
+const BabyStationConfigurationFields: React.FunctionComponent<{ layout?: 'stacked' | 'inline' }> = ({
+  layout = 'stacked',
+}) => (
+  <>
+    <label className="grid gap-2 text-sm text-subdued">
+      <span className={layout === 'inline' ? 'sr-only' : undefined}>Station Name</span>
+      <span className="relative grid">
+        <TextInput defaultValue="Little Bear" className={layout === 'inline' ? 'pl-10' : undefined} />
+        {layout === 'inline' ? (
+          <FontAwesomeIcon icon={faTag} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-text" />
+        ) : null}
+      </span>
+    </label>
+
+    <fieldset className={layout === 'inline' ? 'm-0 contents text-sm text-subdued' : 'm-0 grid gap-3 border-0 p-0 text-sm text-subdued'}>
+      <legend className={layout === 'inline' ? 'sr-only' : 'mb-1 p-0'}>Devices</legend>
+      <label className="grid gap-1">
+        <span className="sr-only">Microphone</span>
+        <Select
+          defaultValue="default-microphone"
+          leading_icon={<FontAwesomeIcon icon={faMicrophone} />}
+        >
+          <option value="default-microphone">Default microphone</option>
+          <option value="usb-microphone">USB microphone</option>
+        </Select>
+      </label>
+      <label className="grid gap-1">
+        <span className="sr-only">Camera</span>
+        <Select
+          defaultValue="integrated-webcam"
+          leading_icon={<FontAwesomeIcon icon={faVideo} />}
+          menu_placement="top"
+        >
+          <option value="integrated-webcam">Integrated_Webcam_FHD (V4L2)</option>
+          <option value="no-camera">No camera</option>
+        </Select>
+      </label>
+    </fieldset>
+  </>
 )
 
 export const AppBabyStationLivePrototype: React.FunctionComponent = () => {
@@ -262,22 +294,22 @@ export const AppBabyStationLivePrototype: React.FunctionComponent = () => {
           }}
         >
           <section
-            className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-4 rounded-2xl border border-[rgb(var(--colour-role-baby-border)/var(--border-opacity-default,0.22))] bg-[var(--background-default)] px-4 py-4 sm:px-5"
+            className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-4 rounded-2xl border border-input-border bg-surface px-4 py-4 sm:px-5 lg:hidden"
             style={{ gridArea: 'configuration' }}
             aria-label="Baby station configuration"
           >
             <div className="min-w-0">
               <h2 className="m-0 flex min-w-0 items-center gap-2 text-base font-bold text-text sm:text-lg">
-                <FontAwesomeIcon icon={faTag} className="shrink-0 text-[rgb(var(--colour-role-baby-info))]" />
+                <FontAwesomeIcon icon={faTag} className="shrink-0 text-baby-info" />
                 <span className="truncate">Little Bear</span>
               </h2>
               <p className="m-0 mt-2 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs text-subdued">
                 <span className="inline-flex min-w-0 items-center gap-1">
-                  <FontAwesomeIcon icon={faMicrophone} className="text-[rgb(var(--colour-icon-default))]" />
+                  <FontAwesomeIcon icon={faMicrophone} className="text-text" />
                   <span className="truncate">Default mic</span>
                 </span>
                 <span className="inline-flex min-w-0 items-center gap-1">
-                  <FontAwesomeIcon icon={faVideo} className="text-[rgb(var(--colour-icon-default))]" />
+                  <FontAwesomeIcon icon={faVideo} className="text-text" />
                   <span className="truncate">Integrated_Webcam_FHD (V4L2)</span>
                 </span>
               </p>
@@ -292,6 +324,14 @@ export const AppBabyStationLivePrototype: React.FunctionComponent = () => {
               <FontAwesomeIcon icon={faGear} />
             </button>
           </section>
+
+          <form
+            className="hidden min-w-0 gap-4 lg:grid lg:grid-cols-[minmax(180px,1fr)_minmax(180px,1fr)_minmax(220px,1.2fr)] lg:items-end"
+            style={{ gridArea: 'configuration' }}
+            aria-label="Baby station configuration"
+          >
+            <BabyStationConfigurationFields layout="inline" />
+          </form>
 
           <section
             className="min-h-[280px] min-w-0 overflow-hidden bg-black sm:min-h-[520px]"
@@ -322,7 +362,7 @@ export const AppBabyStationLivePrototype: React.FunctionComponent = () => {
       </div>
 
       <div
-        className={`fixed inset-x-0 bottom-0 z-30 transform rounded-t-2xl border-t border-[rgb(var(--colour-role-baby-border)/var(--border-opacity-default,0.22))] px-4 pb-6 pt-4 shadow-[var(--shadow-lg)] transition-transform duration-300 sm:px-6 ${is_configuration_open ? 'translate-y-0' : 'translate-y-full'
+        className={`fixed inset-x-0 bottom-0 z-30 transform rounded-t-2xl border-t border-input-border px-4 pb-6 pt-4 shadow-lg transition-transform duration-300 sm:px-6 lg:hidden ${is_configuration_open ? 'translate-y-0' : 'translate-y-full'
           }`}
         style={{ background: 'var(--background-page)' }}
         aria-hidden={!is_configuration_open}
@@ -331,7 +371,7 @@ export const AppBabyStationLivePrototype: React.FunctionComponent = () => {
         <form className="container mx-auto relative grid gap-4">
           <div className="flex items-center justify-between gap-4">
             <h2 className="m-0 flex items-center gap-3 text-xl font-bold text-text">
-              <FontAwesomeIcon icon={faTag} className="text-[rgb(var(--colour-role-baby-info))]" />
+              <FontAwesomeIcon icon={faTag} className="text-baby-info" />
               Baby Station
             </h2>
             <button
@@ -344,40 +384,7 @@ export const AppBabyStationLivePrototype: React.FunctionComponent = () => {
             </button>
           </div>
 
-          <label className="grid gap-2 text-sm text-subdued">
-            Station Name
-            <span className="grid grid-cols-[minmax(0,1fr)_40px] overflow-hidden rounded-lg border border-[var(--input-border)] bg-[var(--input-background)]">
-              <input className="min-h-10 min-w-0 bg-transparent px-3 text-sm text-text outline-none" defaultValue="Little Bear" />
-              <button type="button" aria-label="Edit station name" className="grid place-items-center bg-[rgb(var(--colour-role-baby-surface)/0.34)] text-text">
-                <FontAwesomeIcon icon={faPenToSquare} />
-              </button>
-            </span>
-          </label>
-
-          <fieldset className="m-0 grid gap-2 border-0 p-0 text-sm text-subdued">
-            <legend className="mb-1 p-0">Devices</legend>
-            <label className="grid gap-1">
-              <span className="sr-only">Microphone</span>
-              <Select
-                defaultValue="default-microphone"
-                leading_icon={<FontAwesomeIcon icon={faMicrophone} />}
-              >
-                <option value="default-microphone">Default microphone</option>
-                <option value="usb-microphone">USB microphone</option>
-              </Select>
-            </label>
-            <label className="grid gap-1">
-              <span className="sr-only">Camera</span>
-              <Select
-                defaultValue="integrated-webcam"
-                leading_icon={<FontAwesomeIcon icon={faVideo} />}
-                menu_placement="top"
-              >
-                <option value="integrated-webcam">Integrated_Webcam_FHD (V4L2)</option>
-                <option value="no-camera">No camera</option>
-              </Select>
-            </label>
-          </fieldset>
+          <BabyStationConfigurationFields />
 
           <Button
             variant="baby-action"
@@ -395,7 +402,7 @@ export const AppBabyStationLivePrototype: React.FunctionComponent = () => {
         <button
           type="button"
           aria-label="Close configuration panel"
-          className="fixed inset-0 z-20 cursor-default bg-black/20"
+          className="fixed inset-0 z-20 cursor-default bg-black/20 lg:hidden"
           onClick={() => set_is_configuration_open(false)}
         />
       ) : null}
