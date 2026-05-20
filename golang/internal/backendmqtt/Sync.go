@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/Ryan-A-B/beddybytes/golang/internal/babystationlist"
-	"github.com/Ryan-A-B/beddybytes/golang/internal/connectionstore"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/connections"
+	"github.com/Ryan-A-B/beddybytes/golang/internal/connectionstore"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/contextx"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/eventlog"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/fatal"
@@ -27,6 +27,7 @@ type RunClientStatusSyncInput struct {
 	ConnectionStore       *connectionstore.Decider
 	ConnectionRegistry    *ConnectionRegistry
 	PendingSessionStarts  *PendingSessionStarts
+	OfflineSessionCleanup *OfflineSessionCleanupScheduler
 }
 
 func RunClientStatusSync(ctx context.Context, input RunClientStatusSyncInput) {
@@ -58,6 +59,9 @@ func handleClientStatusMessage(client mqtt.Client, message mqtt.Message, input R
 	}
 	switch payload.Type {
 	case ClientStatusTypeConnected:
+		if input.OfflineSessionCleanup != nil {
+			input.OfflineSessionCleanup.CancelClient(accountID, clientID)
+		}
 		input.ConnectionRegistry.Put(accountID, ConnectionInfo{
 			ClientID:     clientID,
 			ConnectionID: payload.ConnectionID,
@@ -95,6 +99,9 @@ func handleClientStatusMessage(client mqtt.Client, message mqtt.Message, input R
 		if err := input.ConnectionStore.Delete(context.Background(), connection); err != nil && err != connectionstore.ErrDuplicate {
 			log.Fatal(err)
 		}
+		if input.OfflineSessionCleanup != nil {
+			input.OfflineSessionCleanup.Schedule(accountID, clientID, payload.ConnectionID)
+		}
 	default:
 		logx.Warnln("unhandled client status type:", payload.Type)
 	}
@@ -106,8 +113,9 @@ func PublishBabyStationAnnouncement(client mqtt.Client, accountID string, payloa
 }
 
 type RunBabyStationAnnouncementSyncInput struct {
-	MQTTClient mqtt.Client
-	EventLog   eventlog.EventLog
+	MQTTClient            mqtt.Client
+	EventLog              eventlog.EventLog
+	OfflineSessionCleanup *OfflineSessionCleanupScheduler
 }
 
 func RunBabyStationAnnouncementSync(ctx context.Context, input RunBabyStationAnnouncementSyncInput) {
@@ -135,6 +143,9 @@ func handleBabyStationAnnouncementMessage(message mqtt.Message, input RunBabySta
 		return
 	}
 	accountID := matches[1]
+	if input.OfflineSessionCleanup != nil {
+		input.OfflineSessionCleanup.TrackSession(accountID, payload.Announcement)
+	}
 	data := fatal.UnlessMarshalJSON(payload.Session())
 	_, err := input.EventLog.Append(context.Background(), eventlog.AppendInput{
 		Type:      "session.started",
@@ -176,8 +187,8 @@ func ConnectedEventData(clientID string, connectionID string, requestID string) 
 }
 
 type RunParentStationAnnouncementSyncInput struct {
-	MQTTClient       mqtt.Client
-	BabyStationList  *babystationlist.BabyStationList
+	MQTTClient      mqtt.Client
+	BabyStationList *babystationlist.BabyStationList
 }
 
 func RunParentStationAnnouncementSync(ctx context.Context, input RunParentStationAnnouncementSyncInput) {

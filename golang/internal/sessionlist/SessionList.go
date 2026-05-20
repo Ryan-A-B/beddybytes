@@ -147,12 +147,14 @@ type applyFunc func(ctx context.Context, sessionList *SessionList, event *eventl
 const EventTypeServerStarted = "server.started"
 const EventTypeSessionStarted = "session.started"
 const EventTypeSessionEnded = "session.ended"
+const EventTypeSessionRemoved = "session.removed"
 const maxDisconnectedSessionsPerAccount = 4
 
 var applyByType = map[string]applyFunc{
 	EventTypeServerStarted:            applyServerStartedEvent,
 	EventTypeSessionStarted:           applySessionStartedEvent,
 	EventTypeSessionEnded:             applySessionEndedEvent,
+	EventTypeSessionRemoved:           applySessionRemovedEvent,
 	connections.EventTypeConnected:    applyClientConnectedEvent,
 	connections.EventTypeDisconnected: applyClientDisconnectedEvent,
 }
@@ -191,11 +193,11 @@ func applySessionStartedEvent(ctx context.Context, sessionList *SessionList, eve
 		}
 	}
 	sessionList.put(&Session{
-		AccountID:        event.AccountID,
-		ID:               sessionStartedEventData.ID,
-		Name:             sessionStartedEventData.Name,
-		HostConnectionID: sessionStartedEventData.HostConnectionID,
-		StartedAt:        sessionStartedEventData.StartedAt,
+		AccountID:           event.AccountID,
+		ID:                  sessionStartedEventData.ID,
+		Name:                sessionStartedEventData.Name,
+		HostConnectionID:    sessionStartedEventData.HostConnectionID,
+		StartedAt:           sessionStartedEventData.StartedAt,
 		HostConnectionState: hostConnectionState,
 	})
 }
@@ -204,12 +206,25 @@ type SessionEndedEventData struct {
 	ID string `json:"id"`
 }
 
+type SessionRemovedEventData struct {
+	ID     string `json:"id"`
+	Reason string `json:"reason"`
+}
+
 func applySessionEndedEvent(ctx context.Context, sessionList *SessionList, event *eventlog.Event) {
 	var sessionEndedEventData SessionEndedEventData
 	err := json.Unmarshal(event.Data, &sessionEndedEventData)
 	fatal.OnError(err)
 	sessionList.delete(event.AccountID, sessionEndedEventData.ID)
 	sessionList.removeDisconnectedSessionByID(event.AccountID, sessionEndedEventData.ID)
+}
+
+func applySessionRemovedEvent(ctx context.Context, sessionList *SessionList, event *eventlog.Event) {
+	var sessionRemovedEventData SessionRemovedEventData
+	err := json.Unmarshal(event.Data, &sessionRemovedEventData)
+	fatal.OnError(err)
+	sessionList.delete(event.AccountID, sessionRemovedEventData.ID)
+	sessionList.removeDisconnectedSessionByID(event.AccountID, sessionRemovedEventData.ID)
 }
 
 func applyClientDisconnectedEvent(ctx context.Context, sessionList *SessionList, event *eventlog.Event) {

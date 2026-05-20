@@ -13,9 +13,10 @@ import (
 )
 
 type Snapshot struct {
-	SessionByID             map[string]*Session    `json:"session_by_id"`
-	SessionIDByConnectionID map[string]string      `json:"session_id_by_connection_id"`
-	ConnectionByID          map[string]*Connection `json:"connection_by_id"`
+	SessionByID                       map[string]*Session             `json:"session_by_id"`
+	SessionIDByConnectionID           map[string]string               `json:"session_id_by_connection_id"`
+	ConnectionByID                    map[string]*Connection          `json:"connection_by_id"`
+	DisconnectedSessionByConnectionID map[string]*DisconnectedSession `json:"-"`
 }
 
 func (snapshot *Snapshot) List() []BabyStation {
@@ -119,6 +120,8 @@ func (babyStationList *BabyStationList) apply(event *eventlog.Event) {
 		babyStationList.applySessionStarted(event)
 	case EventTypeSessionEnded:
 		babyStationList.applySessionEnded(event)
+	case EventTypeSessionRemoved:
+		babyStationList.applySessionRemoved(event)
 	case connections.EventTypeConnected:
 		babyStationList.applyConnected(event)
 	case connections.EventTypeDisconnected:
@@ -148,13 +151,23 @@ func (babyStationList *BabyStationList) applySessionEnded(event *eventlog.Event)
 	var data EndSessionEventData
 	err := json.Unmarshal(event.Data, &data)
 	fatal.OnError(err)
-	snapshot := babyStationList.getOrCreateSnapshot(event.AccountID)
-	session, ok := snapshot.SessionByID[data.ID]
+	babyStationList.deleteSession(event.AccountID, data.ID)
+}
+
+func (babyStationList *BabyStationList) applySessionRemoved(event *eventlog.Event) {
+	var data RemoveSessionEventData
+	err := json.Unmarshal(event.Data, &data)
+	fatal.OnError(err)
+	babyStationList.deleteSession(event.AccountID, data.ID)
+}
+
+func (babyStationList *BabyStationList) deleteSession(accountID string, sessionID string) {
+	snapshot := babyStationList.getOrCreateSnapshot(accountID)
+	session, ok := snapshot.SessionByID[sessionID]
 	if !ok {
 		return
 	}
-	delete(snapshot.SessionByID, data.ID)
-	delete(snapshot.SessionIDByConnectionID, session.HostConnectionID)
+	snapshot.deleteSession(session)
 }
 
 func (babyStationList *BabyStationList) applyConnected(event *eventlog.Event) {
@@ -162,6 +175,7 @@ func (babyStationList *BabyStationList) applyConnected(event *eventlog.Event) {
 	err := json.Unmarshal(event.Data, &data)
 	fatal.OnError(err)
 	snapshot := babyStationList.getOrCreateSnapshot(event.AccountID)
+	snapshot.deleteSessionsAndConnectionsForClient(data.ClientID)
 	connection := Connection{
 		ClientID:  data.ClientID,
 		ID:        data.ConnectionID,
@@ -175,26 +189,56 @@ func (babyStationList *BabyStationList) applyDisconnected(event *eventlog.Event)
 	err := json.Unmarshal(event.Data, &data)
 	fatal.OnError(err)
 	snapshot := babyStationList.getOrCreateSnapshot(event.AccountID)
+	connection, ok := snapshot.ConnectionByID[data.ConnectionID]
+	if ok && connection.RequestID == data.RequestID {
+		if sessionID, ok := snapshot.SessionIDByConnectionID[data.ConnectionID]; ok {
+			snapshot.DisconnectedSessionByConnectionID[data.ConnectionID] = &DisconnectedSession{
+				ClientID:     connection.ClientID,
+				SessionID:    sessionID,
+				ConnectionID: data.ConnectionID,
+			}
+		}
+	}
 	delete(snapshot.ConnectionByID, data.ConnectionID)
 }
 
 func (babyStationList *BabyStationList) applyServerStarted() {
 	for _, snapshot := range babyStationList.snapshotByAccountID {
+		snapshot.SessionByID = make(map[string]*Session)
+		snapshot.SessionIDByConnectionID = make(map[string]string)
 		snapshot.ConnectionByID = make(map[string]*Connection)
-		snapshot.cleanUpOldSessions()
+		snapshot.DisconnectedSessionByConnectionID = make(map[string]*DisconnectedSession)
 	}
 }
 
-func (snapshot *Snapshot) cleanUpOldSessions() {
-	now := time.Now()
-	threshold := now.Add(-3 * 24 * time.Hour)
-	for _, session := range snapshot.SessionByID {
-		if session.StartedAt.After(threshold) {
+func (snapshot *Snapshot) deleteSessionsAndConnectionsForClient(clientID string) {
+	for connectionID, connection := range snapshot.ConnectionByID {
+		if connection.ClientID != clientID {
 			continue
 		}
-		delete(snapshot.SessionByID, session.ID)
-		delete(snapshot.SessionIDByConnectionID, session.HostConnectionID)
+		if sessionID, ok := snapshot.SessionIDByConnectionID[connectionID]; ok {
+			if session, ok := snapshot.SessionByID[sessionID]; ok {
+				snapshot.deleteSession(session)
+			}
+		}
+		delete(snapshot.ConnectionByID, connectionID)
 	}
+	for connectionID, disconnectedSession := range snapshot.DisconnectedSessionByConnectionID {
+		if disconnectedSession.ClientID != clientID {
+			continue
+		}
+		if session, ok := snapshot.SessionByID[disconnectedSession.SessionID]; ok {
+			snapshot.deleteSession(session)
+		}
+		delete(snapshot.DisconnectedSessionByConnectionID, connectionID)
+	}
+}
+
+func (snapshot *Snapshot) deleteSession(session *Session) {
+	delete(snapshot.SessionByID, session.ID)
+	delete(snapshot.SessionIDByConnectionID, session.HostConnectionID)
+	delete(snapshot.ConnectionByID, session.HostConnectionID)
+	delete(snapshot.DisconnectedSessionByConnectionID, session.HostConnectionID)
 }
 
 func (babyStationList *BabyStationList) getOrCreateSnapshot(accountID string) *Snapshot {
@@ -208,15 +252,17 @@ func (babyStationList *BabyStationList) getOrCreateSnapshot(accountID string) *S
 
 func (babystationlist *BabyStationList) createSnapshot() *Snapshot {
 	return &Snapshot{
-		SessionByID:             make(map[string]*Session),
-		SessionIDByConnectionID: make(map[string]string),
-		ConnectionByID:          make(map[string]*Connection),
+		SessionByID:                       make(map[string]*Session),
+		SessionIDByConnectionID:           make(map[string]string),
+		ConnectionByID:                    make(map[string]*Connection),
+		DisconnectedSessionByConnectionID: make(map[string]*DisconnectedSession),
 	}
 }
 
 // Copied from golang/cmd/backend/sessions.go
 const EventTypeSessionStarted = "session.started"
 const EventTypeSessionEnded = "session.ended"
+const EventTypeSessionRemoved = "session.removed"
 
 type StartSessionEventData struct {
 	ID               string    `json:"id"`
@@ -229,12 +275,23 @@ type EndSessionEventData struct {
 	ID string `json:"id"`
 }
 
+type RemoveSessionEventData struct {
+	ID     string `json:"id"`
+	Reason string `json:"reason"`
+}
+
 type Session struct {
 	AccountID        string    `json:"-"`
 	ID               string    `json:"id"`
 	Name             string    `json:"name"`
 	HostConnectionID string    `json:"host_connection_id"`
 	StartedAt        time.Time `json:"started_at"`
+}
+
+type DisconnectedSession struct {
+	ClientID     string `json:"client_id"`
+	SessionID    string `json:"session_id"`
+	ConnectionID string `json:"connection_id"`
 }
 
 // Copied from golang/cmd/backend/server.go

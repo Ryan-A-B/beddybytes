@@ -21,6 +21,7 @@ import (
 
 const EventTypeSessionStarted = "session.started"
 const EventTypeSessionEnded = "session.ended"
+const EventTypeSessionRemoved = "session.removed"
 
 type StartSessionEventData struct {
 	ID               string    `json:"id"`
@@ -112,6 +113,11 @@ type EndSessionEventData struct {
 	ID string `json:"id"`
 }
 
+type RemoveSessionEventData struct {
+	ID     string `json:"id"`
+	Reason string `json:"reason"`
+}
+
 func (handlers *Handlers) EndSession(responseWriter http.ResponseWriter, request *http.Request) {
 	var err error
 	defer func() {
@@ -146,6 +152,8 @@ func (projection *SessionProjection) ApplyEvent(ctx context.Context, event *even
 		projection.applySessionStartedEvent(event)
 	case EventTypeSessionEnded:
 		projection.applySessionEndedEvent(event)
+	case EventTypeSessionRemoved:
+		projection.applySessionRemovedEvent(event)
 	}
 	projection.Head = event.LogicalClock
 }
@@ -164,6 +172,12 @@ func (projection *SessionProjection) applySessionStartedEvent(event *eventlog.Ev
 
 func (projection *SessionProjection) applySessionEndedEvent(event *eventlog.Event) {
 	var data EndSessionEventData
+	fatal.UnlessUnmarshalJSON(event.Data, &data)
+	projection.SessionStore.Remove(event.AccountID, data.ID)
+}
+
+func (projection *SessionProjection) applySessionRemovedEvent(event *eventlog.Event) {
+	var data RemoveSessionEventData
 	fatal.UnlessUnmarshalJSON(event.Data, &data)
 	projection.SessionStore.Remove(event.AccountID, data.ID)
 }
