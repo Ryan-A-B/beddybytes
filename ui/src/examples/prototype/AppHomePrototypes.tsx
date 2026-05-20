@@ -77,19 +77,19 @@ const AppPrototypeHeader: React.FunctionComponent<{ active_item?: AppNavItem }> 
 
 const AppPrototypeFooter: React.FunctionComponent = () => (
   <footer className="w-full border-t border-border/25 pt-5 text-sm text-subdued">
-    <div className="container mx-auto grid gap-6 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
+    <div className="app-footer-layout container mx-auto grid gap-6 sm:items-start">
       <div className="grid max-w-sm gap-2">
         <strong className="text-xl font-medium text-text">BeddyBytes</strong>
         <p className="m-0 leading-relaxed">Designed and built with love by parents, for parents.</p>
       </div>
-      <div className="grid gap-2 sm:min-w-[220px]">
+      <div className="app-footer-build grid gap-2">
         <strong className="text-xl font-semibold text-text">Build</strong>
         <dl className="m-0 grid gap-1">
-          <div className="grid grid-cols-[auto_minmax(0,1fr)] gap-1">
+          <div className="app-footer-definition-row grid gap-1">
             <dt>Date:</dt>
             <dd className="m-0 truncate">%REACT_APP_BUILD_DATE%</dd>
           </div>
-          <div className="grid grid-cols-[auto_minmax(0,1fr)] gap-1">
+          <div className="app-footer-definition-row grid gap-1">
             <dt>Hash:</dt>
             <dd className="m-0 truncate">%REACT_APP_BUILD_HASH%</dd>
           </div>
@@ -104,7 +104,7 @@ export const AppHomePrototype: React.FunctionComponent = () => (
     <div className="flex min-h-screen flex-col gap-8 pb-4 sm:gap-12 sm:pb-7">
       <AppPrototypeHeader />
 
-      <main className="container mx-auto grid min-w-0 flex-1 gap-7 lg:grid-cols-[minmax(0,1fr)_minmax(420px,0.86fr)] lg:gap-10 lg:items-start">
+      <main className="app-home-layout container mx-auto grid min-w-0 flex-1 gap-7 lg:gap-10 lg:items-start">
         <div className="contents lg:order-2 lg:col-start-2 lg:grid lg:min-w-0 lg:content-start lg:gap-6">
           <div className="order-1 grid items-start gap-3 sm:order-4 sm:grid-cols-2 lg:order-2">
             <Button variant="baby-action" size="md" full_width>
@@ -116,7 +116,7 @@ export const AppHomePrototype: React.FunctionComponent = () => (
           </div>
 
           <div className="order-3 grid min-w-0 gap-4 lg:order-1">
-            <div className="relative grid min-h-[220px] place-items-center overflow-hidden rounded-2xl bg-media sm:min-h-[290px]">
+            <div className="app-home-video-card relative grid place-items-center overflow-hidden rounded-2xl bg-media">
               <StarryNight seed="app-home-video-card" count={36} className="absolute inset-0" />
               <button type="button" className="grid h-16 w-16 place-items-center rounded-full border border-border bg-surface/80 text-text sm:h-20 sm:w-20">
                 <Play size={34} fill="currentColor" />
@@ -135,7 +135,7 @@ export const AppHomePrototype: React.FunctionComponent = () => (
         <div className="contents lg:order-1 lg:col-start-1 lg:row-span-2 lg:grid lg:min-w-0 lg:content-start lg:gap-4">
           <section id="home" className="order-2 min-w-0 lg:order-none">
             <div className="mb-5 flex flex-wrap items-center gap-3">
-              <p className="m-0 font-bold uppercase tracking-[0.28em] text-info">How to use BeddyBytes</p>
+              <p className="app-home-kicker m-0 font-bold uppercase text-info">How to use BeddyBytes</p>
             </div>
             <p className="m-0 max-w-2xl text-base leading-relaxed text-subdued sm:text-lg">
               You'll need at least two devices: one as the <strong className="text-text">Baby Station</strong> and one or more as <strong className="text-text">Parent Stations</strong>. Both must be on the same Wi-Fi.
@@ -144,7 +144,7 @@ export const AppHomePrototype: React.FunctionComponent = () => (
 
           <section className="order-4 grid min-w-0 gap-4 lg:order-none">
             <Panel className="grid gap-4 p-5 sm:p-6">
-              <div className="grid gap-5 sm:grid-cols-[48px_minmax(0,1fr)]">
+              <div className="app-role-panel-content grid gap-5">
                 <span className="grid h-12 w-12 place-items-center rounded-lg border border-baby-info/40 bg-baby-info/15 text-baby-info">
                   <FontAwesomeIcon icon={faMicrophone} />
                 </span>
@@ -160,7 +160,7 @@ export const AppHomePrototype: React.FunctionComponent = () => (
             </Panel>
 
             <Panel className="grid gap-4 p-5 sm:p-6">
-              <div className="grid gap-5 sm:grid-cols-[48px_minmax(0,1fr)]">
+              <div className="app-role-panel-content grid gap-5">
                 <span className="grid h-12 w-12 place-items-center rounded-lg border border-parent-info/40 bg-parent-info/15 text-parent-info">
                   <FontAwesomeIcon icon={faDisplay} />
                 </span>
@@ -197,7 +197,7 @@ export const AppBabyStationStartPrototype: React.FunctionComponent = () => (
       <AppPrototypeHeader active_item="Baby Station" />
 
       <main className="container mx-auto grid flex-1 place-items-center py-8">
-        <section className="relative grid w-full max-w-[480px] justify-items-center gap-6 overflow-hidden rounded-2xl border border-input-border bg-surface px-6 py-10 text-center shadow-soft sm:px-10">
+        <section className="app-ready-card relative grid w-full justify-items-center gap-6 overflow-hidden rounded-2xl border border-input-border bg-surface px-6 py-10 text-center shadow-soft sm:px-10">
           <StarryNight seed="app-baby-station-ready-panel" count={32} className="absolute inset-0" />
           <div className="relative grid justify-items-center gap-6">
             <div className="relative grid h-20 w-20 place-items-center rounded-2xl border border-baby-info/40 bg-baby-info/15 text-baby-info shadow-soft">
@@ -289,7 +289,7 @@ export const AppBabyStationLivePrototype: React.FunctionComponent = () => {
           className="app-baby-station-live-layout container mx-auto grid min-h-0 flex-1 gap-4"
         >
           <section
-            className="app-baby-station-configuration grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-4 rounded-2xl border border-input-border bg-surface px-4 py-4 sm:px-5 lg:hidden"
+            className="app-baby-configuration-summary app-baby-station-configuration grid min-w-0 items-center gap-4 rounded-2xl border border-input-border bg-surface px-4 py-4 sm:px-5 lg:hidden"
             aria-label="Baby station configuration"
           >
             <div className="min-w-0">
@@ -320,14 +320,14 @@ export const AppBabyStationLivePrototype: React.FunctionComponent = () => {
           </section>
 
           <form
-            className="app-baby-station-configuration hidden min-w-0 gap-4 lg:grid lg:grid-cols-[minmax(180px,1fr)_minmax(180px,1fr)_minmax(220px,1.2fr)] lg:items-end"
+            className="app-baby-configuration-inline app-baby-station-configuration hidden min-w-0 gap-4 lg:grid lg:items-end"
             aria-label="Baby station configuration"
           >
             <BabyStationConfigurationFields layout="inline" />
           </form>
 
           <section
-            className="app-baby-station-video min-h-[280px] min-w-0 overflow-hidden bg-black sm:min-h-[520px]"
+            className="app-baby-station-video min-w-0 overflow-hidden bg-black"
             aria-label="Baby station video preview"
           >
             <div className="app-baby-video-preview h-full w-full" />
@@ -423,8 +423,8 @@ export const AppParentStationPrototype: React.FunctionComponent = () => (
             <span className="absolute inset-8 rounded-full border border-parent-info/10" />
             <span className="absolute inset-12 rounded-full border border-parent-info/10" />
             <span className="app-parent-empty-planet absolute h-24 w-24 rounded-full sm:h-28 sm:w-28" />
-            <span className="absolute left-[38%] top-[42%] h-4 w-4 rounded-full bg-warning-300/30" />
-            <span className="absolute left-[50%] top-[50%] h-3 w-3 rounded-full bg-danger-300/35" />
+            <span className="app-parent-empty-planet-mark-primary absolute h-4 w-4 rounded-full bg-warning-300/30" />
+            <span className="app-parent-empty-planet-mark-secondary absolute h-3 w-3 rounded-full bg-danger-300/35" />
           </div>
 
           <div className="grid gap-4">
@@ -452,9 +452,9 @@ export const AppParentStationLivePrototype: React.FunctionComponent = () => (
     <div className="flex min-h-screen flex-col gap-4 pb-4 sm:pb-7">
       <AppPrototypeHeader active_item="Parent Station" />
 
-      <main className="container mx-auto grid min-h-0 flex-1 grid-rows-[auto_minmax(0,1fr)] gap-4 sm:gap-5">
+      <main className="app-parent-live-layout container mx-auto grid min-h-0 flex-1 gap-4 sm:gap-5">
         <section
-          className="grid min-w-0 gap-3 lg:grid-cols-[minmax(220px,360px)_minmax(0,1fr)_minmax(220px,360px)] lg:items-center"
+          className="app-parent-connection-layout grid min-w-0 gap-3 lg:items-center"
           aria-label="Parent station connection"
         >
           <Select
@@ -469,7 +469,7 @@ export const AppParentStationLivePrototype: React.FunctionComponent = () => (
           <SessionTimer elapsed="0:00:34" className="justify-self-center" />
         </section>
 
-        <section className="relative min-h-[420px] min-w-0 overflow-hidden bg-black shadow-soft sm:min-h-[640px]" aria-label="Nursery live video">
+        <section className="app-parent-live-video-shell relative min-w-0 overflow-hidden bg-black shadow-soft" aria-label="Nursery live video">
           <div className="app-parent-live-video absolute inset-0" />
           <div className="absolute inset-x-0 top-0 z-10 bg-gradient-to-b from-black/75 via-black/25 to-transparent px-4 pb-12 pt-4 sm:flex sm:justify-end sm:pt-5">
             <div className="flex min-w-0 justify-between gap-2 sm:flex-wrap sm:justify-end">

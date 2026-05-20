@@ -83,7 +83,7 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
           disabled={disabled}
           className={classNames(
             'grid h-11 w-full items-center rounded-md border bg-input text-left text-text',
-            leading_icon ? 'grid-cols-[auto_minmax(0,1fr)_auto]' : 'grid-cols-[minmax(0,1fr)_auto]',
+            leading_icon ? 'select-trigger-with-icon' : 'select-trigger-without-icon',
             leading_icon ? 'pl-0' : 'pl-4',
             'pr-3 transition disabled:cursor-not-allowed disabled:opacity-55',
             'focus-ring',
@@ -111,7 +111,7 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
             role="listbox"
             className={classNames(
               'absolute left-0 right-0 z-40 max-h-56 overflow-auto rounded-md border border-border bg-raised p-1 shadow-lg',
-              menu_placement === 'top' ? 'bottom-[calc(100%+4px)]' : 'top-[calc(100%+4px)]'
+              menu_placement === 'top' ? 'select-menu-above' : 'select-menu-below'
             )}
           >
             {options.map((option) => (

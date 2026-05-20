@@ -33,7 +33,7 @@ export const ConnectionStatusBadge: React.FunctionComponent<ConnectionStatusBadg
   <span
     {...props}
     className={classNames(
-      'inline-flex min-h-8 items-center gap-2 rounded-full border px-3 text-xs font-bold uppercase tracking-[0.16em]',
+      'connection-status-badge inline-flex min-h-8 items-center gap-2 rounded-full border px-3 text-xs font-bold uppercase',
       tone_classes[tone],
       className
     )}

@@ -12,7 +12,7 @@ export const MarketingPagePrototype: React.FunctionComponent = () => (
       </nav>
     </header>
 
-    <main className="grid gap-8 px-6 py-10 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
+    <main className="marketing-prototype-layout grid gap-8 px-6 py-10 lg:items-center">
       <section>
         <Badge tone="success">No subscription</Badge>
         <h2 className="mb-4 mt-5 max-w-xl text-4xl font-bold leading-tight">

@@ -54,3 +54,32 @@ a {
 .starry-night-star {
   background: var(--starry-sky-star);
 }
+
+.select-trigger-with-icon {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+}
+
+.select-trigger-without-icon {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.select-menu-above {
+  bottom: calc(100% + 4px);
+}
+
+.select-menu-below {
+  top: calc(100% + 4px);
+}
+
+.connection-status-badge {
+  letter-spacing: 0.16em;
+}
+
+.marketing-prototype-layout {
+}
+
+@media (min-width: 64rem) {
+  .marketing-prototype-layout {
+    grid-template-columns: 1.1fr 0.9fr;
+  }
+}
