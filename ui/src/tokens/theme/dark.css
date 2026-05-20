@@ -62,7 +62,6 @@ html {
     linear-gradient(180deg, var(--color-primary-900), var(--color-indigo-900));
   --background-default: var(--color-surface);
   --background-media: var(--color-media);
-  --background-role-baby-panel: var(--color-surface);
 
   --focus-ring: 0 0 0 3px color-mix(in srgb, var(--color-focus) 35%, transparent);
   --starry-sky-star: rgb(245 250 255);

@@ -160,13 +160,13 @@
   gap: calc(var(--spacing) * 4);
 }
 
-.colour-scale-grid {
+.color-scale-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: calc(var(--spacing) * 3);
 }
 
-.colour-scale-card {
+.color-scale-card {
   display: grid;
   align-content: start;
   gap: calc(var(--spacing) * 2);
@@ -176,18 +176,18 @@
   background: var(--color-surface);
 }
 
-.colour-scale-card h3 {
+.color-scale-card h3 {
   margin: 0;
   font-size: var(--text-base);
   line-height: 1.2;
 }
 
-.colour-range {
+.color-range {
   display: grid;
   gap: 0.375rem;
 }
 
-.colour-stop {
+.color-stop {
   min-width: 0;
   display: grid;
   grid-template-columns: 6rem minmax(0, 1fr);
@@ -195,12 +195,12 @@
   gap: 0.5rem;
 }
 
-.colour-swatch {
+.color-swatch {
   width: 6rem;
   height: 1.55rem;
 }
 
-.colour-stop-copy {
+.color-stop-copy {
   min-width: 0;
   display: flex;
   align-items: baseline;
@@ -208,12 +208,12 @@
   gap: 0.375rem;
 }
 
-.colour-stop-copy strong {
+.color-stop-copy strong {
   font-size: var(--text-xs);
   line-height: 1;
 }
 
-.colour-stop-copy code {
+.color-stop-copy code {
   white-space: nowrap;
   color: var(--color-subdued);
   font-size: 0.6875rem;
@@ -237,14 +237,14 @@
   font-size: var(--text-xs);
 }
 
-.alias-colour-grid,
+.alias-color-grid,
 .border-token-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
   gap: calc(var(--spacing) * 3);
 }
 
-.alias-colour-card {
+.alias-color-card {
   display: grid;
   gap: calc(var(--spacing) * 3);
   padding: calc(var(--spacing) * 3);
@@ -253,23 +253,23 @@
   background: var(--color-surface);
 }
 
-.alias-colour-card h3,
-.alias-colour-card p {
+.alias-color-card h3,
+.alias-color-card p {
   margin: 0;
 }
 
-.alias-colour-card p {
+.alias-color-card p {
   color: var(--color-subdued);
   font-size: var(--text-sm);
 }
 
-.alias-colour-range {
+.alias-color-range {
   display: grid;
   grid-template-columns: repeat(8, minmax(0, 1fr));
   gap: var(--scale-25);
 }
 
-.alias-colour-swatch {
+.alias-color-swatch {
   display: block;
   height: var(--scale-300);
 }
@@ -755,11 +755,11 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .colour-range {
+  .color-range {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .colour-scale-grid {
+  .color-scale-grid {
     grid-template-columns: 1fr;
   }
 

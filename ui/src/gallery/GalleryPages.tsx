@@ -40,7 +40,7 @@ interface DesignDocParts {
   body: string
 }
 
-interface ColourScale {
+interface ColorScale {
   name: string
   stops: Array<{
     index: string
@@ -49,7 +49,7 @@ interface ColourScale {
   }>
 }
 
-const colour_scales: ColourScale[] = [
+const color_scales: ColorScale[] = [
   {
     name: 'Gray',
     stops: [
@@ -66,16 +66,15 @@ const colour_scales: ColourScale[] = [
   {
     name: 'Indigo',
     stops: [
-      { index: '100', token: 'indigo-100', hex: '#d1d1eb' },
-      { index: '200', token: 'indigo-200', hex: '#a2a2d7' },
-      { index: '300', token: 'indigo-300', hex: '#7474c3' },
-      { index: '400', token: 'indigo-400', hex: '#4545af' },
-      { index: '500', token: 'indigo-500', hex: '#17179b' },
-      { index: '600', token: 'indigo-600', hex: '#12127c' },
-      { index: '700', token: 'indigo-700', hex: '#0e0e5d' },
-      { index: '800', token: 'indigo-800', hex: '#09093e' },
-      { index: '900', token: 'indigo-900', hex: '#05051f' },
-      { index: '950', token: 'indigo-950', hex: '#020210' },
+      { index: '100', token: 'indigo-100', hex: '#eee5ff' },
+      { index: '200', token: 'indigo-200', hex: '#c3abeb' },
+      { index: '300', token: 'indigo-300', hex: '#9672d7' },
+      { index: '400', token: 'indigo-400', hex: '#6939c3' },
+      { index: '500', token: 'indigo-500', hex: '#3c00af' },
+      { index: '600', token: 'indigo-600', hex: '#300089' },
+      { index: '700', token: 'indigo-700', hex: '#230064' },
+      { index: '800', token: 'indigo-800', hex: '#16003f' },
+      { index: '900', token: 'indigo-900', hex: '#09001a' },
     ],
   },
   {
@@ -132,7 +131,7 @@ const colour_scales: ColourScale[] = [
   },
 ]
 
-const alias_colour_categories = [
+const alias_color_categories = [
   { name: 'Primary', source: 'Indigo', token: 'primary' },
   { name: 'Info', source: 'Sky', token: 'info' },
   { name: 'Success', source: 'Mint', token: 'success' },
@@ -141,7 +140,7 @@ const alias_colour_categories = [
   { name: 'Neutral', source: 'Gray', token: 'neutral' },
 ]
 
-const alias_role_colour_categories = [
+const alias_role_color_categories = [
   { name: 'Baby station', source: 'Indigo', token: 'baby' },
   { name: 'Parent station', source: 'Mint', token: 'parent' },
 ]
@@ -291,7 +290,7 @@ const render_design_markdown = (source: string): React.ReactNode[] => {
   return rendered_lines
 }
 
-const alias_colour_stops = ['100', '200', '300', '400', '500', '600', '700', '800']
+const alias_color_stops = ['100', '200', '300', '400', '500', '600', '700', '800']
 
 const border_width_tokens = [
   ['None', '--border-width-none'],
@@ -441,15 +440,15 @@ const GallerySection: React.FunctionComponent<{ title: string; children: React.R
   </section>
 )
 
-const ColourScaleCard: React.FunctionComponent<{ scale: ColourScale }> = ({ scale }) => (
-  <section className="colour-scale-card">
+const ColorScaleCard: React.FunctionComponent<{ scale: ColorScale }> = ({ scale }) => (
+  <section className="color-scale-card">
     <h3>{scale.name}</h3>
-    <div className="colour-range">
+    <div className="color-range">
       {scale.stops.map((stop) => {
         return (
-          <div key={stop.token} className="colour-stop">
-            <span className="colour-swatch" style={{ background: `var(--color-${stop.token})` }} />
-            <span className="colour-stop-copy">
+          <div key={stop.token} className="color-stop">
+            <span className="color-swatch" style={{ background: `var(--color-${stop.token})` }} />
+            <span className="color-stop-copy">
               <strong>{stop.index}</strong>
               <code>{stop.hex}</code>
             </span>
@@ -460,24 +459,24 @@ const ColourScaleCard: React.FunctionComponent<{ scale: ColourScale }> = ({ scal
   </section>
 )
 
-const AliasColourCategoryCard: React.FunctionComponent<{ name: string; source: string; token: string }> = ({
+const AliasColorCategoryCard: React.FunctionComponent<{ name: string; source: string; token: string }> = ({
   name,
   source,
   token,
 }) => (
-  <section className="alias-colour-card">
+  <section className="alias-color-card">
     <div>
       <h3>{name}</h3>
       <p>{source}</p>
     </div>
-    <div className="alias-colour-range">
-      {alias_colour_stops.map((stop) => {
+    <div className="alias-color-range">
+      {alias_color_stops.map((stop) => {
         const variable_name = `--color-${token}-${stop}`
 
         return (
           <span
             key={variable_name}
-            className="alias-colour-swatch"
+            className="alias-color-swatch"
             title={variable_name}
             style={{ background: `var(${variable_name})` }}
           />
@@ -703,10 +702,10 @@ const TypeSizeCard: React.FunctionComponent<{ title: string; sizes: string[][] }
 
 const BrandPage: React.FunctionComponent = () => (
   <main className="gallery-main">
-    <GallerySection title="Colour Scales">
-      <div className="colour-scale-grid">
-        {colour_scales.map((scale) => (
-          <ColourScaleCard key={scale.name} scale={scale} />
+    <GallerySection title="Color Scales">
+      <div className="color-scale-grid">
+        {color_scales.map((scale) => (
+          <ColorScaleCard key={scale.name} scale={scale} />
         ))}
       </div>
     </GallerySection>
@@ -758,10 +757,10 @@ const BrandPage: React.FunctionComponent = () => (
 
 const AliasPage: React.FunctionComponent = () => (
   <main className="gallery-main">
-    <GallerySection title="Colour Categories">
-      <div className="alias-colour-grid">
-        {alias_colour_categories.map((category) => (
-          <AliasColourCategoryCard
+    <GallerySection title="Color Categories">
+      <div className="alias-color-grid">
+        {alias_color_categories.map((category) => (
+          <AliasColorCategoryCard
             key={category.token}
             name={category.name}
             source={category.source}
@@ -771,10 +770,10 @@ const AliasPage: React.FunctionComponent = () => (
       </div>
     </GallerySection>
 
-    <GallerySection title="Role Colour Categories">
-      <div className="alias-colour-grid">
-        {alias_role_colour_categories.map((category) => (
-          <AliasColourCategoryCard
+    <GallerySection title="Role Color Categories">
+      <div className="alias-color-grid">
+        {alias_role_color_categories.map((category) => (
+          <AliasColorCategoryCard
             key={category.token}
             name={category.name}
             source={category.source}
