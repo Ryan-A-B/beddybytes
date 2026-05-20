@@ -267,7 +267,6 @@ const BabyStationConfigurationFields: React.FunctionComponent<{ layout?: 'stacke
         <Select
           defaultValue="integrated-webcam"
           leading_icon={<FontAwesomeIcon icon={faVideo} />}
-          menu_placement="top"
         >
           <option value="integrated-webcam">Integrated_Webcam_FHD (V4L2)</option>
           <option value="no-camera">No camera</option>

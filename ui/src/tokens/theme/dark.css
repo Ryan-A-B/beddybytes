@@ -53,9 +53,6 @@ html {
   --color-input: var(--color-surface);
   --color-input-border: color-mix(in srgb, var(--color-border) 22%, transparent);
   --color-input-border-hover: color-mix(in srgb, var(--color-border-strong) 72%, transparent);
-  --color-select-option-hover: color-mix(in srgb, var(--color-primary-300) 28%, transparent);
-  --color-select-option-selected: var(--color-action);
-  --color-select-option-on-selected: var(--color-on-action);
 
   --background-page:
     radial-gradient(circle at 18% 8%, color-mix(in srgb, var(--color-primary-800) 22%, transparent), transparent 34%),

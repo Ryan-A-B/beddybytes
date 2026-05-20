@@ -355,10 +355,10 @@ const brand_icons: Array<{ name: string; icon: IconDefinition; style: 'Solid' | 
 ]
 
 const alias_icon_usages = [
-  { name: 'Station roles', usage: 'Use baby and display for station identity, route labels, and station-specific setup flows.' },
+  { name: 'Station roles', usage: 'Use microphone and display for the current baby and parent station role panels.' },
   { name: 'Permissions', usage: 'Use microphone and camera when requesting, confirming, or troubleshooting browser media access.' },
   { name: 'Configuration', usage: 'Use gear for station settings, tag for station naming, and edit for explicit rename actions.' },
-  { name: 'Select controls', usage: 'Use chevron-down on the right edge of custom select controls.' },
+  { name: 'Select controls', usage: 'Use chevron-down as a decorative affordance on the right edge of native select controls.' },
   { name: 'Session controls', usage: 'Use clock, play, and restart for compact monitoring session timing controls.' },
   { name: 'Video controls', usage: 'Use record, volume, mute, full-screen, and picture-in-picture icons for live video controls.' },
   { name: 'Navigation', usage: 'Use menu and close for collapsible navigation controls on mobile.' },

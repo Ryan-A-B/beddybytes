@@ -100,7 +100,7 @@ Readable text/background pairings are part of the mapped layer:
 
 On-action color is chosen by contrast, not by palette preference. For every non-neutral color scale, use black text on light-to-mid stops and white text on dark stops. As a working rule for the current scales, stops `100` through `400` use black on-action text, while stops `500` and above use white on-action text. Role mappings may choose a different stop than the generic status/action mapping, but the on-action token must follow the same contrast rule.
 
-Selected options in custom selects are action surfaces. They use the mapped selected-option background and selected-option text tokens so they inherit the same contrast rule as buttons.
+Selects are native browser controls styled to match text inputs. Do not replace them with a custom listbox unless the full keyboard, focus-management, and assistive-technology interaction pattern is implemented.
 
 Text inputs and select controls share the same mapped input background and border tokens. Do not give selects an opaque surface while text inputs use a translucent one, or vice versa; a form group should read as one control family.
 
@@ -167,7 +167,7 @@ Use FontAwesome as the UI icon set. The current approved icon names are shown in
 - **Station roles:** `microphone` and `display` identify baby and parent station role panels in the current app prototype. The `baby` icon may remain in the gallery as a possible future role icon, but it is not the current app treatment.
 - **Permissions:** `microphone` and `video` are used for browser media access requests and troubleshooting.
 - **Configuration:** `gear`, `tag`, and `pen-to-square` are used for station configuration, station naming, and explicit rename actions.
-- **Select controls:** `chevron-down` is used on the right edge of custom select controls.
+- **Select controls:** `chevron-down` is used as a decorative affordance on the right edge of native select controls.
 - **Session controls:** `clock`, `play`, and `rotate-right` are used for compact monitoring session controls.
 - **Video controls:** `circle`, `volume-high`, `volume-xmark`, `expand`, and `picture-in-picture` are used for live stream controls.
 - **Navigation:** `bars` and `xmark` are used for mobile menu open and close controls.
