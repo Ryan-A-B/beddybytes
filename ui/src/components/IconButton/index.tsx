@@ -32,7 +32,7 @@ export const IconButton: React.FunctionComponent<IconButtonProps> = ({
     aria-label={label}
     title={label}
     className={classNames(
-      'inline-flex shrink-0 items-center justify-center rounded-md border transition focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)] disabled:cursor-not-allowed disabled:opacity-55',
+      'inline-flex shrink-0 items-center justify-center rounded-md border transition focus-ring disabled:cursor-not-allowed disabled:opacity-55',
       variant_classes[variant],
       size_classes[size],
       className

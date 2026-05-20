@@ -44,7 +44,7 @@ const AppPrototypeNavigation: React.FunctionComponent<{ active_item?: AppNavItem
       </nav>
 
       {is_open ? (
-        <nav className="absolute right-0 top-12 z-20 grid min-w-52 gap-1 rounded-lg border border-border bg-surface/95 p-2 text-sm shadow-[var(--shadow-lg)] backdrop-blur sm:hidden">
+        <nav className="absolute right-0 top-12 z-20 grid min-w-52 gap-1 rounded-lg border border-border bg-surface/95 p-2 text-sm shadow-lg backdrop-blur sm:hidden">
           {app_nav_items.map((item) => (
             <button
               key={item}
@@ -76,7 +76,7 @@ const AppPrototypeHeader: React.FunctionComponent<{ active_item?: AppNavItem }> 
 )
 
 const AppPrototypeFooter: React.FunctionComponent = () => (
-  <footer className="w-full border-t border-[rgb(var(--color-border)/var(--border-opacity-default,0.22))] pt-5 text-sm text-subdued">
+  <footer className="w-full border-t border-border/25 pt-5 text-sm text-subdued">
     <div className="container mx-auto grid gap-6 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
       <div className="grid max-w-sm gap-2">
         <strong className="text-xl font-medium text-text">BeddyBytes</strong>
@@ -100,7 +100,7 @@ const AppPrototypeFooter: React.FunctionComponent = () => (
 )
 
 export const AppHomePrototype: React.FunctionComponent = () => (
-  <StarryNight seed="app-home-quiet-connection" count={100} className="min-h-screen bg-[var(--background-page)]">
+  <StarryNight seed="app-home-quiet-connection" count={100} className="min-h-screen bg-page">
     <div className="flex min-h-screen flex-col gap-8 pb-4 sm:gap-12 sm:pb-7">
       <AppPrototypeHeader />
 
@@ -116,7 +116,7 @@ export const AppHomePrototype: React.FunctionComponent = () => (
           </div>
 
           <div className="order-3 grid min-w-0 gap-4 lg:order-1">
-            <div className="relative grid min-h-[220px] place-items-center overflow-hidden rounded-2xl bg-[var(--background-media)] sm:min-h-[290px]">
+            <div className="relative grid min-h-[220px] place-items-center overflow-hidden rounded-2xl bg-media sm:min-h-[290px]">
               <StarryNight seed="app-home-video-card" count={36} className="absolute inset-0" />
               <button type="button" className="grid h-16 w-16 place-items-center rounded-full border border-border bg-surface/80 text-text sm:h-20 sm:w-20">
                 <Play size={34} fill="currentColor" />
@@ -135,7 +135,7 @@ export const AppHomePrototype: React.FunctionComponent = () => (
         <div className="contents lg:order-1 lg:col-start-1 lg:row-span-2 lg:grid lg:min-w-0 lg:content-start lg:gap-4">
           <section id="home" className="order-2 min-w-0 lg:order-none">
             <div className="mb-5 flex flex-wrap items-center gap-3">
-              <p className="m-0 text-xs font-bold uppercase tracking-[0.28em] text-info">How to use BeddyBytes</p>
+              <p className="m-0 font-bold uppercase tracking-[0.28em] text-info">How to use BeddyBytes</p>
             </div>
             <p className="m-0 max-w-2xl text-base leading-relaxed text-subdued sm:text-lg">
               You'll need at least two devices: one as the <strong className="text-text">Baby Station</strong> and one or more as <strong className="text-text">Parent Stations</strong>. Both must be on the same Wi-Fi.
@@ -192,7 +192,7 @@ export const AppHomePrototype: React.FunctionComponent = () => (
 )
 
 export const AppBabyStationStartPrototype: React.FunctionComponent = () => (
-  <StarryNight seed="app-baby-station-ready" count={100} className="min-h-screen bg-[var(--background-page)]">
+  <StarryNight seed="app-baby-station-ready" count={100} className="min-h-screen bg-page">
     <div className="flex min-h-screen flex-col gap-8 pb-4 sm:gap-12 sm:pb-7">
       <AppPrototypeHeader active_item="Baby Station" />
 
@@ -212,11 +212,11 @@ export const AppBabyStationStartPrototype: React.FunctionComponent = () => (
             </div>
 
             <div className="flex flex-wrap justify-center gap-3">
-              <span className="inline-flex min-h-8 items-center gap-2 rounded-full border border-[rgb(var(--color-border)/var(--border-opacity-default,0.72))] bg-[var(--background-default)] px-4 text-sm font-medium text-text">
+              <span className="inline-flex min-h-8 items-center gap-2 rounded-full border border-border/70 bg-surface px-4 text-sm font-medium text-text">
                 <FontAwesomeIcon icon={faMicrophone} />
                 Microphone
               </span>
-              <span className="inline-flex min-h-8 items-center gap-2 rounded-full border border-[rgb(var(--color-border)/var(--border-opacity-default,0.72))] bg-[var(--background-default)] px-4 text-sm font-medium text-text">
+              <span className="inline-flex min-h-8 items-center gap-2 rounded-full border border-border/70 bg-surface px-4 text-sm font-medium text-text">
                 <FontAwesomeIcon icon={faVideo} />
                 Camera
               </span>
@@ -281,21 +281,15 @@ export const AppBabyStationLivePrototype: React.FunctionComponent = () => {
   const [is_configuration_open, set_is_configuration_open] = React.useState(false)
 
   return (
-    <StarryNight seed="app-baby-station-live" count={100} className="min-h-screen bg-[var(--background-page)]">
+    <StarryNight seed="app-baby-station-live" count={100} className="min-h-screen bg-page">
       <div className="flex min-h-screen flex-col gap-4 pb-4 sm:pb-7">
         <AppPrototypeHeader active_item="Baby Station" />
 
         <main
-          className="container mx-auto grid min-h-0 flex-1 gap-4"
-          style={{
-            gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)',
-            gridTemplateRows: 'auto minmax(0, 1fr) auto',
-            gridTemplateAreas: '"configuration configuration" "video video" "start-button screensaver-button"',
-          }}
+          className="app-baby-station-live-layout container mx-auto grid min-h-0 flex-1 gap-4"
         >
           <section
-            className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-4 rounded-2xl border border-input-border bg-surface px-4 py-4 sm:px-5 lg:hidden"
-            style={{ gridArea: 'configuration' }}
+            className="app-baby-station-configuration grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-4 rounded-2xl border border-input-border bg-surface px-4 py-4 sm:px-5 lg:hidden"
             aria-label="Baby station configuration"
           >
             <div className="min-w-0">
@@ -326,19 +320,17 @@ export const AppBabyStationLivePrototype: React.FunctionComponent = () => {
           </section>
 
           <form
-            className="hidden min-w-0 gap-4 lg:grid lg:grid-cols-[minmax(180px,1fr)_minmax(180px,1fr)_minmax(220px,1.2fr)] lg:items-end"
-            style={{ gridArea: 'configuration' }}
+            className="app-baby-station-configuration hidden min-w-0 gap-4 lg:grid lg:grid-cols-[minmax(180px,1fr)_minmax(180px,1fr)_minmax(220px,1.2fr)] lg:items-end"
             aria-label="Baby station configuration"
           >
             <BabyStationConfigurationFields layout="inline" />
           </form>
 
           <section
-            className="min-h-[280px] min-w-0 overflow-hidden bg-black sm:min-h-[520px]"
-            style={{ gridArea: 'video' }}
+            className="app-baby-station-video min-h-[280px] min-w-0 overflow-hidden bg-black sm:min-h-[520px]"
             aria-label="Baby station video preview"
           >
-            <div className="h-full w-full bg-[radial-gradient(circle_at_center,rgb(255_255_255/0.035),transparent_42%),linear-gradient(180deg,rgb(0_0_0),rgb(0_0_0))]" />
+            <div className="app-baby-video-preview h-full w-full" />
           </section>
 
           <Button
@@ -362,9 +354,8 @@ export const AppBabyStationLivePrototype: React.FunctionComponent = () => {
       </div>
 
       <div
-        className={`fixed inset-x-0 bottom-0 z-30 transform rounded-t-2xl border-t border-input-border px-4 pb-6 pt-4 shadow-lg transition-transform duration-300 sm:px-6 lg:hidden ${is_configuration_open ? 'translate-y-0' : 'translate-y-full'
+        className={`fixed inset-x-0 bottom-0 z-30 transform rounded-t-2xl border-t border-input-border bg-page px-4 pb-6 pt-4 shadow-lg transition-transform duration-300 sm:px-6 lg:hidden ${is_configuration_open ? 'translate-y-0' : 'translate-y-full'
           }`}
-        style={{ background: 'var(--background-page)' }}
         aria-hidden={!is_configuration_open}
       >
         <StarryNight seed="app-baby-station-configuration-sheet" count={42} className="pointer-events-none absolute inset-0 rounded-t-2xl" />
@@ -415,7 +406,7 @@ export const AppBabyStationLivePrototype: React.FunctionComponent = () => {
 }
 
 export const AppParentStationPrototype: React.FunctionComponent = () => (
-  <StarryNight seed="app-parent-station-waiting" count={100} className="min-h-screen bg-[var(--background-page)]">
+  <StarryNight seed="app-parent-station-waiting" count={100} className="min-h-screen bg-page">
     <div className="flex min-h-screen flex-col gap-8 pb-4 sm:gap-10 sm:pb-7">
       <AppPrototypeHeader active_item="Parent Station" />
 
@@ -431,12 +422,7 @@ export const AppParentStationPrototype: React.FunctionComponent = () => (
             <span className="absolute inset-4 rounded-full border border-parent-info/15" />
             <span className="absolute inset-8 rounded-full border border-parent-info/10" />
             <span className="absolute inset-12 rounded-full border border-parent-info/10" />
-            <span
-              className="absolute h-24 w-24 rounded-full shadow-[0_0_50px_color-mix(in_srgb,var(--color-warning-200)_18%,transparent)] sm:h-28 sm:w-28"
-              style={{
-                background: 'radial-gradient(circle at 32% 30%, var(--color-warning-100), var(--color-danger-200) 85%)',
-              }}
-            />
+            <span className="app-parent-empty-planet absolute h-24 w-24 rounded-full sm:h-28 sm:w-28" />
             <span className="absolute left-[38%] top-[42%] h-4 w-4 rounded-full bg-warning-300/30" />
             <span className="absolute left-[50%] top-[50%] h-3 w-3 rounded-full bg-danger-300/35" />
           </div>
@@ -462,7 +448,7 @@ export const AppParentStationPrototype: React.FunctionComponent = () => (
 )
 
 export const AppParentStationLivePrototype: React.FunctionComponent = () => (
-  <StarryNight seed="app-parent-station-live" count={100} className="min-h-screen bg-[var(--background-page)]">
+  <StarryNight seed="app-parent-station-live" count={100} className="min-h-screen bg-page">
     <div className="flex min-h-screen flex-col gap-4 pb-4 sm:pb-7">
       <AppPrototypeHeader active_item="Parent Station" />
 
@@ -483,17 +469,8 @@ export const AppParentStationLivePrototype: React.FunctionComponent = () => (
           <SessionTimer elapsed="0:00:34" className="justify-self-center" />
         </section>
 
-        <section className="relative min-h-[420px] min-w-0 overflow-hidden bg-black shadow-[var(--shadow-soft)] sm:min-h-[640px]" aria-label="Nursery live video">
-          <div
-            className="absolute inset-0"
-            style={{
-              background: [
-                'radial-gradient(circle at 52% 46%, rgb(255 255 255 / 0.055), transparent 24%)',
-                'radial-gradient(circle at 45% 60%, rgb(255 255 255 / 0.032), transparent 18%)',
-                'linear-gradient(180deg, rgb(0 0 0), rgb(0 0 0))',
-              ].join(', '),
-            }}
-          />
+        <section className="relative min-h-[420px] min-w-0 overflow-hidden bg-black shadow-soft sm:min-h-[640px]" aria-label="Nursery live video">
+          <div className="app-parent-live-video absolute inset-0" />
           <div className="absolute inset-x-0 top-0 z-10 bg-gradient-to-b from-black/75 via-black/25 to-transparent px-4 pb-12 pt-4 sm:flex sm:justify-end sm:pt-5">
             <div className="flex min-w-0 justify-between gap-2 sm:flex-wrap sm:justify-end">
               <ConnectionStatusBadge label="Ready" value="connected" tone="connected" />

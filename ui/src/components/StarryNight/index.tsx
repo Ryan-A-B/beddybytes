@@ -64,7 +64,7 @@ export const StarryNight: React.FunctionComponent<StarryNightProps> = ({
         {stars.map((star, index) => (
           <span
             key={`${seed}-${count}-${index}`}
-            className="absolute rounded-full bg-[var(--starry-sky-star)]"
+            className="starry-night-star absolute rounded-full"
             style={{
               left: `${star.left}%`,
               top: `${star.top}%`,

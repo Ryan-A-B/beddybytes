@@ -41,7 +41,7 @@ export const Button: React.FunctionComponent<ButtonProps> = ({
       disabled={disabled || loading}
       className={classNames(
         'inline-flex items-center justify-center gap-2 rounded-md border font-semibold transition disabled:cursor-not-allowed disabled:opacity-55',
-        'focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
+        'focus-ring',
         variant_classes[variant],
         size_classes[size],
         full_width && 'w-full',

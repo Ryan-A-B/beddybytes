@@ -86,7 +86,7 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
             leading_icon ? 'grid-cols-[auto_minmax(0,1fr)_auto]' : 'grid-cols-[minmax(0,1fr)_auto]',
             leading_icon ? 'pl-0' : 'pl-4',
             'pr-3 transition disabled:cursor-not-allowed disabled:opacity-55',
-            'focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
+            'focus-ring',
             invalid ? 'border-danger' : 'border-input-border hover:border-input-border-hover'
           )}
           onClick={() => set_is_open((current) => !current)}

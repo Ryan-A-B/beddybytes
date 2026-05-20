@@ -3,6 +3,14 @@
 @import './tokens/alias.css';
 @import './tokens/responsive.css';
 @import './tokens/theme/dark.css';
+@import './examples/prototype/AppHomePrototypes.css';
+
+@utility focus-ring {
+  &:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+  }
+}
 
 *,
 *::before,
@@ -37,4 +45,12 @@ a {
 :focus-visible {
   outline: none;
   box-shadow: var(--focus-ring);
+}
+
+.starry-sky {
+  background: var(--starry-sky-background);
+}
+
+.starry-night-star {
+  background: var(--starry-sky-star);
 }

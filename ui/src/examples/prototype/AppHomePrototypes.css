@@ -1,0 +1,36 @@
+@layer components {
+  .app-baby-station-live-layout {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      "configuration configuration"
+      "video video"
+      "start-button screensaver-button";
+  }
+
+  .app-baby-station-configuration {
+    grid-area: configuration;
+  }
+
+  .app-baby-station-video {
+    grid-area: video;
+  }
+
+  .app-baby-video-preview {
+    background:
+      radial-gradient(circle at center, rgb(255 255 255 / 0.035), transparent 42%),
+      linear-gradient(180deg, rgb(0 0 0), rgb(0 0 0));
+  }
+
+  .app-parent-empty-planet {
+    background: radial-gradient(circle at 32% 30%, var(--color-warning-100), var(--color-danger-200) 85%);
+    box-shadow: 0 0 50px color-mix(in srgb, var(--color-warning-200) 18%, transparent);
+  }
+
+  .app-parent-live-video {
+    background:
+      radial-gradient(circle at 52% 46%, rgb(255 255 255 / 0.055), transparent 24%),
+      radial-gradient(circle at 45% 60%, rgb(255 255 255 / 0.032), transparent 18%),
+      linear-gradient(180deg, rgb(0 0 0), rgb(0 0 0));
+  }
+}

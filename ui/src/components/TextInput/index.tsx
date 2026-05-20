@@ -13,7 +13,7 @@ export const TextInput = React.forwardRef<HTMLInputElement, TextInputProps>(
       aria-invalid={invalid || props['aria-invalid']}
       className={classNames(
         'h-11 w-full rounded-md border bg-input px-4 text-text placeholder:text-subdued',
-        'transition focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
+        'transition focus-ring',
         invalid ? 'border-danger' : 'border-input-border hover:border-input-border-hover',
         className
       )}

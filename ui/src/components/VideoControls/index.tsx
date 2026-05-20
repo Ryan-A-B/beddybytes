@@ -28,7 +28,7 @@ const VideoControlButton: React.FunctionComponent<VideoControlButtonProps> = ({
     type="button"
     aria-label={label}
     className={classNames(
-      'grid h-11 w-11 place-items-center rounded-full border transition focus-visible:outline-none focus-visible:shadow-[var(--focus-ring)]',
+      'grid h-11 w-11 place-items-center rounded-full border transition focus-ring',
       tone === 'record'
         ? 'border-danger/55 bg-record/15 text-danger hover:bg-record/25'
         : 'border-input-border bg-surface text-text hover:border-parent-info/40'
