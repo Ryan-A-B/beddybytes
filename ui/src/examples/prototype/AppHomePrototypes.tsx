@@ -5,8 +5,22 @@ import { ArrowRight, Play, Radio, VolumeX, Wifi } from 'lucide-react'
 import { Badge, Button, ConnectionStatusBadge, Panel, Select, SessionTimer, StarryNight, TextInput, VideoControls } from '../../index'
 
 type AppNavItem = 'Baby Station' | 'Parent Station'
+type PageTransitionPage = 'home' | 'baby' | 'parent'
+type PageTransitionDirection = 'left' | 'right'
 
 const app_nav_items: AppNavItem[] = ['Baby Station', 'Parent Station']
+const page_transition_sequence: PageTransitionPage[] = ['home', 'baby', 'parent', 'home', 'parent', 'baby']
+const page_transition_order: Record<PageTransitionPage, number> = {
+  home: 0,
+  baby: 1,
+  parent: 2,
+}
+const page_transition_labels: Record<PageTransitionPage, string> = {
+  home: 'Home',
+  baby: 'Baby Station',
+  parent: 'Parent Station',
+}
+const page_transition_nav_pages: Array<Exclude<PageTransitionPage, 'home'>> = ['baby', 'parent']
 
 const get_nav_active_classes = (item: AppNavItem): string => {
   if (item === 'Parent Station') {
@@ -71,6 +85,88 @@ const AppPrototypeHeader: React.FunctionComponent<{ active_item?: AppNavItem }> 
         <strong className="text-xl text-white">BeddyBytes</strong>
       </a>
       <AppPrototypeNavigation active_item={active_item} />
+    </div>
+  </header>
+)
+
+const get_page_transition_direction = (
+  previous_page: PageTransitionPage,
+  next_page: PageTransitionPage
+): PageTransitionDirection => (
+  page_transition_order[next_page] > page_transition_order[previous_page] ? 'left' : 'right'
+)
+
+const get_page_transition_mobile_active_classes = (page: PageTransitionPage): string => {
+  if (page === 'parent') {
+    return 'bg-parent-action/70 text-parent-on-action'
+  }
+
+  if (page === 'baby') {
+    return 'bg-baby-action/70 text-baby-on-action'
+  }
+
+  return 'bg-action/70 text-on-action'
+}
+
+const PageTransitionNavigation: React.FunctionComponent<{ active_page: PageTransitionPage }> = ({ active_page }) => {
+  const [is_open, set_is_open] = React.useState(false)
+
+  return (
+    <div className="relative ml-auto sm:ml-0">
+      <button
+        type="button"
+        aria-label={is_open ? 'Close navigation' : 'Open navigation'}
+        aria-expanded={is_open}
+        className="grid h-10 w-10 place-items-center rounded-lg border border-border bg-surface/70 text-text sm:hidden"
+        onClick={() => set_is_open((current) => !current)}
+      >
+        <FontAwesomeIcon icon={is_open ? faXmark : faBars} />
+      </button>
+
+    <nav
+      className={`page-transition-nav page-transition-nav--${active_page} hidden min-h-16 max-w-full overflow-hidden text-sm text-text/70 sm:grid sm:grid-cols-2`}
+      aria-label="Page transition prototype"
+    >
+      <span className="page-transition-nav-indicator" aria-hidden="true" />
+      {page_transition_nav_pages.map((page) => (
+        <button
+          key={page}
+          type="button"
+          className={`relative z-10 grid min-w-40 place-items-center whitespace-nowrap px-8 py-4 transition-colors ${active_page === page ? 'font-semibold text-white' : 'hover:bg-surface hover:text-text'}`}
+        >
+            {page_transition_labels[page]}
+          </button>
+        ))}
+      </nav>
+
+      {is_open ? (
+        <nav className="absolute right-0 top-12 z-20 grid min-w-52 gap-1 rounded-lg border border-border bg-surface/95 p-2 text-sm shadow-lg backdrop-blur sm:hidden">
+          {page_transition_nav_pages.map((page) => (
+            <button
+              key={page}
+              type="button"
+              className={`flex w-full items-center gap-2 rounded-md px-4 py-3 text-left transition ${active_page === page ? `font-semibold ${get_page_transition_mobile_active_classes(page)}` : 'text-text/80 hover:bg-surface hover:text-text'}`}
+              onClick={() => set_is_open(false)}
+            >
+              {page_transition_labels[page]}
+            </button>
+          ))}
+        </nav>
+      ) : null}
+    </div>
+  )
+}
+
+const PageTransitionHeader: React.FunctionComponent<{ active_page: PageTransitionPage }> = ({ active_page }) => (
+  <header className="w-full">
+    <div className="container mx-auto flex min-w-0 items-center gap-3 sm:items-stretch sm:gap-7">
+      <a href="#page-transition-home" className="flex items-center gap-3 text-text no-underline">
+        <span className="grid h-8 w-8 place-items-center rounded-lg bg-action/25">
+          <span className="h-3.5 w-3.5 rounded-full bg-white" />
+        </span>
+        <strong className="text-xl text-white">BeddyBytes</strong>
+      </a>
+      <PageTransitionNavigation active_page={active_page} />
     </div>
   </header>
 )
@@ -190,6 +286,199 @@ export const AppHomePrototype: React.FunctionComponent = () => (
     </div>
   </StarryNight>
 )
+
+const PageTransitionHomeContent: React.FunctionComponent = () => (
+  <section id="page-transition-home" className="page-transition-content-grid">
+    <div className="grid min-w-0 content-start gap-5">
+      <div className="grid gap-3">
+        <p className="app-home-kicker m-0 font-bold uppercase text-info">How to use BeddyBytes</p>
+        <h2 className="m-0 text-4xl font-bold leading-tight text-text sm:text-5xl">Set up a quiet home monitor.</h2>
+        <p className="m-0 max-w-2xl text-base leading-relaxed text-subdued sm:text-lg">
+          Use one device near the crib and one nearby as the Parent Station. Both stay on the same Wi-Fi.
+        </p>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Panel className="grid gap-4 p-5">
+          <span className="grid h-12 w-12 place-items-center rounded-lg border border-baby-info/40 bg-baby-info/15 text-baby-info">
+            <FontAwesomeIcon icon={faMicrophone} />
+          </span>
+          <div>
+            <h3 className="m-0 text-xl font-bold">Baby Station</h3>
+            <p className="mb-0 mt-2 text-subdued">Start audio and optional video from the device by the crib.</p>
+          </div>
+        </Panel>
+
+        <Panel className="grid gap-4 p-5">
+          <span className="grid h-12 w-12 place-items-center rounded-lg border border-parent-info/40 bg-parent-info/15 text-parent-info">
+            <FontAwesomeIcon icon={faDisplay} />
+          </span>
+          <div>
+            <h3 className="m-0 text-xl font-bold">Parent Station</h3>
+            <p className="mb-0 mt-2 text-subdued">Listen in from another device on the same home network.</p>
+          </div>
+        </Panel>
+      </div>
+    </div>
+
+    <div className="app-home-video-card relative grid min-w-0 place-items-center overflow-hidden rounded-2xl bg-media">
+      <StarryNight seed="page-transition-home-video" count={36} className="absolute inset-0" />
+      <button type="button" className="grid h-16 w-16 place-items-center rounded-full border border-border bg-surface/80 text-text sm:h-20 sm:w-20">
+        <Play size={34} fill="currentColor" />
+      </button>
+      <span className="absolute bottom-4 left-5">
+        <Badge tone="neutral">2:14</Badge>
+      </span>
+    </div>
+  </section>
+)
+
+const PageTransitionBabyContent: React.FunctionComponent = () => (
+  <section className="page-transition-content-grid">
+    <div className="grid min-w-0 content-start gap-5">
+      <div className="grid gap-3">
+        <p className="app-home-kicker m-0 font-bold uppercase text-baby-info">Baby Station</p>
+        <h2 className="m-0 text-4xl font-bold leading-tight text-text sm:text-5xl">Ready to start?</h2>
+        <p className="m-0 max-w-2xl text-base leading-relaxed text-subdued sm:text-lg">
+          Choose the station name, microphone, and camera before starting the device by the crib.
+        </p>
+      </div>
+
+      <div className="grid gap-3 lg:grid-cols-3">
+        <TextInput defaultValue="Little Bear" />
+        <Select defaultValue="default-microphone" leading_icon={<FontAwesomeIcon icon={faMicrophone} />}>
+          <option value="default-microphone">Default microphone</option>
+          <option value="usb-microphone">USB microphone</option>
+        </Select>
+        <Select defaultValue="integrated-webcam" leading_icon={<FontAwesomeIcon icon={faVideo} />}>
+          <option value="integrated-webcam">Integrated Webcam</option>
+          <option value="no-camera">No camera</option>
+        </Select>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Button variant="baby-action" size="lg" full_width>
+          <FontAwesomeIcon icon={faPlay} />
+          Start
+        </Button>
+        <Button variant="secondary" size="lg" full_width disabled>
+          <FontAwesomeIcon icon={faMoon} />
+          Screen Saver
+        </Button>
+      </div>
+    </div>
+
+    <section className="app-baby-station-video min-w-0 overflow-hidden bg-black" aria-label="Baby station video preview">
+      <div className="app-baby-video-preview h-full w-full" />
+    </section>
+  </section>
+)
+
+const PageTransitionParentContent: React.FunctionComponent = () => (
+  <section className="page-transition-content-grid">
+    <div className="grid min-w-0 content-start gap-5">
+      <div className="grid gap-3">
+        <p className="app-home-kicker m-0 font-bold uppercase text-parent-info">Parent Station</p>
+        <h2 className="m-0 text-4xl font-bold leading-tight text-text sm:text-5xl">Watch from nearby.</h2>
+        <p className="m-0 max-w-2xl text-base leading-relaxed text-subdued sm:text-lg">
+          Pick an active baby station and keep the live stream controls close to the video.
+        </p>
+      </div>
+
+      <div className="page-transition-parent-controls grid gap-3 sm:items-center">
+        <Select
+          aria-label="Baby station"
+          defaultValue="nursery"
+          leading_icon={<FontAwesomeIcon icon={faDisplay} />}
+        >
+          <option value="nursery">Nursery</option>
+        </Select>
+        <SessionTimer elapsed="0:00:34" className="justify-self-center sm:justify-self-end" />
+      </div>
+    </div>
+
+    <section className="app-parent-live-video-shell relative min-w-0 overflow-hidden bg-black shadow-soft" aria-label="Nursery live video">
+      <div className="app-parent-live-video absolute inset-0" />
+      <div className="absolute inset-x-0 top-0 z-10 bg-gradient-to-b from-black/75 via-black/25 to-transparent px-4 pb-12 pt-4 sm:flex sm:justify-end sm:pt-5">
+        <div className="flex min-w-0 justify-between gap-2 sm:flex-wrap sm:justify-end">
+          <ConnectionStatusBadge label="Ready" value="connected" tone="connected" />
+          <ConnectionStatusBadge label="Stream" value="live" tone="streaming" />
+        </div>
+      </div>
+      <div className="absolute inset-x-0 bottom-0 grid justify-items-center bg-gradient-to-t from-black/80 via-black/28 to-transparent px-4 pb-4 pt-16">
+        <VideoControls />
+      </div>
+    </section>
+  </section>
+)
+
+const PageTransitionContent: React.FunctionComponent<{ page: PageTransitionPage }> = ({ page }) => {
+  if (page === 'baby') {
+    return <PageTransitionBabyContent />
+  }
+
+  if (page === 'parent') {
+    return <PageTransitionParentContent />
+  }
+
+  return <PageTransitionHomeContent />
+}
+
+export const AppPageTransitionPrototype: React.FunctionComponent = () => {
+  const [step_index, set_step_index] = React.useState(0)
+  const [previous_page, set_previous_page] = React.useState<PageTransitionPage | null>(null)
+  const [direction, set_direction] = React.useState<PageTransitionDirection>('left')
+
+  const current_page = page_transition_sequence[step_index]
+
+  React.useEffect(() => {
+    const interval_id = window.setInterval(() => {
+      set_step_index((current_index) => {
+        const current_page_for_step = page_transition_sequence[current_index]
+        const next_index = (current_index + 1) % page_transition_sequence.length
+        const next_page = page_transition_sequence[next_index]
+
+        set_previous_page(current_page_for_step)
+        set_direction(get_page_transition_direction(current_page_for_step, next_page))
+
+        return next_index
+      })
+    }, 3000)
+
+    return () => window.clearInterval(interval_id)
+  }, [])
+
+  React.useEffect(() => {
+    if (!previous_page) {
+      return undefined
+    }
+
+    const timeout_id = window.setTimeout(() => {
+      set_previous_page(null)
+    }, 720)
+
+    return () => window.clearTimeout(timeout_id)
+  }, [current_page, previous_page])
+
+  return (
+    <StarryNight seed="app-page-transition" count={100} className="min-h-screen bg-page">
+      <div className="flex min-h-screen flex-col gap-8 pb-4 sm:gap-10 sm:pb-7">
+        <PageTransitionHeader active_page={current_page} />
+
+        <main className={`page-transition-stage page-transition-stage--${direction} container mx-auto grid min-h-0 flex-1`}>
+          {previous_page ? (
+            <div key={`previous-${previous_page}-${current_page}`} className="page-transition-layer page-transition-layer--out">
+              <PageTransitionContent page={previous_page} />
+            </div>
+          ) : null}
+          <div key={`current-${current_page}-${step_index}`} className="page-transition-layer page-transition-layer--in">
+            <PageTransitionContent page={current_page} />
+          </div>
+        </main>
+      </div>
+    </StarryNight>
+  )
+}
 
 export const AppBabyStationStartPrototype: React.FunctionComponent = () => (
   <StarryNight seed="app-baby-station-ready" count={100} className="min-h-screen bg-page">

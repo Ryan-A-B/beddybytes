@@ -27,13 +27,14 @@ import {
   AppBabyStationLivePrototype,
   AppBabyStationStartPrototype,
   AppHomePrototype,
+  AppPageTransitionPrototype,
   AppParentStationLivePrototype,
   AppParentStationPrototype,
 } from '../examples/prototype/AppHomePrototypes'
 import { MarketingPagePrototype } from '../examples/prototype/MarketingPagePrototype'
 
 type ViewportName = 'mobile' | 'tablet' | 'desktop'
-type PageName = 'brand' | 'alias' | 'mapped' | 'components' | 'design' | 'prototype-app-home' | 'prototype-baby-station-start' | 'prototype-baby-station-live' | 'prototype-parent-station' | 'prototype-parent-station-live' | 'prototype-marketing'
+type PageName = 'brand' | 'alias' | 'mapped' | 'components' | 'design' | 'prototype-app-home' | 'prototype-page-transition' | 'prototype-baby-station-start' | 'prototype-baby-station-live' | 'prototype-parent-station' | 'prototype-parent-station-live' | 'prototype-marketing'
 
 interface DesignDocParts {
   metadata: string
@@ -147,6 +148,7 @@ const alias_role_color_categories = [
 
 const prototype_pages: Array<{ id: PageName; label: string }> = [
   { id: 'prototype-app-home', label: 'App Home' },
+  { id: 'prototype-page-transition', label: 'Page Transition' },
   { id: 'prototype-baby-station-start', label: 'Baby Station Start' },
   { id: 'prototype-baby-station-live', label: 'Baby Station Live' },
   { id: 'prototype-parent-station', label: 'Parent Station' },
@@ -167,6 +169,7 @@ const page_routes: Record<PageName, string> = {
   components: '/components',
   design: '/design',
   'prototype-app-home': '/prototypes/app-home',
+  'prototype-page-transition': '/prototypes/page-transition',
   'prototype-baby-station-start': '/prototypes/baby-station-start',
   'prototype-baby-station-live': '/prototypes/baby-station-live',
   'prototype-parent-station': '/prototypes/parent-station',
@@ -648,6 +651,7 @@ const GalleryItemContent: React.FunctionComponent<{ page: PageName }> = ({ page 
     {page === 'components' && <ComponentsPage />}
     {page === 'design' && <DesignDocPage />}
     {page === 'prototype-app-home' && <PrototypePane><AppHomePrototype /></PrototypePane>}
+    {page === 'prototype-page-transition' && <PrototypePane><AppPageTransitionPrototype /></PrototypePane>}
     {page === 'prototype-baby-station-start' && <PrototypePane><AppBabyStationStartPrototype /></PrototypePane>}
     {page === 'prototype-baby-station-live' && <PrototypePane><AppBabyStationLivePrototype /></PrototypePane>}
     {page === 'prototype-parent-station' && <PrototypePane><AppParentStationPrototype /></PrototypePane>}
