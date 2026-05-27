@@ -3,7 +3,6 @@ package backendmqtt
 import (
 	"context"
 	"encoding/json"
-	"log"
 	"regexp"
 	"time"
 
@@ -59,16 +58,15 @@ func handleClientStatusMessage(client mqtt.Client, message mqtt.Message, input R
 	}
 	switch payload.Type {
 	case ClientStatusTypeConnected:
-		if input.ReconnectTimeout != nil {
-			input.ReconnectTimeout.CancelClient(accountID, clientID)
-		}
+		input.ReconnectTimeout.CancelClient(accountID, clientID)
 		input.ConnectionRegistry.Put(accountID, ConnectionInfo{
 			ClientID:     clientID,
 			ConnectionID: payload.ConnectionID,
 			RequestID:    payload.RequestID,
 		})
 		if err := input.ConnectionStore.Put(context.Background(), connection); err != nil && err != connectionstore.ErrDuplicate {
-			log.Fatal(err)
+			logx.Warnln(err)
+			return
 		}
 		pending, ok := input.PendingSessionStarts.Get(accountID, payload.ConnectionID)
 		if !ok {
@@ -100,9 +98,10 @@ func handleClientStatusMessage(client mqtt.Client, message mqtt.Message, input R
 			RequestID:    payload.RequestID,
 		})
 		if err := input.ConnectionStore.Delete(context.Background(), connection); err != nil && err != connectionstore.ErrDuplicate {
-			log.Fatal(err)
+			logx.Warnln(err)
+			return
 		}
-		if input.ReconnectTimeout != nil && connection.Reason != connections.DisconnectReasonClean {
+		if connection.Reason != connections.DisconnectReasonClean {
 			input.ReconnectTimeout.Schedule(accountID, clientID, payload.ConnectionID, payload.RequestID)
 		}
 	default:
