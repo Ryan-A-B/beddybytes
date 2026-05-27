@@ -22,3 +22,6 @@ cd src
 # python -m unittest tests.test_two_baby_stations.TestTwoBabyStations.test_parent_station_second
 
 # python -m unittest tests.test_account_management.TestAccountManagement.test_reset_password
+
+# python -m unittest -v tests.test_backend_mqtt.TestBackendMQTT.test_legacy_websocket_description_signal_is_published_as_mqtt_description
+# python -m unittest -v tests.test_backend_mqtt.TestBackendMQTT.test_mqtt_description_signal_is_delivered_as_legacy_websocket_description

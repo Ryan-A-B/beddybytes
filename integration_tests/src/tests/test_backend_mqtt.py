@@ -1,10 +1,21 @@
+import json
+import queue
+import threading
 import unittest
 import time
-import trio
+from urllib.parse import urlencode
 
-from backend_api_utils import BackendAPIClient, open_connection_websocket_until_signaled, receive_signal_over_connection, send_signal_over_connection, utc_now_seconds_rfc3339
+import trio
+from selenium import webdriver
+from selenium.common.exceptions import StaleElementReferenceException
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.wait import WebDriverWait
+from trio_websocket import open_websocket_url
+
+from backend_api_utils import BackendAPIClient, open_connection_websocket_until_signaled, receive_signal_over_connection, send_signal_over_connection, utc_now_seconds_rfc3339, websocket_ssl_context
 from mqtt_test_utils import MQTTPublisher, MQTTSubscription
-from utils import generate_random_string
+from settings import api_websocket_base_url, app_base_url, chrome_options, hub_url
+from utils import generate_random_string, login, wait_for_session_running
 
 
 class TestBackendMQTT(unittest.TestCase):
@@ -426,3 +437,352 @@ class TestBackendMQTT(unittest.TestCase):
         self.assertEqual(message["type"], "signal")
         self.assertEqual(message["signal"]["from_connection_id"], sender_connection_id)
         self.assertEqual(message["signal"]["data"], signal_data)
+
+
+    def test_legacy_websocket_description_signal_is_published_as_mqtt_description(self):
+        client = BackendAPIClient()
+        email = f"{generate_random_string(10)}@integrationtests.com"
+        password = generate_random_string(20)
+        sender_client_id = generate_random_string(24)
+        sender_connection_id = generate_random_string(24)
+        target_client_id = generate_random_string(24)
+        target_connection_id = generate_random_string(24)
+        target_request_id = generate_random_string(24)
+        offer = {
+            "type": "offer",
+            "sdp": "test-offer",
+        }
+
+        account = client.create_account(email, password)
+        account_id = account["id"]
+        access_token = client.login(email, password)
+
+        target_status_topic = f"accounts/{account_id}/clients/{target_client_id}/status"
+        target_webrtc_inbox_topic = f"accounts/{account_id}/clients/{target_client_id}/webrtc_inbox"
+
+        with MQTTSubscription([target_webrtc_inbox_topic]) as subscription:
+            with MQTTPublisher() as publisher:
+                publisher.publish_json(target_status_topic, {
+                    "type": "connected",
+                    "connection_id": target_connection_id,
+                    "request_id": target_request_id,
+                    "at_millis": int(time.time() * 1000),
+                })
+
+            client.wait_for_matching_events(
+                access_token,
+                count=1,
+                predicate=lambda event: event["type"] == "client.connected" and event["data"]["connection_id"] == target_connection_id,
+                from_cursor=0,
+            )
+
+            trio.run(
+                send_signal_over_connection,
+                access_token,
+                sender_client_id,
+                sender_connection_id,
+                target_connection_id,
+                {"description": offer},
+            )
+
+            messages = trio.run(
+                subscription.wait_for_messages_async,
+                1,
+                lambda message: message["topic"] == target_webrtc_inbox_topic,
+            )
+
+        self.assertEqual(len(messages), 1)
+        payload = messages[0]["payload"]
+        self.assertEqual(payload["from_client_id"], sender_client_id)
+        self.assertEqual(payload["type"], "description")
+        self.assertEqual(payload["description"], offer)
+
+    def test_mqtt_description_signal_is_delivered_as_legacy_websocket_description(self):
+        client = BackendAPIClient()
+        email = f"{generate_random_string(10)}@integrationtests.com"
+        password = generate_random_string(20)
+        target_client_id = generate_random_string(24)
+        target_connection_id = generate_random_string(24)
+        sender_client_id = generate_random_string(24)
+        sender_connection_id = generate_random_string(24)
+        sender_request_id = generate_random_string(24)
+        answer = {
+            "type": "answer",
+            "sdp": "test-answer",
+        }
+
+        account = client.create_account(email, password)
+        account_id = account["id"]
+        access_token = client.login(email, password)
+        sender_status_topic = f"accounts/{account_id}/clients/{sender_client_id}/status"
+        target_webrtc_inbox_topic = f"accounts/{account_id}/clients/{target_client_id}/webrtc_inbox"
+
+        async def run_flow():
+            ready_event = trio.Event()
+            send_channel, receive_channel = trio.open_memory_channel(1)
+            async with trio.open_nursery() as nursery:
+                nursery.start_soon(
+                    receive_signal_over_connection,
+                    access_token,
+                    target_client_id,
+                    target_connection_id,
+                    ready_event,
+                    send_channel,
+                )
+                await ready_event.wait()
+
+                with MQTTPublisher() as publisher:
+                    publisher.publish_json(sender_status_topic, {
+                        "type": "connected",
+                        "connection_id": sender_connection_id,
+                        "request_id": sender_request_id,
+                        "at_millis": int(time.time() * 1000),
+                    })
+
+                client.wait_for_matching_events(
+                    access_token,
+                    count=1,
+                    predicate=lambda event: event["type"] == "client.connected" and event["data"]["connection_id"] == sender_connection_id,
+                    from_cursor=0,
+                )
+
+                with MQTTPublisher() as publisher:
+                    publisher.publish_json(target_webrtc_inbox_topic, {
+                        "from_client_id": sender_client_id,
+                        "type": "description",
+                        "description": answer,
+                    })
+
+                message = await receive_channel.receive()
+                nursery.cancel_scope.cancel()
+                return message
+
+        message = trio.run(run_flow)
+
+        self.assertEqual(message["type"], "signal")
+        self.assertEqual(message["signal"]["from_connection_id"], sender_connection_id)
+        self.assertIn("description", message["signal"]["data"])
+        self.assertEqual(message["signal"]["data"]["description"], answer)
+
+    def test_legacy_backend_websocket_parent_receives_answer_from_mqtt_frontend_baby_station(self):
+        client = BackendAPIClient()
+        email = f"{generate_random_string(10)}@integrationtests.com"
+        password = generate_random_string(20)
+        baby_client_id = generate_random_string(24)
+        parent_client_id = generate_random_string(24)
+        parent_connection_id = generate_random_string(24)
+        session_name = generate_random_string(10)
+
+        client.create_account(email, password)
+        access_token = client.login(email, password)
+
+        baby_ready = threading.Event()
+        release_baby = threading.Event()
+        offer_queue = queue.Queue(maxsize=1)
+
+        def run_baby_station():
+            with webdriver.Remote(command_executor=hub_url, options=chrome_options) as driver:
+                driver.get(app_base_url)
+                driver.execute_script("localStorage.setItem('clientID', arguments[0]);", baby_client_id)
+                driver.refresh()
+                login(driver, email, password)
+                driver.find_element(By.ID, "nav-link-baby").click()
+
+                wait = WebDriverWait(driver, 10)
+                wait.until(lambda driver: driver.find_element(By.ID, "button-continue-media-stream-permission-check")).click()
+                session_name_input = wait.until(lambda driver: driver.find_element(By.ID, "input-session-name"))
+                session_name_input.clear()
+                session_name_input.send_keys(session_name)
+                wait.until(lambda driver: driver.find_element(By.ID, "session-toggle")).click()
+                wait_for_session_running(driver, timeout=10)
+
+                offer = driver.execute_async_script("""
+                    const done = arguments[arguments.length - 1];
+                    (async () => {
+                        const peerConnection = new RTCPeerConnection({ iceServers: [] });
+                        peerConnection.addTransceiver("video", { direction: "recvonly" });
+                        peerConnection.addTransceiver("audio", { direction: "recvonly" });
+                        const offer = await peerConnection.createOffer();
+                        await peerConnection.setLocalDescription(offer);
+                        done({ type: peerConnection.localDescription.type, sdp: peerConnection.localDescription.sdp });
+                    })().catch((error) => done({ error: String(error) }));
+                """)
+                if "error" in offer:
+                    raise AssertionError(offer["error"])
+                offer_queue.put(offer)
+                baby_ready.set()
+                if not release_baby.wait(timeout=30):
+                    raise AssertionError("timed out waiting to release baby station browser")
+
+        async def run_flow():
+            query = urlencode({
+                "access_token": access_token,
+            })
+            websocket_url = f"{api_websocket_base_url}/clients/{parent_client_id}/connections/{parent_connection_id}?{query}"
+
+            async with trio.open_nursery() as nursery:
+                nursery.start_soon(trio.to_thread.run_sync, run_baby_station)
+                baby_started = await trio.to_thread.run_sync(baby_ready.wait, 20)
+                if not baby_started:
+                    raise AssertionError("timed out waiting for baby station browser")
+                offer_signal_data = offer_queue.get(timeout=1)
+
+                baby_connected_event = client.wait_for_event(
+                    access_token,
+                    predicate=lambda event: event["type"] == "client.connected" and event["data"]["client_id"] == baby_client_id,
+                    from_cursor=0,
+                    timeout_seconds=10,
+                )
+                baby_connection_id = baby_connected_event["data"]["connection_id"]
+
+                async with open_websocket_url(websocket_url, ssl_context=websocket_ssl_context()) as websocket:
+                    client.wait_for_event(
+                        access_token,
+                        predicate=lambda event: event["type"] == "client.connected" and event["data"]["connection_id"] == parent_connection_id,
+                        from_cursor=0,
+                        timeout_seconds=10,
+                    )
+
+                    await trio.sleep(0.6)
+                    await websocket.send_message(json.dumps({
+                        "type": "signal",
+                        "signal": {
+                            "to_connection_id": baby_connection_id,
+                            "data": {
+                                "description": offer_signal_data,
+                            },
+                        },
+                    }))
+
+                    websocket_message = None
+                    with trio.move_on_after(10) as timeout_scope:
+                        websocket_message = await websocket.get_message()
+                    if timeout_scope.cancelled_caught:
+                        release_baby.set()
+                        nursery.cancel_scope.cancel()
+                        raise AssertionError("timed out waiting for legacy websocket parent to receive MQTT baby station answer")
+                    if isinstance(websocket_message, bytes):
+                        websocket_message = websocket_message.decode("utf-8")
+
+                release_baby.set()
+                nursery.cancel_scope.cancel()
+                return json.loads(websocket_message)
+
+        try:
+            message = trio.run(run_flow)
+        finally:
+            release_baby.set()
+
+        self.assertEqual(message["type"], "signal")
+        self.assertEqual(message["signal"]["data"]["description"]["type"], "answer")
+        self.assertIn("sdp", message["signal"]["data"]["description"])
+
+
+    def test_legacy_backend_websocket_baby_station_receives_offer_from_mqtt_frontend_parent(self):
+        client = BackendAPIClient()
+        email = f"{generate_random_string(10)}@integrationtests.com"
+        password = generate_random_string(20)
+        baby_client_id = generate_random_string(24)
+        baby_connection_id = generate_random_string(24)
+        parent_client_id = generate_random_string(24)
+        session_id = generate_random_string(24)
+        session_name = generate_random_string(10)
+        started_at = utc_now_seconds_rfc3339()
+
+        account = client.create_account(email, password)
+        account_id = account["id"]
+        access_token = client.login(email, password)
+
+        response = client.start_session(access_token, session_id, {
+            "id": session_id,
+            "name": session_name,
+            "host_connection_id": baby_connection_id,
+            "started_at": started_at,
+        })
+        self.assertEqual(response.status_code, 200, response.text)
+
+        release_parent = threading.Event()
+
+        def run_parent_station():
+            baby_stations_topic = f"accounts/{account_id}/baby_stations"
+            announcement_payload = {
+                "type": "announcement",
+                "at_millis": int(time.time() * 1000),
+                "announcement": {
+                    "client_id": baby_client_id,
+                    "connection_id": baby_connection_id,
+                    "session_id": session_id,
+                    "name": session_name,
+                    "started_at_millis": int(time.time() * 1000),
+                },
+            }
+
+            with webdriver.Remote(command_executor=hub_url, options=chrome_options) as driver:
+                driver.get(app_base_url)
+                driver.execute_script("localStorage.setItem('clientID', arguments[0]);", parent_client_id)
+                driver.refresh()
+                login(driver, email, password)
+                driver.find_element(By.ID, "nav-link-parent").click()
+
+                end_time = time.monotonic() + 10
+                with MQTTPublisher() as publisher:
+                    while time.monotonic() < end_time:
+                        publisher.publish_json(baby_stations_topic, announcement_payload)
+                        dropdowns = driver.find_elements(By.ID, "baby-station-dropdown")
+                        try:
+                            if dropdowns and dropdowns[0].get_attribute("value") == session_id:
+                                break
+                        except StaleElementReferenceException:
+                            pass
+                        time.sleep(0.5)
+
+                WebDriverWait(driver, 2).until(
+                    lambda driver: driver.find_element(By.ID, "baby-station-dropdown").get_attribute("value") == session_id
+                )
+                if not release_parent.wait(timeout=30):
+                    raise AssertionError("timed out waiting to release parent station browser")
+
+        async def run_flow():
+            ready_event = trio.Event()
+            send_channel, receive_channel = trio.open_memory_channel(1)
+            async with trio.open_nursery() as nursery:
+                nursery.start_soon(
+                    receive_signal_over_connection,
+                    access_token,
+                    baby_client_id,
+                    baby_connection_id,
+                    ready_event,
+                    send_channel,
+                )
+                await ready_event.wait()
+
+                client.wait_for_matching_events(
+                    access_token,
+                    count=2,
+                    predicate=lambda event: event["type"] in {"client.connected", "session.started"},
+                    from_cursor=0,
+                    timeout_seconds=10,
+                )
+
+                nursery.start_soon(trio.to_thread.run_sync, run_parent_station)
+                message = None
+                with trio.move_on_after(10) as timeout_scope:
+                    message = await receive_channel.receive()
+                if timeout_scope.cancelled_caught:
+                    release_parent.set()
+                    nursery.cancel_scope.cancel()
+                    raise AssertionError("timed out waiting for legacy websocket baby station to receive MQTT parent station offer")
+
+                release_parent.set()
+                nursery.cancel_scope.cancel()
+                return message
+
+        try:
+            message = trio.run(run_flow)
+        finally:
+            release_parent.set()
+
+        self.assertEqual(message["type"], "signal")
+        self.assertIn("description", message["signal"]["data"])
+        self.assertEqual(message["signal"]["data"]["description"]["type"], "offer")
+        self.assertIn("sdp", message["signal"]["data"]["description"])

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/Ryan-A-B/beddybytes/golang/internal/fatal"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/sessions"
 )
 
@@ -47,14 +48,13 @@ func NewWebRTCInboxPayload(fromClientID string, signalData json.RawMessage) WebR
 		FromClientID: fromClientID,
 	}
 	var probe struct {
-		Type      string          `json:"type"`
-		Candidate json.RawMessage `json:"candidate"`
+		Description json.RawMessage `json:"description"`
+		Candidate   json.RawMessage `json:"candidate"`
 	}
 	if err := json.Unmarshal(signalData, &probe); err == nil {
-		switch probe.Type {
-		case "offer", "answer":
+		if probe.Description != nil {
 			payload.Type = WebRTCInboxTypeDescription
-			payload.Description = signalData
+			payload.Description = probe.Description
 			return payload
 		}
 		if probe.Candidate != nil {
@@ -68,15 +68,27 @@ func NewWebRTCInboxPayload(fromClientID string, signalData json.RawMessage) WebR
 	return payload
 }
 
+type DescriptionSignalData struct {
+	Description json.RawMessage `json:"description"`
+}
+
 func (payload WebRTCInboxPayload) SignalData() json.RawMessage {
 	if payload.Type == WebRTCInboxTypeDescription && payload.Description != nil {
-		return payload.Description
+		data, err := json.Marshal(DescriptionSignalData{
+			Description: payload.Description,
+		})
+		fatal.OnError(err)
+		return data
 	}
 	if payload.Type == WebRTCInboxTypeCandidate && payload.Candidate != nil {
 		return payload.Candidate
 	}
 	if payload.Description != nil {
-		return payload.Description
+		data, err := json.Marshal(DescriptionSignalData{
+			Description: payload.Description,
+		})
+		fatal.OnError(err)
+		return data
 	}
 	return payload.Candidate
 }
