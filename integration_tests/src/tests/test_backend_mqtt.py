@@ -357,7 +357,7 @@ class TestBackendMQTT(unittest.TestCase):
                 sender_client_id,
                 sender_connection_id,
                 target_connection_id,
-                signal_data,
+                {"description": signal_data},
             )
 
             messages = trio.run(
@@ -436,7 +436,7 @@ class TestBackendMQTT(unittest.TestCase):
 
         self.assertEqual(message["type"], "signal")
         self.assertEqual(message["signal"]["from_connection_id"], sender_connection_id)
-        self.assertEqual(message["signal"]["data"], signal_data)
+        self.assertEqual(message["signal"]["data"]["description"], signal_data)
 
 
     def test_legacy_websocket_description_signal_is_published_as_mqtt_description(self):
