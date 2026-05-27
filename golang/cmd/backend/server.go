@@ -231,7 +231,7 @@ func main() {
 	mqttClient := newMQTTClient()
 	connectionRegistry := backendmqtt.NewConnectionRegistry()
 	pendingSessionStarts := backendmqtt.NewPendingSessionStarts()
-	offlineSessionCleanup := backendmqtt.NewOfflineSessionCleanupScheduler(backendmqtt.NewOfflineSessionCleanupSchedulerInput{
+	reconnectTimeout := backendmqtt.NewReconnectTimeoutScheduler(backendmqtt.NewReconnectTimeoutSchedulerInput{
 		EventLog: eventLog,
 		Retain:   4 * time.Hour,
 	})
@@ -310,17 +310,17 @@ func main() {
 			ConnectionStore: connectionstore.NewDecider(connectionstore.NewDeciderInput{
 				EventLog: eventLog,
 			}),
-			ConnectionRegistry:    connectionRegistry,
-			PendingSessionStarts:  pendingSessionStarts,
-			OfflineSessionCleanup: offlineSessionCleanup,
+			ConnectionRegistry:   connectionRegistry,
+			PendingSessionStarts: pendingSessionStarts,
+			ReconnectTimeout:     reconnectTimeout,
 		})
 		log.Fatal("backendmqtt.RunClientStatusSync exited")
 	}()
 	go func() {
 		backendmqtt.RunBabyStationAnnouncementSync(ctx, backendmqtt.RunBabyStationAnnouncementSyncInput{
-			MQTTClient:            mqttClient,
-			EventLog:              eventLog,
-			OfflineSessionCleanup: offlineSessionCleanup,
+			MQTTClient:       mqttClient,
+			EventLog:         eventLog,
+			ReconnectTimeout: reconnectTimeout,
 		})
 		log.Fatal("backendmqtt.RunBabyStationAnnouncementSync exited")
 	}()

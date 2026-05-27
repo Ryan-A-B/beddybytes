@@ -23,11 +23,11 @@ var babyStationsTopicRegex = regexp.MustCompile(`^accounts/([^/]+)/baby_stations
 var parentStationsTopicRegex = regexp.MustCompile(`^accounts/([^/]+)/parent_stations$`)
 
 type RunClientStatusSyncInput struct {
-	MQTTClient            mqtt.Client
-	ConnectionStore       *connectionstore.Decider
-	ConnectionRegistry    *ConnectionRegistry
-	PendingSessionStarts  *PendingSessionStarts
-	OfflineSessionCleanup *OfflineSessionCleanupScheduler
+	MQTTClient           mqtt.Client
+	ConnectionStore      *connectionstore.Decider
+	ConnectionRegistry   *ConnectionRegistry
+	PendingSessionStarts *PendingSessionStarts
+	ReconnectTimeout     *ReconnectTimeoutScheduler
 }
 
 func RunClientStatusSync(ctx context.Context, input RunClientStatusSyncInput) {
@@ -59,8 +59,8 @@ func handleClientStatusMessage(client mqtt.Client, message mqtt.Message, input R
 	}
 	switch payload.Type {
 	case ClientStatusTypeConnected:
-		if input.OfflineSessionCleanup != nil {
-			input.OfflineSessionCleanup.CancelClient(accountID, clientID)
+		if input.ReconnectTimeout != nil {
+			input.ReconnectTimeout.CancelClient(accountID, clientID)
 		}
 		input.ConnectionRegistry.Put(accountID, ConnectionInfo{
 			ClientID:     clientID,
@@ -91,6 +91,9 @@ func handleClientStatusMessage(client mqtt.Client, message mqtt.Message, input R
 		}
 		input.PendingSessionStarts.Delete(accountID, payload.ConnectionID)
 	case ClientStatusTypeDisconnected:
+		if payload.Disconnected != nil {
+			connection.Reason = string(payload.Disconnected.Reason)
+		}
 		input.ConnectionRegistry.Delete(accountID, ConnectionInfo{
 			ClientID:     clientID,
 			ConnectionID: payload.ConnectionID,
@@ -99,8 +102,8 @@ func handleClientStatusMessage(client mqtt.Client, message mqtt.Message, input R
 		if err := input.ConnectionStore.Delete(context.Background(), connection); err != nil && err != connectionstore.ErrDuplicate {
 			log.Fatal(err)
 		}
-		if input.OfflineSessionCleanup != nil {
-			input.OfflineSessionCleanup.Schedule(accountID, clientID, payload.ConnectionID)
+		if input.ReconnectTimeout != nil && connection.Reason != connections.DisconnectReasonClean {
+			input.ReconnectTimeout.Schedule(accountID, clientID, payload.ConnectionID, payload.RequestID)
 		}
 	default:
 		logx.Warnln("unhandled client status type:", payload.Type)
@@ -113,9 +116,9 @@ func PublishBabyStationAnnouncement(client mqtt.Client, accountID string, payloa
 }
 
 type RunBabyStationAnnouncementSyncInput struct {
-	MQTTClient            mqtt.Client
-	EventLog              eventlog.EventLog
-	OfflineSessionCleanup *OfflineSessionCleanupScheduler
+	MQTTClient       mqtt.Client
+	EventLog         eventlog.EventLog
+	ReconnectTimeout *ReconnectTimeoutScheduler
 }
 
 func RunBabyStationAnnouncementSync(ctx context.Context, input RunBabyStationAnnouncementSyncInput) {
@@ -143,8 +146,8 @@ func handleBabyStationAnnouncementMessage(message mqtt.Message, input RunBabySta
 		return
 	}
 	accountID := matches[1]
-	if input.OfflineSessionCleanup != nil {
-		input.OfflineSessionCleanup.TrackSession(accountID, payload.Announcement)
+	if input.ReconnectTimeout != nil {
+		input.ReconnectTimeout.CancelClient(accountID, payload.Announcement.ClientID)
 	}
 	data := fatal.UnlessMarshalJSON(payload.Session())
 	_, err := input.EventLog.Append(context.Background(), eventlog.AppendInput{

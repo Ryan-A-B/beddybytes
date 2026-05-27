@@ -19,6 +19,7 @@ type Connection struct {
 	AccountID string
 	ClientID  string
 	RequestID string
+	Reason    string
 }
 
 type ApplyFunc func(ctx context.Context, event *eventlog.Event) error
@@ -91,6 +92,7 @@ func (decider *Decider) Delete(ctx context.Context, connection Connection) error
 		ClientID:     connection.ClientID,
 		ConnectionID: connection.ID,
 		RequestID:    connection.RequestID,
+		Reason:       connection.Reason,
 	})
 	fatal.OnError(err)
 	_, err = decider.eventLog.Append(ctx, eventlog.AppendInput{
