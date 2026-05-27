@@ -3,13 +3,12 @@ package backendmqtt
 import (
 	"context"
 	"encoding/json"
-	"log"
 	"regexp"
 	"time"
 
 	"github.com/Ryan-A-B/beddybytes/golang/internal/babystationlist"
-	"github.com/Ryan-A-B/beddybytes/golang/internal/connectionstore"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/connections"
+	"github.com/Ryan-A-B/beddybytes/golang/internal/connectionstore"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/contextx"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/eventlog"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/fatal"
@@ -23,10 +22,11 @@ var babyStationsTopicRegex = regexp.MustCompile(`^accounts/([^/]+)/baby_stations
 var parentStationsTopicRegex = regexp.MustCompile(`^accounts/([^/]+)/parent_stations$`)
 
 type RunClientStatusSyncInput struct {
-	MQTTClient            mqtt.Client
-	ConnectionStore       *connectionstore.Decider
-	ConnectionRegistry    *ConnectionRegistry
-	PendingSessionStarts  *PendingSessionStarts
+	MQTTClient           mqtt.Client
+	ConnectionStore      *connectionstore.Decider
+	ConnectionRegistry   *ConnectionRegistry
+	PendingSessionStarts *PendingSessionStarts
+	ReconnectTimeout     *ReconnectTimeoutScheduler
 }
 
 func RunClientStatusSync(ctx context.Context, input RunClientStatusSyncInput) {
@@ -58,13 +58,15 @@ func handleClientStatusMessage(client mqtt.Client, message mqtt.Message, input R
 	}
 	switch payload.Type {
 	case ClientStatusTypeConnected:
+		input.ReconnectTimeout.CancelClient(accountID, clientID)
 		input.ConnectionRegistry.Put(accountID, ConnectionInfo{
 			ClientID:     clientID,
 			ConnectionID: payload.ConnectionID,
 			RequestID:    payload.RequestID,
 		})
 		if err := input.ConnectionStore.Put(context.Background(), connection); err != nil && err != connectionstore.ErrDuplicate {
-			log.Fatal(err)
+			logx.Warnln(err)
+			return
 		}
 		pending, ok := input.PendingSessionStarts.Get(accountID, payload.ConnectionID)
 		if !ok {
@@ -87,13 +89,20 @@ func handleClientStatusMessage(client mqtt.Client, message mqtt.Message, input R
 		}
 		input.PendingSessionStarts.Delete(accountID, payload.ConnectionID)
 	case ClientStatusTypeDisconnected:
+		if payload.Disconnected != nil {
+			connection.Reason = string(payload.Disconnected.Reason)
+		}
 		input.ConnectionRegistry.Delete(accountID, ConnectionInfo{
 			ClientID:     clientID,
 			ConnectionID: payload.ConnectionID,
 			RequestID:    payload.RequestID,
 		})
 		if err := input.ConnectionStore.Delete(context.Background(), connection); err != nil && err != connectionstore.ErrDuplicate {
-			log.Fatal(err)
+			logx.Warnln(err)
+			return
+		}
+		if connection.Reason != connections.DisconnectReasonClean {
+			input.ReconnectTimeout.Schedule(accountID, clientID, payload.ConnectionID, payload.RequestID)
 		}
 	default:
 		logx.Warnln("unhandled client status type:", payload.Type)
@@ -106,8 +115,9 @@ func PublishBabyStationAnnouncement(client mqtt.Client, accountID string, payloa
 }
 
 type RunBabyStationAnnouncementSyncInput struct {
-	MQTTClient mqtt.Client
-	EventLog   eventlog.EventLog
+	MQTTClient       mqtt.Client
+	EventLog         eventlog.EventLog
+	ReconnectTimeout *ReconnectTimeoutScheduler
 }
 
 func RunBabyStationAnnouncementSync(ctx context.Context, input RunBabyStationAnnouncementSyncInput) {
@@ -135,6 +145,9 @@ func handleBabyStationAnnouncementMessage(message mqtt.Message, input RunBabySta
 		return
 	}
 	accountID := matches[1]
+	if input.ReconnectTimeout != nil {
+		input.ReconnectTimeout.CancelClient(accountID, payload.Announcement.ClientID)
+	}
 	data := fatal.UnlessMarshalJSON(payload.Session())
 	_, err := input.EventLog.Append(context.Background(), eventlog.AppendInput{
 		Type:      "session.started",
@@ -176,8 +189,8 @@ func ConnectedEventData(clientID string, connectionID string, requestID string) 
 }
 
 type RunParentStationAnnouncementSyncInput struct {
-	MQTTClient       mqtt.Client
-	BabyStationList  *babystationlist.BabyStationList
+	MQTTClient      mqtt.Client
+	BabyStationList *babystationlist.BabyStationList
 }
 
 func RunParentStationAnnouncementSync(ctx context.Context, input RunParentStationAnnouncementSyncInput) {

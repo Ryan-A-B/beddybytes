@@ -55,6 +55,7 @@ func TestBabyStationList(t *testing.T) {
 		Convey("Starting a session isn't enough for a baby station to show", func() {
 			clientID := uuid.NewV4().String()
 			connectionID := uuid.NewV4().String()
+			requestID := uuid.NewV4().String()
 			sessionName := "Test Session"
 			sessionStartedAt := time.Now()
 			session := babystationlist.StartSessionEventData{
@@ -83,7 +84,7 @@ func TestBabyStationList(t *testing.T) {
 					Data: fatal.UnlessMarshalJSON(connections.EventConnected{
 						ClientID:     clientID,
 						ConnectionID: connectionID,
-						RequestID:    uuid.NewV4().String(),
+						RequestID:    requestID,
 					}),
 				})
 				So(err, ShouldBeNil)
@@ -105,6 +106,8 @@ func TestBabyStationList(t *testing.T) {
 						Data: fatal.UnlessMarshalJSON(connections.EventDisconnected{
 							ClientID:     clientID,
 							ConnectionID: connectionID,
+							RequestID:    requestID,
+							Reason:       connections.DisconnectReasonUnexpected,
 						}),
 					})
 					So(err, ShouldBeNil)
@@ -148,34 +151,11 @@ func TestBabyStationList(t *testing.T) {
 					So(err, ShouldBeNil)
 					output, err = babyStationList.GetSnapshot(ctx)
 					So(err, ShouldBeNil)
-					So(output.Snapshot.SessionByID, ShouldHaveLength, 1)
-					So(output.Snapshot.SessionIDByConnectionID, ShouldHaveLength, 1)
+					So(output.Snapshot.SessionByID, ShouldHaveLength, 0)
+					So(output.Snapshot.SessionIDByConnectionID, ShouldHaveLength, 0)
 					So(output.Snapshot.ConnectionByID, ShouldHaveLength, 0)
 					So(output.Snapshot.List(), ShouldHaveLength, 0)
 					So(output.Cursor, ShouldEqual, 3)
-					Convey("When the client reconnects, the session should be listed again", func() {
-						_, err = eventLog.Append(ctx, eventlog.AppendInput{
-							Type:      connections.EventTypeConnected,
-							AccountID: accountID,
-							Data: fatal.UnlessMarshalJSON(connections.EventConnected{
-								ClientID:     clientID,
-								ConnectionID: connectionID,
-								RequestID:    uuid.NewV4().String(),
-							}),
-						})
-						So(err, ShouldBeNil)
-						output, err = babyStationList.GetSnapshot(ctx)
-						So(err, ShouldBeNil)
-						So(output.Snapshot.SessionByID, ShouldHaveLength, 1)
-						So(output.Snapshot.SessionIDByConnectionID, ShouldHaveLength, 1)
-						So(output.Snapshot.ConnectionByID, ShouldHaveLength, 1)
-						So(output.Snapshot.List(), ShouldHaveLength, 1)
-						So(output.Cursor, ShouldEqual, 4)
-						babyStation := output.Snapshot.List()[0]
-						So(babyStation.Name, ShouldEqual, sessionName)
-						So(babyStation.Connection.ID, ShouldEqual, connectionID)
-						So(babyStation.StartedAt, ShouldHappenWithin, time.Millisecond, sessionStartedAt)
-					})
 				})
 				Convey("Baby station should not be listed for another account", func() {
 					otherAccountID := uuid.NewV4().String()
@@ -279,6 +259,195 @@ func TestBabyStationList(t *testing.T) {
 				So(babyStation.Name, ShouldEqual, sessionName1)
 				So(babyStation.StartedAt, ShouldHappenWithin, time.Millisecond, sessionStartedAt1)
 			}
+		})
+
+		Convey("A clean disconnect should remove the session", func() {
+			clientID := uuid.NewV4().String()
+			connectionID := uuid.NewV4().String()
+			requestID := uuid.NewV4().String()
+			session := babystationlist.StartSessionEventData{
+				ID:               uuid.NewV4().String(),
+				Name:             "clean disconnect session",
+				HostConnectionID: connectionID,
+				StartedAt:        time.Now(),
+			}
+			_, err := eventLog.Append(ctx, eventlog.AppendInput{
+				Type:      babystationlist.EventTypeSessionStarted,
+				AccountID: accountID,
+				Data:      fatal.UnlessMarshalJSON(session),
+			})
+			So(err, ShouldBeNil)
+			_, err = eventLog.Append(ctx, eventlog.AppendInput{
+				Type:      connections.EventTypeConnected,
+				AccountID: accountID,
+				Data: fatal.UnlessMarshalJSON(connections.EventConnected{
+					ClientID:     clientID,
+					ConnectionID: connectionID,
+					RequestID:    requestID,
+				}),
+			})
+			So(err, ShouldBeNil)
+
+			output, err := babyStationList.GetSnapshot(ctx)
+			So(err, ShouldBeNil)
+			So(output.Snapshot.SessionByID, ShouldHaveLength, 1)
+			So(output.Snapshot.SessionIDByConnectionID, ShouldHaveLength, 1)
+			So(output.Snapshot.ConnectionByID, ShouldHaveLength, 1)
+			So(output.Snapshot.List(), ShouldHaveLength, 1)
+
+			_, err = eventLog.Append(ctx, eventlog.AppendInput{
+				Type:      connections.EventTypeDisconnected,
+				AccountID: accountID,
+				Data: fatal.UnlessMarshalJSON(connections.EventDisconnected{
+					ClientID:     clientID,
+					ConnectionID: connectionID,
+					RequestID:    requestID,
+					Reason:       connections.DisconnectReasonClean,
+				}),
+			})
+			So(err, ShouldBeNil)
+			output, err = babyStationList.GetSnapshot(ctx)
+			So(err, ShouldBeNil)
+			So(output.Snapshot.SessionByID, ShouldHaveLength, 0)
+			So(output.Snapshot.SessionIDByConnectionID, ShouldHaveLength, 0)
+			So(output.Snapshot.ConnectionByID, ShouldHaveLength, 0)
+			So(output.Snapshot.List(), ShouldHaveLength, 0)
+		})
+
+		Convey("A reconnect timeout should remove the client's offline session", func() {
+			clientID := uuid.NewV4().String()
+			connectionID := uuid.NewV4().String()
+			requestID := uuid.NewV4().String()
+			session := babystationlist.StartSessionEventData{
+				ID:               uuid.NewV4().String(),
+				Name:             "timeout session",
+				HostConnectionID: connectionID,
+				StartedAt:        time.Now(),
+			}
+			_, err := eventLog.Append(ctx, eventlog.AppendInput{
+				Type:      babystationlist.EventTypeSessionStarted,
+				AccountID: accountID,
+				Data:      fatal.UnlessMarshalJSON(session),
+			})
+			So(err, ShouldBeNil)
+			_, err = eventLog.Append(ctx, eventlog.AppendInput{
+				Type:      connections.EventTypeConnected,
+				AccountID: accountID,
+				Data: fatal.UnlessMarshalJSON(connections.EventConnected{
+					ClientID:     clientID,
+					ConnectionID: connectionID,
+					RequestID:    requestID,
+				}),
+			})
+			So(err, ShouldBeNil)
+			_, err = eventLog.Append(ctx, eventlog.AppendInput{
+				Type:      connections.EventTypeDisconnected,
+				AccountID: accountID,
+				Data: fatal.UnlessMarshalJSON(connections.EventDisconnected{
+					ClientID:     clientID,
+					ConnectionID: connectionID,
+					RequestID:    requestID,
+					Reason:       connections.DisconnectReasonUnexpected,
+				}),
+			})
+			So(err, ShouldBeNil)
+
+			output, err := babyStationList.GetSnapshot(ctx)
+			So(err, ShouldBeNil)
+			So(output.Snapshot.SessionByID, ShouldHaveLength, 1)
+			So(output.Snapshot.SessionIDByConnectionID, ShouldHaveLength, 1)
+			So(output.Snapshot.ConnectionByID, ShouldHaveLength, 0)
+			So(output.Snapshot.List(), ShouldHaveLength, 0)
+
+			_, err = eventLog.Append(ctx, eventlog.AppendInput{
+				Type:      connections.EventTypeReconnectTimeout,
+				AccountID: accountID,
+				Data: fatal.UnlessMarshalJSON(connections.EventReconnectTimeout{
+					ClientID:     clientID,
+					ConnectionID: connectionID,
+					RequestID:    requestID,
+				}),
+			})
+			So(err, ShouldBeNil)
+			output, err = babyStationList.GetSnapshot(ctx)
+			So(err, ShouldBeNil)
+			So(output.Snapshot.SessionByID, ShouldHaveLength, 0)
+			So(output.Snapshot.SessionIDByConnectionID, ShouldHaveLength, 0)
+			So(output.Snapshot.ConnectionByID, ShouldHaveLength, 0)
+			So(output.Snapshot.List(), ShouldHaveLength, 0)
+		})
+
+		Convey("A new session from the same client should replace the previous offline session", func() {
+			clientID := uuid.NewV4().String()
+			oldConnectionID := uuid.NewV4().String()
+			oldRequestID := uuid.NewV4().String()
+			oldSession := babystationlist.StartSessionEventData{
+				ID:               uuid.NewV4().String(),
+				Name:             "old session",
+				HostConnectionID: oldConnectionID,
+				StartedAt:        time.Now(),
+			}
+			_, err := eventLog.Append(ctx, eventlog.AppendInput{
+				Type:      babystationlist.EventTypeSessionStarted,
+				AccountID: accountID,
+				Data:      fatal.UnlessMarshalJSON(oldSession),
+			})
+			So(err, ShouldBeNil)
+			_, err = eventLog.Append(ctx, eventlog.AppendInput{
+				Type:      connections.EventTypeConnected,
+				AccountID: accountID,
+				Data: fatal.UnlessMarshalJSON(connections.EventConnected{
+					ClientID:     clientID,
+					ConnectionID: oldConnectionID,
+					RequestID:    oldRequestID,
+				}),
+			})
+			So(err, ShouldBeNil)
+			_, err = eventLog.Append(ctx, eventlog.AppendInput{
+				Type:      connections.EventTypeDisconnected,
+				AccountID: accountID,
+				Data: fatal.UnlessMarshalJSON(connections.EventDisconnected{
+					ClientID:     clientID,
+					ConnectionID: oldConnectionID,
+					RequestID:    oldRequestID,
+				}),
+			})
+			So(err, ShouldBeNil)
+
+			newConnectionID := uuid.NewV4().String()
+			newSession := babystationlist.StartSessionEventData{
+				ID:               uuid.NewV4().String(),
+				Name:             "new session",
+				HostConnectionID: newConnectionID,
+				StartedAt:        time.Now(),
+			}
+			_, err = eventLog.Append(ctx, eventlog.AppendInput{
+				Type:      babystationlist.EventTypeSessionStarted,
+				AccountID: accountID,
+				Data:      fatal.UnlessMarshalJSON(newSession),
+			})
+			So(err, ShouldBeNil)
+			_, err = eventLog.Append(ctx, eventlog.AppendInput{
+				Type:      connections.EventTypeConnected,
+				AccountID: accountID,
+				Data: fatal.UnlessMarshalJSON(connections.EventConnected{
+					ClientID:     clientID,
+					ConnectionID: newConnectionID,
+					RequestID:    uuid.NewV4().String(),
+				}),
+			})
+			So(err, ShouldBeNil)
+
+			output, err := babyStationList.GetSnapshot(ctx)
+			So(err, ShouldBeNil)
+			So(output.Snapshot.SessionByID, ShouldHaveLength, 1)
+			So(output.Snapshot.SessionIDByConnectionID, ShouldHaveLength, 1)
+			So(output.Snapshot.ConnectionByID, ShouldHaveLength, 1)
+			So(output.Snapshot.List(), ShouldHaveLength, 1)
+			babyStation := output.Snapshot.List()[0]
+			So(babyStation.ClientID, ShouldEqual, clientID)
+			So(babyStation.Name, ShouldEqual, newSession.Name)
+			So(babyStation.Connection.ID, ShouldEqual, newConnectionID)
 		})
 	})
 }

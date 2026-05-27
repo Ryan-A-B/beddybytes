@@ -191,11 +191,11 @@ func applySessionStartedEvent(ctx context.Context, sessionList *SessionList, eve
 		}
 	}
 	sessionList.put(&Session{
-		AccountID:        event.AccountID,
-		ID:               sessionStartedEventData.ID,
-		Name:             sessionStartedEventData.Name,
-		HostConnectionID: sessionStartedEventData.HostConnectionID,
-		StartedAt:        sessionStartedEventData.StartedAt,
+		AccountID:           event.AccountID,
+		ID:                  sessionStartedEventData.ID,
+		Name:                sessionStartedEventData.Name,
+		HostConnectionID:    sessionStartedEventData.HostConnectionID,
+		StartedAt:           sessionStartedEventData.StartedAt,
 		HostConnectionState: hostConnectionState,
 	})
 }
