@@ -252,12 +252,12 @@ class TestBackendHTTPAPI(unittest.TestCase):
             sender_connection_id,
             recipient_client_id,
             recipient_connection_id,
-            signal_data,
+            {"description": signal_data},
         )
 
         self.assertEqual(message["type"], "signal")
         self.assertEqual(message["signal"]["from_connection_id"], sender_connection_id)
-        self.assertEqual(message["signal"]["data"], signal_data)
+        self.assertEqual(message["signal"]["data"]["description"], signal_data)
 
     def test_websocket_signal_to_missing_connection_does_not_close_sender_connection(self):
         client = BackendAPIClient()
