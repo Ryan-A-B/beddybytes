@@ -5,7 +5,6 @@ import (
 	"errors"
 	"time"
 
-	"github.com/Ryan-A-B/beddybytes/golang/internal/fatal"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/sessions"
 )
 
@@ -44,53 +43,46 @@ type WebRTCInboxPayload struct {
 }
 
 func NewWebRTCInboxPayload(fromClientID string, signalData json.RawMessage) WebRTCInboxPayload {
-	payload := WebRTCInboxPayload{
-		FromClientID: fromClientID,
-	}
 	var probe struct {
 		Description json.RawMessage `json:"description"`
 		Candidate   json.RawMessage `json:"candidate"`
 	}
 	if err := json.Unmarshal(signalData, &probe); err == nil {
 		if probe.Description != nil {
-			payload.Type = WebRTCInboxTypeDescription
-			payload.Description = probe.Description
-			return payload
+			return WebRTCInboxPayload{
+				FromClientID: fromClientID,
+				Type:         WebRTCInboxTypeDescription,
+				Description:  probe.Description,
+			}
 		}
 		if probe.Candidate != nil {
-			payload.Type = WebRTCInboxTypeCandidate
-			payload.Candidate = signalData
-			return payload
+			return WebRTCInboxPayload{
+				FromClientID: fromClientID,
+				Type:         WebRTCInboxTypeCandidate,
+				Candidate:    probe.Candidate,
+			}
 		}
 	}
-	payload.Type = WebRTCInboxTypeCandidate
-	payload.Candidate = signalData
-	return payload
+	return WebRTCInboxPayload{}
 }
 
-type DescriptionSignalData struct {
-	Description json.RawMessage `json:"description"`
+type SignalData struct {
+	Description json.RawMessage `json:"description,omitempty"`
+	Candidate   json.RawMessage `json:"candidate,omitempty"`
 }
 
-func (payload WebRTCInboxPayload) SignalData() json.RawMessage {
-	if payload.Type == WebRTCInboxTypeDescription && payload.Description != nil {
-		data, err := json.Marshal(DescriptionSignalData{
+func (payload WebRTCInboxPayload) SignalData() SignalData {
+	if payload.Type == WebRTCInboxTypeDescription {
+		return SignalData{
 			Description: payload.Description,
-		})
-		fatal.OnError(err)
-		return data
+		}
 	}
-	if payload.Type == WebRTCInboxTypeCandidate && payload.Candidate != nil {
-		return payload.Candidate
+	if payload.Type == WebRTCInboxTypeCandidate {
+		return SignalData{
+			Candidate: payload.Candidate,
+		}
 	}
-	if payload.Description != nil {
-		data, err := json.Marshal(DescriptionSignalData{
-			Description: payload.Description,
-		})
-		fatal.OnError(err)
-		return data
-	}
-	return payload.Candidate
+	return SignalData{}
 }
 
 type BabyStationsPayload struct {

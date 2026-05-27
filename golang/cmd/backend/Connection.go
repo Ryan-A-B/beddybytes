@@ -122,12 +122,14 @@ func (handlers *Handlers) HandleConnection(responseWriter http.ResponseWriter, r
 			message.Ack()
 			return
 		}
-
+		var signalData json.RawMessage
+		signalData, err = json.Marshal(payload.SignalData())
+		fatal.OnError(err)
 		err = conn.WriteJSON(OutgoingMessage{
-			Type:   MessageTypeSignal,
+			Type: MessageTypeSignal,
 			Signal: &OutgoingSignal{
 				FromConnectionID: sender.ConnectionID,
-				Data:             payload.SignalData(),
+				Data:             signalData,
 			},
 		})
 		if err != nil {

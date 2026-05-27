@@ -564,6 +564,134 @@ class TestBackendMQTT(unittest.TestCase):
         self.assertIn("description", message["signal"]["data"])
         self.assertEqual(message["signal"]["data"]["description"], answer)
 
+
+    def test_legacy_websocket_candidate_signal_is_published_as_mqtt_candidate(self):
+        client = BackendAPIClient()
+        email = f"{generate_random_string(10)}@integrationtests.com"
+        password = generate_random_string(20)
+        sender_client_id = generate_random_string(24)
+        sender_connection_id = generate_random_string(24)
+        target_client_id = generate_random_string(24)
+        target_connection_id = generate_random_string(24)
+        target_request_id = generate_random_string(24)
+        candidate = {
+            "candidate": "candidate:1",
+            "sdpMid": "0",
+            "sdpMLineIndex": 0,
+        }
+
+        account = client.create_account(email, password)
+        account_id = account["id"]
+        access_token = client.login(email, password)
+
+        target_status_topic = f"accounts/{account_id}/clients/{target_client_id}/status"
+        target_webrtc_inbox_topic = f"accounts/{account_id}/clients/{target_client_id}/webrtc_inbox"
+
+        with MQTTSubscription([target_webrtc_inbox_topic]) as subscription:
+            with MQTTPublisher() as publisher:
+                publisher.publish_json(target_status_topic, {
+                    "type": "connected",
+                    "connection_id": target_connection_id,
+                    "request_id": target_request_id,
+                    "at_millis": int(time.time() * 1000),
+                })
+
+            client.wait_for_matching_events(
+                access_token,
+                count=1,
+                predicate=lambda event: event["type"] == "client.connected" and event["data"]["connection_id"] == target_connection_id,
+                from_cursor=0,
+            )
+
+            trio.run(
+                send_signal_over_connection,
+                access_token,
+                sender_client_id,
+                sender_connection_id,
+                target_connection_id,
+                {"candidate": candidate},
+            )
+
+            messages = trio.run(
+                subscription.wait_for_messages_async,
+                1,
+                lambda message: message["topic"] == target_webrtc_inbox_topic,
+            )
+
+        self.assertEqual(len(messages), 1)
+        payload = messages[0]["payload"]
+        self.assertEqual(payload["from_client_id"], sender_client_id)
+        self.assertEqual(payload["type"], "candidate")
+        self.assertEqual(payload["candidate"], candidate)
+
+    def test_mqtt_candidate_signal_is_delivered_as_legacy_websocket_candidate(self):
+        client = BackendAPIClient()
+        email = f"{generate_random_string(10)}@integrationtests.com"
+        password = generate_random_string(20)
+        target_client_id = generate_random_string(24)
+        target_connection_id = generate_random_string(24)
+        sender_client_id = generate_random_string(24)
+        sender_connection_id = generate_random_string(24)
+        sender_request_id = generate_random_string(24)
+        candidate = {
+            "candidate": "candidate:1",
+            "sdpMid": "0",
+            "sdpMLineIndex": 0,
+        }
+
+        account = client.create_account(email, password)
+        account_id = account["id"]
+        access_token = client.login(email, password)
+        sender_status_topic = f"accounts/{account_id}/clients/{sender_client_id}/status"
+        target_webrtc_inbox_topic = f"accounts/{account_id}/clients/{target_client_id}/webrtc_inbox"
+
+        async def run_flow():
+            ready_event = trio.Event()
+            send_channel, receive_channel = trio.open_memory_channel(1)
+            async with trio.open_nursery() as nursery:
+                nursery.start_soon(
+                    receive_signal_over_connection,
+                    access_token,
+                    target_client_id,
+                    target_connection_id,
+                    ready_event,
+                    send_channel,
+                )
+                await ready_event.wait()
+
+                with MQTTPublisher() as publisher:
+                    publisher.publish_json(sender_status_topic, {
+                        "type": "connected",
+                        "connection_id": sender_connection_id,
+                        "request_id": sender_request_id,
+                        "at_millis": int(time.time() * 1000),
+                    })
+
+                client.wait_for_matching_events(
+                    access_token,
+                    count=1,
+                    predicate=lambda event: event["type"] == "client.connected" and event["data"]["connection_id"] == sender_connection_id,
+                    from_cursor=0,
+                )
+
+                with MQTTPublisher() as publisher:
+                    publisher.publish_json(target_webrtc_inbox_topic, {
+                        "from_client_id": sender_client_id,
+                        "type": "candidate",
+                        "candidate": candidate,
+                    })
+
+                message = await receive_channel.receive()
+                nursery.cancel_scope.cancel()
+                return message
+
+        message = trio.run(run_flow)
+
+        self.assertEqual(message["type"], "signal")
+        self.assertEqual(message["signal"]["from_connection_id"], sender_connection_id)
+        self.assertIn("candidate", message["signal"]["data"])
+        self.assertEqual(message["signal"]["data"]["candidate"], candidate)
+
     def test_legacy_backend_websocket_parent_receives_answer_from_mqtt_frontend_baby_station(self):
         client = BackendAPIClient()
         email = f"{generate_random_string(10)}@integrationtests.com"
