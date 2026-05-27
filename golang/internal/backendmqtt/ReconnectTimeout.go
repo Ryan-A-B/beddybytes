@@ -60,6 +60,7 @@ func (scheduler *ReconnectTimeoutScheduler) cancelClientLocked(accountID string,
 
 func (scheduler *ReconnectTimeoutScheduler) Schedule(accountID string, clientID string, connectionID string, requestID string) {
 	scheduler.mutex.Lock()
+	defer scheduler.mutex.Unlock()
 	scheduler.cancelClientLocked(accountID, clientID)
 	ctx, cancel := context.WithCancel(context.Background())
 	key := accountClientKey(accountID, clientID)
@@ -68,7 +69,6 @@ func (scheduler *ReconnectTimeoutScheduler) Schedule(accountID string, clientID 
 		connectionID: connectionID,
 		requestID:    requestID,
 	}
-	scheduler.mutex.Unlock()
 
 	go scheduler.publishReconnectTimeout(ctx, accountID, clientID, connectionID, requestID)
 }
@@ -83,15 +83,15 @@ func (scheduler *ReconnectTimeoutScheduler) publishReconnectTimeout(ctx context.
 	}
 
 	scheduler.mutex.Lock()
+	defer scheduler.mutex.Unlock()
+
 	key := accountClientKey(accountID, clientID)
 	registeredTimer, ok := scheduler.timerByClientKey[key]
 	if !ok || registeredTimer.connectionID != connectionID || registeredTimer.requestID != requestID {
-		scheduler.mutex.Unlock()
 		return
 	}
 	registeredTimer.cancel()
 	delete(scheduler.timerByClientKey, key)
-	scheduler.mutex.Unlock()
 
 	_, err := scheduler.eventLog.Append(context.Background(), eventlog.AppendInput{
 		Type:      connections.EventTypeReconnectTimeout,
