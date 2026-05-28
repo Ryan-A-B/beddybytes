@@ -45,7 +45,7 @@ new BackendStack(app, 'beddybytes-backend-prod', {
 new BackendStack(app, 'beddybytes-backend-qa', {
   deploy_env: 'qa',
   docker_repository: ci_stack.docker_repository,
-  docker_image_digest: 'sha256:49be7ec1b7548a57f04c90007308922a6c304f2d4a6d3fa356872c8404cc520b',
+  docker_image_digest: 'sha256:a0cb92e4c302916898db2abb1f4bb5500f0fc3db8f3853a93b1b5d07063eff42',
   iot_authorizer_sha: 'd02e1ad2414b6a1f29406a5a8bd8d3257af535593da74e4db76b2671347abdb6',
   cluster: core_stack.cluster,
   signing_key: secrets_stack.signing_key,
