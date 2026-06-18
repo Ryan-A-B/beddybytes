@@ -1,0 +1,279 @@
+@layer components {
+  .app-footer-definition-row {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .app-home-video-card {
+    min-height: 220px;
+  }
+
+  .app-home-kicker {
+    letter-spacing: 0.28em;
+  }
+
+  .app-ready-card {
+    max-width: 480px;
+  }
+
+  .page-transition-nav {
+    position: relative;
+    isolation: isolate;
+  }
+
+  .page-transition-nav-indicator {
+    position: absolute;
+    inset-block: 0;
+    left: 0;
+    z-index: 0;
+    width: 50%;
+    background: transparent;
+    transition:
+      transform 300ms cubic-bezier(0.22, 1, 0.36, 1),
+      background-color 300ms ease;
+  }
+
+  .page-transition-nav--home .page-transition-nav-indicator {
+    transform: translateX(0);
+    background: transparent;
+  }
+
+  .page-transition-nav--baby .page-transition-nav-indicator {
+    transform: translateX(0);
+    background: color-mix(in srgb, var(--color-baby-action) 72%, transparent);
+  }
+
+  .page-transition-nav--parent .page-transition-nav-indicator {
+    transform: translateX(100%);
+    background: color-mix(in srgb, var(--color-parent-action) 72%, transparent);
+  }
+
+  .page-transition-stage {
+    grid-template-areas: "page";
+  }
+
+  .page-transition-layer {
+    min-width: 0;
+    grid-area: page;
+    animation-duration: 300ms;
+    animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+    animation-fill-mode: both;
+  }
+
+  .page-transition-layer--in {
+    animation-name: page-transition-fade-in;
+  }
+
+  .page-transition-layer--out {
+    pointer-events: none;
+    animation-name: page-transition-fade-out;
+  }
+
+  .page-transition-content-grid {
+    min-width: 0;
+    display: grid;
+    align-content: start;
+    gap: calc(var(--spacing) * 6);
+  }
+
+  .app-baby-station-live-layout {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      "configuration configuration"
+      "video video"
+      "start-button screensaver-button";
+  }
+
+  .app-baby-station-configuration {
+    grid-area: configuration;
+  }
+
+  .app-baby-station-video {
+    grid-area: video;
+  }
+
+  .app-baby-configuration-summary {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .app-baby-configuration-inline {
+    grid-template-columns: minmax(180px, 1fr) minmax(180px, 1fr) minmax(220px, 1.2fr);
+  }
+
+  .app-baby-station-video {
+    min-height: 280px;
+  }
+
+  .app-baby-video-preview {
+    background:
+      radial-gradient(circle at center, rgb(255 255 255 / 0.035), transparent 42%),
+      linear-gradient(180deg, rgb(0 0 0), rgb(0 0 0));
+  }
+
+  .app-parent-empty-planet {
+    background: radial-gradient(circle at 32% 30%, var(--color-warning-100), var(--color-danger-200) 85%);
+    box-shadow: 0 0 50px color-mix(in srgb, var(--color-warning-200) 18%, transparent);
+  }
+
+  .app-parent-empty-planet-mark-primary {
+    left: 38%;
+    top: 42%;
+  }
+
+  .app-parent-empty-planet-mark-secondary {
+    left: 50%;
+    top: 50%;
+  }
+
+  .app-parent-live-layout {
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  .app-parent-live-video-shell {
+    min-height: 420px;
+  }
+
+  .app-parent-live-video {
+    background:
+      radial-gradient(circle at 52% 46%, rgb(255 255 255 / 0.055), transparent 24%),
+      radial-gradient(circle at 45% 60%, rgb(255 255 255 / 0.032), transparent 18%),
+      linear-gradient(180deg, rgb(0 0 0), rgb(0 0 0));
+  }
+
+  @media (min-width: 40rem) {
+    .app-footer-layout {
+      grid-template-columns: minmax(0, 1fr) auto;
+    }
+
+    .app-footer-build {
+      min-width: 220px;
+    }
+
+    .app-home-video-card {
+      min-height: 290px;
+    }
+
+    .app-role-panel-content {
+      grid-template-columns: 48px minmax(0, 1fr);
+    }
+
+    .app-baby-station-video {
+      min-height: 520px;
+    }
+
+    .app-parent-live-video-shell {
+      min-height: 640px;
+    }
+
+    .page-transition-stage--left .page-transition-layer--in {
+      animation-name: page-transition-enter-from-right;
+    }
+
+    .page-transition-stage--left .page-transition-layer--out {
+      animation-name: page-transition-exit-to-left;
+    }
+
+    .page-transition-stage--right .page-transition-layer--in {
+      animation-name: page-transition-enter-from-left;
+    }
+
+    .page-transition-stage--right .page-transition-layer--out {
+      animation-name: page-transition-exit-to-right;
+    }
+
+    .page-transition-parent-controls {
+      grid-template-columns: minmax(0, 1fr) auto;
+    }
+  }
+
+  @media (min-width: 64rem) {
+    .app-home-layout {
+      grid-template-columns: minmax(0, 1fr) minmax(420px, 0.86fr);
+    }
+
+    .app-parent-connection-layout {
+      grid-template-columns: minmax(220px, 360px) minmax(0, 1fr) minmax(220px, 360px);
+    }
+
+    .page-transition-content-grid {
+      grid-template-columns: minmax(0, 1fr) minmax(420px, 0.9fr);
+      align-items: start;
+    }
+  }
+
+  @keyframes page-transition-fade-in {
+    from {
+      opacity: 0;
+    }
+
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes page-transition-fade-out {
+    from {
+      opacity: 1;
+    }
+
+    to {
+      opacity: 0;
+    }
+  }
+
+  @keyframes page-transition-enter-from-right {
+    from {
+      opacity: 0;
+      transform: translateX(calc(var(--spacing) * 4));
+    }
+
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  @keyframes page-transition-exit-to-left {
+    from {
+      opacity: 1;
+      transform: translateX(0);
+    }
+
+    to {
+      opacity: 0;
+      transform: translateX(calc(var(--spacing) * -4));
+    }
+  }
+
+  @keyframes page-transition-enter-from-left {
+    from {
+      opacity: 0;
+      transform: translateX(calc(var(--spacing) * -4));
+    }
+
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  @keyframes page-transition-exit-to-right {
+    from {
+      opacity: 1;
+      transform: translateX(0);
+    }
+
+    to {
+      opacity: 0;
+      transform: translateX(calc(var(--spacing) * 4));
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .page-transition-nav-indicator,
+    .page-transition-layer {
+      transition: none;
+      animation-duration: 1ms;
+    }
+  }
+}
