@@ -34,7 +34,7 @@ const load_balancer_stack = new LoadBalancerStack(app, 'beddybytes-load-balancer
 new BackendStack(app, 'beddybytes-backend-prod', {
   deploy_env: 'prod',
   docker_repository: ci_stack.docker_repository,
-  docker_image_digest: 'sha256:99274c7e364c3a4716f18cf85ae690a606b0ddec34628620b0c6d5252d629736',
+  docker_image_digest: 'sha256:a0cb92e4c302916898db2abb1f4bb5500f0fc3db8f3853a93b1b5d07063eff42',
   iot_authorizer_sha: 'd02e1ad2414b6a1f29406a5a8bd8d3257af535593da74e4db76b2671347abdb6',
   cluster: core_stack.cluster,
   signing_key: secrets_stack.signing_key,
