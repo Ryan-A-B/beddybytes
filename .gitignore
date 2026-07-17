@@ -1,4 +1,6 @@
 .env
+config/*.env
+!config/*.sops.env
 init.sh
 eventlog
 tinyanalytics

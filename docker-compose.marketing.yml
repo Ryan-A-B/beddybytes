@@ -25,12 +25,13 @@ services:
 
   marketing:
     image: node:18
-    command: npm run develop
+    command: sh -c "npm ci && npm run develop"
     restart: always
     ports:
       - "8000"
     volumes:
       - ./marketing/:/opt/marketing
+      - marketing_node_modules:/opt/marketing/node_modules
     environment:
       - TINYANALYTICS_ENDPOINT=${TINYANALYTICS_ENDPOINT:-https://analytics.beddybytes.local}
       - TINYANALYTICS_WRITE_TOKEN=${TINYANALYTICS_WRITE_TOKEN}
@@ -66,3 +67,6 @@ services:
       - "traefik.http.routers.influx.entrypoints=websecure"
       - "traefik.http.routers.influx.tls=true"
       - "traefik.http.routers.influx.middlewares=headers-cors@docker"
+
+volumes:
+  marketing_node_modules:

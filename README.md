@@ -34,10 +34,49 @@ Privacy-first baby monitor that works entirely in the browser.
 
 **Local Dev TLS Setup**
 - Install `mkcert` on your machine.
-- Run `mkcert -install` once on each machine. This creates a local root CA and adds it to your trust stores.
-- Generate the repo's local TLS certs with `make -C traefik/certificates`.
+- `./run_local_stack.sh` calls `./setup_local_stack.sh` before starting Compose.
+- The setup script checks the local certificate and private key.
+- When either file is missing, invalid, expired, or mismatched, the script runs `mkcert -install` and generates a fresh pair.
+- Setup is skipped when the existing certificate and private key are usable.
 - The generated `beddybytes.local.crt` and `beddybytes.local.key` are leaf certs signed by that trusted local CA, so browsers on the same machine will trust them automatically.
 - If you work across multiple repos on the same machine, each repo can generate its own leaf certs with `mkcert` and they will all chain back to the same trusted local CA.
+
+The app and marketing containers install their locked JavaScript dependencies before starting their development servers. Their `node_modules` directories live in Docker volumes rather than the host checkout.
+
+**Local Secrets with SOPS**
+
+Local runtime secrets are stored in `config/local.sops.env` using SOPS and age. The encrypted file travels with the repository. The private age identity stays outside the repository.
+
+One person must initialize the encrypted file:
+
+1. Install [SOPS](https://github.com/getsops/sops) and [age](https://github.com/FiloSottile/age).
+2. Create an age identity outside the repository if you do not already have one:
+
+   ```sh
+   mkdir -p ~/.config/sops/age
+   age-keygen -o ~/.config/sops/age/keys.txt
+   age-keygen -y ~/.config/sops/age/keys.txt
+   ```
+
+3. Replace `age1REPLACE_WITH_YOUR_AGE_RECIPIENT` in `.sops.yaml` with the public recipient printed by the last command.
+4. Create the encrypted configuration and open it in the SOPS editor:
+
+   ```sh
+   cp .env.example config/local.sops.env
+   sops encrypt --in-place config/local.sops.env
+   sops config/local.sops.env
+   ```
+
+5. Replace every placeholder in the editor. `TINYANALYTICS_WRITE_TOKEN` must be signed by `JWT_SIGNING_KEY`.
+6. Commit `.sops.yaml` and `config/local.sops.env`. Never commit the age identity or a decrypted `.env` file.
+
+After cloning, an authorized developer installs the matching age identity at `~/.config/sops/age/keys.txt` or sets `SOPS_AGE_KEY_FILE` to its location. Start the local stack with:
+
+```sh
+./run_local_stack.sh
+```
+
+The script uses `sops exec-env` to pass decrypted values to Docker Compose without writing a plaintext `.env` file. Set `BEDDYBYTES_SOPS_ENV_FILE` to use a different encrypted environment file.
 
 **License (Open Source)**
 - BeddyBytes is open-source software under the GNU General Public License, version 2 or (at your option) any later version (`GPL-2.0-or-later`).
