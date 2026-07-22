@@ -78,6 +78,25 @@ After cloning, an authorized developer installs the matching age identity at `~/
 
 The script uses `sops exec-env` to pass decrypted values to Docker Compose without writing a plaintext `.env` file. Set `BEDDYBYTES_SOPS_ENV_FILE` to use a different encrypted environment file.
 
+**Marketing Build and Deployment with SOPS**
+
+The marketing build and deployment scripts read `config/marketing.sops.env` through `sops exec-env`. The file carries the TinyAnalytics build values and the AWS deployment destination. Create it with:
+
+```sh
+cp config/marketing.env.example config/marketing.sops.env
+sops encrypt --in-place config/marketing.sops.env
+sops config/marketing.sops.env
+```
+
+Replace every placeholder in the SOPS editor. Then build and deploy with:
+
+```sh
+./scripts/marketing/build.sh
+./scripts/marketing/push.sh
+```
+
+The decrypted values remain in the child process environment. No plaintext environment file is written during the build or deployment. Set `BEDDYBYTES_MARKETING_SOPS_ENV_FILE` to use a different encrypted file.
+
 **License (Open Source)**
 - BeddyBytes is open-source software under the GNU General Public License, version 2 or (at your option) any later version (`GPL-2.0-or-later`).
 - You may run, study, modify, and redistribute BeddyBytes under those terms.

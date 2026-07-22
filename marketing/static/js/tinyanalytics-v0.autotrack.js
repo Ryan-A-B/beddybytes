@@ -4,13 +4,12 @@
   var endpointBase = "";
   var includeReferrer = true;
   var debug = false;
-  var heartbeatIntervalMillis = 5000;
+  var heartbeatIntervalMillis = 20000;
   var writeToken = "";
 
   if (typeof window.TINYANALYTICS_ENDPOINT === "string" && window.TINYANALYTICS_ENDPOINT.length > 0) {
     endpointBase = window.TINYANALYTICS_ENDPOINT;
   }
-
   if (typeof window.TINYANALYTICS_DEBUG === "boolean") {
     debug = window.TINYANALYTICS_DEBUG;
   }
@@ -22,7 +21,6 @@
   if (!scriptElement) {
     scriptElement = document.querySelector('script[src*="tinyanalytics-v0.autotrack.js"]');
   }
-
   if (scriptElement) {
     endpointBase = scriptElement.getAttribute("data-endpoint") || endpointBase;
     if (scriptElement.getAttribute("data-include-referrer") === "false") {
@@ -33,20 +31,26 @@
     }
     writeToken = scriptElement.getAttribute("data-write-token") || writeToken;
   }
-
   if (!endpointBase) {
     endpointBase = window.location.origin;
   }
-
   endpointBase = normalizeBaseEndpoint(endpointBase);
 
-  var sessionId = 0n;
-  var sessionExpiresAtMillis = 0;
+  var CLIENT_ID_STORAGE_KEY = "tinyanalytics.client_id";
+  var MAX_EVENT_BODY_BYTES = 512;
+  var EVENT_TYPE_SESSION_CREATED = 1;
+  var EVENT_TYPE_SESSION_ENDED = 2;
+  var EVENT_TYPE_PAGE_VIEW = 3;
+  var END_REASON_VISIBILITY_CHANGE = 2;
+  var END_REASON_PAGE_HIDE = 3;
+
+  var clientIdBytes = null;
+  var sessionId = "";
+  var createSessionPromise = null;
+  var pendingCloseReason = 0;
   var lastTrackedPath = "";
   var textEncoder = new TextEncoder();
   var keepaliveTimer = null;
-  var EVENT_TYPE_PAGE_VIEW = 1;
-  var EVENT_TYPE_KEEPALIVE = 2;
 
   function logInfo() {
     if (debug) {
@@ -61,22 +65,7 @@
   }
 
   function normalizeBaseEndpoint(value) {
-    var trimmed = value;
-    if (trimmed.endsWith("/v0/events/page_view")) {
-      return trimmed.slice(0, -"/v0/events/page_view".length);
-    }
-    if (trimmed.charAt(trimmed.length - 1) === "/") {
-      return trimmed.slice(0, -1);
-    }
-    return trimmed;
-  }
-
-  function eventEndpointPath() {
-    return withWriteToken(endpointBase + "/v0/events");
-  }
-
-  function sessionEndpointPath() {
-    return withWriteToken(endpointBase + "/v0/sessions");
+    return value.charAt(value.length - 1) === "/" ? value.slice(0, -1) : value;
   }
 
   function withWriteToken(url) {
@@ -87,8 +76,57 @@
     return url + separator + "access_token=" + encodeURIComponent(writeToken);
   }
 
-  function nowMillis() {
-    return Date.now();
+  function sessionEndpointPath() {
+    return withWriteToken(endpointBase + "/sessions");
+  }
+
+  function eventEndpointPath(sessionIdValue) {
+    return withWriteToken(endpointBase + "/sessions/" + sessionIdValue + "/events");
+  }
+
+  function pingEndpointPath(sessionIdValue) {
+    return withWriteToken(endpointBase + "/sessions/" + sessionIdValue + "/ping");
+  }
+
+  function randomIdBytes() {
+    var bytes = new Uint8Array(16);
+    crypto.getRandomValues(bytes);
+    return bytes;
+  }
+
+  function bytesToHex(bytes) {
+    var value = "";
+    for (var index = 0; index < bytes.length; index += 1) {
+      value += bytes[index].toString(16).padStart(2, "0");
+    }
+    return value;
+  }
+
+  function hexToIdBytes(value) {
+    if (!/^[0-9a-fA-F]{32}$/.test(value) || /^0{32}$/.test(value)) {
+      return null;
+    }
+    var bytes = new Uint8Array(16);
+    for (var index = 0; index < bytes.length; index += 1) {
+      bytes[index] = parseInt(value.slice(index * 2, index * 2 + 2), 16);
+    }
+    return bytes;
+  }
+
+  function loadOrCreateClientId() {
+    try {
+      var stored = localStorage.getItem(CLIENT_ID_STORAGE_KEY);
+      var parsed = stored ? hexToIdBytes(stored) : null;
+      if (parsed) {
+        return parsed;
+      }
+      var created = randomIdBytes();
+      localStorage.setItem(CLIENT_ID_STORAGE_KEY, bytesToHex(created));
+      return created;
+    } catch (error) {
+      logWarn("[tinyanalytics] local client id unavailable; using an ephemeral id", error);
+      return randomIdBytes();
+    }
   }
 
   function currentPath() {
@@ -106,61 +144,73 @@
     return encoded;
   }
 
-  function encodePageViewPayload(eventTimeMillis, sessionIdValue, path, referrer) {
+  function encodePageViewPayload(eventTimeMillis, path, referrer) {
     var pathBytes = encodeUtf8WithLimit(path, 2048, "path");
     var referrerBytes = encodeUtf8WithLimit(referrer, 4096, "referrer");
-
-    var payloadSize = 8 + 8 + 2 + pathBytes.length + 2 + referrerBytes.length;
-    var payload = new Uint8Array(payloadSize);
-    var dataView = new DataView(payload.buffer);
-    var offset = 0;
-
-    dataView.setBigInt64(offset, BigInt(eventTimeMillis), true);
-    offset += 8;
-
-    dataView.setBigUint64(offset, sessionIdValue, true);
-    offset += 8;
-
-    dataView.setUint16(offset, pathBytes.length, true);
-    offset += 2;
-    payload.set(pathBytes, offset);
-    offset += pathBytes.length;
-
-    dataView.setUint16(offset, referrerBytes.length, true);
-    offset += 2;
-    payload.set(referrerBytes, offset);
-
-    return wrapEventPayload(EVENT_TYPE_PAGE_VIEW, payload);
+    var payload = concatenateBytes([
+      encodeLong(BigInt(eventTimeMillis)),
+      encodeLong(BigInt(EVENT_TYPE_PAGE_VIEW)),
+      encodeLong(BigInt(pathBytes.length)),
+      pathBytes,
+      encodeLong(BigInt(referrerBytes.length)),
+      referrerBytes,
+    ]);
+    enforceBodyLimit(payload);
+    return payload;
   }
 
-  function encodeKeepalivePayload(eventTimeMillis, sessionIdValue) {
-    var payload = new Uint8Array(16);
-    var dataView = new DataView(payload.buffer);
-    dataView.setBigInt64(0, BigInt(eventTimeMillis), true);
-    dataView.setBigUint64(8, sessionIdValue, true);
-    return wrapEventPayload(EVENT_TYPE_KEEPALIVE, payload);
+  function encodeSessionCreatedPayload(eventTimeMillis, clientBytes, sessionBytes) {
+    var payload = concatenateBytes([
+      encodeLong(BigInt(eventTimeMillis)),
+      encodeLong(BigInt(EVENT_TYPE_SESSION_CREATED)),
+      clientBytes,
+      sessionBytes,
+    ]);
+    enforceBodyLimit(payload);
+    return payload;
   }
 
-  function wrapEventPayload(eventType, payload) {
-    var wrapped = new Uint8Array(1 + payload.length);
-    wrapped[0] = eventType;
-    wrapped.set(payload, 1);
-    return wrapped;
+  function encodeSessionEndedPayload(eventTimeMillis, reason) {
+    var payload = concatenateBytes([
+      encodeLong(BigInt(eventTimeMillis)),
+      encodeLong(BigInt(EVENT_TYPE_SESSION_ENDED)),
+      encodeLong(BigInt(reason)),
+    ]);
+    enforceBodyLimit(payload);
+    return payload;
   }
 
-  function sendBinary(url, payload, useBeacon) {
-    if (useBeacon && navigator.sendBeacon) {
-      try {
-        var blob = new Blob([payload], { type: "application/octet-stream" });
-        var accepted = navigator.sendBeacon(url, blob);
-        if (accepted) {
-          return Promise.resolve({ ok: true, status: 202 });
-        }
-      } catch (error) {
-        logWarn("[tinyanalytics] beacon failed, fallback to fetch", error);
-      }
+  function enforceBodyLimit(payload) {
+    if (payload.length > MAX_EVENT_BODY_BYTES) {
+      throw new Error("event payload exceeds 512 bytes");
     }
+  }
 
+  function encodeLong(value) {
+    var encoded = BigInt.asUintN(64, (value << 1n) ^ (value >> 63n));
+    var bytes = [];
+    while ((encoded & ~0x7fn) !== 0n) {
+      bytes.push(Number((encoded & 0x7fn) | 0x80n));
+      encoded >>= 7n;
+    }
+    bytes.push(Number(encoded));
+    return new Uint8Array(bytes);
+  }
+
+  function concatenateBytes(parts) {
+    var totalLength = parts.reduce(function (total, part) {
+      return total + part.length;
+    }, 0);
+    var combined = new Uint8Array(totalLength);
+    var offset = 0;
+    parts.forEach(function (part) {
+      combined.set(part, offset);
+      offset += part.length;
+    });
+    return combined;
+  }
+
+  function postBinary(url, payload) {
     return fetch(url, {
       method: "POST",
       headers: { "content-type": "application/octet-stream" },
@@ -171,137 +221,135 @@
     });
   }
 
-  function persistSession() {
-    try {
-      sessionStorage.setItem("tinyanalytics.session_id", sessionId.toString());
-      sessionStorage.setItem("tinyanalytics.session_expires_at", String(sessionExpiresAtMillis));
-    } catch (error) {
-      logWarn("[tinyanalytics] persist session failed", error);
-    }
-  }
-
-  function clearPersistedSession() {
-    sessionId = 0n;
-    sessionExpiresAtMillis = 0;
-    try {
-      sessionStorage.removeItem("tinyanalytics.session_id");
-      sessionStorage.removeItem("tinyanalytics.session_expires_at");
-    } catch (_) {
-      // Ignore storage errors.
-    }
-  }
-
-  function restoreSessionFromStorage() {
-    try {
-      var storedSessionId = sessionStorage.getItem("tinyanalytics.session_id");
-      var storedExpiresAt = sessionStorage.getItem("tinyanalytics.session_expires_at");
-      if (!storedSessionId || !storedExpiresAt) {
-        return false;
+  function sendBeaconOrFetch(url, payload) {
+    if (navigator.sendBeacon) {
+      try {
+        if (navigator.sendBeacon(url, payload)) {
+          return;
+        }
+      } catch (error) {
+        logWarn("[tinyanalytics] beacon failed, falling back to fetch", error);
       }
-
-      var expiresAt = Number(storedExpiresAt);
-      if (!Number.isFinite(expiresAt) || expiresAt <= nowMillis()) {
-        clearPersistedSession();
-        return false;
-      }
-
-      sessionId = BigInt(storedSessionId);
-      sessionExpiresAtMillis = expiresAt;
-      logInfo("[tinyanalytics] restored session", storedSessionId);
-      return sessionId !== 0n;
-    } catch (error) {
-      logWarn("[tinyanalytics] restore session failed", error);
-      return false;
     }
+    void postBinary(url, payload).catch(function (error) {
+      logWarn("[tinyanalytics] lifecycle request failed", error);
+    });
   }
 
   async function createSession() {
-    var response = await fetch(sessionEndpointPath(), {
-      method: "POST",
-      credentials: "omit",
-      cache: "no-store",
-    });
-    if (!response.ok) {
-      throw new Error("session create failed: " + response.status);
-    }
-    var body = await response.json();
-    if (!body || typeof body.session_id !== "number") {
-      throw new Error("session create response missing session_id");
-    }
-    sessionId = BigInt(body.session_id);
-    sessionExpiresAtMillis = Number(body.expires_at_millis || 0);
-    persistSession();
-    logInfo("[tinyanalytics] session created", body.session_id);
-  }
-
-  async function sendKeepalive() {
-    if (sessionId === 0n) {
+    if (sessionId) {
       return;
     }
-    logInfo("[tinyanalytics] keepalive send", sessionId.toString());
-    var response = await sendKeepaliveOnce();
-    if (!response.ok && response.status === 410) {
-      logWarn("[tinyanalytics] keepalive got 410, recreating session");
-      clearPersistedSession();
-      await createSession();
-      response = await sendKeepaliveOnce();
+    if (createSessionPromise) {
+      return createSessionPromise;
     }
-    if (!response.ok) {
-      throw new Error("keepalive failed: " + response.status);
-    }
-    logInfo("[tinyanalytics] keepalive ok", response.status);
+
+    createSessionPromise = (async function () {
+      var newSessionBytes = randomIdBytes();
+      var newSessionId = bytesToHex(newSessionBytes);
+      var response = await postBinary(
+        sessionEndpointPath(),
+        encodeSessionCreatedPayload(Date.now(), clientIdBytes, newSessionBytes)
+      );
+      if (!response.ok) {
+        throw new Error("session create failed: " + response.status);
+      }
+      sessionId = newSessionId;
+      lastTrackedPath = "";
+      logInfo("[tinyanalytics] session created", sessionId);
+
+      if (pendingCloseReason !== 0 || document.visibilityState !== "visible") {
+        var closeReason = pendingCloseReason || END_REASON_VISIBILITY_CHANGE;
+        pendingCloseReason = 0;
+        closeSession(closeReason);
+      }
+    })();
 
     try {
-      var body = await response.json();
-      if (body && typeof body.expires_at_millis === "number") {
-        sessionExpiresAtMillis = body.expires_at_millis;
-        persistSession();
-      }
-    } catch (_) {
-      // Ignore response body parsing errors.
+      await createSessionPromise;
+    } finally {
+      createSessionPromise = null;
     }
   }
 
-  function sendKeepaliveOnce() {
-    if (sessionId === 0n) {
-      return Promise.resolve({ ok: false, status: 410 });
+  function stopKeepalive() {
+    if (keepaliveTimer !== null) {
+      clearInterval(keepaliveTimer);
+      keepaliveTimer = null;
     }
-    var payload = encodeKeepalivePayload(nowMillis(), sessionId);
-    return sendBinary(eventEndpointPath(), payload, false);
+  }
+
+  function sendKeepalive() {
+    if (!sessionId) {
+      return;
+    }
+    sendBeaconOrFetch(pingEndpointPath(sessionId), new Uint8Array(0));
   }
 
   function scheduleKeepalive() {
-    if (keepaliveTimer !== null) {
-      clearInterval(keepaliveTimer);
+    stopKeepalive();
+    if (!sessionId || document.visibilityState !== "visible") {
+      return;
     }
-    void sendKeepalive().catch(function (error) {
-      logWarn("[tinyanalytics] initial keepalive error", error);
-    });
-    keepaliveTimer = setInterval(function () {
-      sendKeepalive().catch(function (error) {
-        logWarn("[tinyanalytics] keepalive error", error);
-      });
-    }, heartbeatIntervalMillis);
+    keepaliveTimer = setInterval(sendKeepalive, heartbeatIntervalMillis);
+  }
+
+  function closeSession(reason) {
+    stopKeepalive();
+    if (!sessionId) {
+      if (createSessionPromise) {
+        pendingCloseReason = pendingCloseReason || reason;
+      }
+      return;
+    }
+    var closingSessionId = sessionId;
+    sessionId = "";
+    lastTrackedPath = "";
+    sendBeaconOrFetch(
+      eventEndpointPath(closingSessionId),
+      encodeSessionEndedPayload(Date.now(), reason)
+    );
+    logInfo("[tinyanalytics] session closed", closingSessionId, reason);
+  }
+
+  async function sendPageViewWithRetry(payload, originalSessionId) {
+    var response = await postBinary(eventEndpointPath(originalSessionId), payload);
+    if (response.status !== 404 || document.visibilityState !== "visible") {
+      return response;
+    }
+    if (sessionId === originalSessionId) {
+      sessionId = "";
+      stopKeepalive();
+    }
+    await createSession();
+    if (!sessionId) {
+      return response;
+    }
+    scheduleKeepalive();
+    return postBinary(eventEndpointPath(sessionId), payload);
   }
 
   function trackPageView() {
-    if (sessionId === 0n) {
+    if (!sessionId) {
       return;
     }
-
     var path = currentPath();
     if (path === lastTrackedPath) {
       return;
     }
     lastTrackedPath = path;
-
     var referrer = includeReferrer ? document.referrer : "";
-
     try {
-      sendPageViewWithRetry(path, referrer)
+      var payload = encodePageViewPayload(Date.now(), path, referrer);
+      var activeSessionId = sessionId;
+      void sendPageViewWithRetry(payload, activeSessionId)
         .then(function (response) {
           if (!response.ok) {
-            logWarn("[tinyanalytics] page view failed", response.status);
+            if (response.status === 503) {
+              logWarn("[tinyanalytics] server temporarily lacks ingress capacity");
+            } else {
+              logWarn("[tinyanalytics] page view failed", response.status);
+            }
           }
         })
         .catch(function (error) {
@@ -313,23 +361,30 @@
     }
   }
 
-  async function sendPageViewWithRetry(path, referrer) {
-    var response = await sendPageViewOnce(path, referrer);
-    if (!response.ok && response.status === 410) {
-      logWarn("[tinyanalytics] page view got 410, recreating session");
-      clearPersistedSession();
-      await createSession();
-      response = await sendPageViewOnce(path, referrer);
+  async function startVisibleSession() {
+    if (document.visibilityState !== "visible") {
+      return;
     }
-    return response;
+    try {
+      await createSession();
+      if (!sessionId && document.visibilityState === "visible") {
+        await createSession();
+      }
+      if (sessionId) {
+        trackPageView();
+        scheduleKeepalive();
+      }
+    } catch (error) {
+      logWarn("[tinyanalytics] session start failed", error);
+    }
   }
 
-  function sendPageViewOnce(path, referrer) {
-    if (sessionId === 0n) {
-      return Promise.resolve({ ok: false, status: 410 });
+  function handleVisibilityChange() {
+    if (document.visibilityState === "hidden") {
+      closeSession(END_REASON_VISIBILITY_CHANGE);
+    } else if (document.visibilityState === "visible") {
+      void startVisibleSession();
     }
-    var payload = encodePageViewPayload(nowMillis(), sessionId, path, referrer);
-    return sendBinary(eventEndpointPath(), payload, true);
   }
 
   function patchHistoryMethod(methodName) {
@@ -344,33 +399,26 @@
     };
   }
 
-  async function init() {
+  function init() {
     logInfo("[tinyanalytics] init", { endpointBase: endpointBase, includeReferrer: includeReferrer });
-    try {
-      var restored = restoreSessionFromStorage();
-      if (!restored) {
-        await createSession();
-      }
-      trackPageView();
-      scheduleKeepalive();
-      window.addEventListener("popstate", trackPageView);
-      window.addEventListener("hashchange", trackPageView);
-      patchHistoryMethod("pushState");
-      patchHistoryMethod("replaceState");
-    } catch (error) {
-      logWarn("[tinyanalytics] init failed", error);
-    }
+    clientIdBytes = loadOrCreateClientId();
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("pagehide", function () {
+      closeSession(END_REASON_PAGE_HIDE);
+    });
+    window.addEventListener("pageshow", function () {
+      void startVisibleSession();
+    });
+    window.addEventListener("popstate", trackPageView);
+    window.addEventListener("hashchange", trackPageView);
+    patchHistoryMethod("pushState");
+    patchHistoryMethod("replaceState");
+    void startVisibleSession();
   }
 
   if (document.readyState === "loading") {
-    document.addEventListener(
-      "DOMContentLoaded",
-      function () {
-        void init();
-      },
-      { once: true }
-    );
+    document.addEventListener("DOMContentLoaded", init, { once: true });
   } else {
-    void init();
+    init();
   }
 })();
