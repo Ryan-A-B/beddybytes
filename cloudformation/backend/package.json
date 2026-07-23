@@ -8,7 +8,8 @@
     "build": "tsc",
     "watch": "tsc -w",
     "test": "jest",
-    "cdk": "cdk"
+    "cdk": "cdk",
+    "deploy:core": "cdk deploy beddybytes-core"
   },
   "devDependencies": {
     "@types/jest": "^29.5.14",

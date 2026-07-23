@@ -37,7 +37,7 @@
   endpointBase = normalizeBaseEndpoint(endpointBase);
 
   var CLIENT_ID_STORAGE_KEY = "tinyanalytics.client_id";
-  var MAX_EVENT_BODY_BYTES = 512;
+  var MAX_EVENT_BODY_BYTES = 1024;
   var EVENT_TYPE_SESSION_CREATED = 1;
   var EVENT_TYPE_SESSION_ENDED = 2;
   var EVENT_TYPE_PAGE_VIEW = 3;
@@ -144,27 +144,41 @@
     return encoded;
   }
 
-  function encodePageViewPayload(eventTimeMillis, path, referrer) {
+  function encodePageViewPayload(eventTimeMillis, path) {
     var pathBytes = encodeUtf8WithLimit(path, 2048, "path");
-    var referrerBytes = encodeUtf8WithLimit(referrer, 4096, "referrer");
     var payload = concatenateBytes([
       encodeLong(BigInt(eventTimeMillis)),
       encodeLong(BigInt(EVENT_TYPE_PAGE_VIEW)),
       encodeLong(BigInt(pathBytes.length)),
       pathBytes,
-      encodeLong(BigInt(referrerBytes.length)),
-      referrerBytes,
     ]);
     enforceBodyLimit(payload);
     return payload;
   }
 
-  function encodeSessionCreatedPayload(eventTimeMillis, clientBytes, sessionBytes) {
+  function encodeSessionCreatedPayload(eventTimeMillis, clientBytes, sessionBytes, path, referrer, userAgent, language, timezone, deviceWidth, deviceHeight) {
+    var pathBytes = encodeUtf8WithLimit(path, 2048, "path");
+    var referrerBytes = encodeUtf8WithLimit(referrer, 4096, "referrer");
+    var userAgentBytes = encodeUtf8WithLimit(userAgent, 256, "user_agent");
+    var languageBytes = encodeUtf8WithLimit(language, 64, "language");
+    var timezoneBytes = encodeUtf8WithLimit(timezone, 64, "timezone");
     var payload = concatenateBytes([
       encodeLong(BigInt(eventTimeMillis)),
       encodeLong(BigInt(EVENT_TYPE_SESSION_CREATED)),
       clientBytes,
       sessionBytes,
+      encodeLong(BigInt(pathBytes.length)),
+      pathBytes,
+      encodeLong(BigInt(referrerBytes.length)),
+      referrerBytes,
+      encodeLong(BigInt(userAgentBytes.length)),
+      userAgentBytes,
+      encodeLong(BigInt(languageBytes.length)),
+      languageBytes,
+      encodeLong(BigInt(timezoneBytes.length)),
+      timezoneBytes,
+      encodeLong(BigInt(deviceWidth)),
+      encodeLong(BigInt(deviceHeight)),
     ]);
     enforceBodyLimit(payload);
     return payload;
@@ -182,7 +196,7 @@
 
   function enforceBodyLimit(payload) {
     if (payload.length > MAX_EVENT_BODY_BYTES) {
-      throw new Error("event payload exceeds 512 bytes");
+      throw new Error("event payload exceeds 1024 bytes");
     }
   }
 
@@ -208,6 +222,28 @@
       offset += part.length;
     });
     return combined;
+  }
+
+  function optionalNavigatorString(value) {
+    return typeof value === "string" ? value : "";
+  }
+
+  function currentTimezone() {
+    try {
+      var timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      return optionalNavigatorString(timezone);
+    } catch (error) {
+      logWarn("[tinyanalytics] browser timezone unavailable", error);
+      return "";
+    }
+  }
+
+  function currentDeviceDimension(value) {
+    if (typeof value !== "number" || !Number.isFinite(value)) {
+      return 0;
+    }
+    var dimension = Math.round(value);
+    return dimension >= 0 && dimension <= 65535 ? dimension : 0;
   }
 
   function postBinary(url, payload) {
@@ -247,15 +283,22 @@
     createSessionPromise = (async function () {
       var newSessionBytes = randomIdBytes();
       var newSessionId = bytesToHex(newSessionBytes);
+      var path = currentPath();
+      var referrer = includeReferrer ? document.referrer : "";
+      var userAgent = optionalNavigatorString(navigator.userAgent);
+      var language = optionalNavigatorString(navigator.language);
+      var timezone = currentTimezone();
+      var deviceWidth = currentDeviceDimension(window.screen && window.screen.width);
+      var deviceHeight = currentDeviceDimension(window.screen && window.screen.height);
       var response = await postBinary(
         sessionEndpointPath(),
-        encodeSessionCreatedPayload(Date.now(), clientIdBytes, newSessionBytes)
+        encodeSessionCreatedPayload(Date.now(), clientIdBytes, newSessionBytes, path, referrer, userAgent, language, timezone, deviceWidth, deviceHeight)
       );
       if (!response.ok) {
         throw new Error("session create failed: " + response.status);
       }
       sessionId = newSessionId;
-      lastTrackedPath = "";
+      lastTrackedPath = path;
       logInfo("[tinyanalytics] session created", sessionId);
 
       if (pendingCloseReason !== 0 || document.visibilityState !== "visible") {
@@ -263,10 +306,11 @@
         pendingCloseReason = 0;
         closeSession(closeReason);
       }
+      return response;
     })();
 
     try {
-      await createSessionPromise;
+      return await createSessionPromise;
     } finally {
       createSessionPromise = null;
     }
@@ -321,12 +365,12 @@
       sessionId = "";
       stopKeepalive();
     }
-    await createSession();
+    var createResponse = await createSession();
     if (!sessionId) {
       return response;
     }
     scheduleKeepalive();
-    return postBinary(eventEndpointPath(sessionId), payload);
+    return createResponse || response;
   }
 
   function trackPageView() {
@@ -338,9 +382,8 @@
       return;
     }
     lastTrackedPath = path;
-    var referrer = includeReferrer ? document.referrer : "";
     try {
-      var payload = encodePageViewPayload(Date.now(), path, referrer);
+      var payload = encodePageViewPayload(Date.now(), path);
       var activeSessionId = sessionId;
       void sendPageViewWithRetry(payload, activeSessionId)
         .then(function (response) {
@@ -371,7 +414,6 @@
         await createSession();
       }
       if (sessionId) {
-        trackPageView();
         scheduleKeepalive();
       }
     } catch (error) {
