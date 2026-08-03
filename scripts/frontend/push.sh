@@ -1,26 +1,23 @@
-#!/bin/bash
-. cloudformation/frontend/init.sh
-set -ex
+#!/usr/bin/env bash
+set -euo pipefail
 
-case $1 in
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+cd "$repo_root"
+
+case ${1:-} in
     qa|prod)
-        env=$1
+        deploy_env=$1
         ;;
     *)
-        echo "Usage: $0 <qa|prod>"
+        echo "Usage: $0 <qa|prod>" >&2
         exit 1
         ;;
 esac
 
-. scripts/frontend/init.$env.sh
+encrypted_env="${BEDDYBYTES_FRONTEND_SOPS_ENV_FILE:-config/frontend.${deploy_env}.sops.env}"
 
-if [ -z "$DISTRIBUTION_ID" ]; then
-    echo "DISTRIBUTION_ID is not set"
-    exit 1
-fi
-
-region=us-east-1
-bucket="beddybytes-$env-frontend-bucket"
+export FRONTEND_AWS_REGION=us-east-1
+export FRONTEND_BUCKET="beddybytes-${deploy_env}-frontend-bucket"
 
 # Cache-Control
 # - static files: immutable
@@ -30,18 +27,26 @@ bucket="beddybytes-$env-frontend-bucket"
 # the service worker does network then cache for .html files
 # cache then network for everything else
 
-aws s3 sync --region $region --delete \
-    --cache-control "max-age=31536000, immutable" \
-    "frontend/build/static" "s3://$bucket/static"
+sops exec-env --same-process "$encrypted_env" '
+    set -eu
+    : "${DISTRIBUTION_ID:?DISTRIBUTION_ID is missing from the frontend SOPS file}"
 
-aws s3 sync --region $region --delete \
-    --cache-control "max-age=86400" \
-    --exclude "static/*" \
-    --exclude "index.html" \
-    "frontend/build" "s3://$bucket/"
+    aws s3 sync --region "$FRONTEND_AWS_REGION" --delete \
+        --cache-control "max-age=31536000, immutable" \
+        frontend/build/static "s3://$FRONTEND_BUCKET/static"
 
-aws s3 cp --region $region \
-    --cache-control "no-cache" \
-    "frontend/build/index.html" "s3://$bucket/index.html"
+    aws s3 sync --region "$FRONTEND_AWS_REGION" --delete \
+        --cache-control "max-age=86400" \
+        --exclude "static/*" \
+        --exclude "index.html" \
+        frontend/build "s3://$FRONTEND_BUCKET/"
 
-aws cloudfront create-invalidation --region $region --distribution-id $DISTRIBUTION_ID --paths "/*"
+    aws s3 cp --region "$FRONTEND_AWS_REGION" \
+        --cache-control "no-cache" \
+        frontend/build/index.html "s3://$FRONTEND_BUCKET/index.html"
+
+    aws cloudfront create-invalidation \
+        --region "$FRONTEND_AWS_REGION" \
+        --distribution-id "$DISTRIBUTION_ID" \
+        --paths "/*"
+'

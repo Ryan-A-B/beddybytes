@@ -12,6 +12,11 @@ the scripts through `scripts/marketing/build.sh` and
 `scripts/marketing/push.sh`. Set `BEDDYBYTES_MARKETING_SOPS_ENV_FILE` to use a
 different encrypted file.
 
+Frontend deployments read `frontend.qa.sops.env` or `frontend.prod.sops.env`,
+according to the environment passed to `scripts/frontend/push.sh`. Each file
+must provide `DISTRIBUTION_ID`. Set `BEDDYBYTES_FRONTEND_SOPS_ENV_FILE` to use a
+different encrypted file.
+
 The backend CloudFormation shell reads `backend.sops.env` through SOPS. Run
 `cloudformation/backend/node.sh` to expose the decrypted dotenv through a
 one-read FIFO and pass every value into the Node container with Docker's
