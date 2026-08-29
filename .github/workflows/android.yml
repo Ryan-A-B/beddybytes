@@ -1,0 +1,33 @@
+name: Android
+
+on:
+  pull_request:
+    paths:
+      - "android/**"
+      - ".github/workflows/android.yml"
+  push:
+    branches:
+      - master
+    paths:
+      - "android/**"
+      - ".github/workflows/android.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  shell:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Run canonical Android checks
+        working-directory: android
+        run: ./docker/check.sh
+
+      - name: Build local debug APK
+        working-directory: android
+        run: ./docker/build-debug.sh
