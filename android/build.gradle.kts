@@ -7,12 +7,12 @@ plugins {
 spotless {
     kotlin {
         target("**/*.kt")
-        targetExclude("**/build/**")
+        targetExclude("**/build/**", ".gradle/**", ".gradle-docker/**")
         ktlint(libs.versions.ktlint.get())
     }
     kotlinGradle {
         target("**/*.gradle.kts")
-        targetExclude("**/build/**")
+        targetExclude("**/build/**", ".gradle/**", ".gradle-docker/**")
         ktlint(libs.versions.ktlint.get())
     }
     format("misc") {
