@@ -30,7 +30,19 @@ Privacy-first baby monitor that works entirely in the browser.
 - `golang/` - Backend services (signaling, accounts, licensing).
 - `marketing/` - Public website and landing pages.
 - `integration_tests/` - End-to-end test scenarios.
+- `android/` - Native Android Baby Station client.
 - `cloudformation/`, `traefik/`, `grafana/`, `influxdb/` - Infrastructure and observability.
+
+**Android Build**
+
+Build and verify the native Android shell from the repository root using Docker:
+
+```sh
+./scripts/android/build-debug.sh
+./scripts/android/check.sh
+```
+
+See `android/README.md` for clean verification, build variants, artifact paths, and arbitrary Gradle tasks.
 
 **Local Dev TLS Setup**
 - Install `mkcert` on your machine.

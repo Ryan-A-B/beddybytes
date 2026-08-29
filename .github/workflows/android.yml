@@ -4,12 +4,14 @@ on:
   pull_request:
     paths:
       - "android/**"
+      - "scripts/android/**"
       - ".github/workflows/android.yml"
   push:
     branches:
       - master
     paths:
       - "android/**"
+      - "scripts/android/**"
       - ".github/workflows/android.yml"
   workflow_dispatch:
 
@@ -25,9 +27,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Run canonical Android checks
-        working-directory: android
-        run: ./docker/check.sh
+        run: ./scripts/android/check.sh
 
       - name: Build local debug APK
-        working-directory: android
-        run: ./docker/build-debug.sh
+        run: ./scripts/android/build-debug.sh

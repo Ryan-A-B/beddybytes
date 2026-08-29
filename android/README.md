@@ -16,11 +16,11 @@ The build uses a pinned `linux/amd64` container. Docker hosts on ARM need amd64 
 
 ## Build and check
 
-From this directory:
+From the repository root:
 
 ```sh
-./docker/build-debug.sh
-./docker/check.sh
+./scripts/android/build-debug.sh
+./scripts/android/check.sh
 ```
 
 The debug APK is written to:
@@ -32,14 +32,14 @@ app/build/outputs/apk/local/debug/app-local-debug.apk
 Run a clean image and empty dependency-cache verification with:
 
 ```sh
-./docker/verify-clean.sh
+./scripts/android/verify-clean.sh
 ```
 
 Pass any Gradle task through the container with:
 
 ```sh
-./docker/gradle.sh tasks
-./docker/gradle.sh :app:bundleProdRelease
+./scripts/android/gradle.sh tasks
+./scripts/android/gradle.sh :app:bundleProdRelease
 ```
 
 The release bundle is unsigned until release signing material is supplied at runtime. Signing keys and credentials must never be copied into the container image or committed to the repository.
