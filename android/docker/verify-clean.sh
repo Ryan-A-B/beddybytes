@@ -20,4 +20,7 @@ docker run --rm \
     --volume "${PROJECT_DIR}:/workspace" \
     --workdir /workspace \
     "${IMAGE_NAME}" \
-    ./gradlew --no-daemon clean spotlessCheck :app:testLocalDebugUnitTest :app:lintLocalDebug :app:assembleLocalDebug
+    ./gradlew \
+    --no-daemon \
+    --project-cache-dir /tmp/gradle-project-cache \
+    clean spotlessCheck :app:testLocalDebugUnitTest :app:lintLocalDebug :app:assembleLocalDebug

@@ -12,6 +12,8 @@ Phase 1 contains the installable application shell, environment variants, sessio
 
 No host JDK, Android SDK, Gradle installation, or Android Studio installation is required to build.
 
+The container keeps both its Gradle user cache and project cache under `.gradle-docker/`. This prevents host-side Gradle metadata, including absolute paths, from being restored inside `/workspace`.
+
 The build uses a pinned `linux/amd64` container. Docker hosts on ARM need amd64 emulation enabled.
 
 ## Build and check

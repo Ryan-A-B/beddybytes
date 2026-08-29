@@ -22,4 +22,7 @@ docker run --rm \
     --volume "${PROJECT_DIR}:/workspace" \
     --workdir /workspace \
     "${IMAGE_NAME}" \
-    ./gradlew --no-daemon "$@"
+    ./gradlew \
+    --no-daemon \
+    --project-cache-dir /workspace/.gradle-docker/project-cache \
+    "$@"
