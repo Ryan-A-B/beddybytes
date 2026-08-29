@@ -1,31 +1,38 @@
 package com.beddybytes.android.ui.theme
 
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 
-private val LightColors =
-    lightColorScheme(
-        primary = Color(0xFF5846A6),
-        secondary = Color(0xFF625B71),
-        tertiary = Color(0xFF7D5260),
-    )
+private val WebPrimary = Color(0xFFFFFCDD)
+private val WebSecondary = Color(0xFFDCF7F3)
+private val WebDanger = Color(0xFFFFD8D8)
+private val WebDark = Color(0xFF212529)
+private val WebNearBlack = Color(0xFF101010)
+private val WebLight = Color(0xFFF8F9FA)
 
 private val DarkColors =
     darkColorScheme(
-        primary = Color(0xFFC8BFFF),
-        secondary = Color(0xFFCBC2DB),
-        tertiary = Color(0xFFEFB8C8),
+        primary = WebPrimary,
+        onPrimary = WebDark,
+        secondary = WebSecondary,
+        onSecondary = WebDark,
+        tertiary = WebDanger,
+        onTertiary = WebDark,
+        error = WebDanger,
+        onError = WebDark,
+        background = WebNearBlack,
+        onBackground = WebLight,
+        surface = WebDark,
+        onSurface = WebLight,
     )
 
 @Suppress("FunctionName")
 @Composable
 fun BeddyBytesTheme(content: @Composable () -> Unit) {
     MaterialTheme(
-        colorScheme = if (isSystemInDarkTheme()) DarkColors else LightColors,
+        colorScheme = DarkColors,
         content = content,
     )
 }
