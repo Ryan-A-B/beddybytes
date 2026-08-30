@@ -30,8 +30,10 @@ From the repository root:
 The debug APK is written to:
 
 ```text
-app/build/outputs/apk/local/debug/app-local-debug.apk
+android/app/build/outputs/apk/qa/debug/app-qa-debug.apk
 ```
+
+The canonical debug build uses the `qa` flavor and connects to `api.qa.beddybytes.com` and `mqtt.qa.beddybytes.com`.
 
 Run a clean image and empty dependency-cache verification with:
 
@@ -56,7 +58,7 @@ The release bundle is unsigned until release signing material is supplied at run
 | `qa` | `com.beddybytes.android.qa` | Existing QA deployment |
 | `prod` | `com.beddybytes.android` | Production and Play closed testing |
 
-Debug builds add a final `.debug` application ID suffix so local, QA, and production shells can coexist on a device.
+Debug builds add a final `.debug` application ID suffix so local, QA, and production shells can coexist on a device. `build-debug.sh`, `check.sh`, CI, and clean verification use `qaDebug`; build another flavor explicitly through `scripts/android/gradle.sh` when required.
 
 ## Local API trust on a phone
 

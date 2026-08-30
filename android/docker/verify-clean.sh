@@ -23,4 +23,4 @@ docker run --rm \
     ./gradlew \
     --no-daemon \
     --project-cache-dir /tmp/gradle-project-cache \
-    clean spotlessCheck :app:testLocalDebugUnitTest :app:lintLocalDebug :app:assembleLocalDebug
+    clean spotlessCheck :app:testQaDebugUnitTest :app:lintQaDebug :app:assembleQaDebug

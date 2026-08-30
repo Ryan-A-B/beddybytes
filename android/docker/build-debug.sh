@@ -2,4 +2,4 @@
 set -eu
 
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-exec "${SCRIPT_DIR}/gradle.sh" :app:assembleLocalDebug
+exec "${SCRIPT_DIR}/gradle.sh" :app:assembleQaDebug

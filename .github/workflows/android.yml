@@ -29,5 +29,5 @@ jobs:
       - name: Run canonical Android checks
         run: ./scripts/android/check.sh
 
-      - name: Build local debug APK
+      - name: Build QA debug APK
         run: ./scripts/android/build-debug.sh
