@@ -23,7 +23,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.outlined.AccountCircle
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Mic
 import androidx.compose.material.icons.outlined.Settings
@@ -52,6 +53,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -99,6 +101,7 @@ fun BabyStationScreen(
             microphoneGranted = grants[Manifest.permission.RECORD_AUDIO] ?: microphoneGranted
         }
     var settingsOpen by rememberSaveable { mutableStateOf(false) }
+    var accountOpen by rememberSaveable { mutableStateOf(false) }
     var screenSaverOpen by rememberSaveable { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
@@ -119,6 +122,7 @@ fun BabyStationScreen(
                 .systemBarsPadding()
                 .padding(horizontal = 16.dp, vertical = 12.dp),
     ) {
+        StationNavigation(onAccountClick = { accountOpen = true })
         StationInformation(
             uiState = uiState,
             onSettingsClick = { settingsOpen = true },
@@ -162,11 +166,20 @@ fun BabyStationScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     Box(
-                        Modifier
-                            .size(9.dp)
-                            .clip(RoundedCornerShape(50))
-                            .background(Color(0xFFFF5B62)),
-                    )
+                        modifier =
+                            Modifier
+                                .size(20.dp)
+                                .clip(RoundedCornerShape(50))
+                                .background(Color(0xFF3FAE68)),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.PlayArrow,
+                            contentDescription = null,
+                            modifier = Modifier.size(14.dp),
+                            tint = Color.White,
+                        )
+                    }
                     Text("Live", style = MaterialTheme.typography.labelLarge)
                 }
             }
@@ -209,9 +222,25 @@ fun BabyStationScreen(
                 onNameChanged = onNameChanged,
                 onCameraSelected = onCameraSelected,
                 onMicrophoneSelected = onMicrophoneSelected,
-                onSignOut = onSignOut,
-                onClose = { settingsOpen = false },
             )
+        }
+    }
+
+    if (accountOpen) {
+        ModalBottomSheet(onDismissRequest = { accountOpen = false }) {
+            Button(
+                onClick = {
+                    accountOpen = false
+                    onSignOut()
+                },
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(start = 20.dp, end = 20.dp, bottom = 28.dp)
+                        .height(56.dp),
+            ) {
+                Text("Sign out")
+            }
         }
     }
 
@@ -236,12 +265,40 @@ fun BabyStationScreen(
     }
 }
 
+@Suppress("FunctionName")
+@Composable
+private fun StationNavigation(onAccountClick: () -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth().height(48.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = "BeddyBytes",
+            modifier = Modifier.weight(1f),
+            color = MaterialTheme.colorScheme.primary,
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold,
+        )
+        IconButton(onClick = onAccountClick) {
+            Icon(Icons.Outlined.AccountCircle, contentDescription = "Account")
+        }
+    }
+}
+
 @OptIn(ExperimentalLayoutApi::class)
 @Suppress("FunctionName")
 @Composable
 private fun StationInformation(uiState: BabyStationUiState, onSettingsClick: () -> Unit) {
     Row(
-        modifier = Modifier.fillMaxWidth().height(64.dp),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .height(64.dp)
+                .clickable(
+                    enabled = !uiState.running,
+                    role = Role.Button,
+                    onClick = onSettingsClick,
+                ),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(
@@ -275,12 +332,15 @@ private fun StationInformation(uiState: BabyStationUiState, onSettingsClick: () 
                 )
             }
         }
-        IconButton(
-            onClick = onSettingsClick,
-            enabled = !uiState.running,
-        ) {
-            Icon(Icons.Outlined.Settings, contentDescription = "Station settings")
-        }
+        Icon(
+            imageVector = Icons.Outlined.Settings,
+            contentDescription = "Station settings",
+            modifier = Modifier.padding(12.dp).size(24.dp),
+            tint =
+                MaterialTheme.colorScheme.onSurface.copy(
+                    alpha = if (uiState.running) 0.38f else 1f,
+                ),
+        )
     }
 }
 
@@ -384,28 +444,11 @@ private fun StationSettings(
     onNameChanged: (String) -> Unit,
     onCameraSelected: (String) -> Unit,
     onMicrophoneSelected: (Int) -> Unit,
-    onSignOut: () -> Unit,
-    onClose: () -> Unit,
 ) {
     Column(
         modifier = Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, bottom = 28.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                text = "Station settings",
-                modifier = Modifier.weight(1f),
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.SemiBold,
-            )
-            TextButton(onClick = onSignOut) { Text("Sign out") }
-            IconButton(onClick = onClose) {
-                Icon(Icons.Outlined.Close, contentDescription = "Close settings")
-            }
-        }
         OutlinedTextField(
             value = uiState.name,
             onValueChange = onNameChanged,

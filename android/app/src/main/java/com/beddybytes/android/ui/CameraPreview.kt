@@ -38,7 +38,7 @@ fun CameraPreview(cameraId: String, grayscale: Boolean, modifier: Modifier = Mod
         remember {
             PreviewView(context).apply {
                 implementationMode = PreviewView.ImplementationMode.COMPATIBLE
-                scaleType = PreviewView.ScaleType.FILL_CENTER
+                scaleType = PreviewView.ScaleType.FIT_CENTER
             }
         }
     val grayscaleEffect =
