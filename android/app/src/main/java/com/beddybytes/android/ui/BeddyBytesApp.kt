@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.dp
 import com.beddybytes.android.authorization.AuthorizationState
 import com.beddybytes.android.authorization.SignInFailure
 import com.beddybytes.android.authorization.SignInUiState
+import com.beddybytes.android.babystation.BabyStationUiState
 
 @Suppress("FunctionName")
 @Composable
@@ -34,6 +35,12 @@ fun BeddyBytesApp(
     onSignIn: () -> Unit,
     onSignOut: () -> Unit,
     modifier: Modifier = Modifier,
+    babyStationUiState: BabyStationUiState = BabyStationUiState(),
+    onStationNameChanged: (String) -> Unit = {},
+    onCameraSelected: (String) -> Unit = {},
+    onMicrophoneSelected: (Int) -> Unit = {},
+    onStationStart: () -> Unit = {},
+    onStationStop: () -> Unit = {},
 ) {
     Surface(modifier = modifier.fillMaxSize()) {
         when (val authorization = uiState.authorization) {
@@ -52,16 +59,26 @@ fun BeddyBytesApp(
                 )
 
             is AuthorizationState.Authorized ->
-                BabyStationStatusScreen(
-                    email = authorization.account.email,
-                    status = "Ready",
+                BabyStationScreen(
+                    uiState = babyStationUiState,
+                    connectionMessage = null,
+                    onNameChanged = onStationNameChanged,
+                    onCameraSelected = onCameraSelected,
+                    onMicrophoneSelected = onMicrophoneSelected,
+                    onStart = onStationStart,
+                    onStop = onStationStop,
                     onSignOut = onSignOut,
                 )
 
             is AuthorizationState.Refreshing ->
-                BabyStationStatusScreen(
-                    email = authorization.account.email,
-                    status = "Refreshing session…",
+                BabyStationScreen(
+                    uiState = babyStationUiState,
+                    connectionMessage = "Refreshing session…",
+                    onNameChanged = onStationNameChanged,
+                    onCameraSelected = onCameraSelected,
+                    onMicrophoneSelected = onMicrophoneSelected,
+                    onStart = onStationStart,
+                    onStop = onStationStop,
                     onSignOut = onSignOut,
                 )
 
@@ -72,9 +89,14 @@ fun BeddyBytesApp(
                         onSignOut = onSignOut,
                     )
                 } else {
-                    BabyStationStatusScreen(
-                        email = authorization.account.email,
-                        status = "Connection unavailable. Retrying…",
+                    BabyStationScreen(
+                        uiState = babyStationUiState,
+                        connectionMessage = "Connection unavailable. Retrying…",
+                        onNameChanged = onStationNameChanged,
+                        onCameraSelected = onCameraSelected,
+                        onMicrophoneSelected = onMicrophoneSelected,
+                        onStart = onStationStart,
+                        onStop = onStationStop,
                         onSignOut = onSignOut,
                     )
                 }
@@ -180,34 +202,6 @@ private fun SessionProgressScreen(message: String, onSignOut: () -> Unit) {
         TextButton(
             onClick = onSignOut,
             modifier = Modifier.padding(top = 16.dp),
-        ) {
-            Text("Sign out")
-        }
-    }
-}
-
-@Suppress("FunctionName")
-@Composable
-private fun BabyStationStatusScreen(email: String, status: String, onSignOut: () -> Unit) {
-    Column(
-        modifier = Modifier.fillMaxSize().padding(24.dp),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Text(text = "Baby Station", style = MaterialTheme.typography.headlineLarge)
-        Text(
-            text = status,
-            modifier = Modifier.padding(top = 12.dp),
-            style = MaterialTheme.typography.bodyLarge,
-        )
-        Text(
-            text = email,
-            modifier = Modifier.padding(top = 8.dp),
-            style = MaterialTheme.typography.bodyMedium,
-        )
-        TextButton(
-            onClick = onSignOut,
-            modifier = Modifier.padding(top = 20.dp),
         ) {
             Text("Sign out")
         }

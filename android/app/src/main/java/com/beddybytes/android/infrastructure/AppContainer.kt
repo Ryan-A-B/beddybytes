@@ -6,6 +6,8 @@ import com.beddybytes.android.authorization.AuthorizationSession
 import com.beddybytes.android.authorization.DefaultAuthorizationRepository
 import com.beddybytes.android.authorization.EncryptedRefreshCookiePersistence
 import com.beddybytes.android.authorization.RefreshCookieStore
+import com.beddybytes.android.babystation.AndroidDeviceCatalog
+import com.beddybytes.android.babystation.BabyStationPreferences
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -38,4 +40,7 @@ class AppContainer(context: Context) {
             scope = applicationScope,
             clock = clock,
         )
+
+    val babyStationPreferences = BabyStationPreferences(context, applicationScope)
+    val androidDeviceCatalog = AndroidDeviceCatalog(context)
 }

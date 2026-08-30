@@ -2,7 +2,7 @@
 
 Native Android Baby Station client for BeddyBytes.
 
-The current project contains the installable shell and native authorization. MQTT, WebRTC, camera capture, foreground service behavior, and Do Not Disturb arrive in later phases.
+The current project contains the installable shell, native authorization, and the first Baby Station screen. The screen uses CameraX for a live preview, discovers the device's cameras and microphones, persists its compact immediate-apply settings, and implements the idle, running, and screen-saver presentation states. Start and Stop currently control local UI state only; MQTT, WebRTC transmission, foreground service behavior, and Do Not Disturb arrive in later phases.
 
 Authorization uses the existing BeddyBytes password and refresh grants without backend changes. Access tokens and account details remain in memory. The rotating refresh cookie is encrypted with an app-owned Android Keystore key, and sign out is local because the existing backend does not route a logout endpoint.
 
