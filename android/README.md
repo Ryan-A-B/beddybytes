@@ -2,7 +2,9 @@
 
 Native Android Baby Station client for BeddyBytes.
 
-Phase 1 contains the installable application shell, environment variants, session state boundaries, and build quality gates. Authentication, MQTT, WebRTC, camera capture, foreground service behavior, and Do Not Disturb arrive in later phases.
+The current project contains the installable shell and native authorization. MQTT, WebRTC, camera capture, foreground service behavior, and Do Not Disturb arrive in later phases.
+
+Authorization uses the existing BeddyBytes password and refresh grants without backend changes. Access tokens and account details remain in memory. The rotating refresh cookie is encrypted with an app-owned Android Keystore key, and sign out is local because the existing backend does not route a logout endpoint.
 
 ## Requirements
 
@@ -55,6 +57,19 @@ The release bundle is unsigned until release signing material is supplied at run
 | `prod` | `com.beddybytes.android` | Production and Play closed testing |
 
 Debug builds add a final `.debug` application ID suffix so local, QA, and production shells can coexist on a device.
+
+## Local API trust on a phone
+
+The local debug variant permits certificates issued by a CA installed by the phone's user. Release variants continue to trust only system CAs, and cleartext HTTP is disabled in every variant.
+
+To use the unchanged local backend from a Galaxy S22:
+
+1. Make `api.beddybytes.local` resolve on the phone to the machine running the local stack. This is normally a local DNS/router entry; an entry in the development machine's hosts file does not affect the phone.
+2. Install the mkcert root CA that signed the existing `beddybytes.local` certificate on the phone as a CA certificate. Never install or transfer the CA private key.
+3. Confirm `https://api.beddybytes.local` is reachable from the phone on the same network.
+4. Install the `localDebug` APK and sign in with an existing account.
+
+The CA override is inside Android's `debug-overrides`, so it is ignored for non-debuggable release builds.
 
 ## Optional Android Studio use
 
