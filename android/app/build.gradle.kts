@@ -25,7 +25,6 @@ android {
             versionNameSuffix = "-local"
             buildConfigField("String", "API_BASE_URL", "\"https://api.beddybytes.local\"")
             buildConfigField("String", "MQTT_HOST", "\"mqtt.beddybytes.local\"")
-            buildConfigField("String", "ACCOUNT_WEB_URL", "\"https://app.beddybytes.local\"")
         }
         create("qa") {
             dimension = "environment"
@@ -33,13 +32,11 @@ android {
             versionNameSuffix = "-qa"
             buildConfigField("String", "API_BASE_URL", "\"https://api.qa.beddybytes.com\"")
             buildConfigField("String", "MQTT_HOST", "\"mqtt.qa.beddybytes.com\"")
-            buildConfigField("String", "ACCOUNT_WEB_URL", "\"https://app.qa.beddybytes.com\"")
         }
         create("prod") {
             dimension = "environment"
             buildConfigField("String", "API_BASE_URL", "\"https://api.beddybytes.com\"")
             buildConfigField("String", "MQTT_HOST", "\"mqtt.beddybytes.com\"")
-            buildConfigField("String", "ACCOUNT_WEB_URL", "\"https://app.beddybytes.com\"")
         }
     }
 

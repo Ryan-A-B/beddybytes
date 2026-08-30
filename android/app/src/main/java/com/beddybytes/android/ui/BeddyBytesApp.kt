@@ -21,6 +21,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import com.beddybytes.android.domain.BabyStationState
 
@@ -29,8 +30,6 @@ import com.beddybytes.android.domain.BabyStationState
 fun BeddyBytesApp(
     state: BabyStationState,
     onSignIn: (email: String, password: String) -> Unit,
-    onCreateAccount: () -> Unit,
-    onResetPassword: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Surface(modifier = modifier.fillMaxSize()) {
@@ -38,8 +37,6 @@ fun BeddyBytesApp(
             BabyStationState.SignedOut ->
                 SignInScreen(
                     onSignIn = onSignIn,
-                    onCreateAccount = onCreateAccount,
-                    onResetPassword = onResetPassword,
                 )
 
             else -> BabyStationStatusScreen(state)
@@ -51,11 +48,10 @@ fun BeddyBytesApp(
 @Composable
 private fun SignInScreen(
     onSignIn: (email: String, password: String) -> Unit,
-    onCreateAccount: () -> Unit,
-    onResetPassword: () -> Unit,
 ) {
     var email by rememberSaveable { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }
+    var passwordVisible by rememberSaveable { mutableStateOf(false) }
 
     Column(
         modifier =
@@ -67,12 +63,8 @@ private fun SignInScreen(
     ) {
         Text(
             text = "BeddyBytes",
+            modifier = Modifier.padding(bottom = 32.dp),
             style = MaterialTheme.typography.headlineLarge,
-        )
-        Text(
-            text = "Native Baby Station",
-            modifier = Modifier.padding(top = 8.dp, bottom = 32.dp),
-            style = MaterialTheme.typography.titleMedium,
         )
         OutlinedTextField(
             value = email,
@@ -91,7 +83,17 @@ private fun SignInScreen(
                     .padding(top = 12.dp),
             label = { Text("Password") },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-            visualTransformation = PasswordVisualTransformation(),
+            trailingIcon = {
+                TextButton(onClick = { passwordVisible = !passwordVisible }) {
+                    Text(if (passwordVisible) "Hide" else "Show")
+                }
+            },
+            visualTransformation =
+                if (passwordVisible) {
+                    VisualTransformation.None
+                } else {
+                    PasswordVisualTransformation()
+                },
             singleLine = true,
         )
         Button(
@@ -103,12 +105,6 @@ private fun SignInScreen(
                     .padding(top = 24.dp),
         ) {
             Text("Sign in")
-        }
-        TextButton(onClick = onResetPassword) {
-            Text("Reset password in browser")
-        }
-        TextButton(onClick = onCreateAccount) {
-            Text("Create account in browser")
         }
     }
 }
