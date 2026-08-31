@@ -84,7 +84,12 @@ android {
     }
 
     packaging {
-        resources.excludes += "/META-INF/{AL2.0,LGPL2.1}"
+        resources.excludes +=
+            setOf(
+                "/META-INF/{AL2.0,LGPL2.1}",
+                "/META-INF/INDEX.LIST",
+            )
+        resources.pickFirsts += "/META-INF/io.netty.versions.properties"
     }
 }
 
@@ -105,6 +110,8 @@ dependencies {
     implementation(libs.compose.material.icons.extended)
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.kotlinx.serialization.json)
+    implementation(libs.hivemq.mqtt)
+    implementation(libs.netty.codec.http)
     implementation(libs.okhttp)
 
     debugImplementation(libs.compose.ui.tooling)

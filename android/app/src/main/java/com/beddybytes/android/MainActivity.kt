@@ -21,6 +21,7 @@ class MainActivity : ComponentActivity() {
         BabyStationViewModel.Factory(
             preferences = beddyBytesApplication.container.babyStationPreferences,
             deviceCatalog = beddyBytesApplication.container.androidDeviceCatalog,
+            session = beddyBytesApplication.container.babyStationMqttSession,
         )
     }
 
@@ -33,13 +34,15 @@ class MainActivity : ComponentActivity() {
                     babyStationViewModel.uiState.collectAsStateWithLifecycle().value
                 BeddyBytesApp(
                     uiState = uiState,
-                    authorizationRequired = !BuildConfig.DEBUG,
                     babyStationUiState = babyStationUiState,
                     onEmailChanged = signInViewModel::onEmailChanged,
                     onPasswordChanged = signInViewModel::onPasswordChanged,
                     onPasswordVisibilityChanged = signInViewModel::onPasswordVisibilityChanged,
                     onSignIn = signInViewModel::signIn,
-                    onSignOut = if (BuildConfig.DEBUG) ({}) else signInViewModel::signOut,
+                    onSignOut = {
+                        babyStationViewModel.stop()
+                        signInViewModel.signOut()
+                    },
                     onStationNameChanged = babyStationViewModel::onNameChanged,
                     onCameraSelected = babyStationViewModel::onCameraSelected,
                     onMicrophoneSelected = babyStationViewModel::onMicrophoneSelected,
@@ -52,8 +55,6 @@ class MainActivity : ComponentActivity() {
 
     override fun onStart() {
         super.onStart()
-        if (!BuildConfig.DEBUG) {
-            beddyBytesApplication.container.authorizationSession.onAppForeground()
-        }
+        beddyBytesApplication.container.authorizationSession.onAppForeground()
     }
 }

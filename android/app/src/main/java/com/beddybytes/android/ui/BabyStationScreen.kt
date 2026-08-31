@@ -186,7 +186,7 @@ fun BabyStationScreen(
                 )
             }
 
-            if (uiState.running) {
+            if (uiState.active) {
                 Row(
                     modifier =
                         Modifier

@@ -3,9 +3,8 @@ package com.beddybytes.android.babystation
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.beddybytes.android.domain.BabyStationEvent
-import com.beddybytes.android.domain.BabyStationState
-import com.beddybytes.android.domain.BabyStationStateMachine
+import com.beddybytes.android.mqtt.BabyStationSessionController
+import com.beddybytes.android.mqtt.BabyStationSessionState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -15,8 +14,8 @@ import kotlinx.coroutines.launch
 class BabyStationViewModel(
     private val preferences: BabyStationSettingsStore,
     deviceCatalog: DeviceCatalog,
+    private val session: BabyStationSessionController,
 ) : ViewModel() {
-    private val stateMachine = BabyStationStateMachine(BabyStationState.Ready)
     private val cameras = deviceCatalog.cameras()
     private val microphones = deviceCatalog.microphones()
     private val mutableUiState =
@@ -49,6 +48,17 @@ class BabyStationViewModel(
                 }
             }
         }
+        viewModelScope.launch {
+            session.state.collect { sessionState ->
+                mutableUiState.update { current ->
+                    current.copy(
+                        running = sessionState.running,
+                        active = sessionState is BabyStationSessionState.Active,
+                        connectionMessage = sessionState.message,
+                    )
+                }
+            }
+        }
     }
 
     fun onNameChanged(name: String) {
@@ -70,26 +80,50 @@ class BabyStationViewModel(
 
     fun start() {
         if (uiState.value.running) return
-        stateMachine.dispatch(BabyStationEvent.StartRequested)
-        stateMachine.dispatch(BabyStationEvent.Started)
-        mutableUiState.update { it.copy(running = true) }
+        session.start(uiState.value.name)
     }
 
     fun stop() {
-        if (!uiState.value.running) return
-        stateMachine.dispatch(BabyStationEvent.StopRequested)
-        stateMachine.dispatch(BabyStationEvent.Stopped)
-        mutableUiState.update { it.copy(running = false) }
+        session.stop()
     }
 
     class Factory(
         private val preferences: BabyStationSettingsStore,
         private val deviceCatalog: DeviceCatalog,
+        private val session: BabyStationSessionController,
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
             require(modelClass.isAssignableFrom(BabyStationViewModel::class.java))
-            return BabyStationViewModel(preferences, deviceCatalog) as T
+            return BabyStationViewModel(preferences, deviceCatalog, session) as T
         }
     }
 }
+
+private val BabyStationSessionState.running: Boolean
+    get() = when (this) {
+        BabyStationSessionState.Ready,
+        is BabyStationSessionState.Failed,
+        -> false
+
+        BabyStationSessionState.Connecting,
+        is BabyStationSessionState.Active,
+        BabyStationSessionState.Reconnecting,
+        BabyStationSessionState.Stopping,
+        -> true
+    }
+
+private val BabyStationSessionState.message: String?
+    get() = when (this) {
+        BabyStationSessionState.Ready,
+        is BabyStationSessionState.Active,
+        -> null
+
+        BabyStationSessionState.Connecting -> "Connecting…"
+
+        BabyStationSessionState.Reconnecting -> "Connection lost. Reconnecting…"
+
+        BabyStationSessionState.Stopping -> "Stopping…"
+
+        is BabyStationSessionState.Failed -> message
+    }

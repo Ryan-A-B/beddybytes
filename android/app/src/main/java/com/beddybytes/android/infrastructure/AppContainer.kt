@@ -8,6 +8,10 @@ import com.beddybytes.android.authorization.EncryptedRefreshCookiePersistence
 import com.beddybytes.android.authorization.RefreshCookieStore
 import com.beddybytes.android.babystation.AndroidDeviceCatalog
 import com.beddybytes.android.babystation.BabyStationPreferences
+import com.beddybytes.android.mqtt.AndroidMqttClientIdStore
+import com.beddybytes.android.mqtt.AuthorizationMqttCredentialsProvider
+import com.beddybytes.android.mqtt.BabyStationMqttSession
+import com.beddybytes.android.mqtt.HiveMqttTransport
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -39,6 +43,15 @@ class AppContainer(context: Context) {
             repository = authorizationRepository,
             scope = applicationScope,
             clock = clock,
+        )
+
+    internal val babyStationMqttSession =
+        BabyStationMqttSession(
+            mqttHost = environment.mqttHost,
+            credentialsProvider = AuthorizationMqttCredentialsProvider(authorizationSession),
+            clientIdStore = AndroidMqttClientIdStore(context),
+            transport = HiveMqttTransport(),
+            scope = applicationScope,
         )
 
     val babyStationPreferences = BabyStationPreferences(context, applicationScope)

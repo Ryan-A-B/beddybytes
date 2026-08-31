@@ -23,6 +23,8 @@ data class BabyStationUiState(
     val selectedCameraId: String? = null,
     val selectedMicrophoneId: Int? = null,
     val running: Boolean = false,
+    val active: Boolean = false,
+    val connectionMessage: String? = null,
 ) {
     val selectedCamera: CameraOption?
         get() = cameras.firstOrNull { it.id == selectedCameraId }

@@ -1,5 +1,7 @@
 package com.beddybytes.android.babystation
 
+import com.beddybytes.android.mqtt.BabyStationSessionController
+import com.beddybytes.android.mqtt.BabyStationSessionState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -32,7 +34,7 @@ class BabyStationViewModelTest {
     @Test
     fun settingsApplyImmediatelyAndPersist() = runTest(dispatcher) {
         val settings = FakeSettingsStore()
-        val viewModel = BabyStationViewModel(settings, FakeDeviceCatalog)
+        val viewModel = BabyStationViewModel(settings, FakeDeviceCatalog, FakeSession())
         advanceUntilIdle()
 
         viewModel.onNameChanged("Cot")
@@ -48,13 +50,22 @@ class BabyStationViewModelTest {
 
     @Test
     fun startAndStopDriveRunningState() = runTest(dispatcher) {
-        val viewModel = BabyStationViewModel(FakeSettingsStore(), FakeDeviceCatalog)
+        val session = FakeSession()
+        val viewModel = BabyStationViewModel(FakeSettingsStore(), FakeDeviceCatalog, session)
         advanceUntilIdle()
 
         viewModel.start()
+        advanceUntilIdle()
         assertTrue(viewModel.uiState.value.running)
+        assertFalse(viewModel.uiState.value.active)
+        assertEquals("Nursery", session.startedName)
+
+        session.mutableState.value = BabyStationSessionState.Active("session", "connection")
+        advanceUntilIdle()
+        assertTrue(viewModel.uiState.value.active)
 
         viewModel.stop()
+        advanceUntilIdle()
         assertFalse(viewModel.uiState.value.running)
     }
 
@@ -84,5 +95,21 @@ class BabyStationViewModelTest {
             MicrophoneOption(1, "Built-in microphone"),
             MicrophoneOption(2, "USB microphone"),
         )
+    }
+
+    private class FakeSession : BabyStationSessionController {
+        val mutableState = MutableStateFlow<BabyStationSessionState>(BabyStationSessionState.Ready)
+        var startedName: String? = null
+
+        override val state = mutableState
+
+        override fun start(name: String) {
+            startedName = name
+            mutableState.value = BabyStationSessionState.Connecting
+        }
+
+        override fun stop() {
+            mutableState.value = BabyStationSessionState.Ready
+        }
     }
 }
