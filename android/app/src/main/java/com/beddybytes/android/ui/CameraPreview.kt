@@ -3,21 +3,22 @@ package com.beddybytes.android.ui
 import android.graphics.ColorMatrix
 import android.graphics.ColorMatrixColorFilter
 import android.graphics.RenderEffect
-import androidx.camera.camera2.interop.Camera2CameraInfo
-import androidx.camera.camera2.interop.ExperimentalCamera2Interop
-import androidx.camera.core.CameraSelector
-import androidx.camera.core.Preview
-import androidx.camera.lifecycle.ProcessCameraProvider
-import androidx.camera.view.PreviewView
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
+import android.view.TextureView
+import android.widget.ImageView
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -25,22 +26,24 @@ import androidx.compose.ui.graphics.asComposeRenderEffect
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.beddybytes.android.BuildConfig
 
 @Suppress("FunctionName")
-@androidx.annotation.OptIn(markerClass = [ExperimentalCamera2Interop::class])
 @Composable
-fun CameraPreview(cameraId: String, grayscale: Boolean, modifier: Modifier = Modifier) {
+internal fun CameraPreview(
+    cameraId: String,
+    grayscale: Boolean,
+    recordingSession: DebugCameraRecordingSession?,
+    onTelemetryChanged: (CameraTelemetry) -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
-    val previewView =
-        remember {
-            PreviewView(context).apply {
-                implementationMode = PreviewView.ImplementationMode.COMPATIBLE
-                scaleType = PreviewView.ScaleType.FIT_CENTER
-            }
-        }
+    val currentTelemetryCallback by rememberUpdatedState(onTelemetryChanged)
+    val textureView = remember(cameraId) { TextureView(context) }
     val grayscaleEffect =
         remember {
             val matrix = ColorMatrix().apply { setSaturation(0f) }
@@ -48,56 +51,120 @@ fun CameraPreview(cameraId: String, grayscale: Boolean, modifier: Modifier = Mod
                 .createColorFilterEffect(ColorMatrixColorFilter(matrix))
                 .asComposeRenderEffect()
         }
-    var cameraError by remember(cameraId) { mutableStateOf(false) }
-
-    DisposableEffect(cameraId, lifecycleOwner) {
-        val providerFuture = ProcessCameraProvider.getInstance(context)
-        val executor = ContextCompat.getMainExecutor(context)
-        providerFuture.addListener(
-            {
-                val provider = providerFuture.get()
-                val selector =
-                    CameraSelector
-                        .Builder()
-                        .addCameraFilter { cameraInfos ->
-                            cameraInfos.filter { cameraInfo ->
-                                Camera2CameraInfo.from(cameraInfo).cameraId == cameraId
+    var cameraError by remember(cameraId) { mutableStateOf<String?>(null) }
+    var telemetry by remember(cameraId) { mutableStateOf<CameraTelemetry?>(null) }
+    var stackedPreviewFrame by remember(cameraId) {
+        mutableStateOf<StackedPreviewFrame?>(null)
+    }
+    var rawFinalizing by remember(cameraId) { mutableStateOf(false) }
+    var previewAspectRatio by remember(cameraId) { mutableFloatStateOf(DEFAULT_PREVIEW_ASPECT) }
+    val engine =
+        remember(cameraId, textureView) {
+            Camera2PreviewEngine(
+                context = context,
+                cameraId = cameraId,
+                textureView = textureView,
+                onTelemetry = { update ->
+                    textureView.post {
+                        telemetry = update
+                        currentTelemetryCallback(update)
+                    }
+                },
+                onStackedFrame = { frame ->
+                    textureView.post { stackedPreviewFrame = frame }
+                },
+                onRawFinalizingChanged = { finalizing ->
+                    textureView.post { rawFinalizing = finalizing }
+                },
+                onPreviewAspectRatio = { aspectRatio ->
+                    textureView.post { previewAspectRatio = aspectRatio }
+                },
+                onError = { error ->
+                    textureView.post {
+                        cameraError =
+                            if (BuildConfig.DEBUG) {
+                                "${error::class.java.simpleName}: ${error.message.orEmpty()}"
+                            } else {
+                                "Camera unavailable"
                             }
-                        }.build()
-                val preview = Preview.Builder().build()
-                preview.surfaceProvider = previewView.surfaceProvider
+                    }
+                },
+            )
+        }
 
-                runCatching {
-                    provider.unbindAll()
-                    provider.bindToLifecycle(lifecycleOwner, selector, preview)
-                }.onFailure { cameraError = true }
-            },
-            executor,
-        )
+    DisposableEffect(engine, lifecycleOwner) {
+        val observer =
+            LifecycleEventObserver { _, event ->
+                when (event) {
+                    Lifecycle.Event.ON_START -> engine.start()
+                    Lifecycle.Event.ON_STOP -> engine.stop()
+                    else -> Unit
+                }
+            }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        if (lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
+            engine.start()
+        }
 
         onDispose {
-            if (providerFuture.isDone) {
-                providerFuture.get().unbindAll()
-            }
+            lifecycleOwner.lifecycle.removeObserver(observer)
+            engine.close()
         }
     }
 
-    Box(
+    LaunchedEffect(engine, recordingSession) {
+        engine.setRawFrameRecordingSession(recordingSession)
+    }
+
+    BoxWithConstraints(
         modifier =
             modifier.graphicsLayer {
-                renderEffect = if (grayscale) grayscaleEffect else null
+                renderEffect =
+                    if (grayscale || telemetry?.automaticMonochrome == true) {
+                        grayscaleEffect
+                    } else {
+                        null
+                    }
             },
         contentAlignment = Alignment.Center,
     ) {
+        val availableAspectRatio = maxWidth.value / maxHeight.value
+        val previewModifier =
+            if (availableAspectRatio > previewAspectRatio) {
+                Modifier.fillMaxHeight().aspectRatio(previewAspectRatio)
+            } else {
+                Modifier.fillMaxWidth().aspectRatio(previewAspectRatio)
+            }
         AndroidView(
-            factory = { previewView },
-            modifier = Modifier.fillMaxSize(),
+            factory = { textureView },
+            modifier = previewModifier,
         )
-        if (cameraError) {
+        stackedPreviewFrame?.let { frame ->
+            AndroidView(
+                factory = { viewContext ->
+                    ImageView(viewContext).apply {
+                        scaleType = ImageView.ScaleType.FIT_CENTER
+                        contentDescription = "Eight-frame low-light stack"
+                    }
+                },
+                update = { imageView -> imageView.setImageBitmap(frame.bitmap) },
+                modifier = previewModifier,
+            )
+        }
+        cameraError?.let { errorMessage ->
             Text(
-                text = "Camera unavailable",
+                text = errorMessage,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+        }
+        if (rawFinalizing) {
+            Text(
+                text = "Saving RAW…",
+                modifier = Modifier.align(Alignment.BottomCenter),
                 color = MaterialTheme.colorScheme.onSurface,
             )
         }
     }
 }
+
+private const val DEFAULT_PREVIEW_ASPECT = 3f / 4f

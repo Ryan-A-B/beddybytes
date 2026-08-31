@@ -10,6 +10,8 @@ class BeddyBytesApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         container = AppContainer(this)
-        container.authorizationSession.start()
+        if (!BuildConfig.DEBUG) {
+            container.authorizationSession.start()
+        }
     }
 }

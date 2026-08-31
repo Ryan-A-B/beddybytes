@@ -33,12 +33,13 @@ class MainActivity : ComponentActivity() {
                     babyStationViewModel.uiState.collectAsStateWithLifecycle().value
                 BeddyBytesApp(
                     uiState = uiState,
+                    authorizationRequired = !BuildConfig.DEBUG,
                     babyStationUiState = babyStationUiState,
                     onEmailChanged = signInViewModel::onEmailChanged,
                     onPasswordChanged = signInViewModel::onPasswordChanged,
                     onPasswordVisibilityChanged = signInViewModel::onPasswordVisibilityChanged,
                     onSignIn = signInViewModel::signIn,
-                    onSignOut = signInViewModel::signOut,
+                    onSignOut = if (BuildConfig.DEBUG) ({}) else signInViewModel::signOut,
                     onStationNameChanged = babyStationViewModel::onNameChanged,
                     onCameraSelected = babyStationViewModel::onCameraSelected,
                     onMicrophoneSelected = babyStationViewModel::onMicrophoneSelected,
@@ -51,6 +52,8 @@ class MainActivity : ComponentActivity() {
 
     override fun onStart() {
         super.onStart()
-        beddyBytesApplication.container.authorizationSession.onAppForeground()
+        if (!BuildConfig.DEBUG) {
+            beddyBytesApplication.container.authorizationSession.onAppForeground()
+        }
     }
 }

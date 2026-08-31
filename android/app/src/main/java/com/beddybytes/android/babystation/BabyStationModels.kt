@@ -2,7 +2,11 @@ package com.beddybytes.android.babystation
 
 import kotlinx.coroutines.flow.Flow
 
-data class CameraOption(val id: String, val label: String)
+data class CameraOption(
+    val id: String,
+    val label: String,
+    val preferredForLowLight: Boolean = false,
+)
 
 data class MicrophoneOption(val id: Int, val label: String)
 

@@ -2,7 +2,7 @@
 
 Native Android Baby Station client for BeddyBytes.
 
-The current project contains the installable shell, native authorization, and the first Baby Station screen. The screen uses CameraX for a live preview, discovers the device's cameras and microphones, persists its compact immediate-apply settings, and implements the idle, running, and screen-saver presentation states. Start and Stop currently control local UI state only; MQTT, WebRTC transmission, foreground service behavior, and Do Not Disturb arrive in later phases.
+The current project contains the installable shell, native authorization, and the first Baby Station screen. The screen uses Camera2 directly for preview and low-light exposure control, can target the preferred physical sensor behind a logical camera, and displays an eight-frame rolling grayscale average during manual low-light capture. It discovers the device's cameras and microphones, persists its compact immediate-apply settings, and implements the idle, running, and screen-saver presentation states. Start and Stop currently control local UI state only; MQTT, WebRTC transmission, foreground service behavior, and Do Not Disturb arrive in later phases.
 
 Authorization uses the existing BeddyBytes password and refresh grants without backend changes. Access tokens and account details remain in memory. The rotating refresh cookie is encrypted with an app-owned Android Keystore key, and sign out is local because the existing backend does not route a logout endpoint.
 
@@ -34,6 +34,23 @@ android/app/build/outputs/apk/qa/debug/app-qa-debug.apk
 ```
 
 The canonical debug build uses the `qa` flavor and connects to `api.qa.beddybytes.com` and `mqtt.qa.beddybytes.com`.
+
+During low-light development, each press of Start in a debug build creates an app-specific
+`files/camera-sessions/<camera-and-start-time>/` directory. Until Stop is pressed, the session
+records `telemetry.csv` once per second and a full-resolution RAW DNG frame once per second under
+`raw/`; `session.txt` and `raw-frames.csv` describe the session and individual frames. Preview and
+on-screen telemetry continue while stopped, but nothing is persisted.
+
+On a RAW-capable camera, the running preview changes to an eight-frame rolling RAW stack once the
+first eight manual low-light frames have arrived. The stack uses the camera's reported black level,
+combines each 4×4 group of sensor photosites before mapping to 8-bit grayscale, and automatically
+lifts the result. It then refreshes once per newly captured RAW frame. Automatic exposure probe
+frames are excluded so they cannot contaminate the stack.
+
+After Stop, wait for `Saving RAW…` to disappear before copying a session from the phone. A completed
+session contains `raw_finalized_utc` in `session.txt` and `recording_stopped=true` at the end of
+`raw-frames.csv`. For `qaDebug`, these files are beneath Android's app-specific directory for
+`com.beddybytes.android.qa.debug`.
 
 Run a clean image and empty dependency-cache verification with:
 

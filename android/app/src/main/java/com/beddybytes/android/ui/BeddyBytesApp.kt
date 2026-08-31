@@ -35,6 +35,7 @@ fun BeddyBytesApp(
     onSignIn: () -> Unit,
     onSignOut: () -> Unit,
     modifier: Modifier = Modifier,
+    authorizationRequired: Boolean = true,
     babyStationUiState: BabyStationUiState = BabyStationUiState(),
     onStationNameChanged: (String) -> Unit = {},
     onCameraSelected: (String) -> Unit = {},
@@ -43,7 +44,12 @@ fun BeddyBytesApp(
     onStationStop: () -> Unit = {},
 ) {
     Surface(modifier = modifier.fillMaxSize()) {
-        when (val authorization = uiState.authorization) {
+        when (
+            val authorization = effectiveAuthorizationState(
+                authorization = uiState.authorization,
+                authorizationRequired = authorizationRequired,
+            )
+        ) {
             AuthorizationState.RestoringSession ->
                 SessionProgressScreen(message = "Restoring session…", onSignOut = onSignOut)
 
@@ -103,6 +109,21 @@ fun BeddyBytesApp(
         }
     }
 }
+
+private val DEBUG_AUTHORIZED_STATE =
+    AuthorizationState.Authorized(
+        account =
+            com.beddybytes.android.authorization.AccountSummary(
+                id = "debug-account",
+                userId = "debug-user",
+                email = "camera-debug@beddybytes.local",
+            ),
+    )
+
+internal fun effectiveAuthorizationState(
+    authorization: AuthorizationState,
+    authorizationRequired: Boolean,
+): AuthorizationState = if (authorizationRequired) authorization else DEBUG_AUTHORIZED_STATE
 
 @Suppress("FunctionName")
 @Composable
