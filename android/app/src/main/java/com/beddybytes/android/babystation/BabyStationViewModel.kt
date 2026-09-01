@@ -1,7 +1,5 @@
 package com.beddybytes.android.babystation
 
-import android.graphics.Bitmap
-import android.media.Image
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -18,6 +16,7 @@ class BabyStationViewModel(
     private val preferences: BabyStationSettingsStore,
     deviceCatalog: DeviceCatalog,
     private val session: BabyStationSessionController,
+    cameraState: StateFlow<ActiveCameraState> = MutableStateFlow(ActiveCameraState()),
 ) : ViewModel() {
     private val cameras = deviceCatalog.cameras()
     private val microphones = deviceCatalog.microphones()
@@ -62,6 +61,19 @@ class BabyStationViewModel(
                 }
             }
         }
+        viewModelScope.launch {
+            cameraState.collect { cameraState ->
+                mutableUiState.update { current ->
+                    current.copy(
+                        activeCameraFrame = cameraState.frame,
+                        cameraTelemetry = cameraState.telemetry,
+                        cameraError = cameraState.error,
+                        rawFinalizing = cameraState.rawFinalizing,
+                        previewAspectRatio = cameraState.previewAspectRatio,
+                    )
+                }
+            }
+        }
     }
 
     fun onNameChanged(name: String) {
@@ -81,24 +93,16 @@ class BabyStationViewModel(
         viewModelScope.launch { preferences.setMicrophoneId(microphoneId) }
     }
 
-    fun start() {
+    fun start(cameraEnabled: Boolean = true) {
         if (uiState.value.running) return
         val state = uiState.value
         session.start(
             BabyStationStartRequest(
                 name = state.name,
-                cameraId = state.selectedCameraId,
+                cameraId = state.selectedCameraId.takeIf { cameraEnabled },
                 microphoneId = state.selectedMicrophoneId,
             ),
         )
-    }
-
-    fun onCameraFrame(image: Image, rotationDegrees: Int) {
-        session.onCameraFrame(image, rotationDegrees)
-    }
-
-    fun onProcessedCameraFrame(bitmap: Bitmap?, timestampNanoseconds: Long) {
-        session.onProcessedCameraFrame(bitmap, timestampNanoseconds)
     }
 
     fun stop() {
@@ -109,11 +113,12 @@ class BabyStationViewModel(
         private val preferences: BabyStationSettingsStore,
         private val deviceCatalog: DeviceCatalog,
         private val session: BabyStationSessionController,
+        private val cameraState: StateFlow<ActiveCameraState>,
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
             require(modelClass.isAssignableFrom(BabyStationViewModel::class.java))
-            return BabyStationViewModel(preferences, deviceCatalog, session) as T
+            return BabyStationViewModel(preferences, deviceCatalog, session, cameraState) as T
         }
     }
 }

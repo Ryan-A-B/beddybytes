@@ -1,7 +1,5 @@
 package com.beddybytes.android.ui
 
-import android.graphics.Bitmap
-import android.media.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -41,10 +39,8 @@ fun BeddyBytesApp(
     onStationNameChanged: (String) -> Unit = {},
     onCameraSelected: (String) -> Unit = {},
     onMicrophoneSelected: (Int) -> Unit = {},
-    onStationStart: () -> Unit = {},
+    onStationStart: (Boolean) -> Unit = {},
     onStationStop: () -> Unit = {},
-    onCameraFrame: (Image, Int) -> Unit = { _, _ -> },
-    onProcessedCameraFrame: (Bitmap?, Long) -> Unit = { _, _ -> },
 ) {
     Surface(modifier = modifier.fillMaxSize()) {
         when (val authorization = uiState.authorization) {
@@ -72,8 +68,6 @@ fun BeddyBytesApp(
                     onStart = onStationStart,
                     onStop = onStationStop,
                     onSignOut = onSignOut,
-                    onCameraFrame = onCameraFrame,
-                    onProcessedCameraFrame = onProcessedCameraFrame,
                 )
 
             is AuthorizationState.Refreshing ->
@@ -86,8 +80,6 @@ fun BeddyBytesApp(
                     onStart = onStationStart,
                     onStop = onStationStop,
                     onSignOut = onSignOut,
-                    onCameraFrame = onCameraFrame,
-                    onProcessedCameraFrame = onProcessedCameraFrame,
                 )
 
             is AuthorizationState.Unavailable ->
@@ -106,8 +98,6 @@ fun BeddyBytesApp(
                         onStart = onStationStart,
                         onStop = onStationStop,
                         onSignOut = onSignOut,
-                        onCameraFrame = onCameraFrame,
-                        onProcessedCameraFrame = onProcessedCameraFrame,
                     )
                 }
         }

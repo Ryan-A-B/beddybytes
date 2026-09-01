@@ -72,6 +72,42 @@ class BabyStationViewModelTest {
         assertFalse(viewModel.uiState.value.running)
     }
 
+    @Test
+    fun deniedCameraPermissionStartsAnAudioOnlySession() = runTest(dispatcher) {
+        val session = FakeSession()
+        val viewModel = BabyStationViewModel(FakeSettingsStore(), FakeDeviceCatalog, session)
+        advanceUntilIdle()
+
+        viewModel.start(cameraEnabled = false)
+
+        assertEquals(BabyStationStartRequest("Nursery", null, 1), session.startRequest)
+    }
+
+    @Test
+    fun activeCameraStateIsPresentedWithoutOwningCapture() = runTest(dispatcher) {
+        val cameraState = MutableStateFlow(ActiveCameraState())
+        val viewModel =
+            BabyStationViewModel(
+                FakeSettingsStore(),
+                FakeDeviceCatalog,
+                FakeSession(),
+                cameraState,
+            )
+        advanceUntilIdle()
+
+        cameraState.value =
+            ActiveCameraState(
+                error = "Camera unavailable",
+                rawFinalizing = true,
+                previewAspectRatio = 16f / 9f,
+            )
+        advanceUntilIdle()
+
+        assertEquals("Camera unavailable", viewModel.uiState.value.cameraError)
+        assertTrue(viewModel.uiState.value.rawFinalizing)
+        assertEquals(16f / 9f, viewModel.uiState.value.previewAspectRatio)
+    }
+
     private class FakeSettingsStore : BabyStationSettingsStore {
         override val settings = MutableStateFlow(BabyStationSettings())
 

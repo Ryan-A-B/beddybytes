@@ -20,6 +20,7 @@ import android.hardware.camera2.TotalCaptureResult
 import android.hardware.camera2.params.MeteringRectangle
 import android.hardware.camera2.params.OutputConfiguration
 import android.hardware.camera2.params.SessionConfiguration
+import android.hardware.display.DisplayManager
 import android.media.Image
 import android.media.ImageReader
 import android.os.Build
@@ -35,7 +36,7 @@ import kotlin.math.max
 internal class Camera2PreviewEngine(
     context: Context,
     private val cameraId: String,
-    private val textureView: TextureView,
+    private val textureView: TextureView?,
     private val onTelemetry: (CameraTelemetry) -> Unit,
     private val onVideoFrame: (Image, Int) -> Unit,
     private val onStackedFrame: (StackedPreviewFrame?) -> Unit,
@@ -99,7 +100,7 @@ internal class Camera2PreviewEngine(
         }
 
     init {
-        textureView.surfaceTextureListener = surfaceTextureListener
+        textureView?.surfaceTextureListener = surfaceTextureListener
         val portrait =
             appContext.resources.configuration.orientation == Configuration.ORIENTATION_PORTRAIT
         val aspectRatio =
@@ -118,7 +119,9 @@ internal class Camera2PreviewEngine(
             cameraThread = HandlerThread("BeddyBytes-Camera2-$cameraId").also { it.start() }
             cameraHandler = Handler(cameraThread!!.looper)
         }
-        if (textureView.isAvailable) {
+        if (textureView == null) {
+            openCameraIfReady()
+        } else if (textureView.isAvailable) {
             configureTransform(textureView.width, textureView.height)
             openCameraIfReady()
         }
@@ -139,7 +142,7 @@ internal class Camera2PreviewEngine(
 
     fun close() {
         stop()
-        textureView.surfaceTextureListener = null
+        textureView?.surfaceTextureListener = null
     }
 
     fun setLowLightProcessing(enabled: Boolean, recordingSession: DebugCameraRecordingSession?) {
@@ -165,7 +168,14 @@ internal class Camera2PreviewEngine(
     @SuppressLint("MissingPermission")
     private fun openCameraIfReady() {
         val handler = synchronized(lock) {
-            if (!running || opening || cameraDevice != null || !textureView.isAvailable) return
+            if (
+                !running ||
+                opening ||
+                cameraDevice != null ||
+                (textureView != null && !textureView.isAvailable)
+            ) {
+                return
+            }
             opening = true
             cameraHandler
         } ?: return
@@ -214,9 +224,11 @@ internal class Camera2PreviewEngine(
     }
 
     private fun createPreviewSession(camera: CameraDevice, handler: Handler) {
-        val surfaceTexture = textureView.surfaceTexture ?: return
-        surfaceTexture.setDefaultBufferSize(previewSize.width, previewSize.height)
-        val surface = Surface(surfaceTexture)
+        val surface =
+            textureView?.surfaceTexture?.let { surfaceTexture ->
+                surfaceTexture.setDefaultBufferSize(previewSize.width, previewSize.height)
+                Surface(surfaceTexture)
+            }
         val reader =
             ImageReader.newInstance(
                 previewSize.width,
@@ -294,12 +306,13 @@ internal class Camera2PreviewEngine(
             rawImageReader = rawReader
             rollingFrameProcessor = processor
         }
-        val previewOutput = physicalOutputConfiguration(surface)
         val processingOutput = physicalOutputConfiguration(reader.surface)
         val executor = Executor { command -> handler.post(command) }
         val outputs =
             buildList {
-                add(previewOutput)
+                surface?.let { previewSurface ->
+                    add(physicalOutputConfiguration(previewSurface))
+                }
                 add(processingOutput)
                 rawReader?.surface?.let { rawSurface -> add(OutputConfiguration(rawSurface)) }
             }
@@ -341,7 +354,7 @@ internal class Camera2PreviewEngine(
     private fun startRepeatingPreview(
         camera: CameraDevice,
         session: CameraCaptureSession,
-        previewSurface: Surface,
+        previewSurface: Surface?,
         processingSurface: Surface,
         handler: Handler,
         processor: RollingLumaFrameProcessor,
@@ -350,7 +363,7 @@ internal class Camera2PreviewEngine(
     ) {
         runCatching {
             val requestBuilder = camera.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW)
-            requestBuilder.addTarget(previewSurface)
+            previewSurface?.let(requestBuilder::addTarget)
             requestBuilder.addTarget(processingSurface)
             configureAutomaticControls(requestBuilder)
             val exposureController =
@@ -501,8 +514,15 @@ internal class Camera2PreviewEngine(
     private fun imageRotationDegrees(): Int {
         val sensorOrientation =
             captureCharacteristics.get(CameraCharacteristics.SENSOR_ORIENTATION) ?: 0
+        val displayRotation =
+            textureView?.display?.rotation
+                ?: appContext
+                    .getSystemService(DisplayManager::class.java)
+                    .getDisplay(android.view.Display.DEFAULT_DISPLAY)
+                    ?.rotation
+                ?: Surface.ROTATION_0
         val displayDegrees =
-            when (textureView.display?.rotation ?: Surface.ROTATION_0) {
+            when (displayRotation) {
                 Surface.ROTATION_90 -> 90
                 Surface.ROTATION_180 -> 180
                 Surface.ROTATION_270 -> 270
@@ -519,6 +539,7 @@ internal class Camera2PreviewEngine(
     }
 
     private fun configureTransform(viewWidth: Int, viewHeight: Int) {
+        val textureView = textureView ?: return
         if (viewWidth == 0 || viewHeight == 0) return
         val rotation = textureView.display?.rotation ?: Surface.ROTATION_0
         val matrix = Matrix()

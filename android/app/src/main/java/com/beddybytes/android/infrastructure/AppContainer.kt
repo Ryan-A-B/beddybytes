@@ -7,7 +7,9 @@ import com.beddybytes.android.authorization.AuthorizationSession
 import com.beddybytes.android.authorization.DefaultAuthorizationRepository
 import com.beddybytes.android.authorization.EncryptedRefreshCookiePersistence
 import com.beddybytes.android.authorization.RefreshCookieStore
+import com.beddybytes.android.babystation.ActiveBabyStationSession
 import com.beddybytes.android.babystation.AndroidDeviceCatalog
+import com.beddybytes.android.babystation.BabyStationForegroundController
 import com.beddybytes.android.babystation.BabyStationPreferences
 import com.beddybytes.android.mqtt.AndroidMqttClientIdStore
 import com.beddybytes.android.mqtt.AndroidSessionEventLogFactory
@@ -49,7 +51,7 @@ class AppContainer(context: Context) {
             clock = clock,
         )
 
-    internal val babyStationMqttSession =
+    private val babyStationMqttSession =
         BabyStationMqttSession(
             mqttHost = environment.mqttHost,
             credentialsProvider = AuthorizationMqttCredentialsProvider(authorizationSession),
@@ -67,6 +69,19 @@ class AppContainer(context: Context) {
                 } else {
                     NoOpSessionEventLogFactory
                 },
+        )
+
+    internal val activeBabyStationSession =
+        ActiveBabyStationSession(
+            context = context,
+            session = babyStationMqttSession,
+            scope = applicationScope,
+        )
+
+    internal val babyStationSession =
+        BabyStationForegroundController(
+            context = context,
+            activeSession = activeBabyStationSession,
         )
 
     val babyStationPreferences = BabyStationPreferences(context, applicationScope)

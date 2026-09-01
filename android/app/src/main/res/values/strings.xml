@@ -1,4 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">BeddyBytes</string>
+    <string name="baby_station_notification_channel">Baby Station</string>
+    <string name="baby_station_notification_channel_description">Shows when a Baby Station is monitoring.</string>
+    <string name="stop">Stop</string>
 </resources>

@@ -50,6 +50,8 @@ interface BabyStationSessionController {
     fun onCameraFrame(image: Image, rotationDegrees: Int)
 
     fun onProcessedCameraFrame(bitmap: Bitmap?, timestampNanoseconds: Long)
+
+    fun recordEvent(event: String, fields: Map<String, String> = emptyMap()) = Unit
 }
 
 data class BabyStationStartRequest(val name: String, val cameraId: String?, val microphoneId: Int?)
@@ -84,6 +86,18 @@ internal class BabyStationMqttSession(
                 startedAtMillis = nowMillis(),
             ).also { runtime = it }
         }
+        startedRuntime.eventLog =
+            runCatching {
+                eventLogFactory.create(
+                    SessionLogContext(
+                        sessionId = startedRuntime.sessionId,
+                        stationName = startedRuntime.name,
+                        startedAtMillis = startedRuntime.startedAtMillis,
+                        mqttHost = mqttHost,
+                    ),
+                )
+            }.getOrDefault(NoOpSessionEventLog)
+        log(startedRuntime, startedRuntime.startedAtMillis, "session_started")
         mutableState.value = BabyStationSessionState.Connecting
         scope.launch { runSession(startedRuntime) }
     }
@@ -113,22 +127,15 @@ internal class BabyStationMqttSession(
         webRtcController.onProcessedCameraFrame(bitmap, timestampNanoseconds)
     }
 
+    override fun recordEvent(event: String, fields: Map<String, String>) {
+        val activeRuntime = synchronized(this) { runtime } ?: return
+        log(activeRuntime, event, fields)
+    }
+
     private suspend fun runSession(activeRuntime: SessionRuntime) {
         var attempt = 0
         var failed = false
         var completionReason = "stopped"
-        activeRuntime.eventLog =
-            runCatching {
-                eventLogFactory.create(
-                    SessionLogContext(
-                        sessionId = activeRuntime.sessionId,
-                        stationName = activeRuntime.name,
-                        startedAtMillis = activeRuntime.startedAtMillis,
-                        mqttHost = mqttHost,
-                    ),
-                )
-            }.getOrDefault(NoOpSessionEventLog)
-        log(activeRuntime, activeRuntime.startedAtMillis, "session_started")
         try {
             val clientId = clientIdStore.getOrCreate()
             activeRuntime.clientId = clientId

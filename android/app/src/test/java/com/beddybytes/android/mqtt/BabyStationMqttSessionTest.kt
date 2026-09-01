@@ -136,6 +136,11 @@ class BabyStationMqttSessionTest {
             assertEquals("accounts/account-1/baby_stations", first.publishes[1].first)
             assertEquals("Nursery", announcementName(first.publishes[1].second))
 
+            session.recordEvent(
+                "activity_stopped",
+                mapOf("display_interactive" to "false"),
+            )
+
             now = 456
             first.dispatch(
                 topic = "accounts/account-1/parent_stations",
@@ -178,6 +183,7 @@ class BabyStationMqttSessionTest {
                         "mqtt_subscribed",
                         "mqtt_message",
                         "session_active",
+                        "activity_stopped",
                         "mqtt_connection_lost",
                         "mqtt_reconnect_scheduled",
                         "session_stop_requested",

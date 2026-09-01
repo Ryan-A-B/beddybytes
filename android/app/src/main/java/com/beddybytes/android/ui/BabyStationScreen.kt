@@ -2,14 +2,13 @@ package com.beddybytes.android.ui
 
 import android.Manifest
 import android.content.pm.PackageManager
-import android.graphics.Bitmap
 import android.hardware.camera2.CaptureResult
-import android.media.Image
 import android.util.Range
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateContentSize
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -47,17 +46,19 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -84,11 +85,9 @@ fun BabyStationScreen(
     onNameChanged: (String) -> Unit,
     onCameraSelected: (String) -> Unit,
     onMicrophoneSelected: (Int) -> Unit,
-    onStart: () -> Unit,
+    onStart: (Boolean) -> Unit,
     onStop: () -> Unit,
     onSignOut: () -> Unit,
-    onCameraFrame: (Image, Int) -> Unit,
-    onProcessedCameraFrame: (Bitmap?, Long) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -104,36 +103,37 @@ fun BabyStationScreen(
                 PackageManager.PERMISSION_GRANTED,
         )
     }
+    var notificationsGranted by remember {
+        mutableStateOf(
+            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) ==
+                PackageManager.PERMISSION_GRANTED,
+        )
+    }
     val permissionLauncher =
         rememberLauncherForActivityResult(
             contract = ActivityResultContracts.RequestMultiplePermissions(),
         ) { grants ->
             cameraGranted = grants[Manifest.permission.CAMERA] ?: cameraGranted
             microphoneGranted = grants[Manifest.permission.RECORD_AUDIO] ?: microphoneGranted
+            notificationsGranted =
+                grants[Manifest.permission.POST_NOTIFICATIONS] ?: notificationsGranted
         }
     var settingsOpen by rememberSaveable { mutableStateOf(false) }
     var accountOpen by rememberSaveable { mutableStateOf(false) }
     var screenSaverOpen by rememberSaveable { mutableStateOf(false) }
+    var startPending by rememberSaveable { mutableStateOf(false) }
     var cameraTelemetry by
         remember(uiState.selectedCameraId) { mutableStateOf<CameraTelemetry?>(null) }
-    val debugRecordingSession =
-        remember(context, uiState.running, uiState.selectedCameraId) {
-            uiState.selectedCameraId
-                ?.takeIf { BuildConfig.DEBUG && uiState.running }
-                ?.let { cameraId -> DebugCameraRecordingSession(context, cameraId) }
-        }
-    val telemetryLogger =
-        remember(context, debugRecordingSession) {
-            debugRecordingSession?.let { session ->
-                CameraTelemetryLogger(context, session.cameraId, session)
-            }
-        }
 
-    DisposableEffect(telemetryLogger, debugRecordingSession) {
-        onDispose {
-            telemetryLogger?.close()
-            debugRecordingSession?.close()
+    LaunchedEffect(startPending) {
+        if (startPending) {
+            withFrameNanos { }
+            onStart(cameraGranted)
         }
+    }
+
+    LaunchedEffect(uiState.running) {
+        if (uiState.running) startPending = false
     }
 
     LaunchedEffect(Unit) {
@@ -141,6 +141,7 @@ fun BabyStationScreen(
             buildList {
                 if (!cameraGranted) add(Manifest.permission.CAMERA)
                 if (!microphoneGranted) add(Manifest.permission.RECORD_AUDIO)
+                if (!notificationsGranted) add(Manifest.permission.POST_NOTIFICATIONS)
             }
         if (missingPermissions.isNotEmpty()) {
             permissionLauncher.launch(missingPermissions.toTypedArray())
@@ -170,18 +171,24 @@ fun BabyStationScreen(
             contentAlignment = Alignment.Center,
         ) {
             val selectedCamera = uiState.selectedCamera
-            if (cameraGranted && selectedCamera != null) {
+            if (uiState.running || startPending) {
+                ActiveCameraPreview(
+                    frame = uiState.activeCameraFrame,
+                    error = uiState.cameraError,
+                    rawFinalizing = uiState.rawFinalizing,
+                    modifier = Modifier.fillMaxSize(),
+                )
+            } else if (cameraGranted && selectedCamera != null) {
                 CameraPreview(
                     cameraId = selectedCamera.id,
-                    grayscale = !uiState.running,
-                    processedOutputEnabled = uiState.running,
-                    recordingSession = debugRecordingSession,
+                    grayscale = true,
+                    processedOutputEnabled = false,
+                    recordingSession = null,
                     onTelemetryChanged = { telemetry ->
                         cameraTelemetry = telemetry
-                        telemetryLogger?.record(telemetry)
                     },
-                    onVideoFrame = onCameraFrame,
-                    onProcessedVideoFrame = onProcessedCameraFrame,
+                    onVideoFrame = { _, _ -> },
+                    onProcessedVideoFrame = { _, _ -> },
                     modifier = Modifier.fillMaxSize(),
                 )
             } else {
@@ -239,7 +246,7 @@ fun BabyStationScreen(
             }
 
             if (BuildConfig.DEBUG) {
-                cameraTelemetry?.let { telemetry ->
+                (uiState.cameraTelemetry ?: cameraTelemetry)?.let { telemetry ->
                     CameraDebugOverlay(
                         telemetry = telemetry,
                         modifier = Modifier.align(
@@ -251,13 +258,13 @@ fun BabyStationScreen(
         }
         Spacer(Modifier.height(12.dp))
         StationControls(
-            running = uiState.running,
+            running = uiState.running || startPending,
             microphoneGranted = microphoneGranted,
             namePresent = uiState.name.isNotBlank(),
             onRequestMicrophone = {
                 permissionLauncher.launch(arrayOf(Manifest.permission.RECORD_AUDIO))
             },
-            onStart = onStart,
+            onStart = { startPending = true },
             onStop = {
                 screenSaverOpen = false
                 onStop()
@@ -312,6 +319,36 @@ fun BabyStationScreen(
                     style = MaterialTheme.typography.labelMedium,
                 )
             }
+        }
+    }
+}
+
+@Suppress("FunctionName")
+@Composable
+private fun ActiveCameraPreview(
+    frame: android.graphics.Bitmap?,
+    error: String?,
+    rawFinalizing: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    Box(modifier = modifier, contentAlignment = Alignment.Center) {
+        frame?.let { bitmap ->
+            Image(
+                bitmap = bitmap.asImageBitmap(),
+                contentDescription = "Baby Station camera",
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Fit,
+            )
+        }
+        error?.let { message ->
+            Text(text = message, color = MaterialTheme.colorScheme.onSurface)
+        }
+        if (rawFinalizing) {
+            Text(
+                text = "Saving RAW…",
+                modifier = Modifier.align(Alignment.BottomCenter),
+                color = MaterialTheme.colorScheme.onSurface,
+            )
         }
     }
 }

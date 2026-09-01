@@ -1,5 +1,7 @@
 package com.beddybytes.android.babystation
 
+import android.graphics.Bitmap
+import com.beddybytes.android.ui.CameraTelemetry
 import kotlinx.coroutines.flow.Flow
 
 data class CameraOption(
@@ -25,6 +27,11 @@ data class BabyStationUiState(
     val running: Boolean = false,
     val active: Boolean = false,
     val connectionMessage: String? = null,
+    val activeCameraFrame: Bitmap? = null,
+    val cameraTelemetry: CameraTelemetry? = null,
+    val cameraError: String? = null,
+    val rawFinalizing: Boolean = false,
+    val previewAspectRatio: Float = 3f / 4f,
 ) {
     val selectedCamera: CameraOption?
         get() = cameras.firstOrNull { it.id == selectedCameraId }

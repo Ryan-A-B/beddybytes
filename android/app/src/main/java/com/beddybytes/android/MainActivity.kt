@@ -21,7 +21,8 @@ class MainActivity : ComponentActivity() {
         BabyStationViewModel.Factory(
             preferences = beddyBytesApplication.container.babyStationPreferences,
             deviceCatalog = beddyBytesApplication.container.androidDeviceCatalog,
-            session = beddyBytesApplication.container.babyStationMqttSession,
+            session = beddyBytesApplication.container.babyStationSession,
+            cameraState = beddyBytesApplication.container.babyStationSession.cameraState,
         )
     }
 
@@ -48,8 +49,6 @@ class MainActivity : ComponentActivity() {
                     onMicrophoneSelected = babyStationViewModel::onMicrophoneSelected,
                     onStationStart = babyStationViewModel::start,
                     onStationStop = babyStationViewModel::stop,
-                    onCameraFrame = babyStationViewModel::onCameraFrame,
-                    onProcessedCameraFrame = babyStationViewModel::onProcessedCameraFrame,
                 )
             }
         }
@@ -58,5 +57,11 @@ class MainActivity : ComponentActivity() {
     override fun onStart() {
         super.onStart()
         beddyBytesApplication.container.authorizationSession.onAppForeground()
+        beddyBytesApplication.container.babyStationSession.recordEvent("activity_started")
+    }
+
+    override fun onStop() {
+        beddyBytesApplication.container.babyStationSession.recordEvent("activity_stopped")
+        super.onStop()
     }
 }
