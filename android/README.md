@@ -2,7 +2,7 @@
 
 Native Android Baby Station client for BeddyBytes.
 
-The current project contains the installable shell, native authorization, MQTT discovery and signalling, WebRTC audio/video transmission, and the first Baby Station screen. The screen uses Camera2 directly for preview and low-light exposure control, can target the preferred physical sensor behind a logical camera, and displays an eight-frame rolling grayscale average during manual low-light capture. It discovers the device's cameras and microphones, persists its compact immediate-apply settings, and implements the idle, running, and screen-saver presentation states. Foreground service behavior and Do Not Disturb arrive in later phases.
+The current project contains the installable shell, native authorization, MQTT discovery and signalling, WebRTC transmission, and the first Baby Station screen. The screen uses Camera2 directly for preview and low-light exposure control, can target the preferred physical sensor behind a logical camera, and displays an eight-frame rolling grayscale average during manual low-light capture. It discovers the device's cameras and microphones, persists its compact immediate-apply settings, and implements the idle, running, and screen-saver presentation states. Foreground service behavior and Do Not Disturb arrive in later phases.
 
 Authorization uses the existing BeddyBytes password and refresh grants without backend changes. Access tokens and account details remain in memory. The rotating refresh cookie is encrypted with an app-owned Android Keystore key, and sign out is local because the existing backend does not route a logout endpoint.
 
@@ -42,12 +42,15 @@ android/app/build/outputs/apk/qa/debug/app-qa-debug.apk
 The canonical debug build uses the `qa` flavor and connects to `api.qa.beddybytes.com` and `mqtt.qa.beddybytes.com`.
 
 For an MQTT/WebRTC smoke test, install the QA debug APK, sign in, and press Start. A browser parent
-station on the same account should discover the Android Baby Station and receive its camera and
-selected microphone. Multiple browser parents may connect independently. Turning Wi-Fi off and
+station on the same account should discover the Android Baby Station and receive its selected
+microphone. The current diagnostic build deliberately does not create or attach a WebRTC video
+track, while the camera preview and low-light processing continue locally. Multiple browser parents
+may connect independently. Turning Wi-Fi off and
 back on should show the reconnecting state and then re-announce the same station session. Stop
 should remove it cleanly and end every peer connection.
 
-The transmitted video initially uses the existing Camera2 YUV stream, capped at 10 fps. As soon as
+When video transmission is re-enabled after the audio-only diagnostic, it initially uses the
+existing Camera2 YUV stream, capped at 10 fps. As soon as
 the rolling low-light processor has accumulated a complete stack, WebRTC switches to the same
 brightened grayscale output displayed in the local preview. RAW-capable cameras use the eight-frame
 RAW stack at its one-frame-per-second update rate; other cameras use the YUV rolling stack. If the
