@@ -44,6 +44,13 @@ station on the same account should discover the Android Baby Station. Turning Wi
 on should show the reconnecting state and then re-announce the same station session. Stop should
 remove it cleanly. Video and audio will not reach the browser until the WebRTC phase is implemented.
 
+Each Start in a debug build also creates
+`Android/data/com.beddybytes.android.qa.debug/files/station-sessions/<session>/events.jsonl`.
+The JSON Lines file records the app/device/host header, session lifecycle, MQTT connections,
+subscriptions, reconnect timing, disconnects, and inbound/outbound message topic, type, and byte
+count. It does not record access tokens or MQTT payload bodies. The same lines are available in
+Logcat under the `BeddyBytesSession` tag while the phone is attached.
+
 During low-light development, each press of Start in a debug build creates an app-specific
 `files/camera-sessions/<camera-and-start-time>/` directory. Until Stop is pressed, the session
 records `telemetry.csv` once per second and a full-resolution RAW DNG frame once per second under

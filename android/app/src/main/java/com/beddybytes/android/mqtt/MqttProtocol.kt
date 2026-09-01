@@ -4,6 +4,9 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 
 internal object MqttTopics {
     fun clientStatus(accountId: String, clientId: String): String =
@@ -132,4 +135,8 @@ internal object MqttPayloads {
             }.isSuccess
         }
     }
+
+    fun messageType(payload: String): String = runCatching {
+        json.parseToJsonElement(payload).jsonObject["type"]?.jsonPrimitive?.contentOrNull
+    }.getOrNull() ?: "unknown"
 }

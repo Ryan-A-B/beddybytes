@@ -1,6 +1,7 @@
 package com.beddybytes.android.infrastructure
 
 import android.content.Context
+import com.beddybytes.android.BuildConfig
 import com.beddybytes.android.authorization.AuthorizationClock
 import com.beddybytes.android.authorization.AuthorizationSession
 import com.beddybytes.android.authorization.DefaultAuthorizationRepository
@@ -9,9 +10,11 @@ import com.beddybytes.android.authorization.RefreshCookieStore
 import com.beddybytes.android.babystation.AndroidDeviceCatalog
 import com.beddybytes.android.babystation.BabyStationPreferences
 import com.beddybytes.android.mqtt.AndroidMqttClientIdStore
+import com.beddybytes.android.mqtt.AndroidSessionEventLogFactory
 import com.beddybytes.android.mqtt.AuthorizationMqttCredentialsProvider
 import com.beddybytes.android.mqtt.BabyStationMqttSession
 import com.beddybytes.android.mqtt.HiveMqttTransport
+import com.beddybytes.android.mqtt.NoOpSessionEventLogFactory
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -52,6 +55,12 @@ class AppContainer(context: Context) {
             clientIdStore = AndroidMqttClientIdStore(context),
             transport = HiveMqttTransport(),
             scope = applicationScope,
+            eventLogFactory =
+                if (BuildConfig.DEBUG) {
+                    AndroidSessionEventLogFactory(context)
+                } else {
+                    NoOpSessionEventLogFactory
+                },
         )
 
     val babyStationPreferences = BabyStationPreferences(context, applicationScope)

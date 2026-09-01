@@ -49,6 +49,7 @@ class BabyStationMqttSessionTest {
                     listOf("session-1", "connection-1", "request-1", "connection-2", "request-2"),
                 )
             var now = 123L
+            val eventLog = RecordingSessionEventLog()
             val session =
                 BabyStationMqttSession(
                     mqttHost = "mqtt.qa.beddybytes.com",
@@ -56,6 +57,7 @@ class BabyStationMqttSessionTest {
                     clientIdStore = MqttClientIdStore { "baby-client" },
                     transport = transport,
                     scope = this,
+                    eventLogFactory = SessionEventLogFactory { eventLog },
                     nowMillis = { now },
                     newId = ids::removeFirst,
                 )
@@ -112,6 +114,25 @@ class BabyStationMqttSessionTest {
             assertEquals("disconnected", payloadType(second.publishes.last().second))
             assertEquals("clean", disconnectReason(second.publishes.last().second))
             assertTrue(second.disconnected)
+            assertTrue(
+                eventLog.events.map { it.event }.containsAll(
+                    listOf(
+                        "session_started",
+                        "mqtt_connect_started",
+                        "mqtt_connected",
+                        "mqtt_subscribed",
+                        "mqtt_message",
+                        "session_active",
+                        "mqtt_connection_lost",
+                        "mqtt_reconnect_scheduled",
+                        "session_stop_requested",
+                        "mqtt_disconnected",
+                        "session_stopped",
+                    ),
+                ),
+            )
+            assertTrue(eventLog.events.none { event -> event.fields.values.any { "token" in it } })
+            assertTrue(eventLog.closed)
         }
 
     private fun payloadType(payload: String): String =
@@ -188,4 +209,19 @@ class BabyStationMqttSessionTest {
             onDisconnected(IllegalStateException("network lost"))
         }
     }
+
+    private class RecordingSessionEventLog : SessionEventLog {
+        val events = mutableListOf<RecordedEvent>()
+        var closed = false
+
+        override fun record(atMillis: Long, event: String, fields: Map<String, String>) {
+            events += RecordedEvent(event, fields)
+        }
+
+        override fun close() {
+            closed = true
+        }
+    }
+
+    private data class RecordedEvent(val event: String, val fields: Map<String, String>)
 }

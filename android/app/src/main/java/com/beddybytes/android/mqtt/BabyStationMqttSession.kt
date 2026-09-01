@@ -48,6 +48,7 @@ internal class BabyStationMqttSession(
     private val clientIdStore: MqttClientIdStore,
     private val transport: MqttTransport,
     private val scope: CoroutineScope,
+    private val eventLogFactory: SessionEventLogFactory = NoOpSessionEventLogFactory,
     private val nowMillis: () -> Long = System::currentTimeMillis,
     private val newId: () -> String = { UUID.randomUUID().toString() },
 ) : BabyStationSessionController {
@@ -84,12 +85,30 @@ internal class BabyStationMqttSession(
             return
         }
         mutableState.value = BabyStationSessionState.Stopping
-        activeRuntime.stop.complete(Unit)
+        synchronized(activeRuntime) {
+            if (!activeRuntime.stop.isCompleted) {
+                activeRuntime.stopRequestedAtMillis = nowMillis()
+                activeRuntime.stop.complete(Unit)
+            }
+        }
     }
 
     private suspend fun runSession(activeRuntime: SessionRuntime) {
         var attempt = 0
         var failed = false
+        var completionReason = "stopped"
+        activeRuntime.eventLog =
+            runCatching {
+                eventLogFactory.create(
+                    SessionLogContext(
+                        sessionId = activeRuntime.sessionId,
+                        stationName = activeRuntime.name,
+                        startedAtMillis = activeRuntime.startedAtMillis,
+                        mqttHost = mqttHost,
+                    ),
+                )
+            }.getOrDefault(NoOpSessionEventLog)
+        log(activeRuntime, activeRuntime.startedAtMillis, "session_started")
         try {
             while (!activeRuntime.stop.isCompleted) {
                 mutableState.value =
@@ -99,22 +118,43 @@ internal class BabyStationMqttSession(
                         BabyStationSessionState.Reconnecting
                     }
                 try {
-                    runConnectionAttempt(activeRuntime)
+                    runConnectionAttempt(activeRuntime, attempt + 1)
                     if (activeRuntime.stop.isCompleted) break
-                } catch (_: AuthenticationRequiredException) {
+                } catch (error: AuthenticationRequiredException) {
                     failed = true
+                    completionReason = "authentication_required"
+                    logError(activeRuntime, "session_authentication_failed", error)
                     mutableState.value = BabyStationSessionState.Failed("Sign in required")
                     return
                 } catch (error: CancellationException) {
+                    completionReason = "cancelled"
+                    logError(activeRuntime, "session_cancelled", error)
                     throw error
-                } catch (_: Exception) {
+                } catch (error: Exception) {
+                    logError(activeRuntime, "mqtt_connection_attempt_failed", error)
                     if (activeRuntime.stop.isCompleted) break
                 }
                 attempt++
                 mutableState.value = BabyStationSessionState.Reconnecting
-                if (waitForStop(activeRuntime, reconnectDelayMillis(attempt))) break
+                val reconnectDelayMillis = reconnectDelayMillis(attempt)
+                log(
+                    activeRuntime,
+                    "mqtt_reconnect_scheduled",
+                    mapOf(
+                        "next_attempt" to (attempt + 1).toString(),
+                        "delay_ms" to reconnectDelayMillis.toString(),
+                    ),
+                )
+                if (waitForStop(activeRuntime, reconnectDelayMillis)) break
             }
         } finally {
+            if (activeRuntime.stop.isCompleted) logStopRequested(activeRuntime)
+            log(
+                activeRuntime,
+                "session_stopped",
+                mapOf("reason" to completionReason),
+            )
+            runCatching { activeRuntime.eventLog.close() }
             synchronized(this) {
                 if (runtime === activeRuntime) runtime = null
             }
@@ -123,7 +163,7 @@ internal class BabyStationMqttSession(
     }
 
     @OptIn(ExperimentalCoroutinesApi::class)
-    private suspend fun runConnectionAttempt(activeRuntime: SessionRuntime) {
+    private suspend fun runConnectionAttempt(activeRuntime: SessionRuntime, attempt: Int) {
         val credentials = credentialsProvider.credentials()
         val clientId = clientIdStore.getOrCreate()
         val connectionId = newId()
@@ -144,18 +184,43 @@ internal class BabyStationMqttSession(
                         reason = "unexpected",
                     ),
             )
+        log(
+            activeRuntime,
+            "mqtt_connect_started",
+            mapOf(
+                "attempt" to attempt.toString(),
+                "host" to mqttHost,
+                "client_id" to clientId,
+                "connection_id" to connectionId,
+                "request_id" to requestId,
+                "will_topic" to statusTopic,
+            ),
+        )
         val connection = coroutineScope {
             val connecting = async {
-                transport.connect(connectRequest) { cause -> disconnects.trySend(cause) }
+                transport.connect(connectRequest) { cause ->
+                    logError(activeRuntime, "mqtt_connection_lost", cause)
+                    disconnects.trySend(cause)
+                }
             }
             select<MqttConnection?> {
                 activeRuntime.stop.onAwait {
+                    logStopRequested(activeRuntime)
                     connecting.cancel()
                     null
                 }
                 connecting.onAwait { it }
             }
         } ?: return
+        log(
+            activeRuntime,
+            "mqtt_connected",
+            mapOf(
+                "attempt" to attempt.toString(),
+                "client_id" to clientId,
+                "connection_id" to connectionId,
+            ),
+        )
         activeRuntime.connection = connection
         val announcement =
             SessionAnnouncement(
@@ -168,11 +233,17 @@ internal class BabyStationMqttSession(
         var cleanStop = false
         var setupCompleted = false
         try {
-            connection.publish(
+            publish(
+                activeRuntime,
+                connection,
                 statusTopic,
                 MqttPayloads.connected(connectionId, requestId, nowMillis()),
             )
-            connection.subscribe(MqttTopics.parentStations(credentials.accountId)) { message ->
+            subscribe(
+                activeRuntime,
+                connection,
+                MqttTopics.parentStations(credentials.accountId),
+            ) { message ->
                 respondToParent(
                     activeRuntime,
                     connection,
@@ -181,20 +252,26 @@ internal class BabyStationMqttSession(
                     message,
                 )
             }
-            connection.subscribe(
+            subscribe(
+                activeRuntime,
+                connection,
                 MqttTopics.webRtcInbox(credentials.accountId, clientId),
             ) { message ->
                 if (isCurrent(activeRuntime, connection)) mutableWebRtcSignals.tryEmit(message)
             }
             if (activeRuntime.stop.isCompleted) {
+                logStopRequested(activeRuntime)
                 cleanStop = true
                 return
             }
-            connection.publish(
+            publish(
+                activeRuntime,
+                connection,
                 MqttTopics.babyStations(credentials.accountId),
                 MqttPayloads.babyStation(announcement),
             )
             if (activeRuntime.stop.isCompleted) {
+                logStopRequested(activeRuntime)
                 cleanStop = true
                 return
             }
@@ -204,15 +281,25 @@ internal class BabyStationMqttSession(
                     sessionId = activeRuntime.sessionId,
                     connectionId = connectionId,
                 )
+            log(
+                activeRuntime,
+                "session_active",
+                mapOf("connection_id" to connectionId),
+            )
             cleanStop = select {
-                activeRuntime.stop.onAwait { true }
+                activeRuntime.stop.onAwait {
+                    logStopRequested(activeRuntime)
+                    true
+                }
                 disconnects.onReceive { false }
             }
         } finally {
             activeRuntime.connection = null
             if (cleanStop || activeRuntime.stop.isCompleted || !setupCompleted) {
                 runCatching {
-                    connection.publish(
+                    publish(
+                        activeRuntime,
+                        connection,
                         statusTopic,
                         MqttPayloads.disconnected(
                             connectionId = connectionId,
@@ -221,9 +308,14 @@ internal class BabyStationMqttSession(
                             reason = "clean",
                         ),
                     )
+                }.onFailure { error ->
+                    logError(activeRuntime, "mqtt_clean_status_failed", error)
                 }
             }
+            log(activeRuntime, "mqtt_disconnect_started")
             runCatching { connection.disconnect() }
+                .onSuccess { log(activeRuntime, "mqtt_disconnected") }
+                .onFailure { error -> logError(activeRuntime, "mqtt_disconnect_failed", error) }
         }
     }
 
@@ -238,12 +330,132 @@ internal class BabyStationMqttSession(
         scope.launch {
             if (!isCurrent(activeRuntime, connection)) return@launch
             runCatching {
-                connection.publish(
+                publish(
+                    activeRuntime,
+                    connection,
                     MqttTopics.controlInbox(accountId, parent.clientId),
                     MqttPayloads.babyStationControl(announcement, nowMillis()),
                 )
+            }.onFailure { error ->
+                logError(activeRuntime, "mqtt_parent_response_failed", error)
             }
         }
+    }
+
+    private suspend fun publish(
+        activeRuntime: SessionRuntime,
+        connection: MqttConnection,
+        topic: String,
+        payload: String,
+    ) {
+        try {
+            connection.publish(topic, payload)
+            logMessage(activeRuntime, direction = "outbound", topic = topic, payload = payload)
+        } catch (error: Exception) {
+            logMessageError(activeRuntime, direction = "outbound", topic = topic, error = error)
+            throw error
+        }
+    }
+
+    private suspend fun subscribe(
+        activeRuntime: SessionRuntime,
+        connection: MqttConnection,
+        topicFilter: String,
+        onMessage: (MqttInboundMessage) -> Unit,
+    ) {
+        try {
+            connection.subscribe(topicFilter) { message ->
+                logMessage(
+                    activeRuntime,
+                    direction = "inbound",
+                    topic = message.topic,
+                    payload = message.payload,
+                )
+                onMessage(message)
+            }
+            log(activeRuntime, "mqtt_subscribed", mapOf("topic" to topicFilter))
+        } catch (error: Exception) {
+            logMessageError(
+                activeRuntime,
+                direction = "subscribe",
+                topic = topicFilter,
+                error = error,
+            )
+            throw error
+        }
+    }
+
+    private fun logMessage(
+        activeRuntime: SessionRuntime,
+        direction: String,
+        topic: String,
+        payload: String,
+    ) {
+        log(
+            activeRuntime,
+            "mqtt_message",
+            mapOf(
+                "direction" to direction,
+                "topic" to topic,
+                "payload_type" to MqttPayloads.messageType(payload),
+                "payload_bytes" to payload.toByteArray(Charsets.UTF_8).size.toString(),
+            ),
+        )
+    }
+
+    private fun logMessageError(
+        activeRuntime: SessionRuntime,
+        direction: String,
+        topic: String,
+        error: Throwable,
+    ) {
+        log(
+            activeRuntime,
+            "mqtt_message_failed",
+            mapOf(
+                "direction" to direction,
+                "topic" to topic,
+                "error_class" to error.javaClass.name,
+                "cause_classes" to error.causeClasses(),
+            ),
+        )
+    }
+
+    private fun log(
+        activeRuntime: SessionRuntime,
+        event: String,
+        fields: Map<String, String> = emptyMap(),
+    ) {
+        log(activeRuntime, nowMillis(), event, fields)
+    }
+
+    private fun log(
+        activeRuntime: SessionRuntime,
+        atMillis: Long,
+        event: String,
+        fields: Map<String, String> = emptyMap(),
+    ) {
+        runCatching { activeRuntime.eventLog.record(atMillis, event, fields) }
+    }
+
+    private fun logError(activeRuntime: SessionRuntime, event: String, error: Throwable) {
+        log(
+            activeRuntime,
+            event,
+            mapOf(
+                "error_class" to error.javaClass.name,
+                "cause_classes" to error.causeClasses(),
+            ),
+        )
+    }
+
+    private fun logStopRequested(activeRuntime: SessionRuntime) {
+        val requestedAt = synchronized(activeRuntime) {
+            if (activeRuntime.stopRequestLogged) return
+            activeRuntime.stopRequestLogged = true
+            activeRuntime.stopRequestedAtMillis ?: nowMillis()
+        }
+        log(activeRuntime, requestedAt, "session_stop_requested")
     }
 
     private fun isCurrent(activeRuntime: SessionRuntime, connection: MqttConnection): Boolean =
@@ -270,6 +482,9 @@ internal class BabyStationMqttSession(
         val startedAtMillis: Long,
         val stop: CompletableDeferred<Unit> = CompletableDeferred(),
         @Volatile var connection: MqttConnection? = null,
+        @Volatile var eventLog: SessionEventLog = NoOpSessionEventLog,
+        var stopRequestedAtMillis: Long? = null,
+        var stopRequestLogged: Boolean = false,
     )
 
     private companion object {
@@ -277,3 +492,9 @@ internal class BabyStationMqttSession(
         const val MAX_RECONNECT_DELAY_MILLIS = 30_000L
     }
 }
+
+private fun Throwable.causeClasses(): String = generateSequence(this) { error -> error.cause }
+    .take(MAX_LOGGED_CAUSES)
+    .joinToString(separator = " -> ") { error -> error.javaClass.name }
+
+private const val MAX_LOGGED_CAUSES = 6
