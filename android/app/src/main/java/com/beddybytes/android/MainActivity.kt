@@ -49,6 +49,7 @@ class MainActivity : ComponentActivity() {
                     onStationStart = babyStationViewModel::start,
                     onStationStop = babyStationViewModel::stop,
                     onCameraFrame = babyStationViewModel::onCameraFrame,
+                    onProcessedCameraFrame = babyStationViewModel::onProcessedCameraFrame,
                 )
             }
         }

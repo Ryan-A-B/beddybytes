@@ -51,8 +51,7 @@ internal class Camera2PreviewEngine(
     private val captureCharacteristics = physicalTarget?.characteristics ?: characteristics
     private val captureConfiguration = CameraCaptureConfiguration.from(captureCharacteristics)
     private val previewSize = choosePreviewSize(captureCharacteristics)
-    private val rawCaptureSize =
-        if (BuildConfig.DEBUG) chooseRawCaptureSize(characteristics) else null
+    private val rawCaptureSize = chooseRawCaptureSize(characteristics)
     private val imageCaptureWriter =
         if (BuildConfig.DEBUG) CameraImageCaptureWriter(appContext, cameraId) else null
     private val lock = Any()
@@ -69,6 +68,7 @@ internal class Camera2PreviewEngine(
     private var rawImageReader: ImageReader? = null
     private var rollingFrameProcessor: RollingLumaFrameProcessor? = null
     private var rawCaptureController: DebugRawCaptureController? = null
+    private var requestedLowLightProcessing = false
     private var requestedRecordingSession: DebugCameraRecordingSession? = null
 
     private val surfaceTextureListener =
@@ -142,17 +142,23 @@ internal class Camera2PreviewEngine(
         textureView.surfaceTextureListener = null
     }
 
-    fun setRawFrameRecordingSession(session: DebugCameraRecordingSession?) {
-        if (!BuildConfig.DEBUG) return
+    fun setLowLightProcessing(enabled: Boolean, recordingSession: DebugCameraRecordingSession?) {
         val handler =
             synchronized(lock) {
-                requestedRecordingSession = session
+                requestedLowLightProcessing = enabled
+                requestedRecordingSession = recordingSession
                 cameraHandler
             } ?: return
         handler.post {
-            val (controller, requestedSession) =
-                synchronized(lock) { rawCaptureController to requestedRecordingSession }
-            controller?.setRecordingSession(requestedSession)
+            val requested =
+                synchronized(lock) {
+                    Triple(
+                        rawCaptureController,
+                        requestedLowLightProcessing,
+                        requestedRecordingSession,
+                    )
+                }
+            requested.first?.setProcessing(requested.second, requested.third)
         }
     }
 
@@ -419,13 +425,16 @@ internal class Camera2PreviewEngine(
                 } else {
                     null
                 }
-            val requestedSession =
+            val requestedProcessing =
                 synchronized(lock) {
                     rawCaptureController?.close()
                     rawCaptureController = rawController
-                    requestedRecordingSession
+                    requestedLowLightProcessing to requestedRecordingSession
                 }
-            rawController?.setRecordingSession(requestedSession)
+            rawController?.setProcessing(
+                requestedProcessing.first,
+                requestedProcessing.second,
+            )
         }.onFailure(::reportError)
     }
 
@@ -579,6 +588,7 @@ private class DebugRawCaptureController(
     private val onError: (Throwable) -> Unit,
 ) {
     private var recordingSession: DebugCameraRecordingSession? = null
+    private var processing = false
     private var closed = false
     private val captureCallback =
         object : CameraCaptureSession.CaptureCallback() {
@@ -604,13 +614,14 @@ private class DebugRawCaptureController(
         }
     private val captureRunnable = Runnable(::captureFrame)
 
-    fun setRecordingSession(value: DebugCameraRecordingSession?) {
-        if (closed || recordingSession === value) return
+    fun setProcessing(enabled: Boolean, debugSession: DebugCameraRecordingSession?) {
+        if (closed || (processing == enabled && recordingSession === debugSession)) return
         handler.removeCallbacks(captureRunnable)
         recorder.stop()
-        recordingSession = value
-        if (value != null) {
-            runCatching { recorder.start(value) }
+        processing = enabled
+        recordingSession = debugSession
+        if (enabled) {
+            runCatching { recorder.start(debugSession) }
                 .onSuccess { handler.post(captureRunnable) }
                 .onFailure(onError)
         }
@@ -620,12 +631,13 @@ private class DebugRawCaptureController(
         if (closed) return
         closed = true
         handler.removeCallbacks(captureRunnable)
+        processing = false
         recordingSession = null
         recorder.close()
     }
 
     private fun captureFrame() {
-        if (closed || recordingSession == null) return
+        if (closed || !processing) return
         runCatching {
             requestBuilder.addTarget(rawSurface)
             val request = try {
@@ -635,7 +647,7 @@ private class DebugRawCaptureController(
             }
             session.capture(request, captureCallback, handler)
         }.onFailure { error ->
-            setRecordingSession(null)
+            setProcessing(false, null)
             onError(error)
             return
         }

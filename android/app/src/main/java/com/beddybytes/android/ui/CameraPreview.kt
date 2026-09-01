@@ -1,5 +1,6 @@
 package com.beddybytes.android.ui
 
+import android.graphics.Bitmap
 import android.graphics.ColorMatrix
 import android.graphics.ColorMatrixColorFilter
 import android.graphics.RenderEffect
@@ -37,15 +38,18 @@ import com.beddybytes.android.BuildConfig
 internal fun CameraPreview(
     cameraId: String,
     grayscale: Boolean,
+    processedOutputEnabled: Boolean,
     recordingSession: DebugCameraRecordingSession?,
     onTelemetryChanged: (CameraTelemetry) -> Unit,
     onVideoFrame: (Image, Int) -> Unit,
+    onProcessedVideoFrame: (Bitmap?, Long) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val currentTelemetryCallback by rememberUpdatedState(onTelemetryChanged)
     val currentVideoFrameCallback by rememberUpdatedState(onVideoFrame)
+    val currentProcessedVideoFrameCallback by rememberUpdatedState(onProcessedVideoFrame)
     val textureView = remember(cameraId) { TextureView(context) }
     val grayscaleEffect =
         remember {
@@ -77,6 +81,10 @@ internal fun CameraPreview(
                     currentVideoFrameCallback(image, rotationDegrees)
                 },
                 onStackedFrame = { frame ->
+                    currentProcessedVideoFrameCallback(
+                        frame?.bitmap,
+                        frame?.timestampNanoseconds ?: 0L,
+                    )
                     textureView.post { stackedPreviewFrame = frame }
                 },
                 onRawFinalizingChanged = { finalizing ->
@@ -118,8 +126,11 @@ internal fun CameraPreview(
         }
     }
 
-    LaunchedEffect(engine, recordingSession) {
-        engine.setRawFrameRecordingSession(recordingSession)
+    LaunchedEffect(engine, processedOutputEnabled, recordingSession) {
+        engine.setLowLightProcessing(
+            enabled = processedOutputEnabled,
+            recordingSession = recordingSession,
+        )
     }
 
     BoxWithConstraints(

@@ -27,7 +27,7 @@ internal class DebugRawFrameRecorder(
     private val writeMutex = Mutex()
     private val pendingImages = linkedMapOf<Long, Image>()
     private val pendingResults = linkedMapOf<Long, CaptureResult>()
-    private var session: RecordingSession? = null
+    private var session: ProcessingSession? = null
 
     @Volatile
     var stackedFrameCount: Int = 0
@@ -38,46 +38,34 @@ internal class DebugRawFrameRecorder(
         private set
 
     @Synchronized
-    fun start(debugSession: DebugCameraRecordingSession) {
+    fun start(debugSession: DebugCameraRecordingSession?) {
         if (session != null) return
-        debugSession.ensureStarted()
-        val directory = File(debugSession.directory, RAW_DIRECTORY).apply {
-            check(mkdirs() || isDirectory)
-        }
-        val manifest = File(debugSession.directory, MANIFEST_FILENAME)
-        manifest.writeText(
-            "schema=beddybytes-raw-frames-v1\n" +
-                "format=RAW_SENSOR_DNG\n" +
-                "resolution=${rawSize.width}x${rawSize.height}\n" +
-                "capture_interval_ms=$CAPTURE_INTERVAL_MILLISECONDS\n" +
-                "frame,file,sensor_timestamp_ns,exposure_ns,frame_duration_ns,iso\n",
-        )
+        val recording = debugSession?.let(::startRecording)
         stackedFrameCount = 0
         brightnessGain = null
         onStackedFrame(null)
+        lateinit var processor: RawRollingStackProcessor
+        processor =
+            RawRollingStackProcessor(
+                characteristics = cameraCharacteristics,
+                width = rawSize.width,
+                height = rawSize.height,
+                rotationDegrees = rotationDegrees,
+                onFrame = { frame ->
+                    val active = synchronized(this@DebugRawFrameRecorder) {
+                        session?.processor === processor
+                    }
+                    if (active) {
+                        stackedFrameCount = frame.sourceFrameCount
+                        brightnessGain = frame.brightnessGain
+                        onStackedFrame(frame)
+                    }
+                },
+            )
         session =
-            RecordingSession(
-                debugSession = debugSession,
-                directory = directory,
-                manifest = manifest,
-                processor =
-                    RawRollingStackProcessor(
-                        characteristics = cameraCharacteristics,
-                        width = rawSize.width,
-                        height = rawSize.height,
-                        rotationDegrees = rotationDegrees,
-                        onFrame = { frame ->
-                            val active =
-                                synchronized(this@DebugRawFrameRecorder) {
-                                    session?.debugSession === debugSession
-                                }
-                            if (active) {
-                                stackedFrameCount = frame.sourceFrameCount
-                                brightnessGain = frame.brightnessGain
-                                onStackedFrame(frame)
-                            }
-                        },
-                    ),
+            ProcessingSession(
+                recording = recording,
+                processor = processor,
             )
     }
 
@@ -91,9 +79,9 @@ internal class DebugRawFrameRecorder(
         stackedFrameCount = 0
         brightnessGain = null
         onStackedFrame(null)
-        if (stoppedSession.inFlightWrites == 0) {
+        if (stoppedSession.inFlightWork == 0) {
             finalizeSession(stoppedSession)
-        } else {
+        } else if (stoppedSession.recording != null) {
             onFinalizingChanged(true)
         }
     }
@@ -124,57 +112,59 @@ internal class DebugRawFrameRecorder(
 
     @Synchronized
     private fun writePairIfReady(timestamp: Long) {
-        val recordingSession = session ?: return
+        val processingSession = session ?: return
         val image = pendingImages[timestamp] ?: return
         val result = pendingResults[timestamp] ?: return
         pendingImages.remove(timestamp)
         pendingResults.remove(timestamp)
-        val frameNumber = ++recordingSession.frameCount
+        val frameNumber = ++processingSession.frameCount
         val filename = rawFrameFilename(frameNumber, timestamp)
-        recordingSession.inFlightWrites++
+        processingSession.inFlightWork++
         scope.launch {
             writeMutex.withLock {
                 runCatching {
-                    recordingSession.processor.onImage(image, result)
+                    processingSession.processor.onImage(image, result)
                     val active =
                         synchronized(this@DebugRawFrameRecorder) {
-                            session?.debugSession === recordingSession.debugSession
+                            session === processingSession
                         }
                     if (active) {
-                        stackedFrameCount = recordingSession.processor.frameCount
-                        brightnessGain = recordingSession.processor.brightnessGain
+                        stackedFrameCount = processingSession.processor.frameCount
+                        brightnessGain = processingSession.processor.brightnessGain
                     }
-                    val finalFile = File(recordingSession.directory, filename)
-                    val partialFile = File(recordingSession.directory, "$filename.partial")
-                    try {
-                        DngCreator(cameraCharacteristics, result).use { creator ->
-                            FileOutputStream(partialFile).use { output ->
-                                creator.writeImage(output, image)
-                                output.fd.sync()
+                    processingSession.recording?.let { recording ->
+                        val finalFile = File(recording.directory, filename)
+                        val partialFile = File(recording.directory, "$filename.partial")
+                        try {
+                            DngCreator(cameraCharacteristics, result).use { creator ->
+                                FileOutputStream(partialFile).use { output ->
+                                    creator.writeImage(output, image)
+                                    output.fd.sync()
+                                }
                             }
+                            check(partialFile.renameTo(finalFile))
+                        } finally {
+                            partialFile.delete()
                         }
-                        check(partialFile.renameTo(finalFile))
-                    } finally {
-                        image.close()
-                        partialFile.delete()
+                        appendManifest(
+                            recording.manifest,
+                            listOf(
+                                frameNumber,
+                                filename,
+                                timestamp,
+                                result.get(CaptureResult.SENSOR_EXPOSURE_TIME),
+                                result.get(CaptureResult.SENSOR_FRAME_DURATION),
+                                result.get(CaptureResult.SENSOR_SENSITIVITY),
+                            ).joinToString(",") + "\n",
+                        )
                     }
-                    appendManifest(
-                        recordingSession.manifest,
-                        listOf(
-                            frameNumber,
-                            filename,
-                            timestamp,
-                            result.get(CaptureResult.SENSOR_EXPOSURE_TIME),
-                            result.get(CaptureResult.SENSOR_FRAME_DURATION),
-                            result.get(CaptureResult.SENSOR_SENSITIVITY),
-                        ).joinToString(",") + "\n",
-                    )
                 }.onFailure { error ->
-                    image.close()
                     Log.e(LOG_TAG, "Unable to process or write RAW frame", error)
                     onError(error)
+                }.also {
+                    image.close()
                 }
-                finishWrite(recordingSession)
+                finishWork(processingSession)
             }
         }
     }
@@ -199,27 +189,48 @@ internal class DebugRawFrameRecorder(
     }
 
     @Synchronized
-    private fun finishWrite(recordingSession: RecordingSession) {
-        recordingSession.inFlightWrites--
-        if (recordingSession.stopped && recordingSession.inFlightWrites == 0) {
-            finalizeSession(recordingSession)
+    private fun finishWork(processingSession: ProcessingSession) {
+        processingSession.inFlightWork--
+        if (processingSession.stopped && processingSession.inFlightWork == 0) {
+            finalizeSession(processingSession)
         }
     }
 
-    private fun finalizeSession(recordingSession: RecordingSession) {
-        appendManifest(recordingSession.manifest, "recording_stopped=true\n")
-        recordingSession.debugSession.markRawFinalized()
+    private fun finalizeSession(processingSession: ProcessingSession) {
+        val recording = processingSession.recording ?: return
+        appendManifest(recording.manifest, "recording_stopped=true\n")
+        recording.debugSession.markRawFinalized()
         onFinalizingChanged(false)
     }
 
-    private data class RecordingSession(
+    private fun startRecording(debugSession: DebugCameraRecordingSession): RecordingArtifacts {
+        debugSession.ensureStarted()
+        val directory = File(debugSession.directory, RAW_DIRECTORY).apply {
+            check(mkdirs() || isDirectory)
+        }
+        val manifest = File(debugSession.directory, MANIFEST_FILENAME)
+        manifest.writeText(
+            "schema=beddybytes-raw-frames-v1\n" +
+                "format=RAW_SENSOR_DNG\n" +
+                "resolution=${rawSize.width}x${rawSize.height}\n" +
+                "capture_interval_ms=$CAPTURE_INTERVAL_MILLISECONDS\n" +
+                "frame,file,sensor_timestamp_ns,exposure_ns,frame_duration_ns,iso\n",
+        )
+        return RecordingArtifacts(debugSession, directory, manifest)
+    }
+
+    private data class ProcessingSession(
+        val recording: RecordingArtifacts?,
+        val processor: RawRollingStackProcessor,
+        var frameCount: Int = 0,
+        var inFlightWork: Int = 0,
+        var stopped: Boolean = false,
+    )
+
+    private data class RecordingArtifacts(
         val debugSession: DebugCameraRecordingSession,
         val directory: File,
         val manifest: File,
-        val processor: RawRollingStackProcessor,
-        var frameCount: Int = 0,
-        var inFlightWrites: Int = 0,
-        var stopped: Boolean = false,
     )
 
     internal companion object {

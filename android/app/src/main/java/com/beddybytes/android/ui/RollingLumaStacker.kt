@@ -62,6 +62,7 @@ internal data class StackedPreviewFrame(
     val bitmap: Bitmap,
     val sourceFrameCount: Int,
     val brightnessGain: Float,
+    val timestampNanoseconds: Long,
 )
 
 internal class AdaptiveLumaBrightener {
@@ -165,6 +166,7 @@ internal class RollingLumaFrameProcessor(
                 bitmap = grayscaleBitmap(brightenedLuma),
                 sourceFrameCount = averager.frameCount,
                 brightnessGain = brightnessGain ?: 1f,
+                timestampNanoseconds = timestamp,
             ),
         )
     }

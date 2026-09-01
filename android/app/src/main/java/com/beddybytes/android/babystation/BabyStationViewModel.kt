@@ -1,5 +1,6 @@
 package com.beddybytes.android.babystation
 
+import android.graphics.Bitmap
 import android.media.Image
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -94,6 +95,10 @@ class BabyStationViewModel(
 
     fun onCameraFrame(image: Image, rotationDegrees: Int) {
         session.onCameraFrame(image, rotationDegrees)
+    }
+
+    fun onProcessedCameraFrame(bitmap: Bitmap?, timestampNanoseconds: Long) {
+        session.onProcessedCameraFrame(bitmap, timestampNanoseconds)
     }
 
     fun stop() {

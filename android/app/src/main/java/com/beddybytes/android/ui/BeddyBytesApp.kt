@@ -1,5 +1,6 @@
 package com.beddybytes.android.ui
 
+import android.graphics.Bitmap
 import android.media.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -43,6 +44,7 @@ fun BeddyBytesApp(
     onStationStart: () -> Unit = {},
     onStationStop: () -> Unit = {},
     onCameraFrame: (Image, Int) -> Unit = { _, _ -> },
+    onProcessedCameraFrame: (Bitmap?, Long) -> Unit = { _, _ -> },
 ) {
     Surface(modifier = modifier.fillMaxSize()) {
         when (val authorization = uiState.authorization) {
@@ -71,6 +73,7 @@ fun BeddyBytesApp(
                     onStop = onStationStop,
                     onSignOut = onSignOut,
                     onCameraFrame = onCameraFrame,
+                    onProcessedCameraFrame = onProcessedCameraFrame,
                 )
 
             is AuthorizationState.Refreshing ->
@@ -84,6 +87,7 @@ fun BeddyBytesApp(
                     onStop = onStationStop,
                     onSignOut = onSignOut,
                     onCameraFrame = onCameraFrame,
+                    onProcessedCameraFrame = onProcessedCameraFrame,
                 )
 
             is AuthorizationState.Unavailable ->
@@ -103,6 +107,7 @@ fun BeddyBytesApp(
                         onStop = onStationStop,
                         onSignOut = onSignOut,
                         onCameraFrame = onCameraFrame,
+                        onProcessedCameraFrame = onProcessedCameraFrame,
                     )
                 }
         }

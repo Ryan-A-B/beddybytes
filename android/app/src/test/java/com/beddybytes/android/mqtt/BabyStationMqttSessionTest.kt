@@ -1,5 +1,6 @@
 package com.beddybytes.android.mqtt
 
+import android.graphics.Bitmap
 import android.media.Image
 import com.beddybytes.android.webrtc.BabyStationWebRtcController
 import com.beddybytes.android.webrtc.WebRtcDescription
@@ -299,6 +300,8 @@ class BabyStationMqttSessionTest {
         }
 
         override fun onCameraFrame(image: Image, rotationDegrees: Int) = Unit
+
+        override fun onProcessedCameraFrame(bitmap: Bitmap?, timestampNanoseconds: Long) = Unit
 
         override suspend fun stop() {
             stopped = true

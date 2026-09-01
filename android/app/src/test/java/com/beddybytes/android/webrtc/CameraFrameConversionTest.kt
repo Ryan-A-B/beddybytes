@@ -25,4 +25,35 @@ class CameraFrameConversionTest {
 
         assertArrayEquals(byteArrayOf(10, 11, 0, 12, 13, 0), destination.array())
     }
+
+    @Test
+    fun `converts processed grayscale pixels to neutral chroma i420`() {
+        val y = ByteBuffer.allocate(8)
+        val u = ByteBuffer.allocate(2)
+        val v = ByteBuffer.allocate(2)
+
+        copyGrayscaleArgbToI420(
+            pixels =
+                intArrayOf(
+                    0xff0a0a0a.toInt(),
+                    0xff141414.toInt(),
+                    0xff1e1e1e.toInt(),
+                    0xff282828.toInt(),
+                    0xff323232.toInt(),
+                    0xff3c3c3c.toInt(),
+                ),
+            width = 3,
+            height = 2,
+            destinationY = y,
+            strideY = 4,
+            destinationU = u,
+            strideU = 2,
+            destinationV = v,
+            strideV = 2,
+        )
+
+        assertArrayEquals(byteArrayOf(10, 20, 30, 0, 40, 50, 60, 0), y.array())
+        assertArrayEquals(byteArrayOf(-128, -128), u.array())
+        assertArrayEquals(byteArrayOf(-128, -128), v.array())
+    }
 }

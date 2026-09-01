@@ -1,5 +1,6 @@
 package com.beddybytes.android.babystation
 
+import android.graphics.Bitmap
 import android.media.Image
 import com.beddybytes.android.mqtt.BabyStationSessionController
 import com.beddybytes.android.mqtt.BabyStationSessionState
@@ -111,6 +112,8 @@ class BabyStationViewModelTest {
         }
 
         override fun onCameraFrame(image: Image, rotationDegrees: Int) = Unit
+
+        override fun onProcessedCameraFrame(bitmap: Bitmap?, timestampNanoseconds: Long) = Unit
 
         override fun stop() {
             mutableState.value = BabyStationSessionState.Ready

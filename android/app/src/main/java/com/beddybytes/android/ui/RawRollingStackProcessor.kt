@@ -218,6 +218,7 @@ internal class RawRollingStackProcessor(
                 bitmap = grayscaleBitmap(),
                 sourceFrameCount = averager.frameCount,
                 brightnessGain = brightnessGain ?: 1f,
+                timestampNanoseconds = image.timestamp,
             ),
         )
     }

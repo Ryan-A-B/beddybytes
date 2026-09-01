@@ -47,10 +47,13 @@ selected microphone. Multiple browser parents may connect independently. Turning
 back on should show the reconnecting state and then re-announce the same station session. Stop
 should remove it cleanly and end every peer connection.
 
-The transmitted video is sourced from the existing Camera2 YUV stream and is capped at 10 fps. It
-therefore retains the manual exposure controls without opening the camera a second time. The
-debug RAW and rolling-stack outputs remain local capture/preview paths for now; transmitting the
-processed low-light stack is a separate follow-up.
+The transmitted video initially uses the existing Camera2 YUV stream, capped at 10 fps. As soon as
+the rolling low-light processor has accumulated a complete stack, WebRTC switches to the same
+brightened grayscale output displayed in the local preview. RAW-capable cameras use the eight-frame
+RAW stack at its one-frame-per-second update rate; other cameras use the YUV rolling stack. If the
+processor is withdrawn, WebRTC resumes the Camera2 feed. This keeps one camera owner and preserves
+the manual exposure controls. Debug builds additionally persist the RAW source frames as DNG files;
+that recording is diagnostic and is not required for production RAW processing.
 
 Each Start in a debug build also creates
 `Android/data/com.beddybytes.android.qa.debug/files/station-sessions/<session>/events.jsonl`.

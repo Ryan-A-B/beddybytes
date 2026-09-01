@@ -2,6 +2,7 @@ package com.beddybytes.android.ui
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
 import android.hardware.camera2.CaptureResult
 import android.media.Image
 import android.util.Range
@@ -87,6 +88,7 @@ fun BabyStationScreen(
     onStop: () -> Unit,
     onSignOut: () -> Unit,
     onCameraFrame: (Image, Int) -> Unit,
+    onProcessedCameraFrame: (Bitmap?, Long) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -172,12 +174,14 @@ fun BabyStationScreen(
                 CameraPreview(
                     cameraId = selectedCamera.id,
                     grayscale = !uiState.running,
+                    processedOutputEnabled = uiState.running,
                     recordingSession = debugRecordingSession,
                     onTelemetryChanged = { telemetry ->
                         cameraTelemetry = telemetry
                         telemetryLogger?.record(telemetry)
                     },
                     onVideoFrame = onCameraFrame,
+                    onProcessedVideoFrame = onProcessedCameraFrame,
                     modifier = Modifier.fillMaxSize(),
                 )
             } else {

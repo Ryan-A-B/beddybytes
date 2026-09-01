@@ -1,6 +1,7 @@
 package com.beddybytes.android.webrtc
 
 import android.content.Context
+import android.graphics.Bitmap
 import android.media.AudioDeviceInfo
 import android.media.AudioManager
 import android.media.Image
@@ -53,7 +54,7 @@ internal class AndroidBabyStationWebRtcController(
         val audioTrack = resources.factory.createAudioTrack(AUDIO_TRACK_ID, audioSource)
         val videoSource = resources.factory.createVideoSource(false)
         val videoTrack = resources.factory.createVideoTrack(VIDEO_TRACK_ID, videoSource)
-        val frameInput = CameraFrameInput(videoSource)
+        val frameInput = CameraFrameInput(videoSource, eventLogger)
         val signalling =
             WebRtcSignallingSession(
                 scope = scope,
@@ -101,6 +102,12 @@ internal class AndroidBabyStationWebRtcController(
 
     override fun onCameraFrame(image: Image, rotationDegrees: Int) {
         synchronized(lock) { runtime }?.frameInput?.onFrame(image, rotationDegrees)
+    }
+
+    override fun onProcessedCameraFrame(bitmap: Bitmap?, timestampNanoseconds: Long) {
+        synchronized(lock) { runtime }
+            ?.frameInput
+            ?.onProcessedFrame(bitmap, timestampNanoseconds)
     }
 
     override suspend fun stop() {
@@ -166,10 +173,14 @@ internal class AndroidBabyStationWebRtcController(
     }
 }
 
-private class CameraFrameInput(videoSource: VideoSource) {
+private class CameraFrameInput(
+    videoSource: VideoSource,
+    private val eventLogger: WebRtcEventLogger,
+) {
     private val observer = videoSource.capturerObserver
     private val lock = Any()
     private var running = true
+    private var processedOutputActive = false
     private var lastFrameTimestampNanoseconds = Long.MIN_VALUE
 
     init {
@@ -178,7 +189,7 @@ private class CameraFrameInput(videoSource: VideoSource) {
 
     fun onFrame(image: Image, rotationDegrees: Int) {
         synchronized(lock) {
-            if (!running) return
+            if (!running || processedOutputActive) return
             if (lastFrameTimestampNanoseconds != Long.MIN_VALUE &&
                 image.timestamp - lastFrameTimestampNanoseconds < MIN_FRAME_INTERVAL_NANOSECONDS
             ) {
@@ -194,6 +205,46 @@ private class CameraFrameInput(videoSource: VideoSource) {
             try {
                 observer.onFrameCaptured(frame)
                 lastFrameTimestampNanoseconds = image.timestamp
+            } finally {
+                frame.release()
+            }
+        }
+    }
+
+    fun onProcessedFrame(bitmap: Bitmap?, timestampNanoseconds: Long) {
+        synchronized(lock) {
+            if (!running) return
+            if (bitmap == null) {
+                if (processedOutputActive) {
+                    processedOutputActive = false
+                    lastFrameTimestampNanoseconds = Long.MIN_VALUE
+                    eventLogger.log(
+                        "webrtc_video_source_changed",
+                        mapOf("source" to "camera_yuv"),
+                    )
+                }
+                return
+            }
+            if (!processedOutputActive) {
+                processedOutputActive = true
+                eventLogger.log(
+                    "webrtc_video_source_changed",
+                    mapOf("source" to "processed_low_light"),
+                )
+            }
+            val buffer = bitmap.toI420Buffer()
+            val frameTimestamp =
+                if (lastFrameTimestampNanoseconds != Long.MIN_VALUE &&
+                    timestampNanoseconds <= lastFrameTimestampNanoseconds
+                ) {
+                    lastFrameTimestampNanoseconds + 1
+                } else {
+                    timestampNanoseconds
+                }
+            val frame = VideoFrame(buffer, 0, frameTimestamp)
+            try {
+                observer.onFrameCaptured(frame)
+                lastFrameTimestampNanoseconds = frameTimestamp
             } finally {
                 frame.release()
             }
@@ -440,6 +491,65 @@ private fun Image.toI420Buffer(): JavaI420Buffer {
     }
 }
 
+private fun Bitmap.toI420Buffer(): JavaI420Buffer {
+    val output = JavaI420Buffer.allocate(width, height)
+    return try {
+        val pixels = IntArray(width * height)
+        getPixels(pixels, 0, width, 0, 0, width, height)
+        copyGrayscaleArgbToI420(
+            pixels = pixels,
+            width = width,
+            height = height,
+            destinationY = output.dataY,
+            strideY = output.strideY,
+            destinationU = output.dataU,
+            strideU = output.strideU,
+            destinationV = output.dataV,
+            strideV = output.strideV,
+        )
+        output
+    } catch (error: Exception) {
+        output.release()
+        throw error
+    }
+}
+
+internal fun copyGrayscaleArgbToI420(
+    pixels: IntArray,
+    width: Int,
+    height: Int,
+    destinationY: ByteBuffer,
+    strideY: Int,
+    destinationU: ByteBuffer,
+    strideU: Int,
+    destinationV: ByteBuffer,
+    strideV: Int,
+) {
+    require(width > 0 && height > 0)
+    require(pixels.size == width * height)
+    require(strideY >= width)
+    val chromaWidth = (width + 1) / 2
+    val chromaHeight = (height + 1) / 2
+    require(strideU >= chromaWidth && strideV >= chromaWidth)
+    require((height - 1) * strideY + width <= destinationY.capacity())
+    require((chromaHeight - 1) * strideU + chromaWidth <= destinationU.capacity())
+    require((chromaHeight - 1) * strideV + chromaWidth <= destinationV.capacity())
+    for (row in 0 until height) {
+        for (column in 0 until width) {
+            destinationY.put(
+                row * strideY + column,
+                (pixels[row * width + column] and 0xff).toByte(),
+            )
+        }
+    }
+    for (row in 0 until chromaHeight) {
+        for (column in 0 until chromaWidth) {
+            destinationU.put(row * strideU + column, NEUTRAL_CHROMA)
+            destinationV.put(row * strideV + column, NEUTRAL_CHROMA)
+        }
+    }
+}
+
 private fun copyPlane(
     source: Image.Plane,
     width: Int,
@@ -501,3 +611,5 @@ private fun normalizedRotation(rotationDegrees: Int): Int {
     require(normalized % 90 == 0)
     return normalized
 }
+
+private val NEUTRAL_CHROMA = 128.toByte()

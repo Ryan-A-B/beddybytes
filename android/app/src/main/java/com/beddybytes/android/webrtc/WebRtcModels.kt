@@ -1,5 +1,6 @@
 package com.beddybytes.android.webrtc
 
+import android.graphics.Bitmap
 import android.media.Image
 
 internal data class WebRtcDescription(val type: String, val sdp: String)
@@ -47,6 +48,8 @@ internal interface BabyStationWebRtcController {
 
     fun onCameraFrame(image: Image, rotationDegrees: Int)
 
+    fun onProcessedCameraFrame(bitmap: Bitmap?, timestampNanoseconds: Long)
+
     suspend fun stop()
 }
 
@@ -60,6 +63,8 @@ internal object NoOpBabyStationWebRtcController : BabyStationWebRtcController {
     override fun handle(signal: WebRtcInboundSignal) = Unit
 
     override fun onCameraFrame(image: Image, rotationDegrees: Int) = Unit
+
+    override fun onProcessedCameraFrame(bitmap: Bitmap?, timestampNanoseconds: Long) = Unit
 
     override suspend fun stop() = Unit
 }

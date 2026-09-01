@@ -1,5 +1,6 @@
 package com.beddybytes.android.mqtt
 
+import android.graphics.Bitmap
 import android.media.Image
 import com.beddybytes.android.authorization.AuthenticationRequiredException
 import com.beddybytes.android.webrtc.BabyStationWebRtcController
@@ -47,6 +48,8 @@ interface BabyStationSessionController {
     fun stop()
 
     fun onCameraFrame(image: Image, rotationDegrees: Int)
+
+    fun onProcessedCameraFrame(bitmap: Bitmap?, timestampNanoseconds: Long)
 }
 
 data class BabyStationStartRequest(val name: String, val cameraId: String?, val microphoneId: Int?)
@@ -104,6 +107,10 @@ internal class BabyStationMqttSession(
 
     override fun onCameraFrame(image: Image, rotationDegrees: Int) {
         webRtcController.onCameraFrame(image, rotationDegrees)
+    }
+
+    override fun onProcessedCameraFrame(bitmap: Bitmap?, timestampNanoseconds: Long) {
+        webRtcController.onProcessedCameraFrame(bitmap, timestampNanoseconds)
     }
 
     private suspend fun runSession(activeRuntime: SessionRuntime) {
