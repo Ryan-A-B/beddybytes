@@ -264,29 +264,35 @@ private class CameraFrameInput(
     }
 }
 
-private class AndroidWebRtcPeer private constructor(private val peerConnection: PeerConnection) :
+internal interface WebRtcPeerConnectionOperations : AutoCloseable {
+    suspend fun setRemote(description: WebRtcDescription)
+
+    fun addLocalTracks()
+
+    suspend fun createAnswer(): WebRtcDescription
+
+    suspend fun setLocal(description: WebRtcDescription)
+
+    suspend fun addCandidate(candidate: WebRtcCandidate)
+}
+
+internal class AndroidWebRtcPeer(private val operations: WebRtcPeerConnectionOperations) :
     WebRtcPeer {
     override suspend fun acceptOffer(offer: WebRtcDescription): WebRtcDescription {
         require(offer.type == "offer")
-        peerConnection.setRemote(SessionDescription(SessionDescription.Type.OFFER, offer.sdp))
-        val answer = peerConnection.createAnswer()
-        peerConnection.setLocal(answer)
-        return WebRtcDescription(type = "answer", sdp = answer.description)
+        operations.setRemote(offer)
+        operations.addLocalTracks()
+        val answer = operations.createAnswer()
+        operations.setLocal(answer)
+        return answer
     }
 
     override suspend fun addCandidate(candidate: WebRtcCandidate) {
-        peerConnection.addCandidate(
-            IceCandidate(
-                candidate.sdpMid,
-                candidate.sdpMLineIndex ?: 0,
-                candidate.candidate,
-            ),
-        )
+        operations.addCandidate(candidate)
     }
 
     override fun close() {
-        peerConnection.close()
-        peerConnection.dispose()
+        operations.close()
     }
 
     companion object {
@@ -312,16 +318,78 @@ private class AndroidWebRtcPeer private constructor(private val peerConnection: 
                 }
             val peerConnection =
                 checkNotNull(factory.createPeerConnection(configuration, observer))
-            checkNotNull(peerConnection.addTrack(audioTrack, listOf(MEDIA_STREAM_ID)))
-            checkNotNull(peerConnection.addTrack(videoTrack, listOf(MEDIA_STREAM_ID)))
             eventLogger.log(
                 "webrtc_peer_created",
                 mapOf("peer_client_id" to peerClientId),
             )
-            return AndroidWebRtcPeer(peerConnection)
+            return AndroidWebRtcPeer(
+                NativePeerConnectionOperations(
+                    peerConnection = peerConnection,
+                    audioTrack = audioTrack,
+                    videoTrack = videoTrack,
+                    peerClientId = peerClientId,
+                    eventLogger = eventLogger,
+                ),
+            )
         }
+    }
+}
 
-        private const val MEDIA_STREAM_ID = "beddybytes-stream"
+private class NativePeerConnectionOperations(
+    private val peerConnection: PeerConnection,
+    private val audioTrack: AudioTrack,
+    private val videoTrack: VideoTrack,
+    private val peerClientId: String,
+    private val eventLogger: WebRtcEventLogger,
+) : WebRtcPeerConnectionOperations {
+    override suspend fun setRemote(description: WebRtcDescription) {
+        log("webrtc_remote_description_started")
+        peerConnection.setRemote(
+            SessionDescription(SessionDescription.Type.OFFER, description.sdp),
+        )
+        log("webrtc_remote_description_set")
+    }
+
+    override fun addLocalTracks() {
+        checkNotNull(peerConnection.addTrack(audioTrack, listOf(MEDIA_STREAM_ID)))
+        checkNotNull(peerConnection.addTrack(videoTrack, listOf(MEDIA_STREAM_ID)))
+        log("webrtc_local_tracks_added")
+    }
+
+    override suspend fun createAnswer(): WebRtcDescription {
+        val answer = peerConnection.createAnswer()
+        log("webrtc_answer_sdp_created")
+        return WebRtcDescription(type = "answer", sdp = answer.description)
+    }
+
+    override suspend fun setLocal(description: WebRtcDescription) {
+        peerConnection.setLocal(
+            SessionDescription(SessionDescription.Type.ANSWER, description.sdp),
+        )
+        log("webrtc_local_description_set")
+    }
+
+    override suspend fun addCandidate(candidate: WebRtcCandidate) {
+        peerConnection.addCandidate(
+            IceCandidate(
+                candidate.sdpMid,
+                candidate.sdpMLineIndex ?: 0,
+                candidate.candidate,
+            ),
+        )
+    }
+
+    override fun close() {
+        peerConnection.close()
+        peerConnection.dispose()
+    }
+
+    private fun log(event: String) {
+        eventLogger.log(event, mapOf("peer_client_id" to peerClientId))
+    }
+
+    private companion object {
+        const val MEDIA_STREAM_ID = "beddybytes-stream"
     }
 }
 

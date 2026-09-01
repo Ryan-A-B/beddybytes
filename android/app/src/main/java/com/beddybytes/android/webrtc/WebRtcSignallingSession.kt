@@ -29,9 +29,19 @@ internal class WebRtcSignallingSession(
     private var job: Job? =
         scope.launch {
             for (signal in signals) {
-                when (signal) {
-                    is WebRtcInboundSignal.Offer -> acceptOffer(signal)
-                    is WebRtcInboundSignal.Candidate -> acceptCandidate(signal)
+                try {
+                    when (signal) {
+                        is WebRtcInboundSignal.Offer -> acceptOffer(signal)
+                        is WebRtcInboundSignal.Candidate -> acceptCandidate(signal)
+                    }
+                } catch (error: CancellationException) {
+                    throw error
+                } catch (error: Throwable) {
+                    logFailure(
+                        event = "webrtc_signal_processing_failed",
+                        peerClientId = signal.fromClientId,
+                        error = error,
+                    )
                 }
             }
         }
@@ -85,7 +95,7 @@ internal class WebRtcSignallingSession(
             peer.acceptOffer(signal.description)
         } catch (error: CancellationException) {
             throw error
-        } catch (error: Exception) {
+        } catch (error: Throwable) {
             if (peers.remove(peerClientId) === peer) peer.close()
             logFailure("webrtc_offer_failed", peerClientId, error)
             return
@@ -126,7 +136,7 @@ internal class WebRtcSignallingSession(
             )
         } catch (error: CancellationException) {
             throw error
-        } catch (error: Exception) {
+        } catch (error: Throwable) {
             logFailure("webrtc_remote_candidate_failed", peerClientId, error)
         }
     }

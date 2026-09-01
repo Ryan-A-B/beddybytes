@@ -61,6 +61,34 @@ class WebRtcSignallingSessionTest {
         assertTrue(harness.peers.drop(1).all(FakePeer::closed))
     }
 
+    @Test
+    fun `a peer negotiation error does not stop later offers`() = runTest {
+        val outbound = mutableListOf<WebRtcOutboundSignal>()
+        val session =
+            WebRtcSignallingSession(
+                scope = this,
+                peerFactory = WebRtcPeerFactory { clientId, _ ->
+                    if (clientId == "bad-parent") ErrorPeer else FakePeer(clientId) {}
+                },
+                sendSignal = outbound::add,
+                eventLogger = WebRtcEventLogger { _, _ -> },
+            )
+
+        session.handle(offer("bad-parent"))
+        session.handle(offer("good-parent"))
+        runCurrent()
+
+        assertTrue(
+            outbound.contains(
+                WebRtcOutboundSignal.Answer(
+                    "good-parent",
+                    WebRtcDescription("answer", "answer-for-good-parent"),
+                ),
+            ),
+        )
+        session.close()
+    }
+
     private fun offer(peerClientId: String) = WebRtcInboundSignal.Offer(
         peerClientId,
         WebRtcDescription("offer", "offer-from-$peerClientId"),
@@ -101,5 +129,14 @@ class WebRtcSignallingSessionTest {
         override fun close() {
             closed = true
         }
+    }
+
+    private data object ErrorPeer : WebRtcPeer {
+        override suspend fun acceptOffer(offer: WebRtcDescription): WebRtcDescription =
+            throw AssertionError("native negotiation failed")
+
+        override suspend fun addCandidate(candidate: WebRtcCandidate) = Unit
+
+        override fun close() = Unit
     }
 }
