@@ -43,9 +43,9 @@ The canonical debug build uses the `qa` flavor and connects to `api.qa.beddybyte
 
 For an MQTT/WebRTC smoke test, install the QA debug APK, sign in, and press Start. A browser parent
 station on the same account should discover the Android Baby Station and receive its selected
-microphone. The current diagnostic build deliberately does not create or attach a WebRTC video
-track, while the camera preview and low-light processing continue locally. Multiple browser parents
-may connect independently. Turning Wi-Fi off and
+microphone after media transmission is restored. The current diagnostic build deliberately creates
+and attaches no WebRTC media tracks, while the camera preview and low-light processing continue
+locally. Multiple browser parents may connect independently. Turning Wi-Fi off and
 back on should show the reconnecting state and then re-announce the same station session. Stop
 should remove it cleanly and end every peer connection.
 
@@ -62,9 +62,11 @@ Each Start in a debug build also creates
 `Android/data/com.beddybytes.android.qa.debug/files/station-sessions/<session>/events.jsonl`.
 The JSON Lines file records the app/device/host header, session lifecycle, MQTT connections,
 subscriptions, reconnect timing, disconnects, WebRTC offers/answers/candidates and peer states,
-and inbound/outbound message topic, type, and byte count. It does not record access tokens, SDP,
-ICE candidate values, or MQTT payload bodies. The same lines are available in
-Logcat under the `BeddyBytesSession` tag while the phone is attached.
+redacted SDP media structure, the previous Android process-exit reason, and inbound/outbound message
+topic, type, and byte count. It does not record access tokens, SDP bodies, ICE candidate values, or
+MQTT payload bodies. When Android exposes an exit trace, the first session after an app restart also
+writes a bounded `previous-process-trace.txt` beside the event log. The same JSON lines are available
+in Logcat under the `BeddyBytesSession` tag while the phone is attached.
 
 During low-light development, each press of Start in a debug build creates an app-specific
 `files/camera-sessions/<camera-and-start-time>/` directory. Until Stop is pressed, the session

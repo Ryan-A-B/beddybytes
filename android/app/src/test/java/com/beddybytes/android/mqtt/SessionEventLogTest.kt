@@ -1,5 +1,6 @@
 package com.beddybytes.android.mqtt
 
+import android.app.ApplicationExitInfo
 import java.nio.file.Files
 import java.time.Instant
 import kotlinx.serialization.json.Json
@@ -52,5 +53,16 @@ class SessionEventLogTest {
                 startedAtMillis = Instant.parse("2026-09-01T01:02:03Z").toEpochMilli(),
             ),
         )
+    }
+
+    @Test
+    fun `names native process exits and sanitizes their descriptions`() {
+        assertEquals(
+            "crash_native",
+            applicationExitReasonName(ApplicationExitInfo.REASON_CRASH_NATIVE),
+        )
+        assertEquals("unknown", applicationExitReasonName(Int.MAX_VALUE))
+        assertEquals("native crash details", safeExitDescription("native\ncrash\tdetails"))
+        assertEquals("none", safeExitDescription(null))
     }
 }
