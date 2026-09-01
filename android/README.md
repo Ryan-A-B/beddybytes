@@ -8,6 +8,10 @@ Authorization uses the existing BeddyBytes password and refresh grants without b
 
 MQTT connects directly to the existing AWS IoT Core custom domain using MQTT 3.1.1 over secure WebSocket. It passes a fresh access token in the `access_token` handshake query parameter on every connection attempt. A persistent app-generated client ID scopes the connection, while connection and request IDs change on every reconnect. The client publishes connected and clean/Last-Will status, subscribes to parent announcements and its future WebRTC inbox, announces the running Baby Station, responds through each parent's control inbox, and re-announces after reconnect. Protocol traffic uses QoS 1, clean sessions, a 30-second keepalive, and non-retained messages.
 
+The manifest grants WebRTC the normal `ACCESS_NETWORK_STATE` and `CHANGE_NETWORK_STATE`
+permissions required by its Android network monitor. These permissions are granted at install time
+and do not show a runtime permission prompt.
+
 The MQTT transport pins `com.hivemq:hivemq-mqtt-client:1.4.0`. The Maven Central JAR used for provenance review has SHA-256 `22cb6148254e14a391818c08f6d4769294a61de7fa2c44fe3e20b03089a4be0f` and is licensed under Apache-2.0.
 
 WebRTC pins `io.github.webrtc-sdk:android:144.7559.14`. Its official `libwebrtc.aar` has SHA-256 `44c243bb0c6ac5b0a4425e6211f7994b0d60df3cf2f5721c20c6a88aa1a68f64`, maps to upstream WebRTC revision `df1011beabae993c555f7c11a7a4b8e8fa62480d`, and contains native libraries for `arm64-v8a`, `armeabi-v7a`, `x86`, and `x86_64`. Version `144.7559.12` is the designated rollback. The wrapper is MIT licensed and WebRTC is BSD-3-Clause; see `THIRD_PARTY_NOTICES.md`. The AAR does not embed its upstream third-party license bundle, so the complete transitive notice audit remains a release-readiness task.
