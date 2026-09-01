@@ -3,6 +3,7 @@ package com.beddybytes.android.ui
 import android.graphics.ColorMatrix
 import android.graphics.ColorMatrixColorFilter
 import android.graphics.RenderEffect
+import android.media.Image
 import android.view.TextureView
 import android.widget.ImageView
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -38,11 +39,13 @@ internal fun CameraPreview(
     grayscale: Boolean,
     recordingSession: DebugCameraRecordingSession?,
     onTelemetryChanged: (CameraTelemetry) -> Unit,
+    onVideoFrame: (Image, Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val currentTelemetryCallback by rememberUpdatedState(onTelemetryChanged)
+    val currentVideoFrameCallback by rememberUpdatedState(onVideoFrame)
     val textureView = remember(cameraId) { TextureView(context) }
     val grayscaleEffect =
         remember {
@@ -69,6 +72,9 @@ internal fun CameraPreview(
                         telemetry = update
                         currentTelemetryCallback(update)
                     }
+                },
+                onVideoFrame = { image, rotationDegrees ->
+                    currentVideoFrameCallback(image, rotationDegrees)
                 },
                 onStackedFrame = { frame ->
                     textureView.post { stackedPreviewFrame = frame }

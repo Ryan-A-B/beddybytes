@@ -20,6 +20,7 @@ import android.hardware.camera2.TotalCaptureResult
 import android.hardware.camera2.params.MeteringRectangle
 import android.hardware.camera2.params.OutputConfiguration
 import android.hardware.camera2.params.SessionConfiguration
+import android.media.Image
 import android.media.ImageReader
 import android.os.Build
 import android.os.Handler
@@ -36,6 +37,7 @@ internal class Camera2PreviewEngine(
     private val cameraId: String,
     private val textureView: TextureView,
     private val onTelemetry: (CameraTelemetry) -> Unit,
+    private val onVideoFrame: (Image, Int) -> Unit,
     private val onStackedFrame: (StackedPreviewFrame?) -> Unit,
     private val onRawFinalizingChanged: (Boolean) -> Unit,
     private val onPreviewAspectRatio: (Float) -> Unit,
@@ -266,7 +268,10 @@ internal class Camera2PreviewEngine(
         reader.setOnImageAvailableListener(
             { availableReader ->
                 runCatching {
-                    availableReader.acquireLatestImage()?.use(processor::onImage)
+                    availableReader.acquireLatestImage()?.use { image ->
+                        onVideoFrame(image, imageRotationDegrees())
+                        processor.onImage(image)
+                    }
                 }.onFailure { error ->
                     processor.setEnabled(false)
                     reportError(error)

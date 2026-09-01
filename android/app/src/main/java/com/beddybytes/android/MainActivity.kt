@@ -48,6 +48,7 @@ class MainActivity : ComponentActivity() {
                     onMicrophoneSelected = babyStationViewModel::onMicrophoneSelected,
                     onStationStart = babyStationViewModel::start,
                     onStationStop = babyStationViewModel::stop,
+                    onCameraFrame = babyStationViewModel::onCameraFrame,
                 )
             }
         }

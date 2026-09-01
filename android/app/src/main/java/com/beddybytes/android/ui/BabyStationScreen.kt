@@ -3,6 +3,7 @@ package com.beddybytes.android.ui
 import android.Manifest
 import android.content.pm.PackageManager
 import android.hardware.camera2.CaptureResult
+import android.media.Image
 import android.util.Range
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -85,6 +86,7 @@ fun BabyStationScreen(
     onStart: () -> Unit,
     onStop: () -> Unit,
     onSignOut: () -> Unit,
+    onCameraFrame: (Image, Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -175,6 +177,7 @@ fun BabyStationScreen(
                         cameraTelemetry = telemetry
                         telemetryLogger?.record(telemetry)
                     },
+                    onVideoFrame = onCameraFrame,
                     modifier = Modifier.fillMaxSize(),
                 )
             } else {

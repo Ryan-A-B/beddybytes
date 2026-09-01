@@ -1,5 +1,9 @@
 package com.beddybytes.android.mqtt
 
+import com.beddybytes.android.webrtc.WebRtcCandidate
+import com.beddybytes.android.webrtc.WebRtcDescription
+import com.beddybytes.android.webrtc.WebRtcInboundSignal
+import com.beddybytes.android.webrtc.WebRtcOutboundSignal
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -94,6 +98,104 @@ class MqttProtocolTest {
                     payload.replace("parent-client", "parent/+/client"),
                 ),
                 "account-1",
+            ),
+        )
+    }
+
+    @Test
+    fun `web rtc offer and candidate match the browser protocol`() {
+        val topic = MqttTopics.webRtcInbox("account-1", "baby-client")
+        assertEquals(
+            WebRtcInboundSignal.Offer(
+                fromClientId = "parent-client",
+                description = WebRtcDescription("offer", "v=0\r\n"),
+            ),
+            MqttPayloads.webRtcInbound(
+                MqttInboundMessage(
+                    topic,
+                    """{"from_client_id":"parent-client","type":"description","description":{"type":"offer","sdp":"v=0\r\n"}}""",
+                ),
+                "account-1",
+                "baby-client",
+            ),
+        )
+        assertEquals(
+            WebRtcInboundSignal.Candidate(
+                fromClientId = "parent-client",
+                candidate = WebRtcCandidate("candidate:1", "0", 0),
+            ),
+            MqttPayloads.webRtcInbound(
+                MqttInboundMessage(
+                    topic,
+                    """{"from_client_id":"parent-client","type":"candidate","candidate":{"candidate":"candidate:1","sdpMid":"0","sdpMLineIndex":0,"usernameFragment":"future"}}""",
+                ),
+                "account-1",
+                "baby-client",
+            ),
+        )
+    }
+
+    @Test
+    fun `web rtc outbound answer and candidate match the browser protocol`() {
+        assertEquals(
+            Json.parseToJsonElement(
+                """{"from_client_id":"baby-client","type":"description","description":{"type":"answer","sdp":"v=0\r\n"}}""",
+            ),
+            Json.parseToJsonElement(
+                MqttPayloads.webRtcOutbound(
+                    "baby-client",
+                    WebRtcOutboundSignal.Answer(
+                        "parent-client",
+                        WebRtcDescription("answer", "v=0\r\n"),
+                    ),
+                ),
+            ),
+        )
+        assertEquals(
+            Json.parseToJsonElement(
+                """{"from_client_id":"baby-client","type":"candidate","candidate":{"candidate":"candidate:1","sdpMid":"0","sdpMLineIndex":0}}""",
+            ),
+            Json.parseToJsonElement(
+                MqttPayloads.webRtcOutbound(
+                    "baby-client",
+                    WebRtcOutboundSignal.Candidate(
+                        "parent-client",
+                        WebRtcCandidate("candidate:1", "0", 0),
+                    ),
+                ),
+            ),
+        )
+    }
+
+    @Test
+    fun `web rtc input rejects wrong topics unsafe senders and answers`() {
+        val offer =
+            """{"from_client_id":"parent-client","type":"description","description":{"type":"offer","sdp":"v=0"}}"""
+        assertNull(
+            MqttPayloads.webRtcInbound(
+                MqttInboundMessage(MqttTopics.webRtcInbox("account-1", "other"), offer),
+                "account-1",
+                "baby-client",
+            ),
+        )
+        assertNull(
+            MqttPayloads.webRtcInbound(
+                MqttInboundMessage(
+                    MqttTopics.webRtcInbox("account-1", "baby-client"),
+                    offer.replace("parent-client", "parent/+/client"),
+                ),
+                "account-1",
+                "baby-client",
+            ),
+        )
+        assertNull(
+            MqttPayloads.webRtcInbound(
+                MqttInboundMessage(
+                    MqttTopics.webRtcInbox("account-1", "baby-client"),
+                    offer.replace("offer", "answer"),
+                ),
+                "account-1",
+                "baby-client",
             ),
         )
     }

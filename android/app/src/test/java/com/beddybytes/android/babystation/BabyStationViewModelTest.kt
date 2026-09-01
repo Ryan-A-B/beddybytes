@@ -1,7 +1,9 @@
 package com.beddybytes.android.babystation
 
+import android.media.Image
 import com.beddybytes.android.mqtt.BabyStationSessionController
 import com.beddybytes.android.mqtt.BabyStationSessionState
+import com.beddybytes.android.mqtt.BabyStationStartRequest
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -58,7 +60,7 @@ class BabyStationViewModelTest {
         advanceUntilIdle()
         assertTrue(viewModel.uiState.value.running)
         assertFalse(viewModel.uiState.value.active)
-        assertEquals("Nursery", session.startedName)
+        assertEquals(BabyStationStartRequest("Nursery", "back", 1), session.startRequest)
 
         session.mutableState.value = BabyStationSessionState.Active("session", "connection")
         advanceUntilIdle()
@@ -99,14 +101,16 @@ class BabyStationViewModelTest {
 
     private class FakeSession : BabyStationSessionController {
         val mutableState = MutableStateFlow<BabyStationSessionState>(BabyStationSessionState.Ready)
-        var startedName: String? = null
+        var startRequest: BabyStationStartRequest? = null
 
         override val state = mutableState
 
-        override fun start(name: String) {
-            startedName = name
+        override fun start(request: BabyStationStartRequest) {
+            startRequest = request
             mutableState.value = BabyStationSessionState.Connecting
         }
+
+        override fun onCameraFrame(image: Image, rotationDegrees: Int) = Unit
 
         override fun stop() {
             mutableState.value = BabyStationSessionState.Ready

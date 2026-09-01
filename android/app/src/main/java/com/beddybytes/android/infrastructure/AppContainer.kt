@@ -15,6 +15,7 @@ import com.beddybytes.android.mqtt.AuthorizationMqttCredentialsProvider
 import com.beddybytes.android.mqtt.BabyStationMqttSession
 import com.beddybytes.android.mqtt.HiveMqttTransport
 import com.beddybytes.android.mqtt.NoOpSessionEventLogFactory
+import com.beddybytes.android.webrtc.AndroidBabyStationWebRtcController
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -55,6 +56,11 @@ class AppContainer(context: Context) {
             clientIdStore = AndroidMqttClientIdStore(context),
             transport = HiveMqttTransport(),
             scope = applicationScope,
+            webRtcController =
+                AndroidBabyStationWebRtcController(
+                    context = context,
+                    scope = applicationScope,
+                ),
             eventLogFactory =
                 if (BuildConfig.DEBUG) {
                     AndroidSessionEventLogFactory(context)

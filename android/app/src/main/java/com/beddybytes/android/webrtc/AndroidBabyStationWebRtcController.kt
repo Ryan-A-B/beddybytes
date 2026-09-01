@@ -1,0 +1,503 @@
+package com.beddybytes.android.webrtc
+
+import android.content.Context
+import android.media.AudioDeviceInfo
+import android.media.AudioManager
+import android.media.Image
+import java.nio.ByteBuffer
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.suspendCancellableCoroutine
+import org.webrtc.AddIceObserver
+import org.webrtc.AudioSource
+import org.webrtc.AudioTrack
+import org.webrtc.DataChannel
+import org.webrtc.DefaultVideoDecoderFactory
+import org.webrtc.DefaultVideoEncoderFactory
+import org.webrtc.EglBase
+import org.webrtc.IceCandidate
+import org.webrtc.JavaI420Buffer
+import org.webrtc.MediaConstraints
+import org.webrtc.MediaStream
+import org.webrtc.PeerConnection
+import org.webrtc.PeerConnectionFactory
+import org.webrtc.RtpReceiver
+import org.webrtc.SdpObserver
+import org.webrtc.SessionDescription
+import org.webrtc.VideoFrame
+import org.webrtc.VideoSource
+import org.webrtc.VideoTrack
+import org.webrtc.audio.JavaAudioDeviceModule
+
+internal class AndroidBabyStationWebRtcController(
+    context: Context,
+    private val scope: CoroutineScope,
+) : BabyStationWebRtcController {
+    private val appContext = context.applicationContext
+    private val audioManager = appContext.getSystemService(AudioManager::class.java)
+    private val lock = Any()
+    private var runtime: WebRtcRuntime? = null
+    private var factoryResources: FactoryResources? = null
+
+    override suspend fun start(
+        request: WebRtcStartRequest,
+        sendSignal: (WebRtcOutboundSignal) -> Unit,
+        eventLogger: WebRtcEventLogger,
+    ) {
+        check(synchronized(lock) { runtime == null })
+        val resources = factoryResources ?: createFactoryResources().also { factoryResources = it }
+        val preferredMicrophone = preferredMicrophone(request.microphoneId)
+        resources.audioDeviceModule.setPreferredInputDevice(preferredMicrophone)
+        val audioSource = resources.factory.createAudioSource(MediaConstraints())
+        val audioTrack = resources.factory.createAudioTrack(AUDIO_TRACK_ID, audioSource)
+        val videoSource = resources.factory.createVideoSource(false)
+        val videoTrack = resources.factory.createVideoTrack(VIDEO_TRACK_ID, videoSource)
+        val frameInput = CameraFrameInput(videoSource)
+        val signalling =
+            WebRtcSignallingSession(
+                scope = scope,
+                peerFactory =
+                    WebRtcPeerFactory { peerClientId, onLocalCandidate ->
+                        AndroidWebRtcPeer.create(
+                            factory = resources.factory,
+                            peerClientId = peerClientId,
+                            audioTrack = audioTrack,
+                            videoTrack = videoTrack,
+                            onLocalCandidate = onLocalCandidate,
+                            eventLogger = eventLogger,
+                        )
+                    },
+                sendSignal = sendSignal,
+                eventLogger = eventLogger,
+            )
+        val startedRuntime =
+            WebRtcRuntime(
+                signalling = signalling,
+                frameInput = frameInput,
+                audioSource = audioSource,
+                audioTrack = audioTrack,
+                videoSource = videoSource,
+                videoTrack = videoTrack,
+                eventLogger = eventLogger,
+            )
+        synchronized(lock) {
+            check(runtime == null)
+            runtime = startedRuntime
+        }
+        eventLogger.log(
+            "webrtc_started",
+            mapOf(
+                "local_client_id" to request.localClientId,
+                "microphone_id" to (preferredMicrophone?.id?.toString() ?: "default"),
+                "ice_servers" to "0",
+            ),
+        )
+    }
+
+    override fun handle(signal: WebRtcInboundSignal) {
+        synchronized(lock) { runtime }?.signalling?.handle(signal)
+    }
+
+    override fun onCameraFrame(image: Image, rotationDegrees: Int) {
+        synchronized(lock) { runtime }?.frameInput?.onFrame(image, rotationDegrees)
+    }
+
+    override suspend fun stop() {
+        val stoppingRuntime = synchronized(lock) { runtime.also { runtime = null } } ?: return
+        stoppingRuntime.frameInput.close()
+        stoppingRuntime.signalling.close()
+        stoppingRuntime.videoTrack.dispose()
+        stoppingRuntime.videoSource.dispose()
+        stoppingRuntime.audioTrack.dispose()
+        stoppingRuntime.audioSource.dispose()
+        factoryResources?.audioDeviceModule?.setPreferredInputDevice(null)
+        stoppingRuntime.eventLogger.log("webrtc_stopped", emptyMap())
+    }
+
+    private fun preferredMicrophone(id: Int?): AudioDeviceInfo? {
+        if (id == null) return null
+        return audioManager
+            .getDevices(AudioManager.GET_DEVICES_INPUTS)
+            .firstOrNull { device -> device.id == id }
+    }
+
+    private fun createFactoryResources(): FactoryResources {
+        PeerConnectionFactory.initialize(
+            PeerConnectionFactory.InitializationOptions.builder(appContext)
+                .setEnableInternalTracer(false)
+                .createInitializationOptions(),
+        )
+        val eglBase = EglBase.create()
+        val audioDeviceModule =
+            JavaAudioDeviceModule.builder(appContext)
+                .setUseHardwareAcousticEchoCanceler(true)
+                .setUseHardwareNoiseSuppressor(true)
+                .createAudioDeviceModule()
+        val factory =
+            PeerConnectionFactory.builder()
+                .setAudioDeviceModule(audioDeviceModule)
+                .setVideoEncoderFactory(
+                    DefaultVideoEncoderFactory(eglBase.eglBaseContext, true, true),
+                ).setVideoDecoderFactory(DefaultVideoDecoderFactory(eglBase.eglBaseContext))
+                .createPeerConnectionFactory()
+        return FactoryResources(factory, audioDeviceModule, eglBase)
+    }
+
+    private data class FactoryResources(
+        val factory: PeerConnectionFactory,
+        val audioDeviceModule: JavaAudioDeviceModule,
+        @Suppress("unused") val eglBase: EglBase,
+    )
+
+    private data class WebRtcRuntime(
+        val signalling: WebRtcSignallingSession,
+        val frameInput: CameraFrameInput,
+        val audioSource: AudioSource,
+        val audioTrack: AudioTrack,
+        val videoSource: VideoSource,
+        val videoTrack: VideoTrack,
+        val eventLogger: WebRtcEventLogger,
+    )
+
+    private companion object {
+        const val AUDIO_TRACK_ID = "beddybytes-audio"
+        const val VIDEO_TRACK_ID = "beddybytes-video"
+    }
+}
+
+private class CameraFrameInput(videoSource: VideoSource) {
+    private val observer = videoSource.capturerObserver
+    private val lock = Any()
+    private var running = true
+    private var lastFrameTimestampNanoseconds = Long.MIN_VALUE
+
+    init {
+        observer.onCapturerStarted(true)
+    }
+
+    fun onFrame(image: Image, rotationDegrees: Int) {
+        synchronized(lock) {
+            if (!running) return
+            if (lastFrameTimestampNanoseconds != Long.MIN_VALUE &&
+                image.timestamp - lastFrameTimestampNanoseconds < MIN_FRAME_INTERVAL_NANOSECONDS
+            ) {
+                return
+            }
+            val buffer = image.toI420Buffer()
+            val frame =
+                VideoFrame(
+                    buffer,
+                    normalizedRotation(rotationDegrees),
+                    image.timestamp,
+                )
+            try {
+                observer.onFrameCaptured(frame)
+                lastFrameTimestampNanoseconds = image.timestamp
+            } finally {
+                frame.release()
+            }
+        }
+    }
+
+    fun close() {
+        synchronized(lock) {
+            if (!running) return
+            running = false
+            observer.onCapturerStopped()
+        }
+    }
+
+    private companion object {
+        const val MIN_FRAME_INTERVAL_NANOSECONDS = 100_000_000L
+    }
+}
+
+private class AndroidWebRtcPeer private constructor(private val peerConnection: PeerConnection) :
+    WebRtcPeer {
+    override suspend fun acceptOffer(offer: WebRtcDescription): WebRtcDescription {
+        require(offer.type == "offer")
+        peerConnection.setRemote(SessionDescription(SessionDescription.Type.OFFER, offer.sdp))
+        val answer = peerConnection.createAnswer()
+        peerConnection.setLocal(answer)
+        return WebRtcDescription(type = "answer", sdp = answer.description)
+    }
+
+    override suspend fun addCandidate(candidate: WebRtcCandidate) {
+        peerConnection.addCandidate(
+            IceCandidate(
+                candidate.sdpMid,
+                candidate.sdpMLineIndex ?: 0,
+                candidate.candidate,
+            ),
+        )
+    }
+
+    override fun close() {
+        peerConnection.close()
+        peerConnection.dispose()
+    }
+
+    companion object {
+        fun create(
+            factory: PeerConnectionFactory,
+            peerClientId: String,
+            audioTrack: AudioTrack,
+            videoTrack: VideoTrack,
+            onLocalCandidate: (WebRtcCandidate) -> Unit,
+            eventLogger: WebRtcEventLogger,
+        ): AndroidWebRtcPeer {
+            val observer =
+                AndroidPeerObserver(
+                    peerClientId = peerClientId,
+                    onLocalCandidate = onLocalCandidate,
+                    eventLogger = eventLogger,
+                )
+            val configuration =
+                PeerConnection.RTCConfiguration(emptyList()).apply {
+                    sdpSemantics = PeerConnection.SdpSemantics.UNIFIED_PLAN
+                    continualGatheringPolicy =
+                        PeerConnection.ContinualGatheringPolicy.GATHER_CONTINUALLY
+                }
+            val peerConnection =
+                checkNotNull(factory.createPeerConnection(configuration, observer))
+            checkNotNull(peerConnection.addTrack(audioTrack, listOf(MEDIA_STREAM_ID)))
+            checkNotNull(peerConnection.addTrack(videoTrack, listOf(MEDIA_STREAM_ID)))
+            eventLogger.log(
+                "webrtc_peer_created",
+                mapOf("peer_client_id" to peerClientId),
+            )
+            return AndroidWebRtcPeer(peerConnection)
+        }
+
+        private const val MEDIA_STREAM_ID = "beddybytes-stream"
+    }
+}
+
+private class AndroidPeerObserver(
+    private val peerClientId: String,
+    private val onLocalCandidate: (WebRtcCandidate) -> Unit,
+    private val eventLogger: WebRtcEventLogger,
+) : PeerConnection.Observer {
+    override fun onConnectionChange(newState: PeerConnection.PeerConnectionState) {
+        eventLogger.log(
+            "webrtc_peer_connection_state",
+            mapOf(
+                "peer_client_id" to peerClientId,
+                "state" to newState.name.lowercase(),
+            ),
+        )
+    }
+
+    override fun onIceCandidate(candidate: IceCandidate) {
+        onLocalCandidate(
+            WebRtcCandidate(
+                candidate = candidate.sdp,
+                sdpMid = candidate.sdpMid,
+                sdpMLineIndex = candidate.sdpMLineIndex,
+            ),
+        )
+    }
+
+    override fun onIceGatheringChange(newState: PeerConnection.IceGatheringState) {
+        eventLogger.log(
+            "webrtc_ice_gathering_state",
+            mapOf(
+                "peer_client_id" to peerClientId,
+                "state" to newState.name.lowercase(),
+            ),
+        )
+    }
+
+    override fun onSignalingChange(newState: PeerConnection.SignalingState) = Unit
+
+    override fun onIceConnectionChange(newState: PeerConnection.IceConnectionState) = Unit
+
+    override fun onIceConnectionReceivingChange(receiving: Boolean) = Unit
+
+    override fun onIceCandidatesRemoved(candidates: Array<out IceCandidate>) = Unit
+
+    override fun onAddStream(stream: MediaStream) = Unit
+
+    override fun onRemoveStream(stream: MediaStream) = Unit
+
+    override fun onDataChannel(dataChannel: DataChannel) = Unit
+
+    override fun onRenegotiationNeeded() = Unit
+
+    override fun onAddTrack(receiver: RtpReceiver, mediaStreams: Array<out MediaStream>) = Unit
+}
+
+private suspend fun PeerConnection.setRemote(description: SessionDescription) {
+    suspendCancellableCoroutine<Unit> { continuation ->
+        setRemoteDescription(
+            SetDescriptionObserver(
+                onSuccess = { if (continuation.isActive) continuation.resume(Unit) },
+                onFailure = { message ->
+                    if (continuation.isActive) {
+                        continuation.resumeWithException(WebRtcOperationException(message))
+                    }
+                },
+            ),
+            description,
+        )
+    }
+}
+
+private suspend fun PeerConnection.createAnswer(): SessionDescription =
+    suspendCancellableCoroutine { continuation ->
+        createAnswer(
+            CreateDescriptionObserver(
+                onSuccess = { description ->
+                    if (continuation.isActive) continuation.resume(description)
+                },
+                onFailure = { message ->
+                    if (continuation.isActive) {
+                        continuation.resumeWithException(WebRtcOperationException(message))
+                    }
+                },
+            ),
+            MediaConstraints(),
+        )
+    }
+
+private suspend fun PeerConnection.setLocal(description: SessionDescription) {
+    suspendCancellableCoroutine<Unit> { continuation ->
+        setLocalDescription(
+            SetDescriptionObserver(
+                onSuccess = { if (continuation.isActive) continuation.resume(Unit) },
+                onFailure = { message ->
+                    if (continuation.isActive) {
+                        continuation.resumeWithException(WebRtcOperationException(message))
+                    }
+                },
+            ),
+            description,
+        )
+    }
+}
+
+private suspend fun PeerConnection.addCandidate(candidate: IceCandidate) {
+    suspendCancellableCoroutine<Unit> { continuation ->
+        addIceCandidate(
+            candidate,
+            object : AddIceObserver {
+                override fun onAddSuccess() {
+                    if (continuation.isActive) continuation.resume(Unit)
+                }
+
+                override fun onAddFailure(error: String) {
+                    if (continuation.isActive) {
+                        continuation.resumeWithException(WebRtcOperationException(error))
+                    }
+                }
+            },
+        )
+    }
+}
+
+private class SetDescriptionObserver(
+    private val onSuccess: () -> Unit,
+    private val onFailure: (String) -> Unit,
+) : SdpObserver {
+    override fun onSetSuccess() = onSuccess()
+
+    override fun onSetFailure(error: String) = onFailure(error)
+
+    override fun onCreateSuccess(description: SessionDescription) = Unit
+
+    override fun onCreateFailure(error: String) = Unit
+}
+
+private class CreateDescriptionObserver(
+    private val onSuccess: (SessionDescription) -> Unit,
+    private val onFailure: (String) -> Unit,
+) : SdpObserver {
+    override fun onCreateSuccess(description: SessionDescription) = onSuccess(description)
+
+    override fun onCreateFailure(error: String) = onFailure(error)
+
+    override fun onSetSuccess() = Unit
+
+    override fun onSetFailure(error: String) = Unit
+}
+
+private class WebRtcOperationException(message: String) : Exception(message)
+
+private fun Image.toI420Buffer(): JavaI420Buffer {
+    require(format == android.graphics.ImageFormat.YUV_420_888)
+    val output = JavaI420Buffer.allocate(width, height)
+    return try {
+        copyPlane(planes[0], width, height, output.dataY, output.strideY)
+        val chromaWidth = (width + 1) / 2
+        val chromaHeight = (height + 1) / 2
+        copyPlane(planes[1], chromaWidth, chromaHeight, output.dataU, output.strideU)
+        copyPlane(planes[2], chromaWidth, chromaHeight, output.dataV, output.strideV)
+        output
+    } catch (error: Exception) {
+        output.release()
+        throw error
+    }
+}
+
+private fun copyPlane(
+    source: Image.Plane,
+    width: Int,
+    height: Int,
+    destination: ByteBuffer,
+    destinationStride: Int,
+) {
+    copyStridedPlane(
+        source = source.buffer,
+        width = width,
+        height = height,
+        sourceRowStride = source.rowStride,
+        sourcePixelStride = source.pixelStride,
+        destination = destination,
+        destinationStride = destinationStride,
+    )
+}
+
+internal fun copyStridedPlane(
+    source: ByteBuffer,
+    width: Int,
+    height: Int,
+    sourceRowStride: Int,
+    sourcePixelStride: Int,
+    destination: ByteBuffer,
+    destinationStride: Int,
+) {
+    require(width > 0 && height > 0)
+    require(sourceRowStride > 0 && sourcePixelStride > 0)
+    require(destinationStride >= width)
+    val sourceOffset = source.position()
+    val finalSourceIndex =
+        sourceOffset + (height - 1) * sourceRowStride + (width - 1) * sourcePixelStride
+    require(finalSourceIndex < source.limit())
+    require((height - 1) * destinationStride + width <= destination.capacity())
+    for (row in 0 until height) {
+        val sourceRow = sourceOffset + row * sourceRowStride
+        val destinationRow = row * destinationStride
+        if (sourcePixelStride == 1) {
+            val rowBuffer = source.duplicate()
+            rowBuffer.position(sourceRow)
+            rowBuffer.limit(sourceRow + width)
+            val destinationBuffer = destination.duplicate()
+            destinationBuffer.position(destinationRow)
+            destinationBuffer.put(rowBuffer)
+        } else {
+            for (column in 0 until width) {
+                destination.put(
+                    destinationRow + column,
+                    source.get(sourceRow + column * sourcePixelStride),
+                )
+            }
+        }
+    }
+}
+
+private fun normalizedRotation(rotationDegrees: Int): Int {
+    val normalized = ((rotationDegrees % 360) + 360) % 360
+    require(normalized % 90 == 0)
+    return normalized
+}

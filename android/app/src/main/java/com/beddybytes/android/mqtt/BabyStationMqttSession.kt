@@ -1,20 +1,25 @@
 package com.beddybytes.android.mqtt
 
+import android.media.Image
 import com.beddybytes.android.authorization.AuthenticationRequiredException
+import com.beddybytes.android.webrtc.BabyStationWebRtcController
+import com.beddybytes.android.webrtc.NoOpBabyStationWebRtcController
+import com.beddybytes.android.webrtc.WebRtcEventLogger
+import com.beddybytes.android.webrtc.WebRtcOutboundSignal
+import com.beddybytes.android.webrtc.WebRtcStartRequest
 import java.util.UUID
 import kotlin.math.min
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.selects.select
@@ -37,10 +42,14 @@ sealed interface BabyStationSessionState {
 interface BabyStationSessionController {
     val state: StateFlow<BabyStationSessionState>
 
-    fun start(name: String)
+    fun start(request: BabyStationStartRequest)
 
     fun stop()
+
+    fun onCameraFrame(image: Image, rotationDegrees: Int)
 }
+
+data class BabyStationStartRequest(val name: String, val cameraId: String?, val microphoneId: Int?)
 
 internal class BabyStationMqttSession(
     private val mqttHost: String,
@@ -49,25 +58,25 @@ internal class BabyStationMqttSession(
     private val transport: MqttTransport,
     private val scope: CoroutineScope,
     private val eventLogFactory: SessionEventLogFactory = NoOpSessionEventLogFactory,
+    private val webRtcController: BabyStationWebRtcController = NoOpBabyStationWebRtcController,
     private val nowMillis: () -> Long = System::currentTimeMillis,
     private val newId: () -> String = { UUID.randomUUID().toString() },
 ) : BabyStationSessionController {
     private val mutableState =
         MutableStateFlow<BabyStationSessionState>(BabyStationSessionState.Ready)
-    private val mutableWebRtcSignals =
-        MutableSharedFlow<MqttInboundMessage>(extraBufferCapacity = 64)
     private var runtime: SessionRuntime? = null
 
     override val state: StateFlow<BabyStationSessionState> = mutableState.asStateFlow()
-    val webRtcSignals: SharedFlow<MqttInboundMessage> = mutableWebRtcSignals.asSharedFlow()
 
-    override fun start(name: String) {
-        val stationName = name.trim()
+    override fun start(request: BabyStationStartRequest) {
+        val stationName = request.name.trim()
         if (stationName.isEmpty()) return
         val startedRuntime = synchronized(this) {
             if (runtime != null) return
             SessionRuntime(
                 name = stationName,
+                cameraId = request.cameraId,
+                microphoneId = request.microphoneId,
                 sessionId = newId(),
                 startedAtMillis = nowMillis(),
             ).also { runtime = it }
@@ -93,6 +102,10 @@ internal class BabyStationMqttSession(
         }
     }
 
+    override fun onCameraFrame(image: Image, rotationDegrees: Int) {
+        webRtcController.onCameraFrame(image, rotationDegrees)
+    }
+
     private suspend fun runSession(activeRuntime: SessionRuntime) {
         var attempt = 0
         var failed = false
@@ -110,6 +123,38 @@ internal class BabyStationMqttSession(
             }.getOrDefault(NoOpSessionEventLog)
         log(activeRuntime, activeRuntime.startedAtMillis, "session_started")
         try {
+            val clientId = clientIdStore.getOrCreate()
+            activeRuntime.clientId = clientId
+            log(
+                activeRuntime,
+                "station_media_configuration",
+                mapOf(
+                    "camera_id" to (activeRuntime.cameraId ?: "none"),
+                    "microphone_id" to (activeRuntime.microphoneId?.toString() ?: "default"),
+                ),
+            )
+            try {
+                webRtcController.start(
+                    request =
+                        WebRtcStartRequest(
+                            localClientId = clientId,
+                            microphoneId = activeRuntime.microphoneId,
+                        ),
+                    sendSignal = { signal -> activeRuntime.outboundSignals.trySend(signal) },
+                    eventLogger =
+                        WebRtcEventLogger { event, fields ->
+                            log(activeRuntime, event, fields)
+                        },
+                )
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                failed = true
+                completionReason = "media_failed"
+                logError(activeRuntime, "webrtc_start_failed", error)
+                mutableState.value = BabyStationSessionState.Failed("Unable to start media")
+                return
+            }
             while (!activeRuntime.stop.isCompleted) {
                 mutableState.value =
                     if (attempt == 0) {
@@ -149,6 +194,8 @@ internal class BabyStationMqttSession(
             }
         } finally {
             if (activeRuntime.stop.isCompleted) logStopRequested(activeRuntime)
+            runCatching { webRtcController.stop() }
+                .onFailure { error -> logError(activeRuntime, "webrtc_stop_failed", error) }
             log(
                 activeRuntime,
                 "session_stopped",
@@ -165,7 +212,7 @@ internal class BabyStationMqttSession(
     @OptIn(ExperimentalCoroutinesApi::class)
     private suspend fun runConnectionAttempt(activeRuntime: SessionRuntime, attempt: Int) {
         val credentials = credentialsProvider.credentials()
-        val clientId = clientIdStore.getOrCreate()
+        val clientId = checkNotNull(activeRuntime.clientId)
         val connectionId = newId()
         val requestId = newId()
         val statusTopic = MqttTopics.clientStatus(credentials.accountId, clientId)
@@ -232,6 +279,7 @@ internal class BabyStationMqttSession(
             )
         var cleanStop = false
         var setupCompleted = false
+        var outboundPump: Job? = null
         try {
             publish(
                 activeRuntime,
@@ -257,8 +305,44 @@ internal class BabyStationMqttSession(
                 connection,
                 MqttTopics.webRtcInbox(credentials.accountId, clientId),
             ) { message ->
-                if (isCurrent(activeRuntime, connection)) mutableWebRtcSignals.tryEmit(message)
+                if (!isCurrent(activeRuntime, connection)) return@subscribe
+                val signal =
+                    MqttPayloads.webRtcInbound(
+                        message = message,
+                        accountId = credentials.accountId,
+                        localClientId = clientId,
+                    ) ?: return@subscribe
+                scope.launch {
+                    runCatching { webRtcController.handle(signal) }
+                        .onFailure { error ->
+                            logError(activeRuntime, "webrtc_signal_failed", error)
+                        }
+                }
             }
+            outboundPump =
+                scope.launch {
+                    for (signal in activeRuntime.outboundSignals) {
+                        try {
+                            publish(
+                                activeRuntime,
+                                connection,
+                                MqttTopics.webRtcInbox(
+                                    credentials.accountId,
+                                    signal.peerClientId,
+                                ),
+                                MqttPayloads.webRtcOutbound(clientId, signal),
+                            )
+                        } catch (error: CancellationException) {
+                            activeRuntime.outboundSignals.trySend(signal)
+                            throw error
+                        } catch (error: Exception) {
+                            activeRuntime.outboundSignals.trySend(signal)
+                            logError(activeRuntime, "webrtc_signal_publish_failed", error)
+                            disconnects.trySend(error)
+                            return@launch
+                        }
+                    }
+                }
             if (activeRuntime.stop.isCompleted) {
                 logStopRequested(activeRuntime)
                 cleanStop = true
@@ -294,6 +378,7 @@ internal class BabyStationMqttSession(
                 disconnects.onReceive { false }
             }
         } finally {
+            outboundPump?.cancelAndJoin()
             activeRuntime.connection = null
             if (cleanStop || activeRuntime.stop.isCompleted || !setupCompleted) {
                 runCatching {
@@ -478,9 +563,13 @@ internal class BabyStationMqttSession(
 
     private class SessionRuntime(
         val name: String,
+        val cameraId: String?,
+        val microphoneId: Int?,
         val sessionId: String,
         val startedAtMillis: Long,
         val stop: CompletableDeferred<Unit> = CompletableDeferred(),
+        val outboundSignals: Channel<WebRtcOutboundSignal> = Channel(Channel.UNLIMITED),
+        @Volatile var clientId: String? = null,
         @Volatile var connection: MqttConnection? = null,
         @Volatile var eventLog: SessionEventLog = NoOpSessionEventLog,
         var stopRequestedAtMillis: Long? = null,

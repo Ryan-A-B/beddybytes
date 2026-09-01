@@ -1,5 +1,12 @@
 package com.beddybytes.android.mqtt
 
+import android.media.Image
+import com.beddybytes.android.webrtc.BabyStationWebRtcController
+import com.beddybytes.android.webrtc.WebRtcDescription
+import com.beddybytes.android.webrtc.WebRtcEventLogger
+import com.beddybytes.android.webrtc.WebRtcInboundSignal
+import com.beddybytes.android.webrtc.WebRtcOutboundSignal
+import com.beddybytes.android.webrtc.WebRtcStartRequest
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.test.advanceTimeBy
@@ -16,6 +23,53 @@ import org.junit.Test
 @OptIn(ExperimentalCoroutinesApi::class)
 class BabyStationMqttSessionTest {
     @Test
+    fun `routes web rtc signalling between mqtt and the media controller`() = runTest {
+        val transport = FakeTransport()
+        val webRtc = FakeWebRtcController()
+        val session =
+            BabyStationMqttSession(
+                mqttHost = "mqtt.qa.beddybytes.com",
+                credentialsProvider = MqttCredentialsProvider {
+                    MqttCredentials("account-1", "token")
+                },
+                clientIdStore = MqttClientIdStore { "baby-client" },
+                transport = transport,
+                scope = this,
+                webRtcController = webRtc,
+                newId = { "id" },
+            )
+
+        session.start(BabyStationStartRequest("Nursery", "camera-0", 42))
+        runCurrent()
+        assertEquals(WebRtcStartRequest("baby-client", 42), webRtc.startRequest)
+        val connection = transport.connections.single()
+        connection.dispatch(
+            MqttTopics.webRtcInbox("account-1", "baby-client"),
+            """{"from_client_id":"parent-client","type":"description","description":{"type":"offer","sdp":"v=0"}}""",
+        )
+        runCurrent()
+        assertEquals(1, webRtc.inbound.size)
+
+        webRtc.sendSignal(
+            WebRtcOutboundSignal.Answer(
+                "parent-client",
+                WebRtcDescription("answer", "v=0-answer"),
+            ),
+        )
+        runCurrent()
+        val published = connection.publishes.last()
+        assertEquals(
+            MqttTopics.webRtcInbox("account-1", "parent-client"),
+            published.first,
+        )
+        assertEquals("description", payloadType(published.second))
+
+        session.stop()
+        runCurrent()
+        assertTrue(webRtc.stopped)
+    }
+
+    @Test
     fun `stop cancels an in progress connection`() = runTest {
         val session =
             BabyStationMqttSession(
@@ -29,7 +83,7 @@ class BabyStationMqttSessionTest {
                 newId = { "id" },
             )
 
-        session.start("Nursery")
+        session.start(BabyStationStartRequest("Nursery", "0", 1))
         runCurrent()
         assertEquals(BabyStationSessionState.Connecting, session.state.value)
 
@@ -62,7 +116,7 @@ class BabyStationMqttSessionTest {
                     newId = ids::removeFirst,
                 )
 
-            session.start(" Nursery ")
+            session.start(BabyStationStartRequest(" Nursery ", "0", 1))
             runCurrent()
 
             assertTrue(session.state.value is BabyStationSessionState.Active)
@@ -224,4 +278,30 @@ class BabyStationMqttSessionTest {
     }
 
     private data class RecordedEvent(val event: String, val fields: Map<String, String>)
+
+    private class FakeWebRtcController : BabyStationWebRtcController {
+        var startRequest: WebRtcStartRequest? = null
+        lateinit var sendSignal: (WebRtcOutboundSignal) -> Unit
+        val inbound = mutableListOf<WebRtcInboundSignal>()
+        var stopped = false
+
+        override suspend fun start(
+            request: WebRtcStartRequest,
+            sendSignal: (WebRtcOutboundSignal) -> Unit,
+            eventLogger: WebRtcEventLogger,
+        ) {
+            startRequest = request
+            this.sendSignal = sendSignal
+        }
+
+        override fun handle(signal: WebRtcInboundSignal) {
+            inbound += signal
+        }
+
+        override fun onCameraFrame(image: Image, rotationDegrees: Int) = Unit
+
+        override suspend fun stop() {
+            stopped = true
+        }
+    }
 }

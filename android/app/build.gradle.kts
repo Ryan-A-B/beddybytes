@@ -112,6 +112,7 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.hivemq.mqtt)
     implementation(libs.netty.codec.http)
+    implementation(libs.webrtc.android)
     implementation(libs.okhttp)
 
     debugImplementation(libs.compose.ui.tooling)

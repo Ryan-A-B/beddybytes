@@ -1,10 +1,12 @@
 package com.beddybytes.android.babystation
 
+import android.media.Image
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.beddybytes.android.mqtt.BabyStationSessionController
 import com.beddybytes.android.mqtt.BabyStationSessionState
+import com.beddybytes.android.mqtt.BabyStationStartRequest
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -80,7 +82,18 @@ class BabyStationViewModel(
 
     fun start() {
         if (uiState.value.running) return
-        session.start(uiState.value.name)
+        val state = uiState.value
+        session.start(
+            BabyStationStartRequest(
+                name = state.name,
+                cameraId = state.selectedCameraId,
+                microphoneId = state.selectedMicrophoneId,
+            ),
+        )
+    }
+
+    fun onCameraFrame(image: Image, rotationDegrees: Int) {
+        session.onCameraFrame(image, rotationDegrees)
     }
 
     fun stop() {

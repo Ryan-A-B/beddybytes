@@ -2,13 +2,15 @@
 
 Native Android Baby Station client for BeddyBytes.
 
-The current project contains the installable shell, native authorization, MQTT session discovery, and the first Baby Station screen. The screen uses Camera2 directly for preview and low-light exposure control, can target the preferred physical sensor behind a logical camera, and displays an eight-frame rolling grayscale average during manual low-light capture. It discovers the device's cameras and microphones, persists its compact immediate-apply settings, and implements the idle, running, and screen-saver presentation states. Start and Stop now control the MQTT Baby Station lifecycle; WebRTC transmission, foreground service behavior, and Do Not Disturb arrive in later phases.
+The current project contains the installable shell, native authorization, MQTT discovery and signalling, WebRTC audio/video transmission, and the first Baby Station screen. The screen uses Camera2 directly for preview and low-light exposure control, can target the preferred physical sensor behind a logical camera, and displays an eight-frame rolling grayscale average during manual low-light capture. It discovers the device's cameras and microphones, persists its compact immediate-apply settings, and implements the idle, running, and screen-saver presentation states. Foreground service behavior and Do Not Disturb arrive in later phases.
 
 Authorization uses the existing BeddyBytes password and refresh grants without backend changes. Access tokens and account details remain in memory. The rotating refresh cookie is encrypted with an app-owned Android Keystore key, and sign out is local because the existing backend does not route a logout endpoint.
 
 MQTT connects directly to the existing AWS IoT Core custom domain using MQTT 3.1.1 over secure WebSocket. It passes a fresh access token in the `access_token` handshake query parameter on every connection attempt. A persistent app-generated client ID scopes the connection, while connection and request IDs change on every reconnect. The client publishes connected and clean/Last-Will status, subscribes to parent announcements and its future WebRTC inbox, announces the running Baby Station, responds through each parent's control inbox, and re-announces after reconnect. Protocol traffic uses QoS 1, clean sessions, a 30-second keepalive, and non-retained messages.
 
 The MQTT transport pins `com.hivemq:hivemq-mqtt-client:1.4.0`. The Maven Central JAR used for provenance review has SHA-256 `22cb6148254e14a391818c08f6d4769294a61de7fa2c44fe3e20b03089a4be0f` and is licensed under Apache-2.0.
+
+WebRTC pins `io.github.webrtc-sdk:android:144.7559.14`. Its official `libwebrtc.aar` has SHA-256 `44c243bb0c6ac5b0a4425e6211f7994b0d60df3cf2f5721c20c6a88aa1a68f64`, maps to upstream WebRTC revision `df1011beabae993c555f7c11a7a4b8e8fa62480d`, and contains native libraries for `arm64-v8a`, `armeabi-v7a`, `x86`, and `x86_64`. Version `144.7559.12` is the designated rollback. The wrapper is MIT licensed and WebRTC is BSD-3-Clause; see `THIRD_PARTY_NOTICES.md`. The AAR does not embed its upstream third-party license bundle, so the complete transitive notice audit remains a release-readiness task.
 
 ## Requirements
 
@@ -39,16 +41,23 @@ android/app/build/outputs/apk/qa/debug/app-qa-debug.apk
 
 The canonical debug build uses the `qa` flavor and connects to `api.qa.beddybytes.com` and `mqtt.qa.beddybytes.com`.
 
-For an MQTT smoke test, install the QA debug APK, sign in, and press Start. A browser parent
-station on the same account should discover the Android Baby Station. Turning Wi-Fi off and back
-on should show the reconnecting state and then re-announce the same station session. Stop should
-remove it cleanly. Video and audio will not reach the browser until the WebRTC phase is implemented.
+For an MQTT/WebRTC smoke test, install the QA debug APK, sign in, and press Start. A browser parent
+station on the same account should discover the Android Baby Station and receive its camera and
+selected microphone. Multiple browser parents may connect independently. Turning Wi-Fi off and
+back on should show the reconnecting state and then re-announce the same station session. Stop
+should remove it cleanly and end every peer connection.
+
+The transmitted video is sourced from the existing Camera2 YUV stream and is capped at 10 fps. It
+therefore retains the manual exposure controls without opening the camera a second time. The
+debug RAW and rolling-stack outputs remain local capture/preview paths for now; transmitting the
+processed low-light stack is a separate follow-up.
 
 Each Start in a debug build also creates
 `Android/data/com.beddybytes.android.qa.debug/files/station-sessions/<session>/events.jsonl`.
 The JSON Lines file records the app/device/host header, session lifecycle, MQTT connections,
-subscriptions, reconnect timing, disconnects, and inbound/outbound message topic, type, and byte
-count. It does not record access tokens or MQTT payload bodies. The same lines are available in
+subscriptions, reconnect timing, disconnects, WebRTC offers/answers/candidates and peer states,
+and inbound/outbound message topic, type, and byte count. It does not record access tokens, SDP,
+ICE candidate values, or MQTT payload bodies. The same lines are available in
 Logcat under the `BeddyBytesSession` tag while the phone is attached.
 
 During low-light development, each press of Start in a debug build creates an app-specific

@@ -1,5 +1,9 @@
 package com.beddybytes.android.mqtt
 
+import com.beddybytes.android.webrtc.WebRtcCandidate
+import com.beddybytes.android.webrtc.WebRtcDescription
+import com.beddybytes.android.webrtc.WebRtcInboundSignal
+import com.beddybytes.android.webrtc.WebRtcOutboundSignal
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
@@ -76,6 +80,24 @@ internal data class ParentStationAnnouncement(
     @SerialName("connection_id") val connectionId: String,
 )
 
+@Serializable
+private data class WebRtcInboxPayload(
+    @SerialName("from_client_id") val fromClientId: String,
+    val type: String,
+    val description: WebRtcDescriptionPayload? = null,
+    val candidate: WebRtcCandidatePayload? = null,
+)
+
+@Serializable
+private data class WebRtcDescriptionPayload(val type: String, val sdp: String)
+
+@Serializable
+private data class WebRtcCandidatePayload(
+    val candidate: String,
+    val sdpMid: String? = null,
+    val sdpMLineIndex: Int? = null,
+)
+
 internal object MqttPayloads {
     private val json = Json {
         ignoreUnknownKeys = true
@@ -139,4 +161,74 @@ internal object MqttPayloads {
     fun messageType(payload: String): String = runCatching {
         json.parseToJsonElement(payload).jsonObject["type"]?.jsonPrimitive?.contentOrNull
     }.getOrNull() ?: "unknown"
+
+    fun webRtcInbound(
+        message: MqttInboundMessage,
+        accountId: String,
+        localClientId: String,
+    ): WebRtcInboundSignal? {
+        if (message.topic != MqttTopics.webRtcInbox(accountId, localClientId)) return null
+        val payload = runCatching {
+            json.decodeFromString<WebRtcInboxPayload>(message.payload)
+        }.getOrNull() ?: return null
+        if (!isSafeClientId(payload.fromClientId)) return null
+        return when (payload.type) {
+            "description" -> {
+                val description = payload.description ?: return null
+                if (description.type != "offer" || description.sdp.isBlank()) return null
+                WebRtcInboundSignal.Offer(
+                    fromClientId = payload.fromClientId,
+                    description = WebRtcDescription(description.type, description.sdp),
+                )
+            }
+
+            "candidate" -> {
+                val candidate = payload.candidate ?: return null
+                if (candidate.candidate.isBlank()) return null
+                WebRtcInboundSignal.Candidate(
+                    fromClientId = payload.fromClientId,
+                    candidate =
+                        WebRtcCandidate(
+                            candidate = candidate.candidate,
+                            sdpMid = candidate.sdpMid,
+                            sdpMLineIndex = candidate.sdpMLineIndex,
+                        ),
+                )
+            }
+
+            else -> null
+        }
+    }
+
+    fun webRtcOutbound(localClientId: String, signal: WebRtcOutboundSignal): String {
+        val payload = when (signal) {
+            is WebRtcOutboundSignal.Answer ->
+                WebRtcInboxPayload(
+                    fromClientId = localClientId,
+                    type = "description",
+                    description =
+                        WebRtcDescriptionPayload(
+                            type = signal.description.type,
+                            sdp = signal.description.sdp,
+                        ),
+                )
+
+            is WebRtcOutboundSignal.Candidate ->
+                WebRtcInboxPayload(
+                    fromClientId = localClientId,
+                    type = "candidate",
+                    candidate =
+                        WebRtcCandidatePayload(
+                            candidate = signal.candidate.candidate,
+                            sdpMid = signal.candidate.sdpMid,
+                            sdpMLineIndex = signal.candidate.sdpMLineIndex,
+                        ),
+                )
+        }
+        return json.encodeToString(payload)
+    }
+
+    private fun isSafeClientId(clientId: String): Boolean = runCatching {
+        MqttTopics.webRtcInbox("account", clientId)
+    }.isSuccess
 }
