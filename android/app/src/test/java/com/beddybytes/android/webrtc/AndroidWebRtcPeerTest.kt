@@ -7,7 +7,7 @@ import org.junit.Test
 
 class AndroidWebRtcPeerTest {
     @Test
-    fun `accepts browser offer before adding only the local audio track`() = runTest {
+    fun `accepts browser offer before adding local audio and video tracks`() = runTest {
         val operations = RecordingPeerConnectionOperations()
         val peer = AndroidWebRtcPeer(operations)
 
@@ -18,6 +18,7 @@ class AndroidWebRtcPeerTest {
             listOf(
                 "set_remote:browser-offer",
                 "add_local_audio_track",
+                "add_local_video_track",
                 "create_answer",
                 "set_local:android-answer",
             ),
@@ -75,6 +76,10 @@ class AndroidWebRtcPeerTest {
 
         override fun addLocalAudioTrack() {
             calls += "add_local_audio_track"
+        }
+
+        override fun addLocalVideoTrack() {
+            calls += "add_local_video_track"
         }
 
         override suspend fun createAnswer(): WebRtcDescription {

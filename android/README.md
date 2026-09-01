@@ -47,14 +47,12 @@ The canonical debug build uses the `qa` flavor and connects to `api.qa.beddybyte
 
 For an MQTT/WebRTC smoke test, install the QA debug APK, sign in, and press Start. A browser parent
 station on the same account should discover the Android Baby Station and receive its selected
-microphone. The current confirmation build creates and attaches only the WebRTC audio track, while
-the camera preview and low-light processing continue locally without a video track. Multiple browser
-parents may connect independently. Turning Wi-Fi off and
+microphone and camera output. The WebRTC video track uses the same Camera2 source and processed
+low-light frames as the local preview. Multiple browser parents may connect independently. Turning Wi-Fi off and
 back on should show the reconnecting state and then re-announce the same station session. Stop
 should remove it cleanly and end every peer connection.
 
-When video transmission is re-enabled after the audio-only diagnostic, it initially uses the
-existing Camera2 YUV stream, capped at 10 fps. As soon as
+The transmitted video initially uses the existing Camera2 YUV stream, capped at 10 fps. As soon as
 the rolling low-light processor has accumulated a complete stack, WebRTC switches to the same
 brightened grayscale output displayed in the local preview. RAW-capable cameras use the eight-frame
 RAW stack at its one-frame-per-second update rate; other cameras use the YUV rolling stack. If the
