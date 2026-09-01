@@ -47,9 +47,9 @@ The canonical debug build uses the `qa` flavor and connects to `api.qa.beddybyte
 
 For an MQTT/WebRTC smoke test, install the QA debug APK, sign in, and press Start. A browser parent
 station on the same account should discover the Android Baby Station and receive its selected
-microphone after media transmission is restored. The current diagnostic build deliberately creates
-and attaches no WebRTC media tracks, while the camera preview and low-light processing continue
-locally. Multiple browser parents may connect independently. Turning Wi-Fi off and
+microphone. The current confirmation build creates and attaches only the WebRTC audio track, while
+the camera preview and low-light processing continue locally without a video track. Multiple browser
+parents may connect independently. Turning Wi-Fi off and
 back on should show the reconnecting state and then re-announce the same station session. Stop
 should remove it cleanly and end every peer connection.
 

@@ -2,6 +2,8 @@ package com.beddybytes.android.webrtc
 
 import android.content.Context
 import android.graphics.Bitmap
+import android.media.AudioDeviceInfo
+import android.media.AudioManager
 import android.media.Image
 import java.nio.ByteBuffer
 import kotlin.coroutines.resume
@@ -9,6 +11,8 @@ import kotlin.coroutines.resumeWithException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.suspendCancellableCoroutine
 import org.webrtc.AddIceObserver
+import org.webrtc.AudioSource
+import org.webrtc.AudioTrack
 import org.webrtc.DataChannel
 import org.webrtc.DefaultVideoDecoderFactory
 import org.webrtc.DefaultVideoEncoderFactory
@@ -31,6 +35,7 @@ internal class AndroidBabyStationWebRtcController(
     private val scope: CoroutineScope,
 ) : BabyStationWebRtcController {
     private val appContext = context.applicationContext
+    private val audioManager = appContext.getSystemService(AudioManager::class.java)
     private val lock = Any()
     private var runtime: WebRtcRuntime? = null
     private var factoryResources: FactoryResources? = null
@@ -42,6 +47,10 @@ internal class AndroidBabyStationWebRtcController(
     ) {
         check(synchronized(lock) { runtime == null })
         val resources = factoryResources ?: createFactoryResources().also { factoryResources = it }
+        val preferredMicrophone = preferredMicrophone(request.microphoneId)
+        preferredMicrophone?.let(resources.audioDeviceModule::setPreferredInputDevice)
+        val audioSource = resources.factory.createAudioSource(MediaConstraints())
+        val audioTrack = resources.factory.createAudioTrack(AUDIO_TRACK_ID, audioSource)
         val videoSource = resources.factory.createVideoSource(false)
         val frameInput = CameraFrameInput(videoSource, eventLogger)
         val signalling =
@@ -52,6 +61,7 @@ internal class AndroidBabyStationWebRtcController(
                         AndroidWebRtcPeer.create(
                             factory = resources.factory,
                             peerClientId = peerClientId,
+                            audioTrack = audioTrack,
                             onLocalCandidate = onLocalCandidate,
                             eventLogger = eventLogger,
                         )
@@ -63,6 +73,8 @@ internal class AndroidBabyStationWebRtcController(
             WebRtcRuntime(
                 signalling = signalling,
                 frameInput = frameInput,
+                audioSource = audioSource,
+                audioTrack = audioTrack,
                 videoSource = videoSource,
                 eventLogger = eventLogger,
             )
@@ -74,9 +86,10 @@ internal class AndroidBabyStationWebRtcController(
             "webrtc_started",
             mapOf(
                 "local_client_id" to request.localClientId,
+                "microphone_id" to (preferredMicrophone?.id?.toString() ?: "default"),
                 "ice_servers" to "0",
-                "media_mode" to "no_media_diagnostic",
-                "audio_track_created" to "false",
+                "media_mode" to "audio_only_confirmation",
+                "audio_track_created" to "true",
                 "video_track_created" to "false",
             ),
         )
@@ -100,8 +113,17 @@ internal class AndroidBabyStationWebRtcController(
         val stoppingRuntime = synchronized(lock) { runtime.also { runtime = null } } ?: return
         stoppingRuntime.frameInput.close()
         stoppingRuntime.signalling.close()
+        stoppingRuntime.audioTrack.dispose()
+        stoppingRuntime.audioSource.dispose()
         stoppingRuntime.videoSource.dispose()
         stoppingRuntime.eventLogger.log("webrtc_stopped", emptyMap())
+    }
+
+    private fun preferredMicrophone(id: Int?): AudioDeviceInfo? {
+        if (id == null) return null
+        return audioManager
+            .getDevices(AudioManager.GET_DEVICES_INPUTS)
+            .firstOrNull { device -> device.id == id }
     }
 
     private fun createFactoryResources(): FactoryResources {
@@ -135,9 +157,15 @@ internal class AndroidBabyStationWebRtcController(
     private data class WebRtcRuntime(
         val signalling: WebRtcSignallingSession,
         val frameInput: CameraFrameInput,
+        val audioSource: AudioSource,
+        val audioTrack: AudioTrack,
         val videoSource: VideoSource,
         val eventLogger: WebRtcEventLogger,
     )
+
+    private companion object {
+        const val AUDIO_TRACK_ID = "beddybytes-audio"
+    }
 }
 
 private class CameraFrameInput(
@@ -234,6 +262,8 @@ private class CameraFrameInput(
 internal interface WebRtcPeerConnectionOperations : AutoCloseable {
     suspend fun setRemote(description: WebRtcDescription)
 
+    fun addLocalAudioTrack()
+
     suspend fun createAnswer(): WebRtcDescription
 
     suspend fun setLocal(description: WebRtcDescription)
@@ -246,6 +276,7 @@ internal class AndroidWebRtcPeer(private val operations: WebRtcPeerConnectionOpe
     override suspend fun acceptOffer(offer: WebRtcDescription): WebRtcDescription {
         require(offer.type == "offer")
         operations.setRemote(offer)
+        operations.addLocalAudioTrack()
         val answer = operations.createAnswer()
         operations.setLocal(answer)
         return answer
@@ -263,6 +294,7 @@ internal class AndroidWebRtcPeer(private val operations: WebRtcPeerConnectionOpe
         fun create(
             factory: PeerConnectionFactory,
             peerClientId: String,
+            audioTrack: AudioTrack,
             onLocalCandidate: (WebRtcCandidate) -> Unit,
             eventLogger: WebRtcEventLogger,
         ): AndroidWebRtcPeer {
@@ -287,6 +319,7 @@ internal class AndroidWebRtcPeer(private val operations: WebRtcPeerConnectionOpe
             return AndroidWebRtcPeer(
                 NativePeerConnectionOperations(
                     peerConnection = peerConnection,
+                    audioTrack = audioTrack,
                     peerClientId = peerClientId,
                     eventLogger = eventLogger,
                 ),
@@ -297,6 +330,7 @@ internal class AndroidWebRtcPeer(private val operations: WebRtcPeerConnectionOpe
 
 private class NativePeerConnectionOperations(
     private val peerConnection: PeerConnection,
+    private val audioTrack: AudioTrack,
     private val peerClientId: String,
     private val eventLogger: WebRtcEventLogger,
 ) : WebRtcPeerConnectionOperations {
@@ -309,8 +343,12 @@ private class NativePeerConnectionOperations(
         log("webrtc_remote_description_set")
     }
 
+    override fun addLocalAudioTrack() {
+        checkNotNull(peerConnection.addTrack(audioTrack, listOf(MEDIA_STREAM_ID)))
+        log("webrtc_local_audio_track_added")
+    }
+
     override suspend fun createAnswer(): WebRtcDescription {
-        log("webrtc_no_local_tracks")
         val answer = peerConnection.createAnswer()
         val description = WebRtcDescription(type = "answer", sdp = answer.description)
         log("webrtc_answer_description_summary", summarizeSdp(description))
@@ -342,6 +380,10 @@ private class NativePeerConnectionOperations(
 
     private fun log(event: String, fields: Map<String, String> = emptyMap()) {
         eventLogger.log(event, fields + ("peer_client_id" to peerClientId))
+    }
+
+    private companion object {
+        const val MEDIA_STREAM_ID = "beddybytes-stream"
     }
 }
 
