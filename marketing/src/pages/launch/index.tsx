@@ -91,7 +91,7 @@ const LaunchPage: React.FunctionComponent = () => {
                             <div className="col-lg-6">
                                 <div className="launch-page__proof-badge">
                                     <strong>20,000+ hours monitored across 60+ families</strong>
-                                    <span>As of September 2026</span>
+                                    <span>As of August 2026</span>
                                 </div>
 
                                 <h1>
