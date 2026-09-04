@@ -1,0 +1,49 @@
+// BeddyBytes' deliberately small visual vocabulary.
+//
+// Components may use only these ten colours, six named gradients, a square
+// corner or the single radius, and spacing returned by space(). This keeps new
+// page-level styling easy to review without introducing a large token framework.
+$color-purple-dark: #45005c;
+$color-purple: #730099;
+$color-purple-light: #d5b3e0;
+$color-green-dark: #13795b;
+$color-green: #20c997;
+$color-green-light: #bcefe0;
+$color-grey-light: #f4f4f4;
+$color-grey: #6c757d;
+$color-white: #ffffff;
+$color-black: #000000;
+
+// Gradients move by one palette step or use the approved green-to-purple pair.
+// Use these tokens instead of composing gradients inside components.
+$gradient-purple-dark-to-base: linear-gradient(180deg, $color-purple-dark 0%, $color-purple 100%);
+$gradient-purple-base-to-light: linear-gradient(180deg, $color-purple 0%, $color-purple-light 100%);
+$gradient-green-dark-to-base: linear-gradient(180deg, $color-green-dark 0%, $color-green 100%);
+$gradient-green-base-to-light: linear-gradient(180deg, $color-green 0%, $color-green-light 100%);
+$gradient-green-to-purple: linear-gradient(180deg, $color-green 0%, $color-purple 100%);
+$gradient-purple-to-green-light-diagonal: linear-gradient(135deg, $color-purple-light 0%, $color-green-light 100%);
+
+// Page bands may use a purple/green colour or gradient, or one of these light
+// greyscale surfaces. A coloured band must always be followed by a greyscale
+// band. Greyscale bands may follow one another.
+$page-band-greyscale-backgrounds: $color-white, $color-grey-light;
+$page-band-colour-backgrounds:
+    $color-purple-dark,
+    $color-purple,
+    $color-purple-light,
+    $color-green-dark,
+    $color-green,
+    $color-green-light,
+    $gradient-purple-dark-to-base,
+    $gradient-purple-base-to-light,
+    $gradient-green-dark-to-base,
+    $gradient-green-base-to-light,
+    $gradient-green-to-purple,
+    $gradient-purple-to-green-light-diagonal;
+
+$radius: 12px;
+$space-unit: 4px;
+
+@function space($units) {
+    @return $units * $space-unit;
+}

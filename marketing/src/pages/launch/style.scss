@@ -1,0 +1,461 @@
+@import "../../scss/simple-design-system";
+
+.launch-page {
+    background: $color-white;
+    color: $color-black;
+
+    h1,
+    h2,
+    h3 {
+        color: $color-black;
+    }
+
+    .page-bands {
+        padding: space(16) 0;
+    }
+
+    > .page-bands {
+        border: 0;
+    }
+
+    a {
+        color: $color-purple;
+    }
+}
+
+.launch-page__hero {
+    background: $gradient-purple-dark-to-base;
+    color: $color-white;
+    overflow: hidden;
+}
+
+.launch-page__proof-badge {
+    align-items: flex-start;
+    border: 1px solid $color-white;
+    border-radius: $radius;
+    display: inline-flex;
+    flex-direction: column;
+    gap: space(1);
+    margin-bottom: space(6);
+    padding: space(3) space(4);
+}
+
+.launch-page__proof-badge strong,
+.launch-page__proof-badge span,
+.launch-page__hero h1,
+.launch-page__hero h1 span:first-child {
+    color: $color-white;
+}
+
+.launch-page__proof-badge strong {
+    font-size: 0.88rem;
+    line-height: 1.35;
+}
+
+.launch-page__proof-badge span {
+    font-size: 0.76rem;
+}
+
+.launch-page__hero h1 {
+    font-size: clamp(2.65rem, 4vw, 3rem);
+    font-weight: 700;
+    line-height: 1.04;
+    margin-bottom: space(6);
+}
+
+.launch-page__hero h1 span {
+    display: block;
+}
+
+.launch-page__hero h1 span:last-child {
+    color: $color-green;
+}
+
+.launch-page__hero-copy {
+    color: $color-white;
+    font-size: clamp(1.05rem, 1.8vw, 1.22rem);
+    line-height: 1.65;
+    margin-bottom: space(8);
+    max-width: 39rem;
+}
+
+.launch-page__hero-action {
+    max-width: 28rem;
+}
+
+.launch-page__primary-button {
+    align-items: center;
+    background: $color-white;
+    border: 2px solid $color-white;
+    border-radius: $radius;
+    color: $color-purple;
+    display: inline-flex;
+    font-size: 1.05rem;
+    font-weight: 700;
+    justify-content: center;
+    min-height: space(14);
+    padding: space(3) space(6);
+    text-decoration: none;
+    transition: background-color 150ms ease, color 150ms ease;
+}
+
+.launch-page__primary-button:hover,
+.launch-page__primary-button:focus-visible {
+    background: $color-green;
+    border-color: $color-green;
+    color: $color-black;
+}
+
+.launch-page__primary-button:focus-visible {
+    outline: 2px solid $color-green;
+    outline-offset: space(1);
+}
+
+.launch-page__hero-action p {
+    color: $color-white;
+    font-size: 0.86rem;
+    line-height: 1.45;
+    margin: space(3) 0 0;
+}
+
+.launch-page__hero-action p span {
+    display: block;
+}
+
+.launch-page__video-frame {
+    border: 1px solid $color-white;
+    border-radius: $radius;
+    overflow: hidden;
+}
+
+.launch-page__video-frame video {
+    aspect-ratio: 16 / 9;
+    background: $color-black;
+    display: block;
+    object-fit: cover;
+    width: 100%;
+}
+
+.launch-page__setup {
+    background: $color-white;
+}
+
+.launch-page__section-heading {
+    margin: 0 auto space(12);
+    max-width: 54rem;
+    text-align: center;
+}
+
+.launch-page__section-heading h2,
+.launch-page > #pricing > .container > h2,
+.launch-page > #faq h2 {
+    font-size: clamp(2.1rem, 3.5vw, 3.1rem);
+    font-weight: 700;
+    line-height: 1.12;
+    margin-bottom: space(4);
+}
+
+.launch-page__section-heading p,
+.launch-page__steps p,
+.launch-page__requirements,
+.launch-page .text-muted {
+    color: $color-grey !important;
+}
+
+.launch-page .trust-section__intro,
+.launch-page .good-fit-section__intro {
+    color: $color-black;
+}
+
+.launch-page__section-heading p,
+.launch-page__maintenance-content > p:last-child {
+    font-size: 1.08rem;
+    line-height: 1.65;
+    margin: 0;
+}
+
+.launch-page__steps {
+    display: grid;
+    gap: space(8);
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    position: relative;
+}
+
+.launch-page__steps li {
+    align-items: flex-start;
+    display: grid;
+    gap: space(4);
+    grid-template-columns: auto 1fr;
+}
+
+.launch-page__step-number {
+    align-items: center;
+    background: $color-purple;
+    border-radius: $radius;
+    color: $color-white;
+    display: inline-flex;
+    flex: 0 0 auto;
+    font-size: 0.92rem;
+    font-weight: 700;
+    height: space(10);
+    justify-content: center;
+    width: space(10);
+}
+
+.launch-page__steps h3 {
+    font-size: 1.3rem;
+    font-weight: 700;
+    line-height: 1.25;
+    margin: space(1) 0 space(2);
+}
+
+.launch-page__steps p {
+    font-size: 1rem;
+    line-height: 1.6;
+    margin: 0;
+}
+
+.launch-page__requirements {
+    border-top: 1px solid $color-grey;
+    font-size: 0.88rem;
+    line-height: 1.55;
+    margin: space(12) auto 0;
+    max-width: 48rem;
+    padding-top: space(4);
+    text-align: center;
+}
+
+.launch-page__maintenance {
+    background: $gradient-purple-to-green-light-diagonal;
+}
+
+.launch-page__maintenance-content {
+    margin: 0 auto;
+    max-width: 48rem;
+    text-align: center;
+}
+
+.launch-page__maintenance-label {
+    color: $color-black;
+    font-size: 0.82rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    margin: 0 0 space(3);
+    text-transform: uppercase;
+}
+
+.launch-page__maintenance h2 {
+    font-size: clamp(1.9rem, 3vw, 2.6rem);
+    font-weight: 700;
+    line-height: 1.15;
+    margin-bottom: space(4);
+}
+
+.launch-page__maintenance-content > p:last-child {
+    color: $color-black;
+}
+
+// Shared sections are normalised inside the launch page. Their standalone
+// appearance is unchanged elsewhere on the site.
+.launch-page .trust-section,
+.launch-page .good-fit-section,
+.launch-page > .use-case-page__proof,
+.launch-page > #faq {
+    color: $color-black;
+}
+
+.launch-page .trust-section {
+    background: $color-grey-light !important;
+}
+
+.launch-page .good-fit-section {
+    background: $color-green-light !important;
+}
+
+.launch-page > .use-case-page__proof {
+    background: $color-white !important;
+}
+
+.launch-page > #faq {
+    background: $color-grey-light !important;
+}
+
+.launch-page .use-case-page__proof-stat,
+.launch-page .use-case-page__proof-quote,
+.launch-page .card,
+.launch-page > #pricing > .container > div {
+    background: $color-white;
+    border: 1px solid $color-grey;
+    border-radius: $radius;
+    box-shadow: none;
+    color: $color-black;
+}
+
+.launch-page .use-case-page__proof-stat span,
+.launch-page .use-case-page__proof-label {
+    color: $color-purple;
+}
+
+.launch-page .use-case-page__proof-stat,
+.launch-page .use-case-page__proof-quote {
+    padding: space(8);
+}
+
+.launch-page .use-case-page__proof-stat span,
+.launch-page .use-case-page__proof-label {
+    margin-bottom: space(3);
+}
+
+.launch-page .use-case-page__proof-quote blockquote {
+    border-left: 4px solid $color-green;
+    margin-bottom: space(4);
+    padding-left: space(4);
+}
+
+.launch-page .use-case-page__proof-quote blockquote::before,
+.launch-page .use-case-page__proof-quote blockquote::after {
+    color: $color-green;
+}
+
+.launch-page > #pricing {
+    background: $gradient-purple-dark-to-base !important;
+    color: $color-white;
+}
+
+.launch-page > section.bg-primary {
+    background: $color-purple-dark !important;
+    color: $color-white;
+}
+
+.launch-page > #pricing > .container > h2,
+.launch-page > section.bg-primary h2 {
+    color: $color-white;
+}
+
+.launch-page > #pricing > .container > h2,
+.launch-page > #faq h2 {
+    margin-bottom: space(8);
+    text-align: center;
+}
+
+.launch-page > #pricing > .container > div {
+    padding: space(4) !important;
+}
+
+.launch-page #all-plans-include {
+    background: $color-white;
+    border-radius: $radius;
+    color: $color-black;
+}
+
+.launch-page .card.card-pricing {
+    margin: 0 0 space(4);
+    min-width: 0;
+    width: 100%;
+}
+
+.launch-page .badge.text-bg-primary {
+    background: $color-purple !important;
+    color: $color-white !important;
+}
+
+.launch-page .badge.text-bg-success {
+    background: $color-green !important;
+    color: $color-black !important;
+}
+
+.launch-page .badge {
+    border-radius: $radius;
+}
+
+.launch-page .btn-primary {
+    background: $color-purple;
+    border-color: $color-purple;
+    border-radius: $radius;
+    color: $color-white;
+}
+
+.launch-page .btn-light {
+    background: $color-white;
+    border-color: $color-white;
+    border-radius: $radius;
+    color: $color-purple;
+}
+
+.launch-page > #pricing .btn-primary:hover,
+.launch-page > #pricing .btn-primary:focus-visible,
+.launch-page .btn-light:hover,
+.launch-page .btn-light:focus-visible {
+    background: $color-green;
+    border-color: $color-green;
+    color: $color-black;
+}
+
+.launch-page > section.bg-primary .call-to-action {
+    margin-bottom: 0;
+}
+
+.launch-page > section.bg-primary .call-to-action {
+    margin-top: space(4) !important;
+}
+
+.launch-page > section.bg-primary code {
+    color: $color-green;
+}
+
+@media (min-width: 768px) {
+    .launch-page .page-bands {
+        padding: space(24) 0;
+    }
+
+    .launch-page__proof-badge {
+        align-items: center;
+        flex-direction: row;
+        gap: space(2);
+    }
+
+    .launch-page__proof-badge span {
+        border-left: 1px solid $color-white;
+        padding-left: space(2);
+    }
+
+    .launch-page__steps {
+        gap: space(10);
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .launch-page__steps::before {
+        background: $color-grey;
+        content: "";
+        height: 1px;
+        left: calc(16.6667% + 20px);
+        position: absolute;
+        right: calc(16.6667% + 20px);
+        top: space(5);
+    }
+
+    .launch-page__steps li {
+        display: block;
+        position: relative;
+        text-align: center;
+        z-index: 1;
+    }
+
+    .launch-page__step-number {
+        margin-bottom: space(4);
+    }
+}
+
+@media (min-width: 992px) {
+    .launch-page .card.card-pricing {
+        margin: 0 space(4) space(4);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .launch-page__primary-button {
+        transition: none;
+    }
+}

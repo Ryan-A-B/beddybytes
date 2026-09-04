@@ -1,8 +1,8 @@
 import React from 'react'
 import { HeadFC } from 'gatsby'
-import { StaticImage } from 'gatsby-plugin-image'
 import SEOHead from '../components/SEOHead'
 import {
+    UseCaseBabyStationVisual,
     UseCaseCardGridSection,
     UseCaseFAQSection,
     UseCaseHero,
@@ -91,17 +91,9 @@ const NoSubscriptionBabyMonitorPage: React.FunctionComponent = () => (
             description="If you are trying to avoid another monthly baby-tech bill, BeddyBytes gives the devices you already own a second life as a baby monitor. You buy access once and use it across your devices."
             visualVariant="portrait"
             visual={(
-                <React.Fragment>
-                    <div className="use-case-page__visual-card">
-                        <StaticImage
-                            src="../images/BabyStationRunning.jpg"
-                            alt="phone running the BeddyBytes baby station"
-                        />
-                    </div>
-                    <div className="use-case-page__visual-note">
-                        One purchase covers your account across phones, tablets, and laptops.
-                    </div>
-                </React.Fragment>
+                <UseCaseBabyStationVisual
+                    note="One purchase covers your account across phones, tablets, and laptops."
+                />
             )}
         />
         <UseCaseTrustBar

@@ -1,8 +1,8 @@
 import React from 'react'
 import { HeadFC, Link } from 'gatsby'
-import { StaticImage } from 'gatsby-plugin-image'
 import SEOHead from '../components/SEOHead'
 import {
+    UseCaseBabyStationVisual,
     UseCaseCardGridSection,
     UseCaseFAQSection,
     UseCaseHero,
@@ -87,17 +87,9 @@ const PrivateBabyMonitorPage: React.FunctionComponent = () => (
             description="If you already have an old phone, tablet, or laptop, BeddyBytes turns it into a private baby monitor in minutes. You do not need extra monitor hardware, and your live video and audio stay on your local network."
             visualVariant="portrait"
             visual={(
-                <React.Fragment>
-                    <div className="use-case-page__visual-card">
-                        <StaticImage
-                            src="../images/BabyStationRunning.jpg"
-                            alt="phone running the BeddyBytes baby station"
-                        />
-                    </div>
-                    <div className="use-case-page__visual-note">
-                        No cloud video relay. The internet is only used to establish the connection.
-                    </div>
-                </React.Fragment>
+                <UseCaseBabyStationVisual
+                    note="No cloud video relay. The internet is only used to establish the connection."
+                />
             )}
         />
         <UseCaseTrustBar

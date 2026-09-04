@@ -1,7 +1,9 @@
 import React from 'react'
 import { Link } from 'gatsby'
+import { StaticImage } from 'gatsby-plugin-image'
 import DefaultPageWrapper from '../DefaultPageWrapper'
 import CallToAction from '../CallToAction'
+import FAQSection from '../LandingPage/FAQSection'
 import promotion from '../../services/promotion'
 
 import './style.scss'
@@ -56,6 +58,10 @@ interface HeroProps {
     visualVariant?: 'portrait' | 'landscape'
 }
 
+interface BabyStationVisualProps {
+    note: React.ReactNode
+}
+
 interface TrustBarProps {
     items: string[]
 }
@@ -84,6 +90,7 @@ interface ProofSectionProps {
     attribution: string
     supportingPoints: string[]
     quoteLabel?: string
+    className?: string
 }
 
 interface TradeoffsSectionProps {
@@ -137,6 +144,19 @@ export const UseCaseHero: React.FunctionComponent<HeroProps> = ({ eyebrow, title
             </div>
         </div>
     </section>
+)
+
+export const UseCaseBabyStationVisual: React.FunctionComponent<BabyStationVisualProps> = ({ note }) => (
+    <React.Fragment>
+        <div className="use-case-page__visual-card">
+            <StaticImage
+                src="../../images/BabyStationRunning.jpg"
+                alt="phone running the BeddyBytes baby station"
+                loading="eager"
+            />
+        </div>
+        <div className="use-case-page__visual-note">{note}</div>
+    </React.Fragment>
 )
 
 export const UseCaseTrustBar: React.FunctionComponent<TrustBarProps> = ({ items }) => (
@@ -234,11 +254,10 @@ export const UseCaseProofSection: React.FunctionComponent<ProofSectionProps> = (
     title,
     statsLabel,
     quote,
-    attribution,
-    supportingPoints,
     quoteLabel = 'Customer quote',
+    className,
 }) => (
-    <section className="use-case-page__proof">
+    <section className={`use-case-page__proof${className ? ` ${className}` : ''}`}>
         <div className="container">
             <div className="row g-4 align-items-stretch">
                 <div className="col-lg-4">
@@ -251,12 +270,6 @@ export const UseCaseProofSection: React.FunctionComponent<ProofSectionProps> = (
                     <div className="use-case-page__proof-quote">
                         <span className="use-case-page__proof-label">{quoteLabel}</span>
                         <blockquote>{quote}</blockquote>
-                        <p>{attribution}</p>
-                        <ul>
-                            {supportingPoints.map((point) => (
-                                <li key={point}>{point}</li>
-                            ))}
-                        </ul>
                     </div>
                 </div>
             </div>
@@ -348,23 +361,19 @@ export const UseCaseComparisonTableSection: React.FunctionComponent<ComparisonTa
 )
 
 export const UseCaseFAQSection: React.FunctionComponent<FAQSectionProps> = ({ items }) => (
-    <section className="use-case-page__faq">
-        <div className="container">
-            <h2>FAQ</h2>
-            <div className="row g-4">
-                {items.map((faq) => (
-                    <div key={faq.question} className="col-lg-6">
-                        <article className="use-case-page__faq-item">
-                            <h3>{faq.question}</h3>
-                            {faq.answer.map((paragraph) => (
-                                <p key={paragraph}>{paragraph}</p>
-                            ))}
-                        </article>
-                    </div>
-                ))}
-            </div>
-        </div>
-    </section>
+    <FAQSection
+        className="use-case-page__faq"
+        items={items.map((faq) => ({
+            question: faq.question,
+            answer: (
+                <React.Fragment>
+                    {faq.answer.map((paragraph) => (
+                        <p key={paragraph}>{paragraph}</p>
+                    ))}
+                </React.Fragment>
+            ),
+        }))}
+    />
 )
 
 export const UseCaseRelatedLinksSection: React.FunctionComponent<RelatedLinksSectionProps> = ({ links }) => (

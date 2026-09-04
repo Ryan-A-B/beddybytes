@@ -1,8 +1,8 @@
 import React from 'react'
 import { HeadFC } from 'gatsby'
-import { StaticImage } from 'gatsby-plugin-image'
 import SEOHead from '../components/SEOHead'
 import {
+    UseCaseBabyStationVisual,
     UseCaseCardGridSection,
     UseCaseChecklistSection,
     UseCaseFAQSection,
@@ -81,17 +81,9 @@ const OldPhoneBabyMonitorPage: React.FunctionComponent = () => (
             description="If you already have an old phone in a drawer, you may already have most of what you need for a baby monitor. The key is choosing a setup that is practical, private, and easy enough to use every day."
             visualVariant="portrait"
             visual={(
-                <React.Fragment>
-                    <div className="use-case-page__visual-card">
-                        <StaticImage
-                            src="../images/BabyStationRunning.jpg"
-                            alt="older phone running the BeddyBytes baby station"
-                        />
-                    </div>
-                    <div className="use-case-page__visual-note">
-                        A spare phone can become the baby station. Your main phone, tablet, or laptop can be the parent station.
-                    </div>
-                </React.Fragment>
+                <UseCaseBabyStationVisual
+                    note="A spare phone can become the baby station. Your main phone, tablet, or laptop can be the parent station."
+                />
             )}
         />
         <UseCaseTrustBar

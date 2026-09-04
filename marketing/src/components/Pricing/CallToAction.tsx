@@ -12,18 +12,28 @@ const payment_links = {
 interface Props {
     product: keyof typeof payment_links
     coupon_code: string
-    discount: number
+    discount?: number
+    show_coupon_message?: boolean
 }
 
-const CallToAction: React.FunctionComponent<Props> = ({ product, coupon_code = promotion.code, discount = promotion.discount }) => {
+const CallToAction: React.FunctionComponent<Props> = ({
+    product,
+    coupon_code = promotion.code,
+    discount = promotion.discount,
+    show_coupon_message = true,
+}) => {
     const onClick = useOnClick(`purchase-${product}`)
     const payment_link = `${payment_links[product]}?prefilled_promo_code=${coupon_code}`
     return (
         <div className={`call-to-action mt-3`}>
-            <small>
-                Use coupon code <code>{coupon_code}</code> for {numeral(discount).format(DiscountFormat)} off.
-            </small>
-            <br />
+            {show_coupon_message && (
+                <>
+                    <small>
+                        Use coupon code <code>{coupon_code}</code> for {numeral(discount).format(DiscountFormat)} off.
+                    </small>
+                    <br />
+                </>
+            )}
             <a
                 href={payment_link}
                 onClick={onClick}

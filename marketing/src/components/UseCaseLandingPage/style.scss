@@ -94,7 +94,6 @@
 .use-case-page__side-panel,
 .use-case-page__proof-stat,
 .use-case-page__proof-quote,
-.use-case-page__faq-item,
 .use-case-page__related-link,
 .use-case-page__pricing-panel {
     border-radius: 1.5rem;
@@ -224,8 +223,7 @@
 }
 
 .use-case-page__card h3,
-.use-case-page__side-panel h3,
-.use-case-page__faq-item h3 {
+.use-case-page__side-panel h3 {
     font-size: 1.2rem;
     margin-bottom: 0.75rem;
 }
@@ -392,14 +390,6 @@
 
 .use-case-page__faq {
     background: rgba($light, 0.86);
-}
-
-.use-case-page__faq-item {
-    background: rgba($light, 0.98);
-    border: 1px solid rgba($purple, 0.12);
-    box-shadow: 0 1rem 2.5rem rgba($purple-900, 0.05);
-    height: 100%;
-    padding: 1.5rem;
 }
 
 .use-case-page__related-links {
