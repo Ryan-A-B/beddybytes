@@ -194,19 +194,6 @@ const LaunchPage: React.FunctionComponent = () => {
                     </div>
                 </section>
 
-                <section className="launch-page__maintenance page-bands" aria-labelledby="launch-maintenance-title">
-                    <div className="container">
-                        <div className="launch-page__maintenance-content">
-                            <p className="launch-page__maintenance-label">Actively maintained</p>
-                            <h2 id="launch-maintenance-title">Still growing. Still maintained.</h2>
-                            <p>
-                                We&apos;ve come a long way since launching BeddyBytes in 2024. The
-                                product is actively maintained and continues to improve.
-                            </p>
-                        </div>
-                    </div>
-                </section>
-
                 <TrustSection className="page-bands" />
 
                 <GoodFitSection className="page-bands" />

@@ -167,8 +167,7 @@
     color: $color-black;
 }
 
-.launch-page__section-heading p,
-.launch-page__maintenance-content > p:last-child {
+.launch-page__section-heading p {
     font-size: 1.08rem;
     line-height: 1.65;
     margin: 0;
@@ -225,36 +224,6 @@
     max-width: 48rem;
     padding-top: space(4);
     text-align: center;
-}
-
-.launch-page__maintenance {
-    background: $gradient-purple-to-green-light-diagonal;
-}
-
-.launch-page__maintenance-content {
-    margin: 0 auto;
-    max-width: 48rem;
-    text-align: center;
-}
-
-.launch-page__maintenance-label {
-    color: $color-black;
-    font-size: 0.82rem;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    margin: 0 0 space(3);
-    text-transform: uppercase;
-}
-
-.launch-page__maintenance h2 {
-    font-size: clamp(1.9rem, 3vw, 2.6rem);
-    font-weight: 700;
-    line-height: 1.15;
-    margin-bottom: space(4);
-}
-
-.launch-page__maintenance-content > p:last-child {
-    color: $color-black;
 }
 
 // Shared sections are normalised inside the launch page. Their standalone
