@@ -17,6 +17,8 @@ const config: GatsbyConfig = {
       options: {
         excludes: [
           "/after-checkout/",
+          "/baby-monitor-without-wifi/",
+          "/launch/",
           "/paulgconlon/",
         ],
       },

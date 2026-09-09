@@ -28,6 +28,7 @@ services:
           - analytics.beddybytes.local
       agent-net:
         aliases:
+          - beddybytes.local
           - app.beddybytes.local
           - api.beddybytes.local
           - mqtt.beddybytes.local

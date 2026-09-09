@@ -1,13 +1,48 @@
 @use "sass:math";
 @import "../../scss/configuration";
+@import "../../scss/simple-design-system";
 
 .card.card-pricing {
+    overflow: hidden;
     min-width: 335px;
     max-width: 385px;
     margin: {
         bottom: $spacer;
         left: $spacer;
         right: $spacer;
+    }
+}
+
+.pricing-card__header {
+    align-items: center;
+    display: flex;
+    gap: space(2);
+    height: space(12);
+    padding: 0 space(4);
+}
+
+.pricing-card__header--popular {
+    background: $color-purple-light;
+    color: $color-purple;
+    font-weight: 700;
+}
+
+.pricing-discount {
+    background: $color-green-light;
+    border-radius: $radius;
+    color: $color-black;
+    display: inline-block;
+    font-size: 0.75rem;
+    font-weight: 700;
+    line-height: 1;
+    margin-top: space(2);
+    padding: space(1) space(2);
+    white-space: nowrap;
+}
+
+@include media-breakpoint-down(lg) {
+    .pricing-card__header--placeholder {
+        display: none;
     }
 }
 

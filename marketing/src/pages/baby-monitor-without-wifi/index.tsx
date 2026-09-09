@@ -7,7 +7,6 @@ import DemoSection from '../../components/LandingPage/DemoSection'
 import PricingSection from '../../components/LandingPage/PricingSection'
 import FAQSection from '../../components/LandingPage/FAQSection'
 import FeaturesCurrent from '../../components/FeaturesCurrent'
-import FeaturesComingSoon from '../../components/FeaturesComingSoon'
 import SocialProofSection from '../../components/SocialProof/Section'
 import SEOHead from '../../components/SEOHead'
 import CallToAction from '../../components/CallToAction'
@@ -96,9 +95,6 @@ const PrivateBabyMonitorPage: React.FunctionComponent = () => (
                                 <div className="col-md">
                                     <FeaturesCurrent />
                                 </div>
-                                <div className="col-md">
-                                    <FeaturesComingSoon />
-                                </div>
                             </div>
                         </section>
                     </div>
@@ -118,6 +114,7 @@ export const Head: HeadFC = () => (
     <SEOHead
         title="Private Baby Monitor | No Cloud Video | BeddyBytes"
         description="Looking for a private baby monitor without cloud video? BeddyBytes streams directly between your devices over home WiFi with no cloud video."
+        noindex
         pathname="/baby-monitor-without-wifi/"
     />
 )

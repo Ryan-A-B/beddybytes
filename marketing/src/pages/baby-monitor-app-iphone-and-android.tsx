@@ -155,13 +155,7 @@ const BabyMonitorAppIphoneAndAndroidPage: React.FunctionComponent = () => (
             statsLabel="Daily-life proof"
             title="Flexibility is the point"
             quote="BeddyBytes is very easy to use and I love that it's flexible. I can open the parent station on my phone or laptop depending on whether I'm studying or doing housework without lugging around an extra screen."
-            attribution="Customer quote from a family using BeddyBytes in daily life."
             quoteLabel="What a customer told me"
-            supportingPoints={[
-                'The parent station can move with you instead of living on one device',
-                'One purchase covers the setup across screens',
-                'The cross-platform part matters because real households are mixed',
-            ]}
         />
         <UseCaseTradeoffsSection
             title="Things to know before you buy"

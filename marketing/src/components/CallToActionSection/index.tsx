@@ -5,10 +5,12 @@ import promotion from '../../services/promotion';
 
 interface Props {
     to: To
+    className?: string
+    label?: string
 }
 
-const CallToActionSection: React.FunctionComponent<Props> = ({ to }) => (
-    <section className="bg-primary text-light py-5">
+const CallToActionSection: React.FunctionComponent<Props> = ({ to, className, label }) => (
+    <section className={`bg-primary text-light ${className ?? 'py-5'}`}>
         <div className="container text-center">
             <h2>Get started today</h2>
             <CallToAction
@@ -17,6 +19,7 @@ const CallToActionSection: React.FunctionComponent<Props> = ({ to }) => (
                 click_id="cta-cta-section"
                 coupon_code={promotion.code}
                 discount={promotion.discount}
+                label={label}
             />
         </div>
     </section>

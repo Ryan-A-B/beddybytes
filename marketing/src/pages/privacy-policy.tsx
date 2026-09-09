@@ -1,181 +1,167 @@
-import React from "react";
+import React from "react"
 import { type HeadFC, type PageProps } from "gatsby"
-import SEOHead from "../components/SEOHead";
-import DefaultPageWrapper from "../components/DefaultPageWrapper";
+import SEOHead from "../components/SEOHead"
+import DefaultPageWrapper from "../components/DefaultPageWrapper"
+
+const PrivacyContactLink: React.FunctionComponent = () => (
+    <a href="mailto:ryan@beddybytes.com">ryan@beddybytes.com</a>
+)
 
 const PaymentProviderPrivacyPolicyLink: React.FunctionComponent = () => (
-    <a href="https://stripe.com/privacy" target="_blank">
+    <a href="https://stripe.com/privacy" target="_blank" rel="noopener noreferrer">
         Stripe's privacy policy
     </a>
 )
 
 const PrivacyPolicy: React.FunctionComponent<PageProps> = () => (
     <DefaultPageWrapper>
-        <main className="container">
-            <h1 className="mt-5">Privacy Policy</h1>
-            <p>
-                I probably shouldn't write this myself. One day if this project
-                goes well I'll hire a lawyer who'll tell me all the things I've
-                done wrong. But, if I'm going to claim that BeddyBytes is putting
-                your family's privacy first, then you deserve better than a
-                vague "we take your privacy seriously" message.
+        <main className="container py-5">
+            <h1>Privacy Policy</h1>
+            <p className="lead">
+                The only directly identifying information BeddyBytes stores for
+                your account is your email address. We use it for login, account
+                management, and password resets.
             </p>
+            <p>
+                BeddyBytes also records account-linked connection and monitoring
+                events so we can operate the service, measure usage, and diagnose
+                problems. No video, audio or images pass through our servers, 
+                and we do not store your photos or recordings.
+            </p>
+
             <section className="my-5">
-                <h2>Information we collect</h2>
+                <h2>Information BeddyBytes collects</h2>
+
+                <h3 className="h4 mt-4">Account information</h3>
                 <p>
-                    We directly collect your email address and
-                    anonymous website analytics.
+                    We store your email address, account and user identifiers, and
+                    the authentication information needed to secure your account.
+                    Your password is stored as a salted hash, not as readable text.
                 </p>
+
+                <h3 className="h4 mt-4">Connection and monitoring events</h3>
                 <p>
-                    We use Stripe to process payments. At this time the
-                    Stripe checkout page asks for your email in addition to payment
-                    details. For more information vist <PaymentProviderPrivacyPolicyLink />.
+                    We record when a client connects or disconnects and when a
+                    monitoring session starts or ends. These records include the
+                    relevant account, user, client, connection, and session
+                    identifiers, timestamps, connection status information, and the
+                    baby-station name you enter. They do not contain video or audio.
                 </p>
-                <section className="my-3">
-                    <h3>Why do we collect it?</h3>
-                    <p>
-                        We collect your email address for account management and
-                        communication. We collect anonymous website analytics to
-                        understand how people use our website.
-                    </p>
-                </section>
-            </section>
-            <section className="my-5">
-                <h2>We protect and limit use of your data when you communicate directly with BeddyBytes</h2>
+
+                <h3 className="h4 mt-4">Short-term diagnostics and analytics</h3>
                 <p>
-                    If you voluntarily provide personal information to us directly,
-                    we protect and limit its use. We will limit its use by only
-                    keeping it for as long necessary for the stated purpose, and we
-                    will protect it by keeping it secure and deleting it when it is
-                    no longer required, unless a longer period is required by law.
+                    We collect limited website and app telemetry to track issues and
+                    understand whether the service is working. This can include page
+                    views, time spent on a page, selected button clicks, generated
+                    browser and app identifiers, browser information, account
+                    identifiers after login, and diagnostic log messages. This data
+                    is retained for 14 days.
                 </p>
+
+                <h3 className="h4 mt-4">Information you send us</h3>
                 <p>
-                    Similarly, if you reach out to us directly for support, to
-                    provide feedback (such as in a crash report) or for other
-                    reasons, we will only use your contact information to respond to
-                    you. In that process, your communication may be accessible to
-                    the software-as-a-service providers we use in our corporate
-                    systems (such as our company email and project management
-                    software).
-                </p>
-            </section>
-            <section className="my-5">
-                <h2>We respect and support your legal privacy rights</h2>
-                <p>
-                    We will vigorously resist government efforts to compel us to
-                    produce the very limited personal information that we might
-                    have.
-                </p>
-                <p>
-                    Related, we are based in Australia and are using AWS servers
-                    in the Sydney region. As such the limited data that we do
-                    collect will be stored in Australia.
+                    If you contact us for support, feedback, or a privacy request,
+                    we receive the information you choose to include in that
+                    message. We use it to respond to you and resolve the issue.
                 </p>
             </section>
+
             <section className="my-5">
-                <h2>We do not sell your personal information.</h2>
-                <p>We have never sold any personal information. Period.</p>
-            </section>
-            <section className="my-5">
-                <h2>We will post a notice on this page when our policy is updated.</h2>
+                <h2>What BeddyBytes does not collect</h2>
                 <p>
-                    We will notify you of changes by posting the modified version on
-                    our website. We will indicate the date it was last modified
-                    below with an update message on top.
+                    BeddyBytes uses WebRTC to send live video and audio directly
+                    between your devices. Our servers help your devices find each
+                    other and exchange connection information, but they do not relay
+                    or store the live media stream.
+                </p>
+                <p>
+                    Photos and recordings are created and stored on your own device.
+                    BeddyBytes does not upload or store them.
                 </p>
             </section>
+
             <section className="my-5">
-                <h6>Last updated 2024-05-04</h6>
-                <p>This is the first version of our privacy policy.</p>
+                <h2>How we use information</h2>
+                <p>We use the information described above to:</p>
+                <ul>
+                    <li>create, secure, and provide access to your account;</li>
+                    <li>send password-reset emails you request;</li>
+                    <li>connect your devices and operate monitoring sessions;</li>
+                    <li>measure aggregate monitored time and service usage;</li>
+                    <li>diagnose errors, connection problems, and reliability issues; and</li>
+                    <li>respond to support, privacy, and account requests.</li>
+                </ul>
+                <p>
+                    We do not sell personal information or use it for third-party
+                    advertising.
+                </p>
+            </section>
+
+            <section className="my-5">
+                <h2>Payments and service providers</h2>
+                <p>
+                    Stripe processes purchases and collects the email, payment, and
+                    billing information requested on its checkout page. BeddyBytes
+                    does not store your card details. You can read more in <PaymentProviderPrivacyPolicyLink />.
+                </p>
+                <p>
+                    BeddyBytes is operated from Australia. Account information,
+                    operational events, diagnostics, and password-reset email
+                    delivery use BeddyBytes infrastructure hosted with Amazon Web
+                    Services in the US East (Northern Virginia) region (us-east-1).
+                    Stripe may process information in other countries as described
+                    in its privacy policy.
+                </p>
+            </section>
+
+            <section className="my-5">
+                <h2>Storage, retention, and deletion</h2>
+                <p>
+                    Account information is kept while your account exists. The
+                    operational event history used to calculate usage and diagnose
+                    service behaviour does not currently expire automatically.
+                    Short-term telemetry expires after 14 days.
+                </p>
+                <p>
+                    There is no self-service account-deletion control. You can ask us
+                    to delete your account by emailing <PrivacyContactLink />. We will
+                    remove the active account record and replace directly identifying
+                    values, including your email address and user-provided
+                    baby-station names, with hashed values in the historical event
+                    log. The remaining event records may be retained for aggregate
+                    usage measurement and service diagnostics without the original
+                    email address or station names.
+                </p>
+            </section>
+
+            <section className="my-5">
+                <h2>Access, correction, and complaints</h2>
+                <p>
+                    To ask what information we hold about you, correct your email
+                    address, request deletion, or make a privacy complaint, email <PrivacyContactLink />.
+                    We may need to verify that the account belongs to you before
+                    acting on a request.
+                </p>
+            </section>
+
+            <section className="my-5">
+                <h2>Changes to this policy</h2>
+                <p>
+                    We will update this page when our data handling changes. The date
+                    below shows when this policy was last revised.
+                </p>
+                <p><strong>Last updated: 4 September 2026</strong></p>
             </section>
         </main>
     </DefaultPageWrapper>
 )
 
-export default PrivacyPolicy;
+export default PrivacyPolicy
 
-export const Head: HeadFC = () => <SEOHead title="Privacy Policy - BeddyBytes" description="BeddyBytes privacy policy" pathname="/privacy-policy/" />
-
-/*
-<section className="my-5">
-    <h2>What is Personal Information and why do we collect it?</h2>
-    <p>
-        Personal Information is information or an opinion that identifies
-        an individual. Examples of Personal Information we collect
-        includes names, addresses, email addresses, phone and facsimile
-        numbers.
-    </p>
-    <p>
-        This Personal Information is obtained in many ways including by
-        email, via our website beddybytes.com from third parties. We
-        don't guarantee website links or policy of authorised third
-        parties.
-    </p>
-    <p>
-        We collect your Personal Information for the primary purpose of
-        providing our services to you, providing information to our
-        clients and marketing. We may also use your Personal Information
-        for secondary purposes closely related to the primary purpose,
-        in circumstances where you would reasonably expect such use or
-        disclosure. You may unsubscribe from our mailing/marketing lists
-        at any time by contacting us in writing.
-    </p>
-    <p>
-        When we collect Personal Information we will, where appropriate
-        and where possible, explain to you why we are collecting the
-        information and how we plan to use it.
-    </p>
-</section>
-<section className="my-5">
-    <h2>Sensitive Information</h2>
-    <p>
-        Sensitive information is defined in the Privacy Act to include
-        information or opinion about such things as an individual's
-        racial or ethnic origin, political opinions, membership of a
-        political association, religious or philosophical beliefs,
-        membership of a trade union or other professional body, criminal
-        record or health information.
-    </p>
-    <p>Sensitive information will be used by us only:</p>
-    <ul>
-        <li>For the primary purpose for which it was obtained</li>
-        <li>For a secondary purpose that is directly related to the primary purpose</li>
-        <li>With your consent; or where required or authorised by law.</li>
-    </ul>
-</section>
-<section className="my-5">
-    <h2>Third Parties</h2>
-    <p>
-        Where reasonable and practicable to do so, we will collect your
-        Personal Information only from you. However, in some
-        circumstances we may be provided with information by third
-        parties. In such a case we will take reasonable steps to ensure
-        that you are made aware of the information provided to us by
-        the third party.
-    </p>
-</section>
-<section className="my-5">
-    <h2>Disclosure of Personal Information</h2>
-    <p>Your Personal Information may be disclosed in a number of circumstances including the following:</p>
-    <ul>
-        <li>Third parties where you consent to the use or disclosure; and</li>
-        <li>Where required or authorised by law.</li>
-    </ul>
-</section>
-<section className="my-5">
-    <h2>Security of Personal Information</h2>
-    <p>
-        Your Personal Information is stored in a manner that reasonably
-        protects it from misuse and loss and from unauthorized access,
-        modification or disclosure.
-    </p>
-    <p>
-        When your Personal Information is no longer needed for the
-        purpose for which it was obtained, we will take reasonable steps
-        to destroy or permanently de-identify your Personal Information.
-        However, most of the Personal Information is or will be stored
-        in client files which will be kept by us for a minimum of 7
-        years.
-    </p>
-</section>
-*/
+export const Head: HeadFC = () => (
+    <SEOHead
+        title="Privacy Policy - BeddyBytes"
+        description="How BeddyBytes collects, uses, stores, and protects account and service data."
+        pathname="/privacy-policy/"
+    />
+)

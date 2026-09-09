@@ -1,0 +1,83 @@
+@import "../../../scss/simple-design-system";
+
+.faq-section__title {
+    color: $color-black;
+    font-size: clamp(2rem, 3vw, 3rem);
+    font-weight: 700;
+    line-height: 1.12;
+    margin-bottom: space(8);
+    text-align: center;
+}
+
+.faq-list {
+    margin: 0 auto;
+    max-width: 72rem;
+}
+
+.faq-list__item + .faq-list__item {
+    border-top: 1px solid $color-grey;
+}
+
+.faq-list__heading {
+    margin: 0;
+}
+
+.faq-list__button {
+    align-items: center;
+    background: transparent;
+    border: 0;
+    color: $color-black;
+    display: flex;
+    font-size: 1.08rem;
+    font-weight: 400;
+    gap: space(4);
+    justify-content: space-between;
+    line-height: 1.4;
+    padding: space(5) 0;
+    text-align: left;
+    transition: color 160ms ease;
+    width: 100%;
+}
+
+.faq-list__button::after {
+    border: solid $color-purple;
+    border-width: 0 2px 2px 0;
+    content: "";
+    flex: 0 0 auto;
+    height: space(2);
+    margin-right: space(1);
+    transform: rotate(45deg);
+    transition: transform 160ms ease;
+    width: space(2);
+}
+
+.faq-list__button--expanded::after {
+    transform: rotate(225deg);
+}
+
+.faq-list__button:hover {
+    color: $color-purple;
+}
+
+.faq-list__button:focus-visible {
+    outline: 2px solid $color-purple;
+    outline-offset: space(1);
+}
+
+.faq-list__answer {
+    color: $color-grey;
+    line-height: 1.65;
+    max-width: 64rem;
+    padding: 0 space(8) space(5) 0;
+}
+
+.faq-list__answer p:last-child {
+    margin-bottom: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .faq-list__button,
+    .faq-list__button::after {
+        transition: none;
+    }
+}

@@ -1,8 +1,8 @@
 import React from 'react'
 import { HeadFC } from 'gatsby'
-import { StaticImage } from 'gatsby-plugin-image'
 import SEOHead from '../components/SEOHead'
 import {
+    UseCaseBabyStationVisual,
     UseCaseCardGridSection,
     UseCaseFAQSection,
     UseCaseHero,
@@ -91,17 +91,9 @@ const NoSubscriptionBabyMonitorPage: React.FunctionComponent = () => (
             description="If you are trying to avoid another monthly baby-tech bill, BeddyBytes gives the devices you already own a second life as a baby monitor. You buy access once and use it across your devices."
             visualVariant="portrait"
             visual={(
-                <React.Fragment>
-                    <div className="use-case-page__visual-card">
-                        <StaticImage
-                            src="../images/BabyStationRunning.jpg"
-                            alt="phone running the BeddyBytes baby station"
-                        />
-                    </div>
-                    <div className="use-case-page__visual-note">
-                        One purchase covers your account across phones, tablets, and laptops.
-                    </div>
-                </React.Fragment>
+                <UseCaseBabyStationVisual
+                    note="One purchase covers your account across phones, tablets, and laptops."
+                />
             )}
         />
         <UseCaseTrustBar
@@ -166,13 +158,7 @@ const NoSubscriptionBabyMonitorPage: React.FunctionComponent = () => (
             statsLabel="Why this matters"
             title="The cost stays simple"
             quote="BeddyBytes is very easy to use and I love that it's flexible. I can open the parent station on my phone or laptop depending on whether I'm studying or doing housework without lugging around an extra screen. Knowing that images of our family life are completely private is very reassuring too."
-            attribution="Customer quote from a family using BeddyBytes as part of daily life."
             quoteLabel="What a customer told me"
-            supportingPoints={[
-                'One purchase covers the whole household setup',
-                'The flexibility replaces extra hardware in daily use',
-                'Privacy and value reinforce each other instead of fighting each other',
-            ]}
         />
         <UseCaseTradeoffsSection
             title="Things to know before you buy"

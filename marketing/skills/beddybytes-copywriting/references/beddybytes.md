@@ -147,11 +147,6 @@ Use these to support educational content, trust pages, and technical FAQs.
   - Session events are still written to a persistent event store (technical persistence exists)
 - Reconnect attempts use signalling only; backend still does not carry media.
 
-## Offline Mode Roadmap (Planned)
-
-- Future full offline mode is planned via user self-hosted MQTT server on the local network.
-- Current messaging should avoid implying this exists today unless explicitly marked as planned/future.
-
 ## Confirmed Platform Support (tested by user)
 
 - iOS Safari
@@ -284,7 +279,6 @@ When the user asks broadly for "SEO strategy and copy" for BeddyBytes, return:
 
 The current site and the new technical article differ in places. Ask which source is authoritative for new copy:
 
-- FAQ says internet is used because "the easiest way" is a remote server for discovery and mentions future ability to connect without internet.
 - Article says WebRTC is configured with no STUN/TURN and local-only connection path, with no cloud relay fallback.
 - Some pages use strong absolutes (`guaranteed privacy`, `completely private`), while the article presents a more precise threat-model-based explanation.
 
@@ -293,7 +287,6 @@ For trust/technical pages, prefer the article's explicit architecture and threat
 ## Current Authoritative Clarifications (user-confirmed)
 
 - `No STUN/TURN` is true in production and intended to remain true.
-- Full offline mode is future/planned and will require users to self-host an MQTT server on their local network.
 - Session history is technically persisted in an event store, but completed sessions are removed from the session-list projection (user-visible ephemerality).
 - Supported/tested platforms include iOS Safari, Android Chrome, and desktop browsers.
 - Current pricing remains `$35` yearly and `$55` lifetime, with a permanent `50% off` coupon active.

@@ -1,8 +1,8 @@
 import React from 'react'
 import { HeadFC } from 'gatsby'
-import { StaticImage } from 'gatsby-plugin-image'
 import SEOHead from '../components/SEOHead'
 import {
+    UseCaseBabyStationVisual,
     UseCaseCardGridSection,
     UseCaseChecklistSection,
     UseCaseFAQSection,
@@ -81,17 +81,9 @@ const OldPhoneBabyMonitorPage: React.FunctionComponent = () => (
             description="If you already have an old phone in a drawer, you may already have most of what you need for a baby monitor. The key is choosing a setup that is practical, private, and easy enough to use every day."
             visualVariant="portrait"
             visual={(
-                <React.Fragment>
-                    <div className="use-case-page__visual-card">
-                        <StaticImage
-                            src="../images/BabyStationRunning.jpg"
-                            alt="older phone running the BeddyBytes baby station"
-                        />
-                    </div>
-                    <div className="use-case-page__visual-note">
-                        A spare phone can become the baby station. Your main phone, tablet, or laptop can be the parent station.
-                    </div>
-                </React.Fragment>
+                <UseCaseBabyStationVisual
+                    note="A spare phone can become the baby station. Your main phone, tablet, or laptop can be the parent station."
+                />
             )}
         />
         <UseCaseTrustBar
@@ -166,13 +158,7 @@ const OldPhoneBabyMonitorPage: React.FunctionComponent = () => (
             statsLabel="Practical daily use"
             title="Reuse only works if it is easy"
             quote="BeddyBytes is very easy to use and I love that it's flexible. I can open the parent station on my phone or laptop depending on whether I'm studying or doing housework without lugging around an extra screen."
-            attribution="Customer quote from a family using BeddyBytes in daily life."
             quoteLabel="What a customer told me"
-            supportingPoints={[
-                'The parent station can live on the devices you already use',
-                'The setup is flexible enough for normal family routines',
-                'Reuse works better when it does not add friction',
-            ]}
         />
         <UseCaseTradeoffsSection
             title="Things to know before you rely on an old phone"
