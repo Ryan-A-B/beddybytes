@@ -229,15 +229,13 @@
 }
 
 .use-case-page__how-it-works ol,
-.use-case-page__side-panel ul,
-.use-case-page__proof-quote ul {
+.use-case-page__side-panel ul {
     margin-bottom: 0;
     padding-left: 1.25rem;
 }
 
 .use-case-page__how-it-works li + li,
-.use-case-page__side-panel li + li,
-.use-case-page__proof-quote li + li {
+.use-case-page__side-panel li + li {
     margin-top: 0.75rem;
 }
 
@@ -310,12 +308,6 @@
         content: close-quote;
         margin-left: 0.1em;
     }
-}
-
-.use-case-page__proof-quote > p {
-    color: $gray-700;
-    font-weight: 600;
-    margin-bottom: 1rem;
 }
 
 .use-case-page__tradeoffs {

@@ -158,13 +158,7 @@ const NoSubscriptionBabyMonitorPage: React.FunctionComponent = () => (
             statsLabel="Why this matters"
             title="The cost stays simple"
             quote="BeddyBytes is very easy to use and I love that it's flexible. I can open the parent station on my phone or laptop depending on whether I'm studying or doing housework without lugging around an extra screen. Knowing that images of our family life are completely private is very reassuring too."
-            attribution="Customer quote from a family using BeddyBytes as part of daily life."
             quoteLabel="What a customer told me"
-            supportingPoints={[
-                'One purchase covers the whole household setup',
-                'The flexibility replaces extra hardware in daily use',
-                'Privacy and value reinforce each other instead of fighting each other',
-            ]}
         />
         <UseCaseTradeoffsSection
             title="Things to know before you buy"

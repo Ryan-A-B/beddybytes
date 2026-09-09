@@ -87,8 +87,6 @@ interface ProofSectionProps {
     title: string
     statsLabel: string
     quote: string
-    attribution: string
-    supportingPoints: string[]
     quoteLabel?: string
     className?: string
 }

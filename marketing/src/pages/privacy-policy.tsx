@@ -8,7 +8,7 @@ const PrivacyContactLink: React.FunctionComponent = () => (
 )
 
 const PaymentProviderPrivacyPolicyLink: React.FunctionComponent = () => (
-    <a href="https://stripe.com/privacy" target="_blank" rel="noreferrer">
+    <a href="https://stripe.com/privacy" target="_blank" rel="noopener noreferrer">
         Stripe's privacy policy
     </a>
 )

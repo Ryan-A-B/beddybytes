@@ -158,13 +158,7 @@ const OldPhoneBabyMonitorPage: React.FunctionComponent = () => (
             statsLabel="Practical daily use"
             title="Reuse only works if it is easy"
             quote="BeddyBytes is very easy to use and I love that it's flexible. I can open the parent station on my phone or laptop depending on whether I'm studying or doing housework without lugging around an extra screen."
-            attribution="Customer quote from a family using BeddyBytes in daily life."
             quoteLabel="What a customer told me"
-            supportingPoints={[
-                'The parent station can live on the devices you already use',
-                'The setup is flexible enough for normal family routines',
-                'Reuse works better when it does not add friction',
-            ]}
         />
         <UseCaseTradeoffsSection
             title="Things to know before you rely on an old phone"

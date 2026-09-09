@@ -166,13 +166,7 @@ const PrivateBabyMonitorPage: React.FunctionComponent = () => (
             statsLabel="Real-world use"
             title="20,000+ hours monitored"
             quote="BeddyBytes is very easy to use and I love that it's flexible. I can open the parent station on my phone or laptop depending on whether I'm studying or doing housework without lugging around an extra screen. Knowing that images of our family life are completely private is very reassuring too."
-            attribution="Customer quote from a family using BeddyBytes as part of daily life."
             quoteLabel="What a customer told me"
-            supportingPoints={[
-                'The flexibility matters in daily life, not just during setup',
-                'Privacy is reassuring because the live media path stays local',
-                'One purchase covers the whole household setup',
-            ]}
         />
         <UseCaseTradeoffsSection
             title="Things to know before you buy"
