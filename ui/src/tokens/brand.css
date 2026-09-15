@@ -1,0 +1,79 @@
+@theme {
+  --color-*: initial;
+
+  --color-white: rgb(255 255 255);
+  --color-black: rgb(0 0 0);
+
+  --color-gray-100: rgb(244 247 248);
+  --color-gray-200: rgb(200 204 207);
+  --color-gray-300: rgb(156 162 166);
+  --color-gray-400: rgb(112 119 124);
+  --color-gray-500: rgb(68 77 83);
+  --color-gray-600: rgb(54 62 66);
+  --color-gray-700: rgb(41 46 50);
+  --color-gray-800: rgb(27 31 33);
+
+  --color-indigo-100: #eee5ff;
+  --color-indigo-200: #c3abeb;
+  --color-indigo-300: #9672d7;
+  --color-indigo-400: #6939c3;
+  --color-indigo-500: #3c00af;
+  --color-indigo-600: #300089;
+  --color-indigo-700: #230064;
+  --color-indigo-800: #16003f;
+  --color-indigo-900: #09001a;
+
+  --color-sky-100: rgb(204 238 246);
+  --color-sky-200: rgb(153 221 237);
+  --color-sky-300: rgb(102 204 228);
+  --color-sky-400: rgb(51 187 219);
+  --color-sky-500: rgb(0 170 210);
+  --color-sky-600: rgb(0 136 168);
+  --color-sky-700: rgb(0 102 126);
+  --color-sky-800: rgb(0 68 84);
+
+  --color-mint-100: rgb(204 242 229);
+  --color-mint-200: rgb(153 229 204);
+  --color-mint-300: rgb(102 216 178);
+  --color-mint-400: rgb(51 203 153);
+  --color-mint-500: rgb(0 190 127);
+  --color-mint-600: rgb(0 152 102);
+  --color-mint-700: rgb(0 114 76);
+  --color-mint-800: rgb(0 76 51);
+
+  --color-gold-100: rgb(254 236 204);
+  --color-gold-200: rgb(253 217 153);
+  --color-gold-300: rgb(253 199 102);
+  --color-gold-400: rgb(252 180 51);
+  --color-gold-500: rgb(251 161 0);
+  --color-gold-600: rgb(201 129 0);
+  --color-gold-700: rgb(151 97 0);
+  --color-gold-800: rgb(100 64 0);
+
+  --color-coral-100: rgb(251 215 214);
+  --color-coral-200: rgb(246 176 173);
+  --color-coral-300: rgb(242 136 132);
+  --color-coral-400: rgb(237 97 91);
+  --color-coral-500: rgb(233 57 50);
+  --color-coral-600: rgb(186 46 40);
+  --color-coral-700: rgb(140 34 30);
+  --color-coral-800: rgb(93 23 20);
+
+  --font-sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+
+  --scale-0: 0;
+  --scale-25: 2px;
+  --scale-50: 4px;
+  --scale-100: 8px;
+  --scale-150: 12px;
+  --scale-200: 16px;
+  --scale-250: 20px;
+  --scale-300: 24px;
+  --scale-350: 28px;
+  --scale-400: 32px;
+  --scale-500: 40px;
+  --scale-600: 48px;
+  --scale-700: 64px;
+  --scale-800: 96px;
+  --scale-900: 128px;
+}

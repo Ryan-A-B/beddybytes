@@ -1,0 +1,69 @@
+@import 'tailwindcss';
+@import './tokens/brand.css';
+@import './tokens/alias.css';
+@import './tokens/responsive.css';
+@import './tokens/theme/dark.css';
+@import './examples/prototype/AppHomePrototypes.css';
+
+@utility focus-ring {
+  &:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background: var(--background-page);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  line-height: var(--leading-normal);
+  letter-spacing: 0;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  letter-spacing: 0;
+}
+
+a {
+  color: var(--color-action);
+}
+
+:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.starry-sky {
+  background: var(--starry-sky-background);
+}
+
+.starry-night-star {
+  background: var(--starry-sky-star);
+}
+
+.connection-status-badge {
+  letter-spacing: 0.16em;
+}
+
+.marketing-prototype-layout {
+}
+
+@media (min-width: 64rem) {
+  .marketing-prototype-layout {
+    grid-template-columns: 1.1fr 0.9fr;
+  }
+}
