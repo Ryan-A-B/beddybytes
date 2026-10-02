@@ -5,6 +5,7 @@ import { useAuthorizationService, useLoggingService } from "../../services";
 import { Link } from "react-router-dom";
 import PasswordInput from "../../components/PasswordInput";
 import { login } from "../../services/AuthorizationService/login";
+import GoogleButton from './GoogleButton';
 
 interface Props {
     email: string;
@@ -31,6 +32,7 @@ const LoginForm: React.FunctionComponent<Props> = ({ email, setEmail, password, 
     }, [logging_service, authorization_service, email, password])
     return (
         <React.Fragment>
+            <GoogleButton intent="login" />
             <form id="form-login" onSubmit={handleSubmit}>
                 <div className="form-group mb-3">
                     <label>

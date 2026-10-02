@@ -1,0 +1,30 @@
+import React from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { useAuthorizationService } from '../../services';
+import { completeGoogle } from '../../services/AuthorizationService/GoogleCodeFlow';
+import { save_account_to_local_storage } from '../../services/AuthorizationService/AuthorizationClient';
+
+const GoogleCompletion: React.FC = () => {
+    const authorization = useAuthorizationService();
+    const navigate = useNavigate();
+    const [error, setError] = React.useState<string | null>(null);
+    React.useEffect(() => {
+        let mounted = true;
+        completeGoogle().then(result => {
+            if (!mounted) return;
+            save_account_to_local_storage(result.account);
+            authorization.apply_token_output(result.token);
+            navigate(result.return_to, { replace: true });
+        }).catch(failure => { if (mounted) setError(failure.message); });
+        return () => { mounted = false; };
+    }, [authorization, navigate]);
+    return <div className="container my-4" aria-live="polite">
+        {error ? <>
+            <div className="alert alert-danger" role="alert">{error}</div>
+            <Link to="/#login" className="btn btn-primary me-2">Sign in</Link>
+            <Link to="/#create_account" className="btn btn-outline-light">Create account</Link>
+        </> : <p>Completing Google authentication…</p>}
+    </div>;
+};
+
+export default GoogleCompletion;

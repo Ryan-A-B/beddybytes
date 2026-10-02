@@ -41,6 +41,7 @@ type Handlers struct {
 	AnonymousAccessTokenDuration time.Duration
 	PasswordResetTokens          *resetpassword.Tokens
 	Mailer                       Mailer
+	Google                       *GoogleAuth
 }
 
 func (handlers *Handlers) AddRoutes(router *mux.Router) {
@@ -49,6 +50,9 @@ func (handlers *Handlers) AddRoutes(router *mux.Router) {
 	router.HandleFunc("/accounts", handlers.CreateAccount).Methods(http.MethodPost).Name("CreateAccount")
 	router.HandleFunc("/request-password-reset", handlers.RequestPasswordReset).Methods(http.MethodPost).Name("RequestPasswordReset")
 	router.HandleFunc("/reset-password", handlers.ResetPassword).Methods(http.MethodPost).Name("ResetPassword")
+	router.HandleFunc("/auth/google/config", handlers.GoogleConfig).Methods(http.MethodGet)
+	router.HandleFunc("/auth/google/start", handlers.StartGoogle).Methods(http.MethodGet)
+	router.HandleFunc("/auth/google/callback", handlers.GoogleCallback).Methods(http.MethodGet)
 	authenticatedRouter := router.PathPrefix("/accounts/{account_id}").Subrouter()
 	authenticatedRouter.Use(internal.NewAuthorizationMiddleware(handlers.Key).Middleware)
 	authenticatedRouter.HandleFunc("", handlers.GetAccount).Methods(http.MethodGet).Name("GetAccount")
@@ -201,12 +205,6 @@ func (handlers *Handlers) CreateAccount(responseWriter http.ResponseWriter, requ
 	if err != nil {
 		return
 	}
-	err = handlers.AccountStore.checkEmail(ctx, input.Email)
-	if err != nil {
-		err = merry.WithUserMessage(err, "email already in use")
-		err = httpx.ErrorWithCode(err, "email_already_in_use")
-		return
-	}
 	user := NewUser(&NewUserInput{
 		Email:    input.Email,
 		Password: input.Password,
@@ -217,11 +215,17 @@ func (handlers *Handlers) CreateAccount(responseWriter http.ResponseWriter, requ
 	}
 	data, err := json.Marshal(account)
 	fatal.OnError(err)
-	_, err = handlers.EventLog.Append(ctx, eventlog.AppendInput{
-		Type: EventTypeAccountCreated,
-		Data: data,
+	err = handlers.AccountStore.Create(ctx, &account, func() error {
+		_, appendErr := handlers.EventLog.Append(ctx, eventlog.AppendInput{
+			Type: EventTypeAccountCreated,
+			Data: data,
+		})
+		return appendErr
 	})
-	fatal.OnError(err)
+	if err != nil {
+		err = httpx.ErrorWithCode(merry.WithUserMessage(err, "email already in use"), "email_already_in_use")
+		return
+	}
 	responseWriter.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(responseWriter).Encode(account)
 }
@@ -233,6 +237,13 @@ type AccessTokenOutput struct {
 }
 
 func (handlers *Handlers) GetToken(responseWriter http.ResponseWriter, request *http.Request) {
+	responseWriter.Header().Set("Cache-Control", "no-store")
+	responseWriter.Header().Set("Pragma", "no-cache")
+	request.Body = http.MaxBytesReader(responseWriter, request.Body, 8192)
+	if err := request.ParseForm(); err != nil {
+		authError(responseWriter, "invalid_request", http.StatusBadRequest)
+		return
+	}
 	// Note: uses concepts from https://tools.ietf.org/html/rfc6749 but is not an OAuth 2.0 implementation
 	var err error
 	defer func() {
@@ -242,12 +253,14 @@ func (handlers *Handlers) GetToken(responseWriter http.ResponseWriter, request *
 			return
 		}
 	}()
-	grantType := request.FormValue("grant_type")
+	grantType := request.PostForm.Get("grant_type")
 	switch grantType {
 	case "password":
 		handlers.GetTokenUsingPasswordGrant(responseWriter, request)
 	case "refresh_token":
 		handlers.GetTokenUsingRefreshTokenGrant(responseWriter, request)
+	case "authorization_code":
+		handlers.GetTokenUsingAuthorizationCode(responseWriter, request)
 	default:
 		err = merry.New("invalid grant type").WithHTTPCode(http.StatusBadRequest)
 		return
@@ -384,7 +397,14 @@ func (handlers *Handlers) GetAccount(responseWriter http.ResponseWriter, request
 func (handlers *Handlers) DeleteAccount(responseWriter http.ResponseWriter, request *http.Request) {
 	ctx := request.Context()
 	accountID := contextx.GetAccountID(ctx)
-	err := handlers.AccountStore.Remove(ctx, accountID)
+	err := handlers.AccountStore.Delete(ctx, accountID, func() error {
+		_, appendErr := handlers.EventLog.Append(ctx, eventlog.AppendInput{
+			Type:      EventTypeAccountDeleted,
+			AccountID: accountID,
+			Data:      fatal.UnlessMarshalJSON(AccountDeletedData{AccountID: accountID}),
+		})
+		return appendErr
+	})
 	if err != nil {
 		logx.Warnln(err)
 		httpx.Error(responseWriter, err)

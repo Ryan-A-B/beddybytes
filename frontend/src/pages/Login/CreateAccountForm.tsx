@@ -3,6 +3,7 @@ import Input from "../../components/Input";
 import { useAuthorizationService } from "../../services";
 import PasswordInput from "../../components/PasswordInput";
 import { create_account_and_login } from "../../services/AuthorizationService/login";
+import GoogleButton from './GoogleButton';
 
 interface Props {
     email: string;
@@ -23,47 +24,50 @@ const CreateAccountForm: React.FunctionComponent<Props> = ({ email, setEmail, pa
         });
     }, [authorization_service, email, password])
     return (
-        <form id='form-create-account' onSubmit={handleSubmit} className="was-validated">
-            <div className="form-group mb-3">
-                <label>
-                    Email:
-                </label>
-                <Input
-                    id="input-create-account-email"
-                    type="email"
-                    name="email"
-                    value={email}
-                    onChange={setEmail}
-                    autoComplete="email"
-                    className="form-control"
-                    autoFocus
-                    required
-                />
-            </div>
-            <div className="form-group mb-3">
-                <label>
-                    Password:
-                </label>
-                <PasswordInput
-                    id="input-create-account-password"
-                    name="password"
-                    value={password}
-                    onChange={setPassword}
-                    autoComplete="new-password"
-                    className="form-control"
-                    minLength={20}
-                    required
-                />
-                <div className="form-text">At least 20 characters required.</div>
-            </div>
-            <p>
-                Already have an account? <button type="button" className="btn btn-link p-0" onClick={switchToLogin}>Log in</button>.
-            </p>
-            {error && <div className="alert alert-danger">{error}</div>}
-            <button id="submit-button-create-account" type="submit" className="btn btn-primary w-100">
-                Create Account
-            </button>
-        </form>
+        <React.Fragment>
+            <GoogleButton intent="signup" />
+            <form id='form-create-account' onSubmit={handleSubmit} className="was-validated">
+                <div className="form-group mb-3">
+                    <label>
+                        Email:
+                    </label>
+                    <Input
+                        id="input-create-account-email"
+                        type="email"
+                        name="email"
+                        value={email}
+                        onChange={setEmail}
+                        autoComplete="email"
+                        className="form-control"
+                        autoFocus
+                        required
+                    />
+                </div>
+                <div className="form-group mb-3">
+                    <label>
+                        Password:
+                    </label>
+                    <PasswordInput
+                        id="input-create-account-password"
+                        name="password"
+                        value={password}
+                        onChange={setPassword}
+                        autoComplete="new-password"
+                        className="form-control"
+                        minLength={20}
+                        required
+                    />
+                    <div className="form-text">At least 20 characters required.</div>
+                </div>
+                <p>
+                    Already have an account? <button type="button" className="btn btn-link p-0" onClick={switchToLogin}>Log in</button>.
+                </p>
+                {error && <div className="alert alert-danger">{error}</div>}
+                <button id="submit-button-create-account" type="submit" className="btn btn-primary w-100">
+                    Create Account
+                </button>
+            </form>
+        </React.Fragment>
     )
 }
 

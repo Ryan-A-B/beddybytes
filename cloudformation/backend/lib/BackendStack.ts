@@ -27,6 +27,14 @@ export class BackendStack extends cdk.Stack {
         const hosted_zone = env_hosted_zone_or_throw(this);
         const host_names = get_host_names(domain_name, props.deploy_env);
         const traefik_router_prefix = `${props.deploy_env}-`;
+        const google_client_id = process.env[`GOOGLE_CLIENT_ID_${props.deploy_env.toUpperCase()}`];
+        const google_secret_arn = process.env[`GOOGLE_CLIENT_SECRET_ARN_${props.deploy_env.toUpperCase()}`];
+        if (Boolean(google_client_id) !== Boolean(google_secret_arn)) {
+            throw new Error(`Google authentication for ${props.deploy_env} requires both a client ID and a client-secret ARN`);
+        }
+        const google_secret = google_secret_arn
+            ? cdk.aws_secretsmanager.Secret.fromSecretCompleteArn(this, 'google-client-secret', google_secret_arn)
+            : undefined;
 
         const api_container_image = cdk.aws_ecs.ContainerImage.fromEcrRepository(props.docker_repository, props.docker_image_digest);
 
@@ -61,6 +69,11 @@ export class BackendStack extends cdk.Stack {
             memoryLimitMiB: memory_limit_by_env[props.deploy_env],
             portMappings: [{ containerPort: 9000 }],
             environment: {
+                ...(google_client_id ? {
+                    'GOOGLE_CLIENT_ID': google_client_id,
+                    'GOOGLE_CALLBACK_URL': `https://${host_names.api}/auth/google/callback`,
+                    'GOOGLE_FRONTEND_URL': `https://${host_names.app}`,
+                } : {}),
                 'COOKIE_DOMAIN': `.${domain_name}`,
                 'SERVER_ADDR': ':9000',
                 'FILE_EVENT_LOG_FOLDER_PATH': '/opt/eventlog',
@@ -76,6 +89,7 @@ export class BackendStack extends cdk.Stack {
                 'MQTT_AWS_IOT_KEY_FILE': 'keys/private_key.pem',
             },
             secrets: {
+                ...(google_secret ? { 'GOOGLE_CLIENT_SECRET': cdk.aws_ecs.Secret.fromSecretsManager(google_secret) } : {}),
                 'ENCRYPTION_KEY': cdk.aws_ecs.Secret.fromSecretsManager(props.signing_key),
             },
             dockerLabels: {

@@ -135,15 +135,20 @@ func (handlers *Handlers) ResetPassword(responseWriter http.ResponseWriter, requ
 			PasswordSalt: salt,
 			PasswordHash: passwordHash,
 		}
-		_, err = handlers.EventLog.Append(ctx, eventlog.AppendInput{
-			Type: EventTypeAccountPasswordReset,
-			Data: fatal.UnlessMarshalJSON(payload),
+		err = handlers.AccountStore.SetPassword(ctx, &UpdatePasswordInput{Email: email, PasswordSalt: salt, PasswordHash: passwordHash}, func() error {
+			_, appendErr := handlers.EventLog.Append(ctx, eventlog.AppendInput{
+				Type: EventTypeAccountPasswordReset,
+				Data: fatal.UnlessMarshalJSON(payload),
+			})
+			return appendErr
 		})
-		fatal.OnError(err)
 	})
 	if !ok {
 		err = merry.New("invalid or expired token").WithHTTPCode(http.StatusBadRequest)
 		err = merry.WithUserMessage(err, "invalid or expired token")
 		return
+	}
+	if err != nil {
+		err = merry.WithUserMessage(merry.WithHTTPCode(err, http.StatusBadRequest), "unable to reset password")
 	}
 }

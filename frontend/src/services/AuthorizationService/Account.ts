@@ -8,4 +8,6 @@ export interface User {
     email: string
     password_salt: string
     password_hash: string
+    issuer?: string
+    subject?: string
 }

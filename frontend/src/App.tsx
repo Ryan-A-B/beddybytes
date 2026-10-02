@@ -18,6 +18,7 @@ import Footer from './components/Footer';
 import './App.scss';
 import RequestPasswordReset from './pages/Login/RequestPasswordReset';
 import ResetPassword from './pages/Login/ResetPassword';
+import GoogleCompletion from './pages/Login/GoogleCompletion';
 
 export const services: Services = {
   logging_service,
@@ -32,6 +33,7 @@ const App: React.FunctionComponent = () => {
         <Navbar />
         <div className="position-relative">
           <Routes>
+            <Route path="/auth/google/complete" element={<GoogleCompletion />} />
             <Route path="/request-password-reset" element={<RequestPasswordReset />} />
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="*" element={

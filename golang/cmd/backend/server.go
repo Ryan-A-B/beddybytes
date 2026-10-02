@@ -252,14 +252,20 @@ func main() {
 		}),
 		Mailer: newMailer(ctx),
 	}
-	go func() {
-		eventlog.Project(ctx, eventlog.ProjectInput{
-			EventLog:   accountHandlers.EventLog,
-			FromCursor: 0,
-			Apply:      accountHandlers.ApplyEvent,
-		})
-		log.Fatal("eventlog.Project exited")
-	}()
+	googleAuth, err := accounts.GoogleAuthFromEnvironment(os.Getenv)
+	fatal.OnError(err)
+	accountHandlers.Google = googleAuth
+	// Rebuild identities before accepting signup/login. Otherwise an early
+	// callback after restart could create a duplicate of an unreplayed account.
+	accountIterator := eventLog.GetEventIterator(ctx, eventlog.GetEventIteratorInput{FromCursor: 0})
+	for accountIterator.Next(ctx) {
+		event := accountIterator.Event()
+		accountHandlers.ApplyEvent(ctx, event)
+	}
+	fatal.OnError(accountIterator.Err())
+	// Account commands append and update their projection under one lock.
+	// Reapplying those events asynchronously could resurrect a deleted account
+	// or overwrite a later credential change while the live projection catches up.
 	handlers := Handlers{
 		Upgrader: websocket.Upgrader{
 			ReadBufferSize:  1024,

@@ -99,7 +99,9 @@ func TestProjection(t *testing.T) {
 func newEventLog(ctx context.Context) eventlog.EventLog {
 	folderPath, err := os.MkdirTemp("testdata", "eventlog-*")
 	So(err, ShouldBeNil)
-	return eventlog.NewFileEventLog(&eventlog.NewFileEventLogInput{
-		FolderPath: folderPath,
+	return eventlog.NewThreadSafeDecorator(&eventlog.NewThreadSafeDecoratorInput{
+		Decorated: eventlog.NewFileEventLog(&eventlog.NewFileEventLogInput{
+			FolderPath: folderPath,
+		}),
 	})
 }
