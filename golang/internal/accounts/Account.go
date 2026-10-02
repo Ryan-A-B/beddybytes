@@ -15,8 +15,8 @@ type Account struct {
 
 // User is BeddyBytes' local account identity. A user may authenticate with
 // locally managed password credentials or with an external issuer/subject.
-// Email is only part of local password credentials; provider email is not
-// collected or used to identify a user.
+// Provider email is account data only; it never identifies or deduplicates a
+// user. ExternalIdentity identity is the exact issuer/subject pair.
 type User struct {
 	ID                  string               `json:"id"`
 	PasswordCredentials *PasswordCredentials `json:"-"`
@@ -32,6 +32,7 @@ type PasswordCredentials struct {
 type ExternalIdentity struct {
 	Issuer  string `json:"issuer"`
 	Subject string `json:"subject"`
+	Email   string `json:"email,omitempty"`
 }
 
 // userJSON retains the existing account API and event shape for legacy
@@ -53,6 +54,7 @@ func (user User) MarshalJSON() ([]byte, error) {
 		wire.PasswordHash = user.PasswordCredentials.PasswordHash
 	}
 	if user.Identity != nil {
+		wire.Email = user.Identity.Email
 		wire.Issuer = user.Identity.Issuer
 		wire.Subject = user.Identity.Subject
 	}
@@ -68,9 +70,9 @@ func (user *User) UnmarshalJSON(data []byte) error {
 	user.PasswordCredentials = nil
 	user.Identity = nil
 	if wire.Issuer != "" {
-		user.Identity = &ExternalIdentity{Issuer: wire.Issuer, Subject: wire.Subject}
-		// Older Google events included email. Ignore it and any password fields:
-		// provider email is neither credential data nor account identity.
+		user.Identity = &ExternalIdentity{Issuer: wire.Issuer, Subject: wire.Subject, Email: wire.Email}
+		// Older provider events had flattened fields; retain email as account
+		// data while keeping it out of the identity key and password credentials.
 		return nil
 	}
 	user.PasswordCredentials = &PasswordCredentials{Email: wire.Email, PasswordSalt: wire.PasswordSalt, PasswordHash: wire.PasswordHash}

@@ -215,7 +215,7 @@ func (handlers *Handlers) GoogleCallback(w http.ResponseWriter, r *http.Request)
 	ctx, cancel := context.WithTimeout(r.Context(), 20*time.Second)
 	defer cancel()
 	identity, err := auth.Provider.Exchange(ctx, googleCode, transaction.Nonce, transaction.UpstreamVerifier)
-	if err != nil || identity == nil || identity.Issuer != GoogleIssuer || identity.Subject == "" {
+	if err != nil || identity == nil || identity.Issuer != GoogleIssuer || identity.Subject == "" || identity.Email == "" {
 		auth.redirect(w, r, transaction, "", "authentication_failed")
 		return
 	}
@@ -231,7 +231,7 @@ func (handlers *Handlers) GoogleCallback(w http.ResponseWriter, r *http.Request)
 			return
 		}
 		if merry.HTTPCode(err) == http.StatusNotFound {
-			account = &Account{ID: uuid.NewV4().String(), User: &User{ID: uuid.NewV4().String(), Identity: &ExternalIdentity{Issuer: identity.Issuer, Subject: identity.Subject}}}
+			account = &Account{ID: uuid.NewV4().String(), User: &User{ID: uuid.NewV4().String(), Identity: &ExternalIdentity{Issuer: identity.Issuer, Subject: identity.Subject, Email: identity.Email}}}
 			data, marshalErr := json.Marshal(account)
 			if marshalErr != nil {
 				auth.redirect(w, r, transaction, "", "server_error")

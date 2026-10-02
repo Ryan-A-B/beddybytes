@@ -57,7 +57,7 @@ func (*recordedAccountLog) Wait(context.Context) <-chan struct{} { return make(c
 
 func googleTestHandlers(t *testing.T) (*Handlers, http.Handler, *fakeGoogleProvider, *recordedAccountLog) {
 	t.Helper()
-	provider := &fakeGoogleProvider{identity: GoogleIdentity{Issuer: GoogleIssuer, Subject: "opaque:Google/Subject+01"}}
+	provider := &fakeGoogleProvider{identity: GoogleIdentity{Issuer: GoogleIssuer, Subject: "opaque:Google/Subject+01", Email: "same@example.com"}}
 	auth, err := NewGoogleAuth(provider, "https://app.example.com")
 	if err != nil {
 		t.Fatal(err)
@@ -121,7 +121,7 @@ func exchangeBeddybytes(router http.Handler, code, verifier string) *httptest.Re
 	return w
 }
 
-func TestGoogleSignupLoginUsesOpaqueSubjectOnly(t *testing.T) {
+func TestGoogleSignupLoginUsesOpaqueSubjectAndStoresEmail(t *testing.T) {
 	handlers, router, provider, log := googleTestHandlers(t)
 	ctx := context.Background()
 	passwordAccount := &Account{ID: "password-account", User: NewUser(&NewUserInput{Email: "same@example.com", Password: "long-enough-password-for-tests"})}
@@ -137,7 +137,7 @@ func TestGoogleSignupLoginUsesOpaqueSubjectOnly(t *testing.T) {
 		t.Fatal("signup did not append exactly one event")
 	}
 	googleAccount, err := handlers.AccountStore.GetByIdentity(ctx, GoogleIssuer, provider.identity.Subject)
-	if err != nil || googleAccount.ID == passwordAccount.ID || googleAccount.User.PasswordCredentials != nil || googleAccount.User.Identity == nil || googleAccount.User.Identity.Subject != provider.identity.Subject {
+	if err != nil || googleAccount.ID == passwordAccount.ID || googleAccount.User.PasswordCredentials != nil || googleAccount.User.Identity == nil || googleAccount.User.Identity.Subject != provider.identity.Subject || googleAccount.User.Identity.Email != "same@example.com" {
 		t.Fatal("accounts not independent")
 	}
 	legacy, err := handlers.AccountStore.GetByEmail(ctx, "same@example.com")
@@ -167,7 +167,7 @@ func TestGoogleSignupLoginUsesOpaqueSubjectOnly(t *testing.T) {
 	router.ServeHTTP(current, r)
 	var currentAccount Account
 	json.Unmarshal(current.Body.Bytes(), &currentAccount)
-	if current.Code != 200 || currentAccount.ID != googleAccount.ID {
+	if current.Code != 200 || currentAccount.ID != googleAccount.ID || currentAccount.User.Identity == nil || currentAccount.User.Identity.Email != "same@example.com" {
 		t.Fatal("token does not resolve new account")
 	}
 	if exchangeBeddybytes(router, params.Get("code"), flow.verifier).Code != 400 {
@@ -337,7 +337,7 @@ func TestGoogleSignupConcurrentUniquenessAndEventReplay(t *testing.T) {
 		replayed.ApplyEvent(context.Background(), event)
 	}
 	a, err := replayed.AccountStore.GetByIdentity(context.Background(), GoogleIssuer, "opaque:Google/Subject+01")
-	if err != nil || a.User.PasswordCredentials != nil || a.User.Identity == nil || a.User.Identity.Subject != "opaque:Google/Subject+01" {
+	if err != nil || a.User.PasswordCredentials != nil || a.User.Identity == nil || a.User.Identity.Subject != "opaque:Google/Subject+01" || a.User.Identity.Email != "same@example.com" {
 		t.Fatal("provider identity lost on event replay")
 	}
 }

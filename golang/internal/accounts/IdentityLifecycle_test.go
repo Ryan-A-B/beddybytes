@@ -61,12 +61,12 @@ func TestIdentityUniquenessIsIssuerAndSubject(t *testing.T) {
 	ctx := context.Background()
 	accounts := &AccountStore{Store: store.NewMemoryStore()}
 	for _, issuer := range []string{"https://provider-one.example", "https://provider-two.example"} {
-		account := &Account{ID: issuer, User: &User{ID: issuer, Identity: &ExternalIdentity{Issuer: issuer, Subject: "same-subject"}}}
+		account := &Account{ID: issuer, User: &User{ID: issuer, Identity: &ExternalIdentity{Issuer: issuer, Subject: "same-subject", Email: "shared@example.com"}}}
 		if err := accounts.Put(ctx, account); err != nil {
 			t.Fatal("different issuers collided:", err)
 		}
 	}
-	duplicate := &Account{ID: "duplicate", User: &User{ID: "duplicate", Identity: &ExternalIdentity{Issuer: "https://provider-one.example", Subject: "same-subject"}}}
+	duplicate := &Account{ID: "duplicate", User: &User{ID: "duplicate", Identity: &ExternalIdentity{Issuer: "https://provider-one.example", Subject: "same-subject", Email: "different@example.com"}}}
 	if err := accounts.Put(ctx, duplicate); merry.HTTPCode(err) != 409 {
 		t.Fatal("same issuer/subject allowed twice")
 	}
