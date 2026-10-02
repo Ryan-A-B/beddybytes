@@ -79,14 +79,14 @@ func (user *User) UnmarshalJSON(data []byte) error {
 
 // Legacy password accounts have no explicit issuer/subject in their events.
 func (user *User) IdentityPair() (issuer, subject string) {
-	if user.Identity == nil {
+	if user.Identity == nil || user.Identity.Issuer == "" {
 		return "beddybytes", user.ID
 	}
 	return user.Identity.Issuer, user.Identity.Subject
 }
 
 func (user *User) IsPasswordUser() bool {
-	return user.Identity == nil && user.PasswordCredentials != nil
+	return user.PasswordCredentials != nil && (user.Identity == nil || user.Identity.Issuer == "beddybytes")
 }
 
 type NewUserInput struct {
