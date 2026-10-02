@@ -13,7 +13,7 @@ import (
 const GoogleIssuer = "https://accounts.google.com"
 
 type GoogleIdentity struct {
-	Issuer, Subject, Email string
+	Issuer, Subject string
 }
 
 type GoogleIdentityProvider interface {
@@ -33,7 +33,7 @@ func NewGoogleIdentityProvider(clientID, clientSecret, callbackURL string) Googl
 	return &googleOIDCProvider{
 		config: oauth2.Config{
 			ClientID: clientID, ClientSecret: clientSecret, RedirectURL: callbackURL,
-			Scopes: []string{oidc.ScopeOpenID, "email"},
+			Scopes: []string{oidc.ScopeOpenID},
 			Endpoint: oauth2.Endpoint{
 				AuthURL:   "https://accounts.google.com/o/oauth2/v2/auth",
 				TokenURL:  "https://oauth2.googleapis.com/token",
@@ -68,16 +68,6 @@ func (provider *googleOIDCProvider) Exchange(ctx context.Context, code, nonce, v
 	if idToken.Nonce != nonce || idToken.Subject == "" {
 		return nil, errors.New("invalid Google nonce or subject")
 	}
-	var claims struct {
-		Email         string `json:"email"`
-		EmailVerified bool   `json:"email_verified"`
-	}
-	if err := idToken.Claims(&claims); err != nil {
-		return nil, err
-	}
-	if claims.Email == "" || !claims.EmailVerified {
-		return nil, errors.New("Google has not supplied a verified email")
-	}
 	// Google's equivalent issuer spellings must not create separate identities.
-	return &GoogleIdentity{Issuer: GoogleIssuer, Subject: idToken.Subject, Email: claims.Email}, nil
+	return &GoogleIdentity{Issuer: GoogleIssuer, Subject: idToken.Subject}, nil
 }

@@ -74,7 +74,7 @@ func TestProjection(t *testing.T) {
 			newSalt := []byte("newsalt")
 			newHash := []byte("newhash")
 			resetData := accounts.PasswordResetData{
-				Email:        account.User.Email,
+				Email:        account.User.PasswordCredentials.Email,
 				PasswordSalt: newSalt,
 				PasswordHash: newHash,
 			}
@@ -88,10 +88,10 @@ func TestProjection(t *testing.T) {
 			time.Sleep(10 * time.Millisecond)
 
 			// Verify the password was updated
-			updatedAccount, err := handlers.AccountStore.GetByEmail(ctx, account.User.Email)
+			updatedAccount, err := handlers.AccountStore.GetByEmail(ctx, account.User.PasswordCredentials.Email)
 			So(err, ShouldBeNil)
-			So(updatedAccount.User.PasswordSalt, ShouldResemble, newSalt)
-			So(updatedAccount.User.PasswordHash, ShouldResemble, newHash)
+			So(updatedAccount.User.PasswordCredentials.PasswordSalt, ShouldResemble, newSalt)
+			So(updatedAccount.User.PasswordCredentials.PasswordHash, ShouldResemble, newHash)
 		})
 	})
 }

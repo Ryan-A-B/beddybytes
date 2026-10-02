@@ -1,7 +1,7 @@
 # Google browser authentication
 
 Google is an independent account creation and sign-in method alongside the
-existing email/password method. It requests exactly `openid email`.
+existing email/password method. It requests only the `openid` scope. Google accounts are keyed by the verified issuer and opaque subject; email is neither requested nor stored for them.
 
 - **Sign in with Google** requires an existing `(issuer, subject)` identity. It
   never creates an account.
@@ -17,7 +17,7 @@ In the existing Google Cloud project, configure Google Auth Platform branding,
 audience (external users for public BeddyBytes), and a **Web application OAuth
 client**. OAuth client registration is also required for authentication through
 OpenID Connect. Add test users while the Google application is in testing mode.
-The only scopes requested are `openid` and `email`.
+The only requested scope is `openid`; no Google profile data is needed.
 
 Register the backend callback for each environment that will use that client:
 
@@ -71,7 +71,7 @@ deployments without these optional entries keep password authentication.
 2. Backend saves that intent, uses separate upstream state/nonce/PKCE values,
    and binds the Google callback to a host-only HttpOnly/Secure/Lax cookie.
 3. Backend exchanges Google's code, verifies its signed ID token, issuer,
-   audience, expiry and nonce, and requires a nonempty subject and verified email.
+   audience, expiry and nonce, and requires a nonempty subject. Email claims are ignored.
 4. After resolving the explicit signup/login intent, backend redirects with a
    fresh opaque BeddyBytes code and the original frontend state. Codes expire
    after 60 seconds and are redeemed once with atomic consumption. Transaction

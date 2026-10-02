@@ -25,7 +25,7 @@ func TestLegacyAndGoogleReplayResetAndDurableDeletion(t *testing.T) {
 	var token AccessTokenOutput
 	json.Unmarshal(w.Body.Bytes(), &token)
 	googleAccount, _ := handlers.AccountStore.GetByIdentity(ctx, GoogleIssuer, "google-subject")
-	reset := PasswordResetData{Email: legacy.User.Email, PasswordSalt: []byte("salt"), PasswordHash: []byte("new-password-hash")}
+	reset := PasswordResetData{Email: legacy.User.PasswordCredentials.Email, PasswordSalt: []byte("salt"), PasswordHash: []byte("new-password-hash")}
 	data, _ = json.Marshal(reset)
 	event, _ = log.Append(ctx, eventlog.AppendInput{Type: EventTypeAccountPasswordReset, Data: data})
 	handlers.ApplyEvent(ctx, event)
@@ -47,10 +47,10 @@ func TestLegacyAndGoogleReplayResetAndDurableDeletion(t *testing.T) {
 		t.Fatal("deleted Google identity resurrected")
 	}
 	account, err := replayed.AccountStore.GetByEmail(ctx, "same@example.com")
-	if err != nil || account.ID != legacy.ID || string(account.User.PasswordHash) != "new-password-hash" {
+	if err != nil || account.ID != legacy.ID || string(account.User.PasswordCredentials.PasswordHash) != "new-password-hash" {
 		t.Fatal("Google deletion affected legacy account/reset replay")
 	}
-	issuer, subject := account.User.Identity()
+	issuer, subject := account.User.IdentityPair()
 	account, err = replayed.AccountStore.GetByIdentity(ctx, issuer, subject)
 	if err != nil || account.ID != legacy.ID {
 		t.Fatal("legacy issuer/subject index not reconstructed")
@@ -61,12 +61,12 @@ func TestIdentityUniquenessIsIssuerAndSubject(t *testing.T) {
 	ctx := context.Background()
 	accounts := &AccountStore{Store: store.NewMemoryStore()}
 	for _, issuer := range []string{"https://provider-one.example", "https://provider-two.example"} {
-		account := &Account{ID: issuer, User: &User{ID: issuer, Issuer: issuer, Subject: "same-subject", Email: "same@example.com"}}
+		account := &Account{ID: issuer, User: &User{ID: issuer, Identity: &ExternalIdentity{Issuer: issuer, Subject: "same-subject"}}}
 		if err := accounts.Put(ctx, account); err != nil {
 			t.Fatal("different issuers collided:", err)
 		}
 	}
-	duplicate := &Account{ID: "duplicate", User: &User{ID: "duplicate", Issuer: "https://provider-one.example", Subject: "same-subject", Email: "different@example.com"}}
+	duplicate := &Account{ID: "duplicate", User: &User{ID: "duplicate", Identity: &ExternalIdentity{Issuer: "https://provider-one.example", Subject: "same-subject"}}}
 	if err := accounts.Put(ctx, duplicate); merry.HTTPCode(err) != 409 {
 		t.Fatal("same issuer/subject allowed twice")
 	}

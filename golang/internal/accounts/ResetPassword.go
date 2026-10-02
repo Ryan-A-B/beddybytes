@@ -85,7 +85,7 @@ func (handlers *Handlers) RequestPasswordReset(responseWriter http.ResponseWrite
 	}
 	token := handlers.PasswordResetTokens.Create(input.Email)
 	err = handlers.Mailer.SendPasswordResetLink(ctx, mailer.SendPasswordResetLinkInput{
-		Email: account.User.Email,
+		Email: account.User.PasswordCredentials.Email,
 		Token: token,
 	})
 	if err != nil {

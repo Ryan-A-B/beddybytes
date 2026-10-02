@@ -2,6 +2,7 @@ package accounts
 
 import (
 	"crypto/rand"
+	"encoding/json"
 
 	"github.com/Ryan-A-B/beddybytes/golang/internal/fatal"
 	uuid "github.com/satori/go.uuid"
@@ -12,24 +13,81 @@ type Account struct {
 	User *User  `json:"user"`
 }
 
+// User is BeddyBytes' local account identity. A user may authenticate with
+// locally managed password credentials or with an external issuer/subject.
+// Email is only part of local password credentials; provider email is not
+// collected or used to identify a user.
 type User struct {
-	ID           string `json:"id"`
+	ID                  string               `json:"id"`
+	PasswordCredentials *PasswordCredentials `json:"-"`
+	Identity            *ExternalIdentity    `json:"-"`
+}
+
+type PasswordCredentials struct {
 	Email        string `json:"email"`
 	PasswordSalt []byte `json:"password_salt"`
 	PasswordHash []byte `json:"password_hash"`
+}
+
+type ExternalIdentity struct {
+	Issuer  string `json:"issuer"`
+	Subject string `json:"subject"`
+}
+
+// userJSON retains the existing account API and event shape for legacy
+// password accounts while allowing external identities to omit password data.
+type userJSON struct {
+	ID           string `json:"id"`
+	Email        string `json:"email,omitempty"`
+	PasswordSalt []byte `json:"password_salt,omitempty"`
+	PasswordHash []byte `json:"password_hash,omitempty"`
 	Issuer       string `json:"issuer,omitempty"`
 	Subject      string `json:"subject,omitempty"`
 }
 
-// Legacy password accounts have no explicit issuer/subject in their events.
-func (user *User) Identity() (issuer, subject string) {
-	if user.Issuer == "" {
-		return "beddybytes", user.ID
+func (user User) MarshalJSON() ([]byte, error) {
+	wire := userJSON{ID: user.ID}
+	if user.PasswordCredentials != nil {
+		wire.Email = user.PasswordCredentials.Email
+		wire.PasswordSalt = user.PasswordCredentials.PasswordSalt
+		wire.PasswordHash = user.PasswordCredentials.PasswordHash
 	}
-	return user.Issuer, user.Subject
+	if user.Identity != nil {
+		wire.Issuer = user.Identity.Issuer
+		wire.Subject = user.Identity.Subject
+	}
+	return json.Marshal(wire)
 }
 
-func (user *User) IsPasswordUser() bool { return user.Issuer == "" || user.Issuer == "beddybytes" }
+func (user *User) UnmarshalJSON(data []byte) error {
+	var wire userJSON
+	if err := json.Unmarshal(data, &wire); err != nil {
+		return err
+	}
+	user.ID = wire.ID
+	user.PasswordCredentials = nil
+	user.Identity = nil
+	if wire.Issuer != "" {
+		user.Identity = &ExternalIdentity{Issuer: wire.Issuer, Subject: wire.Subject}
+		// Older Google events included email. Ignore it and any password fields:
+		// provider email is neither credential data nor account identity.
+		return nil
+	}
+	user.PasswordCredentials = &PasswordCredentials{Email: wire.Email, PasswordSalt: wire.PasswordSalt, PasswordHash: wire.PasswordHash}
+	return nil
+}
+
+// Legacy password accounts have no explicit issuer/subject in their events.
+func (user *User) IdentityPair() (issuer, subject string) {
+	if user.Identity == nil {
+		return "beddybytes", user.ID
+	}
+	return user.Identity.Issuer, user.Identity.Subject
+}
+
+func (user *User) IsPasswordUser() bool {
+	return user.Identity == nil && user.PasswordCredentials != nil
+}
 
 type NewUserInput struct {
 	Email    string `json:"email"`
@@ -42,10 +100,10 @@ func NewUser(input *NewUserInput) (user *User) {
 	fatal.OnError(err)
 	passwordHash := calculatePasswordHash(input.Password, passwordSalt)
 	user = &User{
-		ID:           uuid.NewV4().String(),
-		Email:        input.Email,
-		PasswordSalt: passwordSalt,
-		PasswordHash: passwordHash,
+		ID: uuid.NewV4().String(),
+		PasswordCredentials: &PasswordCredentials{
+			Email: input.Email, PasswordSalt: passwordSalt, PasswordHash: passwordHash,
+		},
 	}
 	return
 }

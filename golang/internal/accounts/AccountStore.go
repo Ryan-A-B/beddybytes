@@ -47,17 +47,17 @@ func (store *AccountStore) create(ctx context.Context, account *Account) (err er
 }
 
 func (store *AccountStore) update(ctx context.Context, existingAccount *Account, account *Account) (err error) {
-	oldIssuer, oldSubject := existingAccount.User.Identity()
-	issuer, subject := account.User.Identity()
+	oldIssuer, oldSubject := existingAccount.User.IdentityPair()
+	issuer, subject := account.User.IdentityPair()
 	if oldIssuer != issuer || oldSubject != subject {
 		return merry.New("account identity cannot change").WithHTTPCode(http.StatusBadRequest)
 	}
-	if account.User.IsPasswordUser() && existingAccount.User.Email != account.User.Email {
-		err = store.checkEmail(ctx, account.User.Email)
+	if account.User.IsPasswordUser() && existingAccount.User.PasswordCredentials.Email != account.User.PasswordCredentials.Email {
+		err = store.checkEmail(ctx, account.User.PasswordCredentials.Email)
 		if err != nil {
 			return
 		}
-		err = store.Store.Delete(ctx, existingAccount.User.Email)
+		err = store.Store.Delete(ctx, existingAccount.User.PasswordCredentials.Email)
 		fatal.OnError(err)
 	}
 	store.write(ctx, account)
@@ -65,12 +65,16 @@ func (store *AccountStore) update(ctx context.Context, existingAccount *Account,
 }
 
 func identityKey(issuer, subject string) string {
-	digest := sha256.Sum256([]byte(issuer + "\x00" + subject))
+	// JSON array encoding preserves the exact pair without assuming either
+	// opaque string excludes a delimiter character.
+	pair, err := json.Marshal([2]string{issuer, subject})
+	fatal.OnError(err)
+	digest := sha256.Sum256(pair)
 	return "identity:" + base64.RawURLEncoding.EncodeToString(digest[:])
 }
 
 func (store *AccountStore) checkIdentity(ctx context.Context, account *Account) error {
-	issuer, subject := account.User.Identity()
+	issuer, subject := account.User.IdentityPair()
 	if subject == "" {
 		return merry.New("identity subject is required").WithHTTPCode(http.StatusBadRequest)
 	}
@@ -80,7 +84,7 @@ func (store *AccountStore) checkIdentity(ctx context.Context, account *Account) 
 		return err
 	}
 	if account.User.IsPasswordUser() {
-		return store.checkEmail(ctx, account.User.Email)
+		return store.checkEmail(ctx, account.User.PasswordCredentials.Email)
 	}
 	return nil
 }
@@ -117,11 +121,11 @@ func (store *AccountStore) write(ctx context.Context, account *Account) {
 	fatal.OnError(err)
 	err = store.Store.Put(ctx, account.ID, data)
 	fatal.OnError(err)
-	issuer, subject := account.User.Identity()
+	issuer, subject := account.User.IdentityPair()
 	err = store.Store.Put(ctx, identityKey(issuer, subject), data)
 	fatal.OnError(err)
 	if account.User.IsPasswordUser() {
-		err = store.Store.Put(ctx, account.User.Email, data)
+		err = store.Store.Put(ctx, account.User.PasswordCredentials.Email, data)
 		fatal.OnError(err)
 	}
 }
@@ -184,11 +188,11 @@ func (store *AccountStore) remove(ctx context.Context, accountID string) (err er
 	}
 	err = store.Store.Delete(ctx, accountID)
 	fatal.OnError(err)
-	issuer, subject := account.User.Identity()
+	issuer, subject := account.User.IdentityPair()
 	err = store.Store.Delete(ctx, identityKey(issuer, subject))
 	fatal.OnError(err)
 	if account.User.IsPasswordUser() {
-		err = store.Store.Delete(ctx, account.User.Email)
+		err = store.Store.Delete(ctx, account.User.PasswordCredentials.Email)
 		fatal.OnError(err)
 	}
 	return
@@ -241,8 +245,8 @@ func (store *AccountStore) updatePassword(ctx context.Context, input *UpdatePass
 	if !account.User.IsPasswordUser() {
 		return merry.New("password account not found").WithHTTPCode(http.StatusNotFound)
 	}
-	account.User.PasswordSalt = input.PasswordSalt
-	account.User.PasswordHash = input.PasswordHash
+	account.User.PasswordCredentials.PasswordSalt = input.PasswordSalt
+	account.User.PasswordCredentials.PasswordHash = input.PasswordHash
 	store.write(ctx, account)
 	return nil
 }

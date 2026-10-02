@@ -292,8 +292,8 @@ func (handlers *Handlers) GetTokenUsingPasswordGrant(responseWriter http.Respons
 		err = merry.New("account not found").WithUserMessage("unauthorized").WithHTTPCode(http.StatusUnauthorized)
 		return
 	}
-	passwordHash := calculatePasswordHash(password, account.User.PasswordSalt)
-	if !bytes.Equal(passwordHash, account.User.PasswordHash) {
+	passwordHash := calculatePasswordHash(password, account.User.PasswordCredentials.PasswordSalt)
+	if !bytes.Equal(passwordHash, account.User.PasswordCredentials.PasswordHash) {
 		err = merry.New("wrong password").WithUserMessage("unauthorized").WithHTTPCode(http.StatusUnauthorized)
 		return
 	}

@@ -23,7 +23,7 @@ func TestGoogleOIDCProtocolAndSignedTokenValidation(t *testing.T) {
 	}
 	for _, scenario := range []string{"valid", "issuer_alias", "wrong_issuer", "wrong_audience", "expired", "wrong_nonce", "empty_subject", "unverified_email", "missing_email", "wrong_signature"} {
 		t.Run(scenario, func(t *testing.T) {
-			claims := jwt.MapClaims{"iss": GoogleIssuer, "aud": "google-client", "sub": "stable-subject", "exp": time.Now().Add(time.Hour).Unix(), "iat": time.Now().Unix(), "nonce": "nonce", "email": "user@example.com", "email_verified": true}
+			claims := jwt.MapClaims{"iss": GoogleIssuer, "aud": "google-client", "sub": "opaque:Google/Subject+01", "exp": time.Now().Add(time.Hour).Unix(), "iat": time.Now().Unix(), "nonce": "nonce", "email": "user@example.com", "email_verified": true}
 			signingKey := key
 			switch scenario {
 			case "issuer_alias":
@@ -73,12 +73,12 @@ func TestGoogleOIDCProtocolAndSignedTokenValidation(t *testing.T) {
 			provider.verifier = oidc.NewVerifier(GoogleIssuer, oidc.NewRemoteKeySet(context.Background(), server.URL+"/keys"), &oidc.Config{ClientID: "google-client", SupportedSigningAlgs: []string{oidc.RS256}})
 			u, _ := url.Parse(provider.AuthorizationURL("upstream-state", "nonce", upstreamVerifier))
 			q := u.Query()
-			if q.Get("scope") != "openid email" || q.Get("nonce") != "nonce" || q.Get("state") != "upstream-state" || q.Get("response_type") != "code" || q.Get("code_challenge_method") != "S256" || q.Get("code_challenge") != challengeFor(upstreamVerifier) {
+			if q.Get("scope") != "openid" || q.Get("nonce") != "nonce" || q.Get("state") != "upstream-state" || q.Get("response_type") != "code" || q.Get("code_challenge_method") != "S256" || q.Get("code_challenge") != challengeFor(upstreamVerifier) {
 				t.Fatal("wrong Google authentication request")
 			}
 			identity, err := provider.Exchange(context.Background(), "google-code", "nonce", upstreamVerifier)
-			if scenario == "valid" || scenario == "issuer_alias" {
-				if err != nil || identity.Issuer != GoogleIssuer || identity.Subject != "stable-subject" || identity.Email != "user@example.com" {
+			if scenario == "valid" || scenario == "issuer_alias" || scenario == "unverified_email" || scenario == "missing_email" {
+				if err != nil || identity.Issuer != GoogleIssuer || identity.Subject != "opaque:Google/Subject+01" {
 					t.Fatalf("valid identity rejected: %v", err)
 				}
 			} else if err == nil {

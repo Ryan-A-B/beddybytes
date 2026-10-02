@@ -57,7 +57,7 @@ func (*recordedAccountLog) Wait(context.Context) <-chan struct{} { return make(c
 
 func googleTestHandlers(t *testing.T) (*Handlers, http.Handler, *fakeGoogleProvider, *recordedAccountLog) {
 	t.Helper()
-	provider := &fakeGoogleProvider{identity: GoogleIdentity{Issuer: GoogleIssuer, Subject: "google-subject", Email: "same@example.com"}}
+	provider := &fakeGoogleProvider{identity: GoogleIdentity{Issuer: GoogleIssuer, Subject: "opaque:Google/Subject+01"}}
 	auth, err := NewGoogleAuth(provider, "https://app.example.com")
 	if err != nil {
 		t.Fatal(err)
@@ -121,10 +121,10 @@ func exchangeBeddybytes(router http.Handler, code, verifier string) *httptest.Re
 	return w
 }
 
-func TestGoogleSignupLoginAndIndependentEmail(t *testing.T) {
+func TestGoogleSignupLoginUsesOpaqueSubjectOnly(t *testing.T) {
 	handlers, router, provider, log := googleTestHandlers(t)
 	ctx := context.Background()
-	passwordAccount := &Account{ID: "password-account", User: NewUser(&NewUserInput{Email: provider.identity.Email, Password: "long-enough-password-for-tests"})}
+	passwordAccount := &Account{ID: "password-account", User: NewUser(&NewUserInput{Email: "same@example.com", Password: "long-enough-password-for-tests"})}
 	if err := handlers.AccountStore.Put(ctx, passwordAccount); err != nil {
 		t.Fatal(err)
 	}
@@ -137,10 +137,10 @@ func TestGoogleSignupLoginAndIndependentEmail(t *testing.T) {
 		t.Fatal("signup did not append exactly one event")
 	}
 	googleAccount, err := handlers.AccountStore.GetByIdentity(ctx, GoogleIssuer, provider.identity.Subject)
-	if err != nil || googleAccount.ID == passwordAccount.ID || len(googleAccount.User.PasswordHash) != 0 {
+	if err != nil || googleAccount.ID == passwordAccount.ID || googleAccount.User.PasswordCredentials != nil || googleAccount.User.Identity == nil || googleAccount.User.Identity.Subject != provider.identity.Subject {
 		t.Fatal("accounts not independent")
 	}
-	legacy, err := handlers.AccountStore.GetByEmail(ctx, provider.identity.Email)
+	legacy, err := handlers.AccountStore.GetByEmail(ctx, "same@example.com")
 	if err != nil || legacy.ID != passwordAccount.ID {
 		t.Fatal("Google overwrote password email index")
 	}
@@ -173,7 +173,6 @@ func TestGoogleSignupLoginAndIndependentEmail(t *testing.T) {
 	if exchangeBeddybytes(router, params.Get("code"), flow.verifier).Code != 400 {
 		t.Fatal("code could be reused")
 	}
-	provider.identity.Email = "changed@example.com"
 	loginFlow := beginGoogle(t, router, "login")
 	loginParams := callbackValues(t, callbackGoogle(router, loginFlow, ""))
 	if loginParams.Get("code") == "" || len(log.events) != 1 {
@@ -181,7 +180,7 @@ func TestGoogleSignupLoginAndIndependentEmail(t *testing.T) {
 	}
 	accountID, ok := handlers.Google.redeem(loginParams.Get("code"), loginFlow.verifier, browserClientID, handlers.Google.RedirectURI)
 	if !ok || accountID != googleAccount.ID {
-		t.Fatal("email change changed Google identity")
+		t.Fatal("opaque subject did not resolve the same Google identity")
 	}
 	if err := handlers.AccountStore.Remove(ctx, googleAccount.ID); err != nil {
 		t.Fatal(err)
@@ -337,8 +336,8 @@ func TestGoogleSignupConcurrentUniquenessAndEventReplay(t *testing.T) {
 		replayed.ApplyEvent(context.Background(), event)
 		replayed.ApplyEvent(context.Background(), event)
 	}
-	a, err := replayed.AccountStore.GetByIdentity(context.Background(), GoogleIssuer, "google-subject")
-	if err != nil || a.User.Email != "same@example.com" {
+	a, err := replayed.AccountStore.GetByIdentity(context.Background(), GoogleIssuer, "opaque:Google/Subject+01")
+	if err != nil || a.User.PasswordCredentials != nil || a.User.Identity == nil || a.User.Identity.Subject != "opaque:Google/Subject+01" {
 		t.Fatal("provider identity lost on event replay")
 	}
 }
