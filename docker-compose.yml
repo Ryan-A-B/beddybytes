@@ -95,7 +95,6 @@ services:
       - 3000
     volumes:
       - ./frontend/:/opt/app
-      - frontend_node_modules:/opt/app/node_modules
     environment:
       - WDS_SOCKET_HOST=app.beddybytes.local
       - WDS_SOCKET_PORT=443
@@ -113,7 +112,6 @@ services:
       - 8000
     volumes:
       - ./marketing/:/opt/marketing
-      - marketing_node_modules:/opt/marketing/node_modules
     environment:
       - TINYANALYTICS_ENDPOINT=${TINYANALYTICS_ENDPOINT:-https://analytics.beddybytes.local}
       - TINYANALYTICS_WRITE_TOKEN=${TINYANALYTICS_WRITE_TOKEN}
@@ -164,8 +162,6 @@ services:
 volumes:
   # TODO influx_storage + set up script
   grafana_storage:
-  frontend_node_modules:
-  marketing_node_modules:
 
 include:
   - selenium.docker-compose.yml
