@@ -32,13 +32,13 @@ var pkceChallengePattern = regexp.MustCompile(`^[A-Za-z0-9_-]{43}$`)
 var pkceVerifierPattern = regexp.MustCompile(`^[A-Za-z0-9._~-]{43,128}$`)
 
 type googleTransaction struct {
-	Intent, FrontendState, Challenge, Nonce, UpstreamVerifier, Binding string
-	Expires                                                            time.Time
+	Intent, Scope, FrontendState, Challenge, Nonce, UpstreamVerifier, Binding string
+	Expires                                                                   time.Time
 }
 
 type authorizationCode struct {
-	AccountID, Challenge string
-	Expires              time.Time
+	AccountID, Scope, Challenge string
+	Expires                     time.Time
 }
 
 // This matches the current single-process deployment. Restarting the process
@@ -52,12 +52,11 @@ type GoogleAuth struct {
 	now          func() time.Time
 }
 
-func NewGoogleAuth(provider GoogleIdentityProvider, frontendURL string) (*GoogleAuth, error) {
-	u, err := url.Parse(frontendURL)
-	if err != nil || u.Scheme != "https" || u.Host == "" || u.User != nil || u.RawQuery != "" || u.Fragment != "" || (u.Path != "" && u.Path != "/") {
-		return nil, errors.New("GOOGLE_FRONTEND_URL must be an HTTPS origin")
+func NewGoogleAuth(provider GoogleIdentityProvider, frontendRedirect string) (*GoogleAuth, error) {
+	u, err := url.Parse(frontendRedirect)
+	if err != nil || u.Scheme != "https" || u.Host == "" || u.User != nil || u.RawQuery != "" || u.ForceQuery || u.Fragment != "" || u.Path == "" || u.Path == "/" || strings.Contains(u.Host, " ") {
+		return nil, errors.New("FRONTEND_AUTH_REDIRECT must be an HTTPS callback URL without query parameters or fragment")
 	}
-	u.Path = "/auth/google/complete"
 	return &GoogleAuth{Provider: provider, RedirectURI: u.String(), transactions: make(map[string]googleTransaction), codes: make(map[string]authorizationCode), now: time.Now}, nil
 }
 
@@ -92,7 +91,11 @@ func authError(w http.ResponseWriter, code string, status int) {
 	httpx.Error(w, httpx.ErrorWithCode(merry.New(code).WithHTTPCode(status).WithUserMessage(code), code))
 }
 
-func (handlers *Handlers) GoogleConfig(w http.ResponseWriter, r *http.Request) {
+func (handlers *Handlers) AuthConfig(w http.ResponseWriter, r *http.Request) {
+	if !googleProviderSelected(r) {
+		authError(w, "invalid_provider", http.StatusBadRequest)
+		return
+	}
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(struct {
@@ -100,7 +103,46 @@ func (handlers *Handlers) GoogleConfig(w http.ResponseWriter, r *http.Request) {
 	}{handlers.Google != nil})
 }
 
-func (handlers *Handlers) StartGoogle(w http.ResponseWriter, r *http.Request) {
+// Only the initial request selects a provider. Completion and token redemption
+// use the backend-issued code and do not require a provider from the browser.
+func (handlers *Handlers) StartAuth(w http.ResponseWriter, r *http.Request) {
+	if !googleProviderSelected(r) {
+		authError(w, "invalid_provider", http.StatusBadRequest)
+		return
+	}
+	handlers.startGoogle(w, r)
+}
+
+func googleProviderSelected(r *http.Request) bool {
+	providers := r.URL.Query()["provider"]
+	return len(providers) == 1 && providers[0] == "google"
+}
+
+// Scopes describe browser permissions. Account/subscription expiry does not
+// gate scope issuance in the Google sign-in project.
+func requestedBrowserScope(query url.Values) (string, bool) {
+	values := query["scope"]
+	if len(values) != 1 {
+		return "", false
+	}
+	seen := make(map[string]bool)
+	var scopes []string
+	for _, scope := range strings.Split(values[0], " ") {
+		if scope == "" {
+			continue
+		}
+		if scope != "account" && scope != "monitor" {
+			return "", false
+		}
+		if !seen[scope] {
+			seen[scope] = true
+			scopes = append(scopes, scope)
+		}
+	}
+	return strings.Join(scopes, " "), len(scopes) > 0
+}
+
+func (handlers *Handlers) startGoogle(w http.ResponseWriter, r *http.Request) {
 	auth := handlers.Google
 	if auth == nil {
 		authError(w, "google_unavailable", http.StatusServiceUnavailable)
@@ -110,6 +152,11 @@ func (handlers *Handlers) StartGoogle(w http.ResponseWriter, r *http.Request) {
 	intent, state, challenge := q.Get("intent"), q.Get("state"), q.Get("code_challenge")
 	if (intent != "login" && intent != "signup") || !pkceChallengePattern.MatchString(state) || !pkceChallengePattern.MatchString(challenge) || q.Get("code_challenge_method") != "S256" || q.Get("client_id") != browserClientID || q.Get("redirect_uri") != auth.RedirectURI {
 		authError(w, "invalid_request", http.StatusBadRequest)
+		return
+	}
+	scope, ok := requestedBrowserScope(q)
+	if !ok {
+		authError(w, "invalid_scope", http.StatusBadRequest)
 		return
 	}
 	transactionState, err := randomSecret()
@@ -132,7 +179,7 @@ func (handlers *Handlers) StartGoogle(w http.ResponseWriter, r *http.Request) {
 		authError(w, "server_error", http.StatusInternalServerError)
 		return
 	}
-	transaction := googleTransaction{Intent: intent, FrontendState: state, Challenge: challenge, Nonce: nonce, UpstreamVerifier: verifier, Binding: binding, Expires: auth.now().Add(googleTransactionTTL)}
+	transaction := googleTransaction{Intent: intent, Scope: scope, FrontendState: state, Challenge: challenge, Nonce: nonce, UpstreamVerifier: verifier, Binding: binding, Expires: auth.now().Add(googleTransactionTTL)}
 	auth.mutex.Lock()
 	auth.cleanup()
 	if len(auth.transactions) >= maxPendingGoogleEntries {
@@ -263,21 +310,21 @@ func (handlers *Handlers) GoogleCallback(w http.ResponseWriter, r *http.Request)
 		auth.redirect(w, r, transaction, "", "temporarily_unavailable")
 		return
 	}
-	auth.codes[code] = authorizationCode{AccountID: account.ID, Challenge: transaction.Challenge, Expires: auth.now().Add(authorizationCodeTTL)}
+	auth.codes[code] = authorizationCode{AccountID: account.ID, Scope: transaction.Scope, Challenge: transaction.Challenge, Expires: auth.now().Add(authorizationCodeTTL)}
 	auth.mutex.Unlock()
 	auth.redirect(w, r, transaction, code, "")
 }
 
-func (auth *GoogleAuth) redeem(code, verifier, clientID, redirectURI string) (string, bool) {
+func (auth *GoogleAuth) redeem(code, verifier, clientID, redirectURI string) (authorizationCode, bool) {
 	auth.mutex.Lock()
 	defer auth.mutex.Unlock()
 	auth.cleanup()
 	entry, ok := auth.codes[code]
 	if !ok || clientID != browserClientID || redirectURI != auth.RedirectURI || !pkceVerifierPattern.MatchString(verifier) || subtle.ConstantTimeCompare([]byte(entry.Challenge), []byte(challengeFor(verifier))) != 1 {
-		return "", false
+		return authorizationCode{}, false
 	}
 	delete(auth.codes, code)
-	return entry.AccountID, true
+	return entry, true
 }
 
 func (handlers *Handlers) GetTokenUsingAuthorizationCode(w http.ResponseWriter, r *http.Request) {
@@ -299,31 +346,31 @@ func (handlers *Handlers) GetTokenUsingAuthorizationCode(w http.ResponseWriter, 
 		authError(w, "invalid_request", http.StatusBadRequest)
 		return
 	}
-	accountID, ok := handlers.Google.redeem(r.PostForm.Get("code"), r.PostForm.Get("code_verifier"), r.PostForm.Get("client_id"), r.PostForm.Get("redirect_uri"))
+	grant, ok := handlers.Google.redeem(r.PostForm.Get("code"), r.PostForm.Get("code_verifier"), r.PostForm.Get("client_id"), r.PostForm.Get("redirect_uri"))
 	if !ok {
 		authError(w, "invalid_grant", http.StatusBadRequest)
 		return
 	}
-	account, err := handlers.AccountStore.Get(r.Context(), accountID)
+	account, err := handlers.AccountStore.Get(r.Context(), grant.AccountID)
 	if err != nil {
 		authError(w, "invalid_grant", http.StatusBadRequest)
 		return
 	}
-	http.SetCookie(w, handlers.createRefreshTokenCookie(account))
+	http.SetCookie(w, handlers.createRefreshTokenCookie(account, grant.Scope))
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(AccessTokenOutput{TokenType: "Bearer", AccessToken: handlers.createAccessToken(account), ExpiresIn: int(handlers.AccessTokenDuration.Seconds())})
+	json.NewEncoder(w).Encode(AccessTokenOutput{TokenType: "Bearer", AccessToken: handlers.createAccessToken(account, grant.Scope), ExpiresIn: int(handlers.AccessTokenDuration.Seconds())})
 }
 
 // Optional configuration: partial configuration fails startup rather than
 // presenting a login button that cannot complete.
 func GoogleAuthFromEnvironment(getenv func(string) string) (*GoogleAuth, error) {
 	clientID, secret := getenv("GOOGLE_CLIENT_ID"), getenv("GOOGLE_CLIENT_SECRET")
-	callback, frontend := getenv("GOOGLE_CALLBACK_URL"), getenv("GOOGLE_FRONTEND_URL")
+	callback, frontend := getenv("GOOGLE_CALLBACK_URL"), getenv("FRONTEND_AUTH_REDIRECT")
 	if clientID == "" && secret == "" && callback == "" && frontend == "" {
 		return nil, nil
 	}
 	if clientID == "" || secret == "" || callback == "" || frontend == "" {
-		return nil, errors.New("Google authentication requires GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_CALLBACK_URL and GOOGLE_FRONTEND_URL")
+		return nil, errors.New("Google authentication requires GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_CALLBACK_URL and FRONTEND_AUTH_REDIRECT")
 	}
 	u, err := url.Parse(callback)
 	if err != nil || u.Scheme != "https" || u.Host == "" || u.User != nil || u.Path != googleCallbackPath || u.RawQuery != "" || u.Fragment != "" || strings.Contains(u.Host, " ") {

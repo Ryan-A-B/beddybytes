@@ -8,6 +8,7 @@
     "build": "tsc",
     "watch": "tsc -w",
     "test": "jest",
+    "test:bundles": "ts-node test/secrets-bundle.test.ts",
     "cdk": "cdk",
     "deploy:core": "cdk deploy beddybytes-core"
   },

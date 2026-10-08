@@ -50,8 +50,8 @@ func (handlers *Handlers) AddRoutes(router *mux.Router) {
 	router.HandleFunc("/accounts", handlers.CreateAccount).Methods(http.MethodPost).Name("CreateAccount")
 	router.HandleFunc("/request-password-reset", handlers.RequestPasswordReset).Methods(http.MethodPost).Name("RequestPasswordReset")
 	router.HandleFunc("/reset-password", handlers.ResetPassword).Methods(http.MethodPost).Name("ResetPassword")
-	router.HandleFunc("/auth/google/config", handlers.GoogleConfig).Methods(http.MethodGet)
-	router.HandleFunc("/auth/google/start", handlers.StartGoogle).Methods(http.MethodGet)
+	router.HandleFunc("/auth/config", handlers.AuthConfig).Methods(http.MethodGet)
+	router.HandleFunc("/auth/start", handlers.StartAuth).Methods(http.MethodGet)
 	router.HandleFunc("/auth/google/callback", handlers.GoogleCallback).Methods(http.MethodGet)
 	authenticatedRouter := router.PathPrefix("/accounts/{account_id}").Subrouter()
 	authenticatedRouter.Use(internal.NewAuthorizationMiddleware(handlers.Key).Middleware)
@@ -345,10 +345,10 @@ func (handlers *Handlers) GetTokenUsingRefreshTokenGrant(responseWriter http.Res
 	}
 	output := AccessTokenOutput{
 		TokenType:   "Bearer",
-		AccessToken: handlers.createAccessToken(account),
+		AccessToken: handlers.createAccessToken(account, claims.AccessScope),
 		ExpiresIn:   int(handlers.AccessTokenDuration.Seconds()),
 	}
-	http.SetCookie(responseWriter, handlers.createRefreshTokenCookie(account))
+	http.SetCookie(responseWriter, handlers.createRefreshTokenCookie(account, claims.AccessScope))
 	responseWriter.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(responseWriter).Encode(output)
 }
@@ -433,7 +433,7 @@ func (handlers *Handlers) createAnonymousAccessToken(remoteAddress string, scope
 	return
 }
 
-func (handlers *Handlers) createAccessToken(account *Account) (accessToken string) {
+func (handlers *Handlers) createAccessToken(account *Account, scopes ...string) (accessToken string) {
 	expiry := time.Now().Add(handlers.AccessTokenDuration)
 	claims := internal.Claims{
 		Issuer:   "beddybytes",
@@ -446,13 +446,14 @@ func (handlers *Handlers) createAccessToken(account *Account) (accessToken strin
 			ResourceID:   account.User.ID,
 		},
 		Expiry: expiry.Unix(),
+		Scope:  strings.Join(scopes, " "),
 	}
 	accessToken, err := jwt.NewWithClaims(handlers.SigningMethod, &claims).SignedString(handlers.Key)
 	fatal.OnError(err)
 	return
 }
 
-func (handlers *Handlers) createRefreshToken(account *Account) (refreshToken string) {
+func (handlers *Handlers) createRefreshToken(account *Account, scopes ...string) (refreshToken string) {
 	expiry := time.Now().Add(handlers.RefreshTokenDuration)
 	claims := internal.Claims{
 		ID:       uuid.NewV4().String(),
@@ -465,18 +466,19 @@ func (handlers *Handlers) createRefreshToken(account *Account) (refreshToken str
 			ResourceType: "user",
 			ResourceID:   account.User.ID,
 		},
-		Expiry: expiry.Unix(),
-		Scope:  "refresh_token",
+		Expiry:      expiry.Unix(),
+		Scope:       "refresh_token",
+		AccessScope: strings.Join(scopes, " "),
 	}
 	refreshToken, err := jwt.NewWithClaims(handlers.SigningMethod, &claims).SignedString(handlers.Key)
 	fatal.OnError(err)
 	return
 }
 
-func (handlers *Handlers) createRefreshTokenCookie(account *Account) *http.Cookie {
+func (handlers *Handlers) createRefreshTokenCookie(account *Account, scopes ...string) *http.Cookie {
 	return &http.Cookie{
 		Name:     "refresh_token",
-		Value:    handlers.createRefreshToken(account),
+		Value:    handlers.createRefreshToken(account, scopes...),
 		Domain:   handlers.CookieDomain,
 		Path:     "/token",
 		HttpOnly: true,

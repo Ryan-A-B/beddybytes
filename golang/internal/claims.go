@@ -8,12 +8,13 @@ import (
 )
 
 type Claims struct {
-	ID       string `json:"jti,omitempty"`
-	Issuer   string `json:"iss,omitempty"`
-	Audience string `json:"aud,omitempty"`
-	Subject  URN    `json:"sub,omitempty"`
-	Expiry   int64  `json:"exp,omitempty"`
-	Scope    string `json:"scp,omitempty"`
+	ID          string `json:"jti,omitempty"`
+	Issuer      string `json:"iss,omitempty"`
+	Audience    string `json:"aud,omitempty"`
+	Subject     URN    `json:"sub,omitempty"`
+	Expiry      int64  `json:"exp,omitempty"`
+	Scope       string `json:"scp,omitempty"`
+	AccessScope string `json:"access_scope,omitempty"`
 }
 
 func (claims *Claims) Valid() (err error) {

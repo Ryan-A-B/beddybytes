@@ -37,37 +37,73 @@ Backend runtime settings:
 GOOGLE_CLIENT_ID=<Google web client ID>
 GOOGLE_CLIENT_SECRET=<Google web client secret>
 GOOGLE_CALLBACK_URL=https://api.beddybytes.com/auth/google/callback
-GOOGLE_FRONTEND_URL=https://app.beddybytes.com
+FRONTEND_AUTH_REDIRECT=https://app.beddybytes.com/auth/callback
 ```
 
-`GOOGLE_FRONTEND_URL` must be an HTTPS origin. BeddyBytes derives the only allowed
-frontend return URL as `/auth/google/complete` on that origin. Leaving all four
+`FRONTEND_AUTH_REDIRECT` is the full HTTPS frontend callback URL shared by all
+authentication providers. It must not contain credentials, query parameters, or
+a fragment. The backend uses this exact URL for the redirect and code exchange;
+it does not append a provider-specific path. Leaving all four
 settings empty disables Google and hides its buttons. Partial configuration
 fails startup. Store local settings in the encrypted local SOPS environment.
 Google does not accept `.local` callback domains; use QA or registered public
 HTTPS development hosts with the configured frontend origin and API routing.
 
-For ECS deployments, create an AWS Secrets Manager secret whose entire secret
-string is the Google client secret. Add these optional entries to the encrypted
-backend deployment environment, independently per environment:
+For ECS deployments, the secrets stack defines two JSON bundles:
+`beddybytes-secrets-backend-qa` and `beddybytes-secrets-backend-prod`.
+Their initial values are empty placeholders. Populate them manually in Secrets
+Manager before deploying either backend:
 
-```text
-GOOGLE_CLIENT_ID_QA=<Google web client ID>
-GOOGLE_CLIENT_SECRET_ARN_QA=<complete Secrets Manager ARN>
-GOOGLE_CLIENT_ID_PROD=<Google web client ID>
-GOOGLE_CLIENT_SECRET_ARN_PROD=<complete Secrets Manager ARN>
+```json
+{
+  "ENCRYPTION_KEY": "existing-signing-key-value",
+  "GOOGLE_CLIENT_ID": "environment-google-client-id",
+  "GOOGLE_CLIENT_SECRET": "environment-google-client-secret"
+}
 ```
 
-CDK supplies the callback/frontend URLs from its environment host names and
-injects the secret through ECS Secrets Manager integration. It does not put the
-client secret in a plaintext task environment or frontend build. Existing
-deployments without these optional entries keep password authentication.
+Use the exact existing signing-key value for `ENCRYPTION_KEY` during migration.
+Google authentication is always configured in both environment stacks. Populate
+both Google fields with the environment's own client credentials before deploying
+its backend. Production needs its separate OAuth client before deployment.
+
+ECS injects individual JSON fields as environment variables. CDK supplies the
+callback/frontend URLs from the environment host names; neither Google credential
+is in the plaintext task environment or frontend build. The earlier
+`GOOGLE_CLIENT_ID_QA/PROD` and `GOOGLE_CLIENT_SECRET_ARN_QA/PROD` deployment inputs
+are no longer used. Local Compose configuration is unchanged.
+
+## Bundle migration order
+
+1. Deploy only `beddybytes-secrets` to create the bundles. Leave the old
+   `beddybytes-secrets-signing-key` secret intact.
+2. Populate each bundle manually, preserving the existing signing key.
+3. Build and publish the updated MQTT authorizer using `scripts/lambda/build.sh`
+   and `scripts/lambda/push.sh`, then set `iot_authorizer_sha` in each backend
+   definition to the published ZIP hash if it differs from the checked-in hash.
+   The checked-in hash identifies the locally built bundle-aware ZIP, which still
+   needs uploading before either backend stack is deployed.
+4. Publish/select the Google-aware backend image and deploy QA. Verify login,
+   existing sessions, and MQTT. Deploy production separately when its bundle and
+   Google OAuth client are ready.
+5. Remove the old signing-key resource and secret only after both environments
+   and all consumers have migrated. Its CloudFormation export may need to remain
+   during the staged migration until neither deployed backend imports it.
+
+The MQTT authorizer fetches the bundle ARN from `SIGNING_KEY_SECRET_ARN` and
+extracts `SIGNING_KEY_SECRET_JSON_FIELD=ENCRYPTION_KEY`. Without that field setting,
+the updated authorizer still supports the old raw signing-key secret. ECS tasks
+must restart to pick up manual secret edits. The bundles use a retain policy;
+removing their CloudFormation resources does not delete their values.
 
 ## Code exchange
 
 1. Frontend saves an S256 PKCE verifier and correlation state in per-tab session
-   storage and starts `/auth/google/start` with `intent=login` or `intent=signup`,
-   the challenge, public client ID, and exact frontend completion URI.
+   storage and starts `/auth/start` with `provider=google`, `intent=login` or `intent=signup`,
+   `scope=account monitor`, the challenge, public client ID, and exact frontend completion URI.
+   The backend accepts the supported `account` and `monitor` scopes, rejects
+   unknown or missing scopes, and retains them through the transaction and code.
+   These are BeddyBytes scopes; Google still receives only `openid email`.
 2. Backend saves that intent, uses separate upstream state/nonce/PKCE values,
    and binds the Google callback to a host-only HttpOnly/Secure/Lax cookie.
 3. Backend exchanges Google's code, verifies its signed ID token, issuer,
@@ -80,9 +116,20 @@ deployments without these optional entries keep password authentication.
    `grant_type=authorization_code`, `code`, `code_verifier`, `client_id`, and
    `redirect_uri` to `/token` with credentials included. The backend requires
    the registered frontend Origin and exact client/redirect match.
-6. The access token is returned in the existing JSON format. The refresh token
+6. The shared frontend `/auth/callback` handles the BeddyBytes code independently
+   of the selected provider. The provider is supplied only on the initial backend
+   start request, not on callback completion or the `/token` request.
+7. The access token is returned in the existing JSON format. The refresh token
    is set in the existing HttpOnly cookie. The frontend loads and caches the
    current account before enabling stations and MQTT.
+
+The access token carries the granted scopes in its existing `scp` claim. Scope
+issuance does not check account, trial, or subscription expiry; access tokens
+still have their normal expiration. The refresh cookie retains the granted
+access scopes so subsequent token refreshes and cookie rotations preserve them.
+Legacy password and refresh tokens without access scopes keep their existing
+behavior. Refresh-token delivery headers, new browser token endpoints, custom
+cookie grants, and Android token changes are deferred outside this project.
 
 The frontend deduplicates completion under React StrictMode. Completion failures
 require starting a new sign-in; a consumed code is not retried. Callback URLs

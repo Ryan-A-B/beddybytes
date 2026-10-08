@@ -14,7 +14,7 @@ import (
 
 func TestLegacyAndGoogleReplayResetAndDurableDeletion(t *testing.T) {
 	ctx := context.Background()
-	handlers, router, _, log := googleTestHandlers(t)
+	handlers, router, provider, log := googleTestHandlers(t)
 	legacy := &Account{ID: "legacy-account", User: NewUser(&NewUserInput{Email: "same@example.com", Password: "original-long-password"})}
 	data, _ := json.Marshal(legacy)
 	event, _ := log.Append(ctx, eventlog.AppendInput{Type: EventTypeAccountCreated, Data: data})
@@ -24,7 +24,10 @@ func TestLegacyAndGoogleReplayResetAndDurableDeletion(t *testing.T) {
 	w := exchangeBeddybytes(router, code, flow.verifier)
 	var token AccessTokenOutput
 	json.Unmarshal(w.Body.Bytes(), &token)
-	googleAccount, _ := handlers.AccountStore.GetByIdentity(ctx, GoogleIssuer, "google-subject")
+	googleAccount, err := handlers.AccountStore.GetByIdentity(ctx, provider.identity.Issuer, provider.identity.Subject)
+	if err != nil {
+		t.Fatal(err)
+	}
 	reset := PasswordResetData{Email: legacy.User.PasswordCredentials.Email, PasswordSalt: []byte("salt"), PasswordHash: []byte("new-password-hash")}
 	data, _ = json.Marshal(reset)
 	event, _ = log.Append(ctx, eventlog.AppendInput{Type: EventTypeAccountPasswordReset, Data: data})
@@ -43,7 +46,7 @@ func TestLegacyAndGoogleReplayResetAndDurableDeletion(t *testing.T) {
 	for _, event := range log.events {
 		replayed.ApplyEvent(ctx, event)
 	}
-	if _, err := replayed.AccountStore.GetByIdentity(ctx, GoogleIssuer, "google-subject"); merry.HTTPCode(err) != 404 {
+	if _, err := replayed.AccountStore.GetByIdentity(ctx, provider.identity.Issuer, provider.identity.Subject); merry.HTTPCode(err) != 404 {
 		t.Fatal("deleted Google identity resurrected")
 	}
 	account, err := replayed.AccountStore.GetByEmail(ctx, "same@example.com")

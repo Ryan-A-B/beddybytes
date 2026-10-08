@@ -2,15 +2,16 @@ import settings from '../../settings';
 import { Account } from './Account';
 import { TokenOutput } from './AuthorizationClient';
 
-export type GoogleIntent = 'login' | 'signup';
-const TransactionKey = 'google-auth-transaction';
+export type AuthIntent = 'login' | 'signup';
+export type AuthProvider = 'google';
+const TransactionKey = 'auth-transaction';
 const ClientID = 'beddybytes-browser';
-export const GoogleCompletionPath = '/auth/google/complete';
+export const AuthCallbackPath = '/auth/callback';
 
 interface Transaction {
     state: string;
     verifier: string;
-    intent: GoogleIntent;
+    intent: AuthIntent;
     redirect_uri: string;
     return_to: string;
     created: number;
@@ -21,66 +22,68 @@ const base64url = (bytes: Uint8Array): string =>
 
 const randomSecret = (): string => base64url(window.crypto.getRandomValues(new Uint8Array(32)));
 
-let availability: Promise<boolean> | undefined;
-export const googleAvailable = (): Promise<boolean> => {
-    if (!availability) {
-        availability = fetch(`https://${settings.API.host}/auth/google/config`)
+const availability = new Map<AuthProvider, Promise<boolean>>();
+export const providerAvailable = (provider: AuthProvider): Promise<boolean> => {
+    let result = availability.get(provider);
+    if (!result) {
+        result = fetch(`https://${settings.API.host}/auth/config?${new URLSearchParams({ provider })}`)
             .then(async response => response.ok && (await response.json()).enabled === true)
             .catch(() => false);
+        availability.set(provider, result);
     }
-    return availability;
+    return result;
 };
 
-export const createGoogleStartURL = async (intent: GoogleIntent): Promise<string> => {
+export const createAuthStartURL = async (provider: AuthProvider, intent: AuthIntent): Promise<string> => {
     const verifier = randomSecret();
     const challenge = base64url(new Uint8Array(await window.crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier))));
     const state = randomSecret();
-    const redirect_uri = window.location.origin + GoogleCompletionPath;
+    const redirect_uri = window.location.origin + AuthCallbackPath;
     const return_to = ['/', '/baby', '/parent'].includes(window.location.pathname) ? window.location.pathname : '/';
     const transaction: Transaction = { state, verifier, intent, redirect_uri, return_to, created: Date.now() };
     sessionStorage.setItem(TransactionKey, JSON.stringify(transaction));
-    const url = new URL(`https://${settings.API.host}/auth/google/start`);
+    const url = new URL(`https://${settings.API.host}/auth/start`);
     url.search = new URLSearchParams({
-        intent, state, client_id: ClientID, redirect_uri,
+        provider, intent, scope: 'account monitor', state, client_id: ClientID, redirect_uri,
         code_challenge: challenge, code_challenge_method: 'S256',
     }).toString();
     return url.toString();
 };
 
-export const startGoogle = async (intent: GoogleIntent): Promise<void> => {
-    window.location.assign(await createGoogleStartURL(intent));
+export const startAuth = async (provider: AuthProvider, intent: AuthIntent): Promise<void> => {
+    window.location.assign(await createAuthStartURL(provider, intent));
 };
 
 // Capture and remove the code during module initialization, before services
 // log page URLs or React renders. The promise below survives StrictMode effects.
 const callback = (() => {
-    if (window.location.pathname !== GoogleCompletionPath) return null;
+    if (window.location.pathname !== AuthCallbackPath) return null;
     const params = new URLSearchParams(window.location.search);
     const result = { code: params.get('code'), state: params.get('state'), error: params.get('error') };
-    window.history.replaceState(window.history.state, '', GoogleCompletionPath);
+    window.history.replaceState(window.history.state, '', AuthCallbackPath);
     return result;
 })();
 
 const errorMessages: Record<string, string> = {
-    account_not_found: 'No BeddyBytes account is registered with this Google account. Create an account to get started.',
-    account_already_exists: 'This Google account is already registered. Sign in instead.',
-    access_denied: 'Google sign-in was cancelled. You can try again.',
-    authentication_failed: 'Google authentication could not be completed. Please try again.',
+    account_not_found: 'No BeddyBytes account is registered with this identity. Create an account to get started.',
+    account_already_exists: 'This identity is already registered. Sign in instead.',
+    access_denied: 'Sign-in was cancelled. You can try again.',
+    authentication_failed: 'Authentication could not be completed. Please try again.',
 };
 
-export interface GoogleCompletion {
+export interface AuthCallback {
     token: TokenOutput;
     account: Account;
     return_to: string;
 }
 
-let completion: Promise<GoogleCompletion> | undefined;
-export const completeGoogle = (): Promise<GoogleCompletion> => {
-    if (!completion) completion = exchangeGoogleCode();
+let completion: Promise<AuthCallback> | undefined;
+export const completeAuth = (): Promise<AuthCallback> => {
+    if (!completion) completion = exchangeAuthCode();
     return completion;
 };
 
-const exchangeGoogleCode = async (): Promise<GoogleCompletion> => {
+const exchangeAuthCode = async (): Promise<AuthCallback> => {
     const saved = sessionStorage.getItem(TransactionKey);
     sessionStorage.removeItem(TransactionKey);
     let transaction: Transaction;
@@ -91,11 +94,11 @@ const exchangeGoogleCode = async (): Promise<GoogleCompletion> => {
     }
     if (!callback || !transaction || !callback.state || callback.state !== transaction.state ||
         !Number.isFinite(transaction.created) || Date.now() - transaction.created > 10 * 60 * 1000 || transaction.created > Date.now() ||
-        transaction.redirect_uri !== window.location.origin + GoogleCompletionPath || !/^[A-Za-z0-9_-]{43}$/.test(transaction.verifier)) {
+        transaction.redirect_uri !== window.location.origin + AuthCallbackPath || !/^[A-Za-z0-9_-]{43}$/.test(transaction.verifier)) {
         throw new Error('Your sign-in attempt could not be verified. Please start again.');
     }
     if (callback.error) {
-        throw new Error(errorMessages[callback.error] || 'Google authentication could not be completed. Please try again.');
+        throw new Error(errorMessages[callback.error] || 'Authentication could not be completed. Please try again.');
     }
     if (!callback.code) throw new Error('Your sign-in attempt could not be completed. Please start again.');
     const response = await fetch(`https://${settings.API.host}/token`, {

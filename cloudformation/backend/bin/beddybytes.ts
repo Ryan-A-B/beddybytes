@@ -35,9 +35,9 @@ new BackendStack(app, 'beddybytes-backend-prod', {
   deploy_env: 'prod',
   docker_repository: ci_stack.docker_repository,
   docker_image_digest: 'sha256:a0cb92e4c302916898db2abb1f4bb5500f0fc3db8f3853a93b1b5d07063eff42',
-  iot_authorizer_sha: 'd02e1ad2414b6a1f29406a5a8bd8d3257af535593da74e4db76b2671347abdb6',
+  iot_authorizer_sha: '80e63fc0a8b34761e6850b1713e87db2e22a902281c4bffe6b749fe8fe6984bd',
   cluster: core_stack.cluster,
-  signing_key: secrets_stack.signing_key,
+  secrets_bundle: secrets_stack.backend_bundles.prod,
   elastic_ip: core_stack.elastic_ip,
   bucket: core_stack.bucket,
 });
@@ -46,9 +46,9 @@ new BackendStack(app, 'beddybytes-backend-qa', {
   deploy_env: 'qa',
   docker_repository: ci_stack.docker_repository,
   docker_image_digest: 'sha256:a0cb92e4c302916898db2abb1f4bb5500f0fc3db8f3853a93b1b5d07063eff42',
-  iot_authorizer_sha: 'd02e1ad2414b6a1f29406a5a8bd8d3257af535593da74e4db76b2671347abdb6',
+  iot_authorizer_sha: '80e63fc0a8b34761e6850b1713e87db2e22a902281c4bffe6b749fe8fe6984bd',
   cluster: core_stack.cluster,
-  signing_key: secrets_stack.signing_key,
+  secrets_bundle: secrets_stack.backend_bundles.qa,
   elastic_ip: core_stack.elastic_ip,
   bucket: core_stack.bucket,
 });
