@@ -93,7 +93,7 @@ services:
       - "traefik.http.routers.mosquitto.tls=true"
   app:
     image: node:18
-    command: sh -c "yarn install --frozen-lockfile --non-interactive && yarn start"
+    command: yarn start
     restart: always
     ports:
       - 3000
@@ -110,7 +110,7 @@ services:
       - "traefik.http.routers.app.tls=true"
   marketing:
     image: node:18
-    command: sh -c "npm ci && npm run develop"
+    command: npm run develop
     restart: always
     ports:
       - 8000
