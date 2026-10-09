@@ -50,7 +50,6 @@ func (handlers *Handlers) AddRoutes(router *mux.Router) {
 	router.HandleFunc("/accounts", handlers.CreateAccount).Methods(http.MethodPost).Name("CreateAccount")
 	router.HandleFunc("/request-password-reset", handlers.RequestPasswordReset).Methods(http.MethodPost).Name("RequestPasswordReset")
 	router.HandleFunc("/reset-password", handlers.ResetPassword).Methods(http.MethodPost).Name("ResetPassword")
-	router.HandleFunc("/auth/config", handlers.AuthConfig).Methods(http.MethodGet)
 	router.HandleFunc("/auth/start", handlers.StartAuth).Methods(http.MethodGet)
 	router.HandleFunc(googleCallbackPath, handlers.GoogleCallback).Methods(http.MethodGet)
 	authenticatedRouter := router.PathPrefix("/accounts/{account_id}").Subrouter()

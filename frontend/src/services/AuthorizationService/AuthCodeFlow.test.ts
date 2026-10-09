@@ -37,15 +37,7 @@ test.each(['login', 'signup'] as const)('starts explicit %s with S256 and per-ta
     expect(url.searchParams.get('code_challenge')).toBe(createHash('sha256').update(saved.verifier).digest('base64url'));
     expect(url.searchParams.has('code_verifier')).toBe(false);
     expect(saved.return_to).toBe('/baby');
-});
-
-test('checks the selected provider availability on the backend', async () => {
-    (fetch as jest.Mock).mockResolvedValue({ ok: true, json: async () => ({ enabled: true }) });
-    const flow = require('./AuthCodeFlow') as typeof import('./AuthCodeFlow');
-    await expect(flow.providerAvailable('google')).resolves.toBe(true);
-    await expect(flow.providerAvailable('google')).resolves.toBe(true);
-    expect(fetch).toHaveBeenCalledTimes(1);
-    expect(fetch).toHaveBeenCalledWith('https://api.example.com/auth/config?provider=google');
+    expect(fetch).not.toHaveBeenCalled();
 });
 
 test('exchanges once, strips URL, and fetches account before completion', async () => {

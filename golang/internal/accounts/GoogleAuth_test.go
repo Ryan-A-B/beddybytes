@@ -360,7 +360,7 @@ func TestGoogleConfigurationAndStartValidation(t *testing.T) {
 	}); err == nil {
 		t.Fatal("partial config accepted")
 	}
-	handlers, router, _, _ := googleTestHandlers(t)
+	_, router, _, _ := googleTestHandlers(t)
 	for _, query := range []string{"provider=google&intent=link", "provider=google&intent=login&redirect_uri=https://evil.example", "provider=google&intent=signup&code_challenge_method=plain"} {
 		w := httptest.NewRecorder()
 		router.ServeHTTP(w, httptest.NewRequest("GET", "/auth/start?"+query, nil))
@@ -381,32 +381,19 @@ func TestGoogleConfigurationAndStartValidation(t *testing.T) {
 	if exchangeBeddybytes(router, code, flow.verifier).Code != 200 {
 		t.Fatal("bad origin consumed code")
 	}
-	handlers.Google = nil
-	w = httptest.NewRecorder()
-	router.ServeHTTP(w, httptest.NewRequest("GET", "/auth/config?provider=google", nil))
-	if !strings.Contains(w.Body.String(), `"enabled":false`) {
-		t.Fatal("disabled Google advertised")
-	}
 }
 
 func TestAuthProviderSelection(t *testing.T) {
 	handlers, router, _, _ := googleTestHandlers(t)
 	for _, query := range []string{"", "provider=", "provider=unknown", "provider=https://evil.example", "provider=google&provider=unknown", "provider=google&provider=google"} {
-		for _, endpoint := range []string{"/auth/start", "/auth/config"} {
-			w := httptest.NewRecorder()
-			router.ServeHTTP(w, httptest.NewRequest("GET", endpoint+"?"+query, nil))
-			if w.Code != http.StatusBadRequest || len(w.Result().Cookies()) != 0 || w.Header().Get("Location") != "" {
-				t.Fatalf("invalid provider accepted at %s", endpoint)
-			}
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, httptest.NewRequest("GET", "/auth/start?"+query, nil))
+		if w.Code != http.StatusBadRequest || len(w.Result().Cookies()) != 0 || w.Header().Get("Location") != "" {
+			t.Fatal("invalid provider accepted")
 		}
 	}
-	w := httptest.NewRecorder()
-	router.ServeHTTP(w, httptest.NewRequest("GET", "/auth/config?provider=google", nil))
-	if w.Code != http.StatusOK || !strings.Contains(w.Body.String(), `"enabled":true`) {
-		t.Fatal("configured provider not advertised")
-	}
 	handlers.Google = nil
-	w = httptest.NewRecorder()
+	w := httptest.NewRecorder()
 	router.ServeHTTP(w, httptest.NewRequest("GET", "/auth/start?provider=google", nil))
 	if w.Code != http.StatusServiceUnavailable {
 		t.Fatal("unconfigured provider accepted")

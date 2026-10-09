@@ -22,18 +22,6 @@ const base64url = (bytes: Uint8Array): string =>
 
 const randomSecret = (): string => base64url(window.crypto.getRandomValues(new Uint8Array(32)));
 
-const availability = new Map<AuthProvider, Promise<boolean>>();
-export const providerAvailable = (provider: AuthProvider): Promise<boolean> => {
-    let result = availability.get(provider);
-    if (!result) {
-        result = fetch(`https://${settings.API.host}/auth/config?${new URLSearchParams({ provider })}`)
-            .then(async response => response.ok && (await response.json()).enabled === true)
-            .catch(() => false);
-        availability.set(provider, result);
-    }
-    return result;
-};
-
 export const createAuthStartURL = async (provider: AuthProvider, intent: AuthIntent): Promise<string> => {
     const verifier = randomSecret();
     const challenge = base64url(new Uint8Array(await window.crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier))));

@@ -1,18 +1,11 @@
 import React from 'react';
-import { providerAvailable, AuthIntent, startAuth } from '../../services/AuthorizationService/AuthCodeFlow';
+import { AuthIntent, startAuth } from '../../services/AuthorizationService/AuthCodeFlow';
 import googleSigninDark from './GoogleSigninDark.svg';
 import './GoogleButton.css';
 
 const GoogleButton: React.FC<{ intent: AuthIntent }> = ({ intent }) => {
-    const [available, setAvailable] = React.useState(false);
     const [busy, setBusy] = React.useState(false);
     const [error, setError] = React.useState<string | null>(null);
-    React.useEffect(() => {
-        let mounted = true;
-        providerAvailable('google').then(enabled => { if (mounted) setAvailable(enabled); });
-        return () => { mounted = false; };
-    }, []);
-    if (!available) return null;
     const start = () => {
         setBusy(true);
         setError(null);

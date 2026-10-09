@@ -91,18 +91,6 @@ func authError(w http.ResponseWriter, code string, status int) {
 	httpx.Error(w, httpx.ErrorWithCode(merry.New(code).WithHTTPCode(status).WithUserMessage(code), code))
 }
 
-func (handlers *Handlers) AuthConfig(w http.ResponseWriter, r *http.Request) {
-	if !googleProviderSelected(r) {
-		authError(w, "invalid_provider", http.StatusBadRequest)
-		return
-	}
-	w.Header().Set("Cache-Control", "no-store")
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(struct {
-		Enabled bool `json:"enabled"`
-	}{handlers.Google != nil})
-}
-
 // Only the initial request selects a provider. Completion and token redemption
 // use the backend-issued code and do not require a provider from the browser.
 func (handlers *Handlers) StartAuth(w http.ResponseWriter, r *http.Request) {
