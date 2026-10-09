@@ -11,8 +11,6 @@ const AuthCallback: React.FC = () => {
     const [error, setError] = React.useState<string | null>(null);
     React.useEffect(() => {
         let mounted = true;
-
-
         completeAuth().then(result => {
             if (!mounted) return;
             save_account_to_local_storage(result.account);
