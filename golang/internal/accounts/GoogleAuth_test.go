@@ -60,12 +60,26 @@ func (*recordedAccountLog) Wait(context.Context) <-chan struct{} { return make(c
 func googleTestHandlers(t *testing.T) (*Handlers, http.Handler, *fakeGoogleProvider, *recordedAccountLog) {
 	t.Helper()
 	provider := &fakeGoogleProvider{identity: GoogleIdentity{Issuer: GoogleIssuer, Subject: "opaque:Google/Subject+01", Email: "same@example.com"}}
-	auth, err := NewGoogleAuth(provider, "https://app.example.com/auth/callback")
+	auth, err := NewGoogleAuth(provider)
 	if err != nil {
 		t.Fatal(err)
 	}
 	log := &recordedAccountLog{}
-	handlers := &Handlers{Google: auth, AccountStore: &AccountStore{Store: store.NewMemoryStore()}, EventLog: log, Key: []byte("test-key"), SigningMethod: jwt.SigningMethodHS256, AccessTokenDuration: time.Hour, RefreshTokenDuration: time.Hour, UsedTokens: NewUsedTokens()}
+	handlers := &Handlers{
+		FrontendAuthorizationRedirectURL: url.URL{
+			Scheme: "https",
+			Host:   "app.example.com",
+			Path:   "/auth/callback",
+		},
+		Google:               auth,
+		AccountStore:         &AccountStore{Store: store.NewMemoryStore()},
+		EventLog:             log,
+		Key:                  []byte("test-key"),
+		SigningMethod:        jwt.SigningMethodHS256,
+		AccessTokenDuration:  time.Hour,
+		RefreshTokenDuration: time.Hour,
+		UsedTokens:           NewUsedTokens(),
+	}
 	router := mux.NewRouter()
 	handlers.AddRoutes(router)
 	return handlers, router, provider, log
@@ -106,7 +120,7 @@ func callbackGoogle(router http.Handler, flow startedGoogleFlow, extra string) *
 }
 func callbackValues(t *testing.T, w *httptest.ResponseRecorder) url.Values {
 	t.Helper()
-	if w.Code != http.StatusSeeOther {
+	if w.Code != http.StatusSeeOther && w.Code != http.StatusFound {
 		t.Fatalf("callback: %d %s", w.Code, w.Body.String())
 	}
 	u, err := url.Parse(w.Header().Get("Location"))
@@ -115,6 +129,9 @@ func callbackValues(t *testing.T, w *httptest.ResponseRecorder) url.Values {
 	}
 	if u.Scheme+"://"+u.Host+u.Path != "https://app.example.com/auth/callback" {
 		t.Fatal("unregistered redirect")
+	}
+	if (u.Query().Get("error") == "" && w.Code != http.StatusSeeOther) || (u.Query().Get("error") != "" && w.Code != http.StatusFound) {
+		t.Fatal("wrong success/failure redirect status")
 	}
 	return u.Query()
 }
@@ -184,7 +201,7 @@ func TestGoogleSignupLoginUsesOpaqueSubjectAndStoresEmail(t *testing.T) {
 	if loginParams.Get("code") == "" || len(log.events) != 1 {
 		t.Fatal("repeat login created an account")
 	}
-	grant, ok := handlers.Google.redeem(loginParams.Get("code"), loginFlow.verifier, browserClientID, handlers.Google.RedirectURI)
+	grant, ok := handlers.Google.redeem(loginParams.Get("code"), loginFlow.verifier, browserClientID)
 	if !ok || grant.AccountID != googleAccount.ID {
 		t.Fatal("opaque subject did not resolve the same Google identity")
 	}
@@ -255,11 +272,12 @@ func TestGoogleCallbackBindingExpiryAndCancellation(t *testing.T) {
 			w := httptest.NewRecorder()
 			router.ServeHTTP(w, r)
 			if mode == "cancel" || mode == "provider_failure" {
-				if callbackValues(t, w).Get("error") == "" || len(log.events) != 0 {
+				params := callbackValues(t, w)
+				if params.Get("error") == "" || params.Get("state") != flow.frontendState || params.Get("code") != "" || len(log.events) != 0 {
 					t.Fatal("failed authentication created account")
 				}
-			} else if w.Code != 400 {
-				t.Fatal("invalid callback accepted")
+			} else if params := callbackValues(t, w); params.Get("error") != string(AuthorizationErrorInvalidRequest) || params.Get("code") != "" || params.Get("state") != "" {
+				t.Fatal("invalid callback was not rejected without a bound frontend state")
 			}
 			if mode != "replay" && mode != "provider_failure" && provider.called.Load() != 0 {
 				t.Fatal("provider called before validating transaction")
@@ -269,19 +287,17 @@ func TestGoogleCallbackBindingExpiryAndCancellation(t *testing.T) {
 }
 
 func TestAuthorizationCodeBindingsExpiryAndAtomicConsumption(t *testing.T) {
-	for _, mode := range []string{"wrong_verifier", "wrong_client", "wrong_redirect", "expired", "concurrent"} {
+	for _, mode := range []string{"wrong_verifier", "wrong_client", "expired", "concurrent"} {
 		t.Run(mode, func(t *testing.T) {
 			handlers, router, _, _ := googleTestHandlers(t)
 			flow := beginGoogle(t, router, "signup")
 			code := callbackValues(t, callbackGoogle(router, flow, "")).Get("code")
-			verifier, client, redirect := flow.verifier, browserClientID, handlers.Google.RedirectURI
+			verifier, client := flow.verifier, browserClientID
 			switch mode {
 			case "wrong_verifier":
 				verifier, _ = randomSecret()
 			case "wrong_client":
 				client = "attacker"
-			case "wrong_redirect":
-				redirect += "?attacker=true"
 			case "expired":
 				handlers.Google.now = func() time.Time { return time.Now().Add(2 * time.Minute) }
 			case "concurrent":
@@ -291,7 +307,7 @@ func TestAuthorizationCodeBindingsExpiryAndAtomicConsumption(t *testing.T) {
 					wg.Add(1)
 					go func() {
 						defer wg.Done()
-						if _, ok := handlers.Google.redeem(code, verifier, client, redirect); ok {
+						if _, ok := handlers.Google.redeem(code, verifier, client); ok {
 							successes.Add(1)
 						}
 					}()
@@ -302,15 +318,37 @@ func TestAuthorizationCodeBindingsExpiryAndAtomicConsumption(t *testing.T) {
 				}
 				return
 			}
-			if _, ok := handlers.Google.redeem(code, verifier, client, redirect); ok {
+			if _, ok := handlers.Google.redeem(code, verifier, client); ok {
 				t.Fatal("invalid redemption accepted")
 			}
 			if mode != "expired" {
-				if _, ok := handlers.Google.redeem(code, flow.verifier, browserClientID, handlers.Google.RedirectURI); !ok {
+				if _, ok := handlers.Google.redeem(code, flow.verifier, browserClientID); !ok {
 					t.Fatal("invalid request consumed valid code")
 				}
 			}
 		})
+	}
+}
+
+func TestAuthorizationCodeRedirectBindingIsCheckedByHandlers(t *testing.T) {
+	_, router, _, _ := googleTestHandlers(t)
+	flow := beginGoogle(t, router, "signup")
+	code := callbackValues(t, callbackGoogle(router, flow, "")).Get("code")
+	for _, redirect := range []string{"", "https://evil.example/auth/callback", "https://app.example.com/auth/callback?attacker=true"} {
+		request := httptest.NewRequest(http.MethodPost, "/token", strings.NewReader(url.Values{
+			"grant_type": {"authorization_code"}, "code": {code}, "code_verifier": {flow.verifier},
+			"client_id": {browserClientID}, "redirect_uri": {redirect},
+		}.Encode()))
+		request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		request.Header.Set("Origin", "https://app.example.com")
+		response := httptest.NewRecorder()
+		router.ServeHTTP(response, request)
+		if response.Code != http.StatusBadRequest || response.Header().Get("Location") != "" || len(response.Result().Cookies()) != 0 || !strings.Contains(response.Header().Get("Content-Type"), "application/json") {
+			t.Fatal("invalid redirect did not return a JSON error without establishing a session")
+		}
+	}
+	if exchangeBeddybytes(router, code, flow.verifier).Code != http.StatusOK {
+		t.Fatal("invalid redirect consumed the valid authorization code")
 	}
 }
 
@@ -364,8 +402,8 @@ func TestGoogleConfigurationAndStartValidation(t *testing.T) {
 	for _, query := range []string{"provider=google&intent=link", "provider=google&intent=login&redirect_uri=https://evil.example", "provider=google&intent=signup&code_challenge_method=plain"} {
 		w := httptest.NewRecorder()
 		router.ServeHTTP(w, httptest.NewRequest("GET", "/auth/start?"+query, nil))
-		if w.Code != 400 {
-			t.Fatal("invalid start accepted")
+		if params := callbackValues(t, w); params.Get("error") != string(AuthorizationErrorInvalidRequest) || params.Get("code") != "" || len(w.Result().Cookies()) != 0 {
+			t.Fatal("invalid start created an authorization transaction")
 		}
 	}
 	flow := beginGoogle(t, router, "signup")
@@ -388,38 +426,15 @@ func TestAuthProviderSelection(t *testing.T) {
 	for _, query := range []string{"", "provider=", "provider=unknown", "provider=https://evil.example", "provider=google&provider=unknown", "provider=google&provider=google"} {
 		w := httptest.NewRecorder()
 		router.ServeHTTP(w, httptest.NewRequest("GET", "/auth/start?"+query, nil))
-		if w.Code != http.StatusBadRequest || len(w.Result().Cookies()) != 0 || w.Header().Get("Location") != "" {
+		if params := callbackValues(t, w); params.Get("error") != string(AuthorizationErrorInvalidRequest) || len(w.Result().Cookies()) != 0 {
 			t.Fatal("invalid provider accepted")
 		}
 	}
 	handlers.Google = nil
 	w := httptest.NewRecorder()
-	router.ServeHTTP(w, httptest.NewRequest("GET", "/auth/start?provider=google", nil))
-	if w.Code != http.StatusServiceUnavailable {
+	router.ServeHTTP(w, httptest.NewRequest("GET", "/auth/start?provider=google&redirect_uri="+url.QueryEscape(handlers.FrontendAuthorizationRedirectURL.String()), nil))
+	if callbackValues(t, w).Get("error") != string(AuthorizationErrorProviderUnavailable) {
 		t.Fatal("unconfigured provider accepted")
-	}
-}
-
-func TestFrontendAuthRedirectConfiguration(t *testing.T) {
-	valid := map[string]string{
-		"GOOGLE_CLIENT_ID": "client-id", "GOOGLE_CLIENT_SECRET": "client-secret",
-		"API_ORIGIN":             "https://api.example.com",
-		"FRONTEND_AUTH_REDIRECT": "https://app.example.com/auth/callback",
-	}
-	auth, err := GoogleAuthFromEnvironment(func(key string) string { return valid[key] })
-	if err != nil || auth.RedirectURI != valid["FRONTEND_AUTH_REDIRECT"] {
-		t.Fatal("full shared callback URL was not preserved")
-	}
-	for _, redirect := range []string{"", "https://app.example.com", "http://app.example.com/auth/callback", "https://user:password@app.example.com/auth/callback", "https://app.example.com/auth/callback?next=evil", "https://app.example.com/auth/callback?", "https://app.example.com/auth/callback#fragment"} {
-		_, err := GoogleAuthFromEnvironment(func(key string) string {
-			if key == "FRONTEND_AUTH_REDIRECT" {
-				return redirect
-			}
-			return valid[key]
-		})
-		if err == nil {
-			t.Fatal("invalid frontend auth redirect accepted")
-		}
 	}
 }
 
@@ -428,7 +443,6 @@ func TestGoogleCallbackDerivedFromAPIOrigin(t *testing.T) {
 		auth, err := GoogleAuthFromEnvironment(func(key string) string {
 			return map[string]string{
 				"API_ORIGIN": origin, "GOOGLE_CLIENT_ID": "id", "GOOGLE_CLIENT_SECRET": "secret",
-				"FRONTEND_AUTH_REDIRECT": "https://app.example.com/auth/callback",
 			}[key]
 		})
 		if err != nil {
@@ -443,7 +457,6 @@ func TestGoogleCallbackDerivedFromAPIOrigin(t *testing.T) {
 		_, err := GoogleAuthFromEnvironment(func(key string) string {
 			return map[string]string{
 				"API_ORIGIN": origin, "GOOGLE_CLIENT_ID": "id", "GOOGLE_CLIENT_SECRET": "secret",
-				"FRONTEND_AUTH_REDIRECT": "https://app.example.com/auth/callback",
 			}[key]
 		})
 		if err == nil {
@@ -521,7 +534,7 @@ func TestBrowserScopesRejectUnsupportedOrAmbiguousRequests(t *testing.T) {
 	}
 	response := httptest.NewRecorder()
 	router.ServeHTTP(response, httptest.NewRequest("GET", "/auth/start?"+query.Encode(), nil))
-	if response.Code != http.StatusBadRequest || len(response.Result().Cookies()) != 0 || !strings.Contains(response.Body.String(), "invalid_scope") {
+	if callbackValues(t, response).Get("error") != string(AuthorizationErrorInvalidRequest) || len(response.Result().Cookies()) != 0 {
 		t.Fatal("unsupported scope started an authentication transaction")
 	}
 }

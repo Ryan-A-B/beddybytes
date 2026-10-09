@@ -5,6 +5,7 @@ import (
 	"crypto/rsa"
 	"encoding/json"
 	"net/http"
+	"net/url"
 	"regexp"
 	"strings"
 	"sync"
@@ -30,18 +31,19 @@ type Mailer interface {
 }
 
 type Handlers struct {
-	CookieDomain                 string
-	EventLog                     eventlog.EventLog
-	AccountStore                 *AccountStore
-	SigningMethod                jwt.SigningMethod
-	Key                          interface{}
-	AccessTokenDuration          time.Duration
-	RefreshTokenDuration         time.Duration
-	UsedTokens                   UsedTokens
-	AnonymousAccessTokenDuration time.Duration
-	PasswordResetTokens          *resetpassword.Tokens
-	Mailer                       Mailer
-	Google                       *GoogleAuth
+	CookieDomain                     string
+	EventLog                         eventlog.EventLog
+	AccountStore                     *AccountStore
+	SigningMethod                    jwt.SigningMethod
+	Key                              interface{}
+	AccessTokenDuration              time.Duration
+	RefreshTokenDuration             time.Duration
+	UsedTokens                       UsedTokens
+	AnonymousAccessTokenDuration     time.Duration
+	PasswordResetTokens              *resetpassword.Tokens
+	Mailer                           Mailer
+	FrontendAuthorizationRedirectURL url.URL
+	Google                           *GoogleAuth
 }
 
 func (handlers *Handlers) AddRoutes(router *mux.Router) {
@@ -235,12 +237,17 @@ type AccessTokenOutput struct {
 	ExpiresIn   int    `json:"expires_in"`
 }
 
+func tokenError(responseWriter http.ResponseWriter, code string) {
+	responseWriter.Header().Set("Cache-Control", "no-store")
+	httpx.Error(responseWriter, httpx.ErrorWithCode(merry.New(code).WithHTTPCode(http.StatusBadRequest).WithUserMessage(code), code))
+}
+
 func (handlers *Handlers) GetToken(responseWriter http.ResponseWriter, request *http.Request) {
 	responseWriter.Header().Set("Cache-Control", "no-store")
 	responseWriter.Header().Set("Pragma", "no-cache")
 	request.Body = http.MaxBytesReader(responseWriter, request.Body, 8192)
 	if err := request.ParseForm(); err != nil {
-		authError(responseWriter, "invalid_request", http.StatusBadRequest)
+		tokenError(responseWriter, "invalid_request")
 		return
 	}
 	// Note: uses concepts from https://tools.ietf.org/html/rfc6749 but is not an OAuth 2.0 implementation

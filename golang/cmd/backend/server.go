@@ -255,6 +255,8 @@ func main() {
 	googleAuth, err := accounts.GoogleAuthFromEnvironment(os.Getenv)
 	fatal.OnError(err)
 	accountHandlers.Google = googleAuth
+	accountHandlers.FrontendAuthorizationRedirectURL, err = accounts.FrontendAuthorizationRedirectURLFromEnvironment(os.Getenv)
+	fatal.OnError(err)
 	// Rebuild identities before accepting signup/login. Otherwise an early
 	// callback after restart could create a duplicate of an unreplayed account.
 	accountIterator := eventLog.GetEventIterator(ctx, eventlog.GetEventIteratorInput{FromCursor: 0})
