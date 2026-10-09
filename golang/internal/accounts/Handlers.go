@@ -352,10 +352,7 @@ func (handlers *Handlers) GetTokenUsingRefreshTokenGrant(responseWriter http.Res
 		err = merry.Prepend(err, "failed to get account: "+claims.Subject.AccountID).WithUserMessage("unauthorized").WithHTTPCode(http.StatusUnauthorized)
 		return
 	}
-	scopes := claims.Scope
-	if claims.TokenUse == "" {
-		scopes = "account monitor"
-	}
+	const scopes = "account monitor"
 	output := AccessTokenOutput{
 		TokenType:   "Bearer",
 		AccessToken: handlers.createAccessToken(account, scopes),

@@ -62,7 +62,7 @@ func TestRefreshTokenTypeAndLegacyMigration(t *testing.T) {
 		name, use, scope, wantScope string
 		status                      int
 	}{
-		{name: "new refresh", use: "refresh", scope: "monitor", wantScope: "monitor", status: 200},
+		{name: "new refresh", use: "refresh", scope: "monitor", wantScope: "account monitor", status: 200},
 		{name: "legacy password refresh", scope: "refresh_token", wantScope: "account monitor", status: 200},
 		{name: "access cannot refresh", use: "access", scope: "refresh_token", status: 401},
 		{name: "legacy access cannot refresh", scope: "account monitor", status: 401},

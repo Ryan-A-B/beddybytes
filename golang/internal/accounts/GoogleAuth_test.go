@@ -473,7 +473,7 @@ func TestGoogleCallbackDerivedFromAPIOrigin(t *testing.T) {
 	}
 }
 
-func TestGoogleScopesSurviveCodeExchangeAndRefresh(t *testing.T) {
+func TestGoogleRequestedScopesThenRefreshAccountMonitor(t *testing.T) {
 	for _, scope := range []string{"account", "monitor", "account monitor"} {
 		t.Run(scope, func(t *testing.T) {
 			handlers, router, _, _ := googleTestHandlers(t)
@@ -481,6 +481,10 @@ func TestGoogleScopesSurviveCodeExchangeAndRefresh(t *testing.T) {
 			code := callbackValues(t, callbackGoogle(router, flow, "")).Get("code")
 			response := exchangeBeddybytes(router, code, flow.verifier)
 			for rotation := 0; rotation < 3; rotation++ {
+				expectedScope := scope
+				if rotation > 0 {
+					expectedScope = "account monitor"
+				}
 				if response.Code != http.StatusOK {
 					t.Fatalf("token response failed: %d", response.Code)
 				}
@@ -492,7 +496,7 @@ func TestGoogleScopesSurviveCodeExchangeAndRefresh(t *testing.T) {
 				if _, err := jwt.ParseWithClaims(output.AccessToken, &claims, handlers.getKey); err != nil {
 					t.Fatal(err)
 				}
-				if claims.TokenUse != internal.TokenUseAccess || claims.Scope != scope || claims.Expiry <= time.Now().Unix() || claims.Subject.AccountID == "" {
+				if claims.TokenUse != internal.TokenUseAccess || claims.Scope != expectedScope || claims.Expiry <= time.Now().Unix() || claims.Subject.AccountID == "" {
 					t.Fatal("scope, account, or token expiration was lost")
 				}
 				var cookie *http.Cookie
@@ -508,7 +512,7 @@ func TestGoogleScopesSurviveCodeExchangeAndRefresh(t *testing.T) {
 				if _, err := jwt.ParseWithClaims(cookie.Value, &refresh, handlers.getKey); err != nil {
 					t.Fatal(err)
 				}
-				if refresh.TokenUse != internal.TokenUseRefresh || refresh.Scope != scope {
+				if refresh.TokenUse != internal.TokenUseRefresh || refresh.Scope != expectedScope {
 					t.Fatal("refresh token type or scopes were lost")
 				}
 				request := httptest.NewRequest("POST", "/token", strings.NewReader("grant_type=refresh_token&scope=admin"))
