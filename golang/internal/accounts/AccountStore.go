@@ -27,6 +27,9 @@ func (store *AccountStore) Put(ctx context.Context, account *Account) (err error
 }
 
 func (store *AccountStore) put(ctx context.Context, account *Account) (err error) {
+	if err := validateAccount(account); err != nil {
+		return err
+	}
 	existingAccount, err := store.get(ctx, account.ID)
 	if merry.HTTPCode(err) == http.StatusOK {
 		return store.update(ctx, existingAccount, account)
@@ -49,15 +52,15 @@ func (store *AccountStore) create(ctx context.Context, account *Account) (err er
 func (store *AccountStore) update(ctx context.Context, existingAccount *Account, account *Account) (err error) {
 	oldIssuer, oldSubject := existingAccount.User.IdentityPair()
 	issuer, subject := account.User.IdentityPair()
-	if oldIssuer != issuer || oldSubject != subject {
+	if existingAccount.User.IdentityType != account.User.IdentityType || oldIssuer != issuer || oldSubject != subject {
 		return merry.New("account identity cannot change").WithHTTPCode(http.StatusBadRequest)
 	}
-	if account.User.IsPasswordUser() && existingAccount.User.PasswordCredentials.Email != account.User.PasswordCredentials.Email {
-		err = store.checkEmail(ctx, account.User.PasswordCredentials.Email)
+	if account.User.IsPasswordUser() && existingAccount.User.InternalIdentity.Email != account.User.InternalIdentity.Email {
+		err = store.checkEmail(ctx, account.User.InternalIdentity.Email)
 		if err != nil {
 			return
 		}
-		err = store.Store.Delete(ctx, existingAccount.User.PasswordCredentials.Email)
+		err = store.Store.Delete(ctx, existingAccount.User.InternalIdentity.Email)
 		fatal.OnError(err)
 	}
 	store.write(ctx, account)
@@ -74,6 +77,9 @@ func identityKey(issuer, subject string) string {
 }
 
 func (store *AccountStore) checkIdentity(ctx context.Context, account *Account) error {
+	if err := validateAccount(account); err != nil {
+		return err
+	}
 	issuer, subject := account.User.IdentityPair()
 	if subject == "" {
 		return merry.New("identity subject is required").WithHTTPCode(http.StatusBadRequest)
@@ -84,7 +90,17 @@ func (store *AccountStore) checkIdentity(ctx context.Context, account *Account) 
 		return err
 	}
 	if account.User.IsPasswordUser() {
-		return store.checkEmail(ctx, account.User.PasswordCredentials.Email)
+		return store.checkEmail(ctx, account.User.InternalIdentity.Email)
+	}
+	return nil
+}
+
+func validateAccount(account *Account) error {
+	if account == nil || account.User == nil {
+		return merry.New("account user is required").WithHTTPCode(http.StatusBadRequest)
+	}
+	if err := account.User.validate(); err != nil {
+		return merry.Wrap(err).WithHTTPCode(http.StatusBadRequest)
 	}
 	return nil
 }
@@ -125,7 +141,7 @@ func (store *AccountStore) write(ctx context.Context, account *Account) {
 	err = store.Store.Put(ctx, identityKey(issuer, subject), data)
 	fatal.OnError(err)
 	if account.User.IsPasswordUser() {
-		err = store.Store.Put(ctx, account.User.PasswordCredentials.Email, data)
+		err = store.Store.Put(ctx, account.User.InternalIdentity.Email, data)
 		fatal.OnError(err)
 	}
 }
@@ -192,7 +208,7 @@ func (store *AccountStore) remove(ctx context.Context, accountID string) (err er
 	err = store.Store.Delete(ctx, identityKey(issuer, subject))
 	fatal.OnError(err)
 	if account.User.IsPasswordUser() {
-		err = store.Store.Delete(ctx, account.User.PasswordCredentials.Email)
+		err = store.Store.Delete(ctx, account.User.InternalIdentity.Email)
 		fatal.OnError(err)
 	}
 	return
@@ -245,8 +261,8 @@ func (store *AccountStore) updatePassword(ctx context.Context, input *UpdatePass
 	if !account.User.IsPasswordUser() {
 		return merry.New("password account not found").WithHTTPCode(http.StatusNotFound)
 	}
-	account.User.PasswordCredentials.PasswordSalt = input.PasswordSalt
-	account.User.PasswordCredentials.PasswordHash = input.PasswordHash
+	account.User.InternalIdentity.PasswordSalt = input.PasswordSalt
+	account.User.InternalIdentity.PasswordHash = input.PasswordHash
 	store.write(ctx, account)
 	return nil
 }

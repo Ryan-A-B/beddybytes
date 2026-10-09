@@ -3,9 +3,17 @@ package accounts
 import (
 	"crypto/rand"
 	"encoding/json"
+	"fmt"
 
 	"github.com/Ryan-A-B/beddybytes/golang/internal/fatal"
 	uuid "github.com/satori/go.uuid"
+)
+
+type IdentityType string
+
+const (
+	IdentityTypeInternal IdentityType = "internal"
+	IdentityTypeExternal IdentityType = "external"
 )
 
 type Account struct {
@@ -16,14 +24,15 @@ type Account struct {
 // User is BeddyBytes' local account identity. A user may authenticate with
 // locally managed password credentials or with an external issuer/subject.
 // Provider email is account data only; it never identifies or deduplicates a
-// user. ExternalIdentity identity is the exact issuer/subject pair.
+// user. An external identity is the exact issuer/subject pair.
 type User struct {
-	ID                  string               `json:"id"`
-	PasswordCredentials *PasswordCredentials `json:"-"`
-	Identity            *ExternalIdentity    `json:"-"`
+	ID               string            `json:"id"`
+	IdentityType     IdentityType      `json:"identity_type"`
+	InternalIdentity *InternalIdentity `json:"internal_identity,omitempty"`
+	ExternalIdentity *ExternalIdentity `json:"external_identity,omitempty"`
 }
 
-type PasswordCredentials struct {
+type InternalIdentity struct {
 	Email        string `json:"email"`
 	PasswordSalt []byte `json:"password_salt"`
 	PasswordHash []byte `json:"password_hash"`
@@ -35,60 +44,102 @@ type ExternalIdentity struct {
 	Email   string `json:"email,omitempty"`
 }
 
-// userJSON retains the existing account API and event shape for legacy
-// password accounts while allowing external identities to omit password data.
-type userJSON struct {
+// LegacyUser is the released, flattened password identity stored in old events.
+// External identities were never released in this format.
+type LegacyUser struct {
 	ID           string `json:"id"`
-	Email        string `json:"email,omitempty"`
-	PasswordSalt []byte `json:"password_salt,omitempty"`
-	PasswordHash []byte `json:"password_hash,omitempty"`
-	Issuer       string `json:"issuer,omitempty"`
-	Subject      string `json:"subject,omitempty"`
+	Email        string `json:"email"`
+	PasswordSalt []byte `json:"password_salt"`
+	PasswordHash []byte `json:"password_hash"`
 }
 
+func (legacy LegacyUser) User() User {
+	return User{
+		ID:           legacy.ID,
+		IdentityType: IdentityTypeInternal,
+		InternalIdentity: &InternalIdentity{
+			Email: legacy.Email, PasswordSalt: legacy.PasswordSalt, PasswordHash: legacy.PasswordHash,
+		},
+	}
+}
+
+// Avoid recursively invoking the custom JSON methods.
+type userJSON User
+
 func (user User) MarshalJSON() ([]byte, error) {
-	wire := userJSON{ID: user.ID}
-	if user.PasswordCredentials != nil {
-		wire.Email = user.PasswordCredentials.Email
-		wire.PasswordSalt = user.PasswordCredentials.PasswordSalt
-		wire.PasswordHash = user.PasswordCredentials.PasswordHash
+	if err := user.validate(); err != nil {
+		return nil, err
 	}
-	if user.Identity != nil {
-		wire.Email = user.Identity.Email
-		wire.Issuer = user.Identity.Issuer
-		wire.Subject = user.Identity.Subject
-	}
-	return json.Marshal(wire)
+	return json.Marshal(userJSON(user))
 }
 
 func (user *User) UnmarshalJSON(data []byte) error {
-	var wire userJSON
-	if err := json.Unmarshal(data, &wire); err != nil {
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(data, &fields); err != nil {
 		return err
 	}
-	user.ID = wire.ID
-	user.PasswordCredentials = nil
-	user.Identity = nil
-	if wire.Issuer != "" {
-		user.Identity = &ExternalIdentity{Issuer: wire.Issuer, Subject: wire.Subject, Email: wire.Email}
-		// Older provider events had flattened fields; retain email as account
-		// data while keeping it out of the identity key and password credentials.
-		return nil
+	var decoded User
+	if _, present := fields["identity_type"]; present {
+		var wire userJSON
+		if err := json.Unmarshal(data, &wire); err != nil {
+			return err
+		}
+		decoded = User(wire)
+	} else {
+		if _, present := fields["internal_identity"]; present {
+			return fmt.Errorf("internal identity requires identity_type")
+		}
+		if _, present := fields["external_identity"]; present {
+			return fmt.Errorf("external identity requires identity_type")
+		}
+		var legacy LegacyUser
+		if err := json.Unmarshal(data, &legacy); err != nil {
+			return err
+		}
+		decoded = legacy.User()
 	}
-	user.PasswordCredentials = &PasswordCredentials{Email: wire.Email, PasswordSalt: wire.PasswordSalt, PasswordHash: wire.PasswordHash}
+	if err := decoded.validate(); err != nil {
+		return err
+	}
+	*user = decoded
 	return nil
 }
 
-// Legacy password accounts have no explicit issuer/subject in their events.
+func (user User) validate() error {
+	if user.ID == "" {
+		return fmt.Errorf("user id is required")
+	}
+	switch user.IdentityType {
+	case IdentityTypeInternal:
+		if user.InternalIdentity == nil || user.ExternalIdentity != nil {
+			return fmt.Errorf("internal user requires only an internal identity")
+		}
+		identity := user.InternalIdentity
+		if identity.Email == "" || len(identity.PasswordSalt) == 0 || len(identity.PasswordHash) == 0 {
+			return fmt.Errorf("internal identity requires email and password credentials")
+		}
+	case IdentityTypeExternal:
+		if user.ExternalIdentity == nil || user.InternalIdentity != nil {
+			return fmt.Errorf("external user requires only an external identity")
+		}
+		if user.ExternalIdentity.Issuer == "" || user.ExternalIdentity.Subject == "" {
+			return fmt.Errorf("external identity requires issuer and subject")
+		}
+	default:
+		return fmt.Errorf("unknown identity type %q", user.IdentityType)
+	}
+	return nil
+}
+
 func (user *User) IdentityPair() (issuer, subject string) {
-	if user.Identity == nil || user.Identity.Issuer == "" {
+	if user.IdentityType == IdentityTypeInternal {
 		return "beddybytes", user.ID
 	}
-	return user.Identity.Issuer, user.Identity.Subject
+	return user.ExternalIdentity.Issuer, user.ExternalIdentity.Subject
 }
 
 func (user *User) IsPasswordUser() bool {
-	return user.PasswordCredentials != nil && (user.Identity == nil || user.Identity.Issuer == "beddybytes")
+	return user.IdentityType == IdentityTypeInternal && user.InternalIdentity != nil && user.ExternalIdentity == nil
 }
 
 type NewUserInput struct {
@@ -102,8 +153,9 @@ func NewUser(input *NewUserInput) (user *User) {
 	fatal.OnError(err)
 	passwordHash := calculatePasswordHash(input.Password, passwordSalt)
 	user = &User{
-		ID: uuid.NewV4().String(),
-		PasswordCredentials: &PasswordCredentials{
+		ID:           uuid.NewV4().String(),
+		IdentityType: IdentityTypeInternal,
+		InternalIdentity: &InternalIdentity{
 			Email: input.Email, PasswordSalt: passwordSalt, PasswordHash: passwordHash,
 		},
 	}

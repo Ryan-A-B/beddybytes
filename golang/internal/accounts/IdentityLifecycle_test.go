@@ -3,7 +3,9 @@ package accounts
 import (
 	"context"
 	"encoding/json"
+	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/ansel1/merry"
@@ -16,9 +18,26 @@ func TestLegacyAndGoogleReplayResetAndDurableDeletion(t *testing.T) {
 	ctx := context.Background()
 	handlers, router, provider, log := googleTestHandlers(t)
 	legacy := &Account{ID: "legacy-account", User: NewUser(&NewUserInput{Email: "same@example.com", Password: "original-long-password"})}
-	data, _ := json.Marshal(legacy)
+	data, err := json.Marshal(struct {
+		ID   string     `json:"id"`
+		User LegacyUser `json:"user"`
+	}{legacy.ID, LegacyUser{
+		ID: legacy.User.ID, Email: legacy.User.InternalIdentity.Email,
+		PasswordSalt: legacy.User.InternalIdentity.PasswordSalt,
+		PasswordHash: legacy.User.InternalIdentity.PasswordHash,
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
 	event, _ := log.Append(ctx, eventlog.AppendInput{Type: EventTypeAccountCreated, Data: data})
 	handlers.ApplyEvent(ctx, event)
+	login := httptest.NewRequest(http.MethodPost, "/token", strings.NewReader("grant_type=password&username=same%40example.com&password=original-long-password"))
+	login.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	loginResult := httptest.NewRecorder()
+	router.ServeHTTP(loginResult, login)
+	if loginResult.Code != http.StatusOK {
+		t.Fatalf("legacy password login failed: %d", loginResult.Code)
+	}
 	flow := beginGoogle(t, router, "signup")
 	code := callbackValues(t, callbackGoogle(router, flow, "")).Get("code")
 	w := exchangeBeddybytes(router, code, flow.verifier)
@@ -28,7 +47,7 @@ func TestLegacyAndGoogleReplayResetAndDurableDeletion(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	reset := PasswordResetData{Email: legacy.User.PasswordCredentials.Email, PasswordSalt: []byte("salt"), PasswordHash: []byte("new-password-hash")}
+	reset := PasswordResetData{Email: legacy.User.InternalIdentity.Email, PasswordSalt: []byte("salt"), PasswordHash: []byte("new-password-hash")}
 	data, _ = json.Marshal(reset)
 	event, _ = log.Append(ctx, eventlog.AppendInput{Type: EventTypeAccountPasswordReset, Data: data})
 	handlers.ApplyEvent(ctx, event)
@@ -50,7 +69,7 @@ func TestLegacyAndGoogleReplayResetAndDurableDeletion(t *testing.T) {
 		t.Fatal("deleted Google identity resurrected")
 	}
 	account, err := replayed.AccountStore.GetByEmail(ctx, "same@example.com")
-	if err != nil || account.ID != legacy.ID || string(account.User.PasswordCredentials.PasswordHash) != "new-password-hash" {
+	if err != nil || account.ID != legacy.ID || string(account.User.InternalIdentity.PasswordHash) != "new-password-hash" {
 		t.Fatal("Google deletion affected legacy account/reset replay")
 	}
 	issuer, subject := account.User.IdentityPair()
@@ -64,12 +83,12 @@ func TestIdentityUniquenessIsIssuerAndSubject(t *testing.T) {
 	ctx := context.Background()
 	accounts := &AccountStore{Store: store.NewMemoryStore()}
 	for _, issuer := range []string{"https://provider-one.example", "https://provider-two.example"} {
-		account := &Account{ID: issuer, User: &User{ID: issuer, Identity: &ExternalIdentity{Issuer: issuer, Subject: "same-subject", Email: "shared@example.com"}}}
+		account := &Account{ID: issuer, User: &User{ID: issuer, IdentityType: IdentityTypeExternal, ExternalIdentity: &ExternalIdentity{Issuer: issuer, Subject: "same-subject", Email: "shared@example.com"}}}
 		if err := accounts.Put(ctx, account); err != nil {
 			t.Fatal("different issuers collided:", err)
 		}
 	}
-	duplicate := &Account{ID: "duplicate", User: &User{ID: "duplicate", Identity: &ExternalIdentity{Issuer: "https://provider-one.example", Subject: "same-subject", Email: "different@example.com"}}}
+	duplicate := &Account{ID: "duplicate", User: &User{ID: "duplicate", IdentityType: IdentityTypeExternal, ExternalIdentity: &ExternalIdentity{Issuer: "https://provider-one.example", Subject: "same-subject", Email: "different@example.com"}}}
 	if err := accounts.Put(ctx, duplicate); merry.HTTPCode(err) != 409 {
 		t.Fatal("same issuer/subject allowed twice")
 	}

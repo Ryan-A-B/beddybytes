@@ -266,7 +266,7 @@ func (handlers *Handlers) GoogleCallback(w http.ResponseWriter, r *http.Request)
 			return
 		}
 		if merry.HTTPCode(err) == http.StatusNotFound {
-			account = &Account{ID: uuid.NewV4().String(), User: &User{ID: uuid.NewV4().String(), Identity: &ExternalIdentity{Issuer: identity.Issuer, Subject: identity.Subject, Email: identity.Email}}}
+			account = &Account{ID: uuid.NewV4().String(), User: &User{ID: uuid.NewV4().String(), IdentityType: IdentityTypeExternal, ExternalIdentity: &ExternalIdentity{Issuer: identity.Issuer, Subject: identity.Subject, Email: identity.Email}}}
 			data, marshalErr := json.Marshal(account)
 			if marshalErr != nil {
 				auth.redirect(w, r, transaction, "", "server_error")

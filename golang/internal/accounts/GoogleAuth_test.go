@@ -143,7 +143,7 @@ func TestGoogleSignupLoginUsesOpaqueSubjectAndStoresEmail(t *testing.T) {
 		t.Fatal("signup did not append exactly one event")
 	}
 	googleAccount, err := handlers.AccountStore.GetByIdentity(ctx, GoogleIssuer, provider.identity.Subject)
-	if err != nil || googleAccount.ID == passwordAccount.ID || googleAccount.User.PasswordCredentials != nil || googleAccount.User.Identity == nil || googleAccount.User.Identity.Subject != provider.identity.Subject || googleAccount.User.Identity.Email != "same@example.com" {
+	if err != nil || googleAccount.ID == passwordAccount.ID || googleAccount.User.InternalIdentity != nil || googleAccount.User.ExternalIdentity == nil || googleAccount.User.ExternalIdentity.Subject != provider.identity.Subject || googleAccount.User.ExternalIdentity.Email != "same@example.com" {
 		t.Fatal("accounts not independent")
 	}
 	legacy, err := handlers.AccountStore.GetByEmail(ctx, "same@example.com")
@@ -173,7 +173,7 @@ func TestGoogleSignupLoginUsesOpaqueSubjectAndStoresEmail(t *testing.T) {
 	router.ServeHTTP(current, r)
 	var currentAccount Account
 	json.Unmarshal(current.Body.Bytes(), &currentAccount)
-	if current.Code != 200 || currentAccount.ID != googleAccount.ID || currentAccount.User.Identity == nil || currentAccount.User.Identity.Email != "same@example.com" {
+	if current.Code != 200 || currentAccount.ID != googleAccount.ID || currentAccount.User.ExternalIdentity == nil || currentAccount.User.ExternalIdentity.Email != "same@example.com" {
 		t.Fatal("token does not resolve new account")
 	}
 	if exchangeBeddybytes(router, params.Get("code"), flow.verifier).Code != 400 {
@@ -343,7 +343,7 @@ func TestGoogleSignupConcurrentUniquenessAndEventReplay(t *testing.T) {
 		replayed.ApplyEvent(context.Background(), event)
 	}
 	a, err := replayed.AccountStore.GetByIdentity(context.Background(), GoogleIssuer, "opaque:Google/Subject+01")
-	if err != nil || a.User.PasswordCredentials != nil || a.User.Identity == nil || a.User.Identity.Subject != "opaque:Google/Subject+01" || a.User.Identity.Email != "same@example.com" {
+	if err != nil || a.User.InternalIdentity != nil || a.User.ExternalIdentity == nil || a.User.ExternalIdentity.Subject != "opaque:Google/Subject+01" || a.User.ExternalIdentity.Email != "same@example.com" {
 		t.Fatal("provider identity lost on event replay")
 	}
 }
