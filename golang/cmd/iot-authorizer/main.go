@@ -9,10 +9,10 @@ import (
 	"fmt"
 	"log"
 	"net/url"
-	"os"
 	"strings"
 
 	"github.com/Ryan-A-B/beddybytes/golang/internal"
+	"github.com/Ryan-A-B/beddybytes/golang/internal/secrets"
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -250,31 +250,9 @@ func loadSigningKey(ctx context.Context) []byte {
 	if err != nil {
 		panic("failed to retrieve signing key secret: " + err.Error())
 	}
-	key, err := signingKeyFromSecret(output.SecretString, os.Getenv("SIGNING_KEY_SECRET_JSON_FIELD"))
+	bundle, err := secrets.ParseBackendBundle(output.SecretString)
 	if err != nil {
 		panic("failed to read signing key secret: " + err.Error())
 	}
-	return key
-}
-
-// An unset field preserves compatibility with the legacy raw signing-key secret.
-func signingKeyFromSecret(secretString *string, field string) ([]byte, error) {
-	if secretString == nil {
-		return nil, errors.New("expected a string secret")
-	}
-	if field == "" {
-		if *secretString == "" {
-			return nil, errors.New("signing key is empty")
-		}
-		return []byte(*secretString), nil
-	}
-	var bundle map[string]json.RawMessage
-	if err := json.Unmarshal([]byte(*secretString), &bundle); err != nil {
-		return nil, errors.New("expected a JSON secret bundle")
-	}
-	var key string
-	if err := json.Unmarshal(bundle[field], &key); err != nil || key == "" {
-		return nil, errors.New("signing key field must be a nonempty string")
-	}
-	return []byte(key), nil
+	return []byte(bundle.EncryptionKey)
 }

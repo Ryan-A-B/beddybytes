@@ -61,7 +61,7 @@ test('environment bundles retain the legacy export and wire ECS and MQTT to matc
             template.hasResourceProperties('AWS::Lambda::Function', {
                 Environment: { Variables: Match.objectLike({
                     SIGNING_KEY_SECRET_ARN: stack.resolve(bundle.secretArn),
-                    SIGNING_KEY_SECRET_JSON_FIELD: 'ENCRYPTION_KEY',
+                    SIGNING_KEY_SECRET_JSON_FIELD: Match.absent(),
                 }) },
             });
             template.hasResourceProperties('AWS::IAM::Policy', {

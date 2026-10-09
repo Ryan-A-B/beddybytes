@@ -6,54 +6,26 @@ import (
 	"time"
 
 	"github.com/Ryan-A-B/beddybytes/golang/internal"
+	"github.com/Ryan-A-B/beddybytes/golang/internal/secrets"
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/dgrijalva/jwt-go"
 )
 
 const testSigningKey = "test-signing-key"
 
-func TestSigningKeyFromSecret(t *testing.T) {
-	for _, tc := range []struct {
-		name, secret, field string
-		wantError           bool
-	}{
-		{name: "legacy raw key", secret: testSigningKey},
-		{name: "bundle key", secret: `{"ENCRYPTION_KEY":"test-signing-key","GOOGLE_CLIENT_SECRET":"other-secret"}`, field: "ENCRYPTION_KEY"},
-		{name: "missing field", secret: `{"GOOGLE_CLIENT_SECRET":"other-secret"}`, field: "ENCRYPTION_KEY", wantError: true},
-		{name: "empty placeholder", secret: `{"ENCRYPTION_KEY":""}`, field: "ENCRYPTION_KEY", wantError: true},
-		{name: "wrong type", secret: `{"ENCRYPTION_KEY":123}`, field: "ENCRYPTION_KEY", wantError: true},
-		{name: "null key", secret: `{"ENCRYPTION_KEY":null}`, field: "ENCRYPTION_KEY", wantError: true},
-		{name: "malformed bundle", secret: `{"ENCRYPTION_KEY":"sensitive-value"`, field: "ENCRYPTION_KEY", wantError: true},
-		{name: "raw key with bundle configured", secret: testSigningKey, field: "ENCRYPTION_KEY", wantError: true},
-		{name: "empty raw key", wantError: true},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			key, err := signingKeyFromSecret(&tc.secret, tc.field)
-			if tc.wantError {
-				if err == nil {
-					t.Fatal("expected invalid signing key to be rejected")
-				}
-				return
-			}
-			if err != nil {
-				t.Fatal(err)
-			}
-			if string(key) != testSigningKey {
-				t.Fatal("expected extracted signing key")
-			}
-			// Use the extracted bundle key to verify a real MQTT access token.
-			cfg := testConfig()
-			cfg.signingKey = key
-			_, err = authorize(newRequest(newAccessToken(t, time.Now().Add(time.Hour), internal.URN{
-				Service: "iam", AccountID: "account-1", ResourceType: "user", ResourceID: "user-1",
-			}), "client-1"), cfg)
-			if err != nil {
-				t.Fatal(err)
-			}
-		})
+func TestAuthorizeUsesBackendBundleSigningKey(t *testing.T) {
+	data := `{"ENCRYPTION_KEY":"test-signing-key","GOOGLE_CLIENT_ID":"client-id","GOOGLE_CLIENT_SECRET":"different-secret"}`
+	bundle, err := secrets.ParseBackendBundle(&data)
+	if err != nil {
+		t.Fatal(err)
 	}
-	if _, err := signingKeyFromSecret(nil, "ENCRYPTION_KEY"); err == nil {
-		t.Fatal("expected binary-only secret to be rejected")
+	cfg := testConfig()
+	cfg.signingKey = []byte(bundle.EncryptionKey)
+	_, err = authorize(newRequest(newAccessToken(t, time.Now().Add(time.Hour), internal.URN{
+		Service: "iam", AccountID: "account-1", ResourceType: "user", ResourceID: "user-1",
+	}), "client-1"), cfg)
+	if err != nil {
+		t.Fatal(err)
 	}
 }
 

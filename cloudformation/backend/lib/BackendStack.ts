@@ -177,7 +177,6 @@ export class BackendStack extends cdk.Stack {
             environment: {
                 AWS_ACCOUNT_ID: this.account,
                 SIGNING_KEY_SECRET_ARN: props.secrets_bundle.secretArn,
-                SIGNING_KEY_SECRET_JSON_FIELD: 'ENCRYPTION_KEY',
             },
         });
         props.secrets_bundle.grantRead(iot_authorizer_function);
