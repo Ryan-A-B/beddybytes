@@ -79,5 +79,9 @@ func (provider *googleOIDCProvider) Exchange(ctx context.Context, code, nonce, v
 		return nil, errors.New("Google has not supplied a verified email")
 	}
 	// Google's equivalent issuer spellings must not create separate identities.
-	return &GoogleIdentity{Issuer: GoogleIssuer, Subject: idToken.Subject, Email: claims.Email}, nil
+	return &GoogleIdentity{
+		Issuer:  GoogleIssuer,
+		Subject: idToken.Subject,
+		Email:   claims.Email,
+	}, nil
 }
