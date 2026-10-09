@@ -1,13 +1,15 @@
 import React from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAuthorizationService } from '../../services';
-import { completeAuth } from '../../services/AuthorizationService/AuthCodeFlow';
+import { AuthorizationError, AuthorizationResponseError, completeAuth } from '../../services/AuthorizationService/AuthCodeFlow';
 import { save_account_to_local_storage } from '../../services/AuthorizationService/AuthorizationClient';
-import { AuthorizationError } from '../../services/AuthorizationService/AuthCodeFlow';
+import LoginOrCreateAccountForm from './LoginOrCreateAccountForm';
+import { TabCreateAccount, TabLogin } from './tab';
 
 const AuthCallback: React.FC = () => {
     const authorization = useAuthorizationService();
     const navigate = useNavigate();
+    const [showSignup, setShowSignup] = React.useState(false);
     const [error, setError] = React.useState<string | null>(null);
     React.useEffect(() => {
         let mounted = true;
@@ -18,6 +20,11 @@ const AuthCallback: React.FC = () => {
             navigate(result.return_to, { replace: true });
         }).catch(failure => {
             if (!mounted) return;
+            if (failure instanceof AuthorizationResponseError) {
+                setShowSignup(failure.code === 'account_not_found');
+                setError(failure.message);
+                return;
+            }
             if (failure instanceof AuthorizationError) {
                 setError('Your sign-in attempt could not be verified. Please start again.');
                 return;
@@ -30,11 +37,15 @@ const AuthCallback: React.FC = () => {
         return () => { mounted = false; };
     }, [authorization, navigate]);
     return <div className="container my-4" aria-live="polite">
-        {error ? <>
-            <div className="alert alert-danger" role="alert">{error}</div>
-            <Link to="/#login" className="btn btn-primary me-2">Sign in</Link>
-            <Link to="/#create_account" className="btn btn-outline-light">Create account</Link>
-        </> : <p>Completing authentication…</p>}
+        {error ? <div className="row">
+            <div className="col-xl-4 col-lg-5 col-md-6 mx-auto">
+                <div className={`alert ${showSignup ? 'alert-info' : 'alert-danger'}`} role="alert">{error}</div>
+                <LoginOrCreateAccountForm
+                    initialTab={showSignup ? TabCreateAccount : TabLogin}
+                    onAuthenticated={() => navigate('/', { replace: true })}
+                />
+            </div>
+        </div> : <p>Completing authentication…</p>}
     </div>;
 };
 

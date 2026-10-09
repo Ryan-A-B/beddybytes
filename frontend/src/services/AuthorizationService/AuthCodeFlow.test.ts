@@ -80,7 +80,8 @@ test.each(['missing_transaction', 'wrong_state', 'expired', 'wrong_redirect', 'm
 test.each(['account_not_found', 'account_already_exists', 'access_denied'])('returns controlled %s outcome without token exchange', async error => {
     sessionStorage.setItem(transactionKey, JSON.stringify(transaction()));
     const flow = loadCallback('error=' + error + '&state=' + state);
-    await expect(flow.completeAuth()).rejects.toThrow();
+    await expect(flow.completeAuth()).rejects.toBeInstanceOf(flow.AuthorizationResponseError);
+    await expect(flow.completeAuth()).rejects.toMatchObject({ code: error });
     expect(fetch).not.toHaveBeenCalled();
 });
 
@@ -102,4 +103,18 @@ test('callback does not refresh the cached password account during initializatio
     expect(service.login_required).toBe(true);
     expect(client.refresh_token_with_retry).not.toHaveBeenCalled();
     localStorage.clear();
+});
+
+test('a missing-account error with the wrong state remains a validation error', async () => {
+    sessionStorage.setItem(transactionKey, JSON.stringify(transaction()));
+    const flow = loadCallback('error=account_not_found&state=attacker');
+    await expect(flow.completeAuth()).rejects.toBeInstanceOf(flow.AuthorizationError);
+    expect(fetch).not.toHaveBeenCalled();
+});
+
+test('unknown callback errors display a controlled message', async () => {
+    sessionStorage.setItem(transactionKey, JSON.stringify(transaction()));
+    const flow = loadCallback('error=unexpected-backend-detail&state=' + state);
+    await expect(flow.completeAuth()).rejects.toThrow('Authentication could not be completed. Please try again.');
+    expect(fetch).not.toHaveBeenCalled();
 });

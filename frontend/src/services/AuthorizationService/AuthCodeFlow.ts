@@ -57,10 +57,17 @@ const callbackResult = (() => {
 })();
 
 const errorMessages: Record<string, string> = {
-    account_not_found: 'No BeddyBytes account is registered with this identity. Create an account to get started.',
+    account_not_found: "It looks like you don't have a BeddyBytes account yet. Create one below, or switch to Log In to use a different account.",
     account_already_exists: 'This identity is already registered. Sign in instead.',
     access_denied: 'Sign-in was cancelled. You can try again.',
     authentication_failed: 'Authentication could not be completed. Please try again.',
+    invalid_request: 'Your sign-in attempt could not be verified. Please start again.',
+    invalid_grant: 'Your sign-in attempt has expired or could not be completed. Please start again.',
+    unauthorized: 'Sign-in could not be completed. Please try again.',
+    unsupported: 'This sign-in method is not supported. Please try another method.',
+    provider_unavailable: 'This sign-in provider is unavailable. Please try another method.',
+    server_error: 'Sign-in could not be completed. Please try again.',
+    temporarily_unavailable: 'Sign-in is temporarily unavailable. Please try again.',
 };
 
 export interface AuthCallbackResult {
@@ -103,6 +110,14 @@ const exchangeAuthCode = async (): Promise<AuthCallbackResult> => {
     return { token, account, return_to: ['/', '/baby', '/parent'].includes(transaction.return_to) ? transaction.return_to : '/' };
 };
 
+// Expected outcomes from a verified callback are distinct from validation failures.
+export class AuthorizationResponseError extends Error {
+    constructor(public readonly code: string) {
+        super(errorMessages[code] || 'Authentication could not be completed. Please try again.');
+        this.name = 'AuthorizationResponseError';
+    }
+}
+
 export class AuthorizationError extends Error {
     constructor(message: string) {
         super(message);
@@ -124,7 +139,7 @@ const getValidatedAuthorizationCode = (transaction: Transaction): string => {
     if (transaction.redirect_uri !== expectedRedirectUri) throw new AuthorizationError('redirect URI does not match expected URI');
     const verifierPattern = /^[A-Za-z0-9_-]{43}$/;
     if (!verifierPattern.test(transaction.verifier)) throw new AuthorizationError('code verifier does not match expected pattern');
-    if (callbackResult.error) throw new AuthorizationError(`callback returned error: ${callbackResult.error}`);
+    if (callbackResult.error) throw new AuthorizationResponseError(callbackResult.error);
     if (!callbackResult.code) throw new AuthorizationError('callback code is missing');
     return callbackResult.code;
 }

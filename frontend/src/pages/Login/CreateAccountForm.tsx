@@ -6,6 +6,7 @@ import { create_account_and_login } from "../../services/AuthorizationService/lo
 import GoogleButton from './GoogleButton';
 
 interface Props {
+    onAuthenticated?: () => void;
     email: string;
     setEmail: React.Dispatch<React.SetStateAction<string>>;
     password: string;
@@ -13,16 +14,16 @@ interface Props {
     switchToLogin: () => void;
 }
 
-const CreateAccountForm: React.FunctionComponent<Props> = ({ email, setEmail, password, setPassword, switchToLogin }) => {
+const CreateAccountForm: React.FunctionComponent<Props> = ({ email, setEmail, password, setPassword, switchToLogin, onAuthenticated }) => {
     const authorization_service = useAuthorizationService();
     const [error, setError] = React.useState<string | null>(null)
     const handleSubmit = React.useCallback((event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
         setError(null);
-        create_account_and_login(authorization_service, email, password).catch((error) => {
+        create_account_and_login(authorization_service, email, password).then(onAuthenticated).catch((error) => {
             setError(error.message)
         });
-    }, [authorization_service, email, password])
+    }, [authorization_service, email, password, onAuthenticated])
     return (
         <React.Fragment>
             <GoogleButton intent="signup" />
