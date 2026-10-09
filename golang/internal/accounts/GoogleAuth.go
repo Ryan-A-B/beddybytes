@@ -35,9 +35,11 @@ type googleTransaction struct {
 	Expires                                                                   time.Time
 }
 
-type authorizationCode struct {
-	AccountID, Scope, Challenge string
-	Expires                     time.Time
+type authorizationRequest struct {
+	AccountID string
+	Scope     string
+	Challenge string
+	Expires   time.Time
 }
 
 // This matches the current single-process deployment. Restarting the process
@@ -46,7 +48,7 @@ type GoogleAuth struct {
 	Provider     GoogleIdentityProvider
 	mutex        sync.Mutex
 	transactions map[string]googleTransaction
-	codes        map[string]authorizationCode
+	requests     map[string]authorizationRequest
 	now          func() time.Time
 }
 
@@ -54,7 +56,7 @@ func NewGoogleAuth(provider GoogleIdentityProvider) (*GoogleAuth, error) {
 	return &GoogleAuth{
 		Provider:     provider,
 		transactions: make(map[string]googleTransaction),
-		codes:        make(map[string]authorizationCode),
+		requests:     make(map[string]authorizationRequest),
 		now:          time.Now,
 	}, nil
 }
@@ -78,9 +80,9 @@ func (auth *GoogleAuth) cleanup() {
 			delete(auth.transactions, key)
 		}
 	}
-	for key, value := range auth.codes {
+	for key, value := range auth.requests {
 		if !auth.now().Before(value.Expires) {
-			delete(auth.codes, key)
+			delete(auth.requests, key)
 		}
 	}
 }
@@ -294,34 +296,34 @@ func (handlers *Handlers) GoogleCallback(responseWriter http.ResponseWriter, req
 	}
 	auth.mutex.Lock()
 	auth.cleanup()
-	if len(auth.codes) >= maxPendingGoogleEntries {
+	if len(auth.requests) >= maxPendingGoogleEntries {
 		auth.mutex.Unlock()
 		handlers.redirectAuthorizationFailure(responseWriter, request, AuthorizationErrorTemporarilyUnavailable, transaction.FrontendState)
 		return
 	}
-	auth.codes[code] = authorizationCode{AccountID: account.ID, Scope: transaction.Scope, Challenge: transaction.Challenge, Expires: auth.now().Add(authorizationCodeTTL)}
+	auth.requests[code] = authorizationRequest{AccountID: account.ID, Scope: transaction.Scope, Challenge: transaction.Challenge, Expires: auth.now().Add(authorizationCodeTTL)}
 	auth.mutex.Unlock()
 	handlers.redirectAuthorizationSuccess(responseWriter, request, transaction.FrontendState, code)
 }
 
-func (auth *GoogleAuth) redeem(code, verifier, clientID string) (authorizationCode, bool) {
+func (auth *GoogleAuth) redeem(code, verifier, clientID string) (authorizationRequest, bool) {
 	auth.mutex.Lock()
 	defer auth.mutex.Unlock()
 	auth.cleanup()
-	entry, ok := auth.codes[code]
+	entry, ok := auth.requests[code]
 	if !ok {
-		return authorizationCode{}, false
+		return authorizationRequest{}, false
 	}
 	if clientID != browserClientID {
-		return authorizationCode{}, false
+		return authorizationRequest{}, false
 	}
 	if !pkceVerifierPattern.MatchString(verifier) {
-		return authorizationCode{}, false
+		return authorizationRequest{}, false
 	}
 	if subtle.ConstantTimeCompare([]byte(entry.Challenge), []byte(challengeFor(verifier))) != 1 {
-		return authorizationCode{}, false
+		return authorizationRequest{}, false
 	}
-	delete(auth.codes, code)
+	delete(auth.requests, code)
 	return entry, true
 }
 
@@ -348,19 +350,23 @@ func (handlers *Handlers) GetTokenUsingAuthorizationCode(responseWriter http.Res
 		tokenError(responseWriter, "invalid_request")
 		return
 	}
-	grant, ok := handlers.Google.redeem(request.PostForm.Get("code"), request.PostForm.Get("code_verifier"), request.PostForm.Get("client_id"))
+	authorizationRequest, ok := handlers.Google.redeem(request.PostForm.Get("code"), request.PostForm.Get("code_verifier"), request.PostForm.Get("client_id"))
 	if !ok {
 		tokenError(responseWriter, "invalid_grant")
 		return
 	}
-	account, err := handlers.AccountStore.Get(request.Context(), grant.AccountID)
+	account, err := handlers.AccountStore.Get(request.Context(), authorizationRequest.AccountID)
 	if err != nil {
 		tokenError(responseWriter, "invalid_grant")
 		return
 	}
 	http.SetCookie(responseWriter, handlers.createRefreshTokenCookie(account))
 	responseWriter.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(responseWriter).Encode(AccessTokenOutput{TokenType: "Bearer", AccessToken: handlers.createAccessToken(account), ExpiresIn: int(handlers.AccessTokenDuration.Seconds())})
+	json.NewEncoder(responseWriter).Encode(AccessTokenOutput{
+		TokenType:   "Bearer",
+		AccessToken: handlers.createAccessToken(account),
+		ExpiresIn:   int(handlers.AccessTokenDuration.Seconds()),
+	})
 }
 
 // Optional configuration: partial configuration fails startup rather than
