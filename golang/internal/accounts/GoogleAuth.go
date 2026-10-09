@@ -365,16 +365,17 @@ func (handlers *Handlers) GetTokenUsingAuthorizationCode(w http.ResponseWriter, 
 // presenting a login button that cannot complete.
 func GoogleAuthFromEnvironment(getenv func(string) string) (*GoogleAuth, error) {
 	clientID, secret := getenv("GOOGLE_CLIENT_ID"), getenv("GOOGLE_CLIENT_SECRET")
-	callback, frontend := getenv("GOOGLE_CALLBACK_URL"), getenv("FRONTEND_AUTH_REDIRECT")
-	if clientID == "" && secret == "" && callback == "" && frontend == "" {
+	origin, frontend := getenv("API_ORIGIN"), getenv("FRONTEND_AUTH_REDIRECT")
+	if clientID == "" && secret == "" && frontend == "" {
 		return nil, nil
 	}
-	if clientID == "" || secret == "" || callback == "" || frontend == "" {
-		return nil, errors.New("Google authentication requires GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_CALLBACK_URL and FRONTEND_AUTH_REDIRECT")
+	if clientID == "" || secret == "" || origin == "" || frontend == "" {
+		return nil, errors.New("Google authentication requires GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, API_ORIGIN and FRONTEND_AUTH_REDIRECT")
 	}
-	u, err := url.Parse(callback)
-	if err != nil || u.Scheme != "https" || u.Host == "" || u.User != nil || u.Path != googleCallbackPath || u.RawQuery != "" || u.Fragment != "" || strings.Contains(u.Host, " ") {
-		return nil, errors.New("invalid GOOGLE_CALLBACK_URL")
+	u, err := url.Parse(origin)
+	if err != nil || u.Scheme != "https" || u.Host == "" || u.User != nil || (u.Path != "" && u.Path != "/") || u.RawQuery != "" || u.ForceQuery || u.Fragment != "" || strings.Contains(u.Host, " ") {
+		return nil, errors.New("API_ORIGIN must be an HTTPS origin")
 	}
-	return NewGoogleAuth(NewGoogleIdentityProvider(clientID, secret, callback), frontend)
+	u.Path = googleCallbackPath
+	return NewGoogleAuth(NewGoogleIdentityProvider(clientID, secret, u.String()), frontend)
 }

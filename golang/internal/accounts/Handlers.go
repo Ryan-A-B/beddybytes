@@ -52,7 +52,7 @@ func (handlers *Handlers) AddRoutes(router *mux.Router) {
 	router.HandleFunc("/reset-password", handlers.ResetPassword).Methods(http.MethodPost).Name("ResetPassword")
 	router.HandleFunc("/auth/config", handlers.AuthConfig).Methods(http.MethodGet)
 	router.HandleFunc("/auth/start", handlers.StartAuth).Methods(http.MethodGet)
-	router.HandleFunc("/auth/google/callback", handlers.GoogleCallback).Methods(http.MethodGet)
+	router.HandleFunc(googleCallbackPath, handlers.GoogleCallback).Methods(http.MethodGet)
 	authenticatedRouter := router.PathPrefix("/accounts/{account_id}").Subrouter()
 	authenticatedRouter.Use(internal.NewAuthorizationMiddleware(handlers.Key).Middleware)
 	authenticatedRouter.HandleFunc("", handlers.GetAccount).Methods(http.MethodGet).Name("GetAccount")

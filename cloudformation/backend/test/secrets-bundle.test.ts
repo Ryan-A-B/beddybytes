@@ -52,8 +52,8 @@ test('environment bundles retain the legacy export and wire ECS and MQTT to matc
             }
             assert.equal(container.Environment.some((e: any) => e.Name === 'GOOGLE_CLIENT_ID'), false);
             const hostPrefix = env === 'qa' ? 'qa.' : '';
-            assert.deepEqual(container.Environment.find((e: any) => e.Name === 'GOOGLE_CALLBACK_URL'), {
-                Name: 'GOOGLE_CALLBACK_URL', Value: `https://api.${hostPrefix}beddybytes.com/auth/google/callback`,
+            assert.deepEqual(container.Environment.find((e: any) => e.Name === 'API_ORIGIN'), {
+                Name: 'API_ORIGIN', Value: `https://api.${hostPrefix}beddybytes.com`,
             });
             assert.deepEqual(container.Environment.find((e: any) => e.Name === 'FRONTEND_AUTH_REDIRECT'), {
                 Name: 'FRONTEND_AUTH_REDIRECT', Value: `https://app.${hostPrefix}beddybytes.com/auth/callback`,

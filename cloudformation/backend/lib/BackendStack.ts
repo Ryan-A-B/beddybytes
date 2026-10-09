@@ -61,7 +61,7 @@ export class BackendStack extends cdk.Stack {
             memoryLimitMiB: memory_limit_by_env[props.deploy_env],
             portMappings: [{ containerPort: 9000 }],
             environment: {
-                'GOOGLE_CALLBACK_URL': `https://${host_names.api}/auth/google/callback`,
+                'API_ORIGIN': `https://${host_names.api}`,
                 'FRONTEND_AUTH_REDIRECT': `https://${host_names.app}/auth/callback`,
                 'COOKIE_DOMAIN': `.${domain_name}`,
                 'SERVER_ADDR': ':9000',

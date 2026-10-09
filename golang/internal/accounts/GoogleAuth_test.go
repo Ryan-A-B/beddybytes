@@ -416,7 +416,7 @@ func TestAuthProviderSelection(t *testing.T) {
 func TestFrontendAuthRedirectConfiguration(t *testing.T) {
 	valid := map[string]string{
 		"GOOGLE_CLIENT_ID": "client-id", "GOOGLE_CLIENT_SECRET": "client-secret",
-		"GOOGLE_CALLBACK_URL":    "https://api.example.com/auth/google/callback",
+		"API_ORIGIN":             "https://api.example.com",
 		"FRONTEND_AUTH_REDIRECT": "https://app.example.com/auth/callback",
 	}
 	auth, err := GoogleAuthFromEnvironment(func(key string) string { return valid[key] })
@@ -433,6 +433,43 @@ func TestFrontendAuthRedirectConfiguration(t *testing.T) {
 		if err == nil {
 			t.Fatal("invalid frontend auth redirect accepted")
 		}
+	}
+}
+
+func TestGoogleCallbackDerivedFromAPIOrigin(t *testing.T) {
+	for _, origin := range []string{"https://api.example.com", "https://api.qa.example.com/", "https://api.example.com:8443"} {
+		auth, err := GoogleAuthFromEnvironment(func(key string) string {
+			return map[string]string{
+				"API_ORIGIN": origin, "GOOGLE_CLIENT_ID": "id", "GOOGLE_CLIENT_SECRET": "secret",
+				"FRONTEND_AUTH_REDIRECT": "https://app.example.com/auth/callback",
+			}[key]
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		callback := auth.Provider.(*googleOIDCProvider).config.RedirectURL
+		if callback != strings.TrimSuffix(origin, "/")+googleCallbackPath {
+			t.Fatal("Google redirect did not use the router callback path")
+		}
+	}
+	for _, origin := range []string{"http://api.example.com", "https://api.example.com/wrong-path", "https://api.example.com?", "https://api.example.com?next=evil", "https://api.example.com#fragment", "https://user:pass@api.example.com"} {
+		_, err := GoogleAuthFromEnvironment(func(key string) string {
+			return map[string]string{
+				"API_ORIGIN": origin, "GOOGLE_CLIENT_ID": "id", "GOOGLE_CLIENT_SECRET": "secret",
+				"FRONTEND_AUTH_REDIRECT": "https://app.example.com/auth/callback",
+			}[key]
+		})
+		if err == nil {
+			t.Fatal("invalid API origin accepted")
+		}
+	}
+	if auth, err := GoogleAuthFromEnvironment(func(key string) string {
+		if key == "API_ORIGIN" {
+			return "https://api.example.com"
+		}
+		return ""
+	}); err != nil || auth != nil {
+		t.Fatal("generic API origin enabled Google without credentials")
 	}
 }
 

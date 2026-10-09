@@ -36,15 +36,20 @@ Backend runtime settings:
 ```text
 GOOGLE_CLIENT_ID=<Google web client ID>
 GOOGLE_CLIENT_SECRET=<Google web client secret>
-GOOGLE_CALLBACK_URL=https://api.beddybytes.com/auth/google/callback
+API_ORIGIN=https://api.beddybytes.com
 FRONTEND_AUTH_REDIRECT=https://app.beddybytes.com/auth/callback
 ```
+
+`API_ORIGIN` is the backend's public HTTPS origin. The backend derives Google's
+redirect URL by appending its fixed router path `/auth/google/callback`. There is
+no separately configurable Google callback path.
 
 `FRONTEND_AUTH_REDIRECT` is the full HTTPS frontend callback URL shared by all
 authentication providers. It must not contain credentials, query parameters, or
 a fragment. The backend uses this exact URL for the redirect and code exchange;
-it does not append a provider-specific path. Leaving all four
-settings empty disables Google and hides its buttons. Partial configuration
+it does not append a provider-specific path. Leaving the Google credentials and
+frontend redirect empty disables Google and hides its buttons, even if the API
+origin is configured. Partial configuration
 fails startup. Store local settings in the encrypted local SOPS environment.
 Google does not accept `.local` callback domains; use QA or registered public
 HTTPS development hosts with the configured frontend origin and API routing.
