@@ -199,3 +199,28 @@ func assertPolicyResources(t *testing.T, policy *events.IAMPolicyDocument, expec
 		}
 	}
 }
+
+func TestMQTTRejectsRefreshTokens(t *testing.T) {
+	for _, tc := range []struct {
+		name, use, scope string
+		allowed          bool
+	}{
+		{"access", "access", "account monitor", true},
+		{"legacy access", "", "", true},
+		{"refresh", "refresh", "account monitor", false},
+		{"legacy refresh", "", "refresh_token", false},
+		{"unknown type", "other", "account", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			claims := internal.Claims{Issuer: "beddybytes", Audience: "beddybytes", Expiry: time.Now().Add(time.Hour).Unix(), Subject: internal.URN{Service: "iam", AccountID: "account", ResourceType: "user", ResourceID: "user"}, TokenUse: tc.use, Scope: tc.scope}
+			token, err := jwt.NewWithClaims(jwt.SigningMethodHS256, &claims).SignedString([]byte(testSigningKey))
+			if err != nil {
+				t.Fatal(err)
+			}
+			_, err = authorize(newRequest(token, "client-1"), testConfig())
+			if (err == nil) != tc.allowed {
+				t.Fatalf("allowed=%v, error=%v", tc.allowed, err)
+			}
+		})
+	}
+}

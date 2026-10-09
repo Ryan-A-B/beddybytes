@@ -492,7 +492,7 @@ func TestGoogleScopesSurviveCodeExchangeAndRefresh(t *testing.T) {
 				if _, err := jwt.ParseWithClaims(output.AccessToken, &claims, handlers.getKey); err != nil {
 					t.Fatal(err)
 				}
-				if claims.Scope != scope || claims.Expiry <= time.Now().Unix() || claims.Subject.AccountID == "" {
+				if claims.TokenUse != internal.TokenUseAccess || claims.Scope != scope || claims.Expiry <= time.Now().Unix() || claims.Subject.AccountID == "" {
 					t.Fatal("scope, account, or token expiration was lost")
 				}
 				var cookie *http.Cookie
@@ -503,6 +503,13 @@ func TestGoogleScopesSurviveCodeExchangeAndRefresh(t *testing.T) {
 				}
 				if cookie == nil || !cookie.HttpOnly || !cookie.Secure {
 					t.Fatal("refresh cookie missing")
+				}
+				var refresh internal.Claims
+				if _, err := jwt.ParseWithClaims(cookie.Value, &refresh, handlers.getKey); err != nil {
+					t.Fatal(err)
+				}
+				if refresh.TokenUse != internal.TokenUseRefresh || refresh.Scope != scope {
+					t.Fatal("refresh token type or scopes were lost")
 				}
 				request := httptest.NewRequest("POST", "/token", strings.NewReader("grant_type=refresh_token&scope=admin"))
 				request.Header.Set("Content-Type", "application/x-www-form-urlencoded")

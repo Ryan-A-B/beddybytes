@@ -161,6 +161,9 @@ func (handlers *Handlers) CheckAnonymousAuthorization(request *http.Request, exp
 		err = merry.New("failed to parse access token: " + err.Error()).WithHTTPCode(http.StatusUnauthorized)
 		return
 	}
+	if claims.EffectiveTokenUse() != internal.TokenUseAccess {
+		return merry.New("expected access token").WithHTTPCode(http.StatusUnauthorized)
+	}
 	if claims.Subject.ResourceType != "remote_address" {
 		err = merry.New("invalid resource type: " + claims.Subject.ResourceType).WithHTTPCode(http.StatusUnauthorized)
 		return
@@ -305,10 +308,10 @@ func (handlers *Handlers) GetTokenUsingPasswordGrant(responseWriter http.Respons
 	}
 	output := AccessTokenOutput{
 		TokenType:   "Bearer",
-		AccessToken: handlers.createAccessToken(account),
+		AccessToken: handlers.createAccessToken(account, "account monitor"),
 		ExpiresIn:   int(handlers.AccessTokenDuration.Seconds()),
 	}
-	http.SetCookie(responseWriter, handlers.createRefreshTokenCookie(account))
+	http.SetCookie(responseWriter, handlers.createRefreshTokenCookie(account, "account monitor"))
 	responseWriter.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(responseWriter).Encode(output)
 }
@@ -336,8 +339,8 @@ func (handlers *Handlers) GetTokenUsingRefreshTokenGrant(responseWriter http.Res
 		err = merry.Prepend(err, "failed to parse refresh token").WithUserMessage("unauthorized").WithHTTPCode(http.StatusUnauthorized)
 		return
 	}
-	if claims.Scope != "refresh_token" {
-		err = merry.New(`claims.Scope != "refresh_token"`).WithUserMessage("unauthorized").WithHTTPCode(http.StatusUnauthorized)
+	if claims.EffectiveTokenUse() != internal.TokenUseRefresh {
+		err = merry.New("expected refresh token").WithUserMessage("unauthorized").WithHTTPCode(http.StatusUnauthorized)
 		return
 	}
 	if added := handlers.UsedTokens.TryAdd(claims.ID); !added {
@@ -349,12 +352,16 @@ func (handlers *Handlers) GetTokenUsingRefreshTokenGrant(responseWriter http.Res
 		err = merry.Prepend(err, "failed to get account: "+claims.Subject.AccountID).WithUserMessage("unauthorized").WithHTTPCode(http.StatusUnauthorized)
 		return
 	}
+	scopes := claims.Scope
+	if claims.TokenUse == "" {
+		scopes = "account monitor"
+	}
 	output := AccessTokenOutput{
 		TokenType:   "Bearer",
-		AccessToken: handlers.createAccessToken(account, claims.AccessScope),
+		AccessToken: handlers.createAccessToken(account, scopes),
 		ExpiresIn:   int(handlers.AccessTokenDuration.Seconds()),
 	}
-	http.SetCookie(responseWriter, handlers.createRefreshTokenCookie(account, claims.AccessScope))
+	http.SetCookie(responseWriter, handlers.createRefreshTokenCookie(account, scopes))
 	responseWriter.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(responseWriter).Encode(output)
 }
@@ -431,8 +438,9 @@ func (handlers *Handlers) createAnonymousAccessToken(remoteAddress string, scope
 			ResourceType: "remote_address",
 			ResourceID:   remoteAddress,
 		},
-		Scope:  scope,
-		Expiry: expiry.Unix(),
+		Scope:    scope,
+		TokenUse: internal.TokenUseAccess,
+		Expiry:   expiry.Unix(),
 	}
 	accessToken, err := jwt.NewWithClaims(handlers.SigningMethod, &claims).SignedString(handlers.Key)
 	fatal.OnError(err)
@@ -451,8 +459,9 @@ func (handlers *Handlers) createAccessToken(account *Account, scopes ...string) 
 			ResourceType: "user",
 			ResourceID:   account.User.ID,
 		},
-		Expiry: expiry.Unix(),
-		Scope:  strings.Join(scopes, " "),
+		Expiry:   expiry.Unix(),
+		Scope:    strings.Join(scopes, " "),
+		TokenUse: internal.TokenUseAccess,
 	}
 	accessToken, err := jwt.NewWithClaims(handlers.SigningMethod, &claims).SignedString(handlers.Key)
 	fatal.OnError(err)
@@ -472,9 +481,9 @@ func (handlers *Handlers) createRefreshToken(account *Account, scopes ...string)
 			ResourceType: "user",
 			ResourceID:   account.User.ID,
 		},
-		Expiry:      expiry.Unix(),
-		Scope:       "refresh_token",
-		AccessScope: strings.Join(scopes, " "),
+		Expiry:   expiry.Unix(),
+		Scope:    strings.Join(scopes, " "),
+		TokenUse: internal.TokenUseRefresh,
 	}
 	refreshToken, err := jwt.NewWithClaims(handlers.SigningMethod, &claims).SignedString(handlers.Key)
 	fatal.OnError(err)

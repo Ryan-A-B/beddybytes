@@ -171,7 +171,7 @@ func parseClaims(accessToken string, signingKey []byte) (*internal.Claims, error
 	if err != nil {
 		return nil, err
 	}
-	if !token.Valid {
+	if !token.Valid || claims.EffectiveTokenUse() != internal.TokenUseAccess {
 		return nil, errUnauthorized
 	}
 	return &claims, nil
