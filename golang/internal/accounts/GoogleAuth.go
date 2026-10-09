@@ -358,9 +358,9 @@ func (handlers *Handlers) GetTokenUsingAuthorizationCode(responseWriter http.Res
 		tokenError(responseWriter, "invalid_grant")
 		return
 	}
-	http.SetCookie(responseWriter, handlers.createRefreshTokenCookie(account, grant.Scope))
+	http.SetCookie(responseWriter, handlers.createRefreshTokenCookie(account))
 	responseWriter.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(responseWriter).Encode(AccessTokenOutput{TokenType: "Bearer", AccessToken: handlers.createAccessToken(account, grant.Scope), ExpiresIn: int(handlers.AccessTokenDuration.Seconds())})
+	json.NewEncoder(responseWriter).Encode(AccessTokenOutput{TokenType: "Bearer", AccessToken: handlers.createAccessToken(account), ExpiresIn: int(handlers.AccessTokenDuration.Seconds())})
 }
 
 // Optional configuration: partial configuration fails startup rather than

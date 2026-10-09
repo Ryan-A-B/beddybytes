@@ -308,10 +308,10 @@ func (handlers *Handlers) GetTokenUsingPasswordGrant(responseWriter http.Respons
 	}
 	output := AccessTokenOutput{
 		TokenType:   "Bearer",
-		AccessToken: handlers.createAccessToken(account, "account monitor"),
+		AccessToken: handlers.createAccessToken(account),
 		ExpiresIn:   int(handlers.AccessTokenDuration.Seconds()),
 	}
-	http.SetCookie(responseWriter, handlers.createRefreshTokenCookie(account, "account monitor"))
+	http.SetCookie(responseWriter, handlers.createRefreshTokenCookie(account))
 	responseWriter.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(responseWriter).Encode(output)
 }
@@ -352,13 +352,12 @@ func (handlers *Handlers) GetTokenUsingRefreshTokenGrant(responseWriter http.Res
 		err = merry.Prepend(err, "failed to get account: "+claims.Subject.AccountID).WithUserMessage("unauthorized").WithHTTPCode(http.StatusUnauthorized)
 		return
 	}
-	const scopes = "account monitor"
 	output := AccessTokenOutput{
 		TokenType:   "Bearer",
-		AccessToken: handlers.createAccessToken(account, scopes),
+		AccessToken: handlers.createAccessToken(account),
 		ExpiresIn:   int(handlers.AccessTokenDuration.Seconds()),
 	}
-	http.SetCookie(responseWriter, handlers.createRefreshTokenCookie(account, scopes))
+	http.SetCookie(responseWriter, handlers.createRefreshTokenCookie(account))
 	responseWriter.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(responseWriter).Encode(output)
 }
@@ -444,7 +443,7 @@ func (handlers *Handlers) createAnonymousAccessToken(remoteAddress string, scope
 	return
 }
 
-func (handlers *Handlers) createAccessToken(account *Account, scopes ...string) (accessToken string) {
+func (handlers *Handlers) createAccessToken(account *Account) (accessToken string) {
 	expiry := time.Now().Add(handlers.AccessTokenDuration)
 	claims := internal.Claims{
 		Issuer:   "beddybytes",
@@ -457,7 +456,7 @@ func (handlers *Handlers) createAccessToken(account *Account, scopes ...string) 
 			ResourceID:   account.User.ID,
 		},
 		Expiry:   expiry.Unix(),
-		Scope:    strings.Join(scopes, " "),
+		Scope:    "account monitor",
 		TokenUse: internal.TokenUseAccess,
 	}
 	accessToken, err := jwt.NewWithClaims(handlers.SigningMethod, &claims).SignedString(handlers.Key)
@@ -465,7 +464,7 @@ func (handlers *Handlers) createAccessToken(account *Account, scopes ...string) 
 	return
 }
 
-func (handlers *Handlers) createRefreshToken(account *Account, scopes ...string) (refreshToken string) {
+func (handlers *Handlers) createRefreshToken(account *Account) (refreshToken string) {
 	expiry := time.Now().Add(handlers.RefreshTokenDuration)
 	claims := internal.Claims{
 		ID:       uuid.NewV4().String(),
@@ -479,7 +478,7 @@ func (handlers *Handlers) createRefreshToken(account *Account, scopes ...string)
 			ResourceID:   account.User.ID,
 		},
 		Expiry:   expiry.Unix(),
-		Scope:    strings.Join(scopes, " "),
+		Scope:    "account monitor",
 		TokenUse: internal.TokenUseRefresh,
 	}
 	refreshToken, err := jwt.NewWithClaims(handlers.SigningMethod, &claims).SignedString(handlers.Key)
@@ -487,10 +486,10 @@ func (handlers *Handlers) createRefreshToken(account *Account, scopes ...string)
 	return
 }
 
-func (handlers *Handlers) createRefreshTokenCookie(account *Account, scopes ...string) *http.Cookie {
+func (handlers *Handlers) createRefreshTokenCookie(account *Account) *http.Cookie {
 	return &http.Cookie{
 		Name:     "refresh_token",
-		Value:    handlers.createRefreshToken(account, scopes...),
+		Value:    handlers.createRefreshToken(account),
 		Domain:   handlers.CookieDomain,
 		Path:     "/token",
 		HttpOnly: true,

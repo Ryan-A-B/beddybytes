@@ -473,7 +473,7 @@ func TestGoogleCallbackDerivedFromAPIOrigin(t *testing.T) {
 	}
 }
 
-func TestGoogleRequestedScopesThenRefreshAccountMonitor(t *testing.T) {
+func TestGoogleTokensAlwaysGrantAccountMonitor(t *testing.T) {
 	for _, scope := range []string{"account", "monitor", "account monitor"} {
 		t.Run(scope, func(t *testing.T) {
 			handlers, router, _, _ := googleTestHandlers(t)
@@ -481,10 +481,7 @@ func TestGoogleRequestedScopesThenRefreshAccountMonitor(t *testing.T) {
 			code := callbackValues(t, callbackGoogle(router, flow, "")).Get("code")
 			response := exchangeBeddybytes(router, code, flow.verifier)
 			for rotation := 0; rotation < 3; rotation++ {
-				expectedScope := scope
-				if rotation > 0 {
-					expectedScope = "account monitor"
-				}
+				const expectedScope = "account monitor"
 				if response.Code != http.StatusOK {
 					t.Fatalf("token response failed: %d", response.Code)
 				}
