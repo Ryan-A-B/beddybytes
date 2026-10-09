@@ -206,7 +206,7 @@ func (handlers *Handlers) CreateAccount(responseWriter http.ResponseWriter, requ
 	if err != nil {
 		return
 	}
-	user := NewUser(&NewUserInput{
+	user := NewInternalIdentityUser(&NewInternalIdentityUserInput{
 		Email:    input.Email,
 		Password: input.Password,
 	})

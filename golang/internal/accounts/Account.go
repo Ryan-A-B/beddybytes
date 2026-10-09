@@ -139,15 +139,15 @@ func (user *User) IdentityPair() (issuer, subject string) {
 }
 
 func (user *User) IsPasswordUser() bool {
-	return user.IdentityType == IdentityTypeInternal && user.InternalIdentity != nil && user.ExternalIdentity == nil
+	return user.IdentityType == IdentityTypeInternal
 }
 
-type NewUserInput struct {
+type NewInternalIdentityUserInput struct {
 	Email    string `json:"email"`
 	Password string `json:"password"`
 }
 
-func NewUser(input *NewUserInput) (user *User) {
+func NewInternalIdentityUser(input *NewInternalIdentityUserInput) (user *User) {
 	passwordSalt := make([]byte, 32)
 	_, err := rand.Read(passwordSalt)
 	fatal.OnError(err)
@@ -156,7 +156,9 @@ func NewUser(input *NewUserInput) (user *User) {
 		ID:           uuid.NewV4().String(),
 		IdentityType: IdentityTypeInternal,
 		InternalIdentity: &InternalIdentity{
-			Email: input.Email, PasswordSalt: passwordSalt, PasswordHash: passwordHash,
+			Email:        input.Email,
+			PasswordSalt: passwordSalt,
+			PasswordHash: passwordHash,
 		},
 	}
 	return

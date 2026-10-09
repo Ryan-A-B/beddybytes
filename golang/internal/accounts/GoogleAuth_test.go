@@ -147,7 +147,7 @@ func exchangeBeddybytes(router http.Handler, code, verifier string) *httptest.Re
 func TestGoogleSignupLoginUsesOpaqueSubjectAndStoresEmail(t *testing.T) {
 	handlers, router, provider, log := googleTestHandlers(t)
 	ctx := context.Background()
-	passwordAccount := &Account{ID: "password-account", User: NewUser(&NewUserInput{Email: "same@example.com", Password: "long-enough-password-for-tests"})}
+	passwordAccount := &Account{ID: "password-account", User: NewInternalIdentityUser(&NewInternalIdentityUserInput{Email: "same@example.com", Password: "long-enough-password-for-tests"})}
 	if err := handlers.AccountStore.Put(ctx, passwordAccount); err != nil {
 		t.Fatal(err)
 	}

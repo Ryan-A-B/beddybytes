@@ -17,7 +17,7 @@ import (
 func TestLegacyAndGoogleReplayResetAndDurableDeletion(t *testing.T) {
 	ctx := context.Background()
 	handlers, router, provider, log := googleTestHandlers(t)
-	legacy := &Account{ID: "legacy-account", User: NewUser(&NewUserInput{Email: "same@example.com", Password: "original-long-password"})}
+	legacy := &Account{ID: "legacy-account", User: NewInternalIdentityUser(&NewInternalIdentityUserInput{Email: "same@example.com", Password: "original-long-password"})}
 	data, err := json.Marshal(struct {
 		ID   string     `json:"id"`
 		User LegacyUser `json:"user"`

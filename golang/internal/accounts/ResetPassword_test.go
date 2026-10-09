@@ -43,7 +43,7 @@ func TestResetPassword(t *testing.T) {
 		}
 		router := mux.NewRouter()
 		handlers.AddRoutes(router)
-		user := accounts.NewUser(&accounts.NewUserInput{
+		user := accounts.NewInternalIdentityUser(&accounts.NewInternalIdentityUserInput{
 			Email:    email,
 			Password: uuid.NewV4().String(),
 		})

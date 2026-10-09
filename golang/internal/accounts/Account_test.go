@@ -41,7 +41,7 @@ func TestLegacyPasswordUserConvertsAndWritesNewFormat(t *testing.T) {
 
 func TestIdentityJSONRoundTrip(t *testing.T) {
 	for _, user := range []User{
-		*NewUser(&NewUserInput{Email: "password@example.com", Password: "a-long-password"}),
+		*NewInternalIdentityUser(&NewInternalIdentityUserInput{Email: "password@example.com", Password: "a-long-password"}),
 		{ID: "external-user", IdentityType: IdentityTypeExternal, ExternalIdentity: &ExternalIdentity{
 			Issuer: GoogleIssuer, Subject: "opaque/subject+01", Email: "password@example.com",
 		}},
@@ -84,7 +84,7 @@ func TestIdentityJSONRejectsInvalidDiscriminatorsAndShapes(t *testing.T) {
 		"empty subject":          `{"id":"user","identity_type":"external","external_identity":{"issuer":"google"}}`,
 	} {
 		t.Run(name, func(t *testing.T) {
-			user := *NewUser(&NewUserInput{Email: "unchanged@example.com", Password: "password"})
+			user := *NewInternalIdentityUser(&NewInternalIdentityUserInput{Email: "unchanged@example.com", Password: "password"})
 			original := user
 			if err := json.Unmarshal([]byte(data), &user); err == nil {
 				t.Fatal("invalid user accepted")

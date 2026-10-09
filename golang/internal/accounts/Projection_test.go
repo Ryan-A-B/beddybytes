@@ -30,7 +30,7 @@ func TestProjection(t *testing.T) {
 			Apply:      handlers.ApplyEvent,
 		})
 		Convey("create account", func() {
-			user := accounts.NewUser(&accounts.NewUserInput{
+			user := accounts.NewInternalIdentityUser(&accounts.NewInternalIdentityUserInput{
 				Email:    "test@example.com",
 				Password: uuid.NewV4().String(),
 			})
@@ -53,7 +53,7 @@ func TestProjection(t *testing.T) {
 
 		Convey("reset password", func() {
 			// First create an account
-			user := accounts.NewUser(&accounts.NewUserInput{
+			user := accounts.NewInternalIdentityUser(&accounts.NewInternalIdentityUserInput{
 				Email:    "test@example.com",
 				Password: uuid.NewV4().String(),
 			})
