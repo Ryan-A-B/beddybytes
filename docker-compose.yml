@@ -55,8 +55,8 @@ services:
       - COOKIE_DOMAIN=.beddybytes.local
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:?GOOGLE_CLIENT_ID must be set}
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:?GOOGLE_CLIENT_SECRET must be set}
-      - API_ORIGIN=${API_ORIGIN:?API_ORIGIN must be set}
-      - FRONTEND_AUTH_REDIRECT=${FRONTEND_AUTH_REDIRECT:?FRONTEND_AUTH_REDIRECT must be set}
+      - API_ORIGIN=https://api.local.beddybytes.com
+      - FRONTEND_AUTH_REDIRECT=https://app.beddybytes.local/auth/callback
       - SERVER_ADDR=:9000
       - FILE_EVENT_LOG_FOLDER_PATH=/opt/eventlog
       - MAILER_IMPLEMENTATION=console

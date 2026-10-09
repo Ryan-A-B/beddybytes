@@ -97,12 +97,6 @@ Replace every placeholder in the SOPS editor. Then build and deploy with:
 
 The decrypted values remain in the child process environment. No plaintext environment file is written during the build or deployment. Set `BEDDYBYTES_MARKETING_SOPS_ENV_FILE` to use a different encrypted file.
 
-**Google authentication**
-
-Google browser signup and sign-in can be enabled alongside password login. See
-[Google authentication setup](docs/google-authentication.md) for client registration,
-encrypted configuration, callback URLs, and the BeddyBytes code exchange.
-
 **License (Open Source)**
 - BeddyBytes is open-source software under the GNU General Public License, version 2 or (at your option) any later version (`GPL-2.0-or-later`).
 - You may run, study, modify, and redistribute BeddyBytes under those terms.

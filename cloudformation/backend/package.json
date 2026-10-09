@@ -9,6 +9,7 @@
     "watch": "tsc -w",
     "test": "jest",
     "test:bundles": "ts-node test/secrets-bundle.test.ts",
+    "test:local": "ts-node test/local-stack.test.ts",
     "cdk": "cdk",
     "deploy:core": "cdk deploy beddybytes-core"
   },

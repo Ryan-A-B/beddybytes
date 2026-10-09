@@ -7,6 +7,7 @@ import { ContinuousIntegrationStack } from '../lib/ContinuousIntegrationStack';
 import { LoadBalancerStack } from '../lib/LoadBalancerStack';
 import { MonitoringStack } from '../lib/MonitoringStack';
 import { BackendStack } from '../lib/BackendStack';
+import { LocalStack } from '../lib/LocalStack';
 
 // TODO remove dev host names from traefik/letsencrypt/acme.json and take a new snapshot
 
@@ -51,6 +52,10 @@ new BackendStack(app, 'beddybytes-backend-qa', {
   secrets_bundle: secrets_stack.backend_bundles.qa,
   elastic_ip: core_stack.elastic_ip,
   bucket: core_stack.bucket,
+});
+
+new LocalStack(app, 'beddybytes-backend-local', {
+  elastic_ip: core_stack.elastic_ip,
 });
 
 new EmailStack(app, 'beddybytes-email');

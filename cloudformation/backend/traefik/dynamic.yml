@@ -1,5 +1,32 @@
 http:
+  routers:
+    local-api-http:
+      rule: 'Host(`api.local.beddybytes.com`)'
+      entryPoints:
+        - web
+      middlewares:
+        - redirect-local-api
+      service: noop@internal
+
+    local-api-https:
+      rule: 'Host(`api.local.beddybytes.com`)'
+      entryPoints:
+        - websecure
+      middlewares:
+        - redirect-local-api
+      service: noop@internal
+      tls:
+        certResolver: letsencrypt
+
   middlewares:
+    # The browser follows this redirect to its local backend. Preserve the
+    # complete path and query, including OAuth's code and state parameters.
+    redirect-local-api:
+      redirectRegex:
+        regex: '^https?://api\.local\.beddybytes\.com(:[0-9]+)?/(.*)$'
+        replacement: 'https://api.beddybytes.local/${2}'
+        permanent: true
+
     headers-cors:
       headers:
         accesscontrolalloworiginlist: https://app.beddybytes.com,https://app.qa.beddybytes.com,https://app.beddybytes.local,https://beddybytes.com
