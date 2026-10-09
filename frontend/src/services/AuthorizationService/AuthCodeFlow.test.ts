@@ -71,7 +71,9 @@ test.each(['missing_transaction', 'wrong_state', 'expired', 'wrong_redirect', 'm
     if (mode === 'wrong_redirect') saved.redirect_uri = 'https://evil.example/callback';
     if (mode !== 'missing_transaction') sessionStorage.setItem(transactionKey, mode === 'malformed_transaction' ? '{invalid' : JSON.stringify(saved));
     const flow = loadCallback('code=beddybytes-code&state=' + (mode === 'wrong_state' ? 'attacker' : state));
-    await expect(flow.completeAuth()).rejects.toThrow('could not be verified');
+    const expectedError = mode === 'missing_transaction' ? 'could not be verified'
+        : mode === 'malformed_transaction' ? SyntaxError : flow.AuthorizationError;
+    await expect(flow.completeAuth()).rejects.toThrow(expectedError);
     expect(fetch).not.toHaveBeenCalled();
 });
 

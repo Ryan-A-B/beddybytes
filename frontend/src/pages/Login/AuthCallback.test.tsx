@@ -2,10 +2,13 @@ import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { context as ServicesContext } from '../../services';
-import { completeAuth } from '../../services/AuthorizationService/AuthCodeFlow';
+import { AuthorizationError, completeAuth } from '../../services/AuthorizationService/AuthCodeFlow';
 import AuthCallback from './AuthCallback';
 
-jest.mock('../../services/AuthorizationService/AuthCodeFlow', () => ({ completeAuth: jest.fn() }));
+jest.mock('../../services/AuthorizationService/AuthCodeFlow', () => ({
+    ...jest.requireActual('../../services/AuthorizationService/AuthCodeFlow'),
+    completeAuth: jest.fn(),
+}));
 
 afterEach(() => { localStorage.clear(); jest.clearAllMocks(); });
 
@@ -35,6 +38,19 @@ test('missing-account login stays signed out and offers explicit signup', async 
     </ServicesContext.Provider>);
     await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('No account found.'));
     expect(screen.getByRole('link', { name: 'Create account' })).toHaveAttribute('href', '/#create_account');
+    expect(applyToken).not.toHaveBeenCalled();
+    expect(localStorage.getItem('account')).toBeNull();
+});
+
+test('validation errors display a generic message without publishing a session', async () => {
+    (completeAuth as jest.Mock).mockRejectedValue(new AuthorizationError('callback state does not match expected state'));
+    const applyToken = jest.fn();
+    render(<ServicesContext.Provider value={{ authorization_service: { apply_token_output: applyToken } } as any}>
+        <MemoryRouter><AuthCallback /></MemoryRouter>
+    </ServicesContext.Provider>);
+    await screen.findByRole('alert');
+    expect(screen.getByRole('alert')).toHaveTextContent('Your sign-in attempt could not be verified. Please start again.');
+    expect(screen.queryByText('callback state does not match expected state')).not.toBeInTheDocument();
     expect(applyToken).not.toHaveBeenCalled();
     expect(localStorage.getItem('account')).toBeNull();
 });
