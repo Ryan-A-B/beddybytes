@@ -44,10 +44,14 @@ export const startAuth = async (provider: AuthProvider, intent: AuthIntent): Pro
 
 // Capture and remove the code during module initialization, before services
 // log page URLs or React renders. The promise below survives StrictMode effects.
-const callback = (() => {
+const callbackResult = (() => {
     if (window.location.pathname !== AuthCallbackPath) return null;
     const params = new URLSearchParams(window.location.search);
-    const result = { code: params.get('code'), state: params.get('state'), error: params.get('error') };
+    const result = {
+        code: params.get('code'),
+        state: params.get('state'),
+        error: params.get('error'),
+    };
     window.history.replaceState(window.history.state, '', AuthCallbackPath);
     return result;
 })();
@@ -59,41 +63,35 @@ const errorMessages: Record<string, string> = {
     authentication_failed: 'Authentication could not be completed. Please try again.',
 };
 
-export interface AuthCallback {
+export interface AuthCallbackResult {
     token: TokenOutput;
     account: Account;
     return_to: string;
 }
 
-let completion: Promise<AuthCallback> | undefined;
-export const completeAuth = (): Promise<AuthCallback> => {
+let completion: Promise<AuthCallbackResult> | undefined;
+export const completeAuth = (): Promise<AuthCallbackResult> => {
     if (!completion) completion = exchangeAuthCode();
     return completion;
 };
 
-const exchangeAuthCode = async (): Promise<AuthCallback> => {
-    const saved = sessionStorage.getItem(TransactionKey);
+const exchangeAuthCode = async (): Promise<AuthCallbackResult> => {
+    const transactionJSON = sessionStorage.getItem(TransactionKey);
+    if (!transactionJSON) throw new Error('Your sign-in attempt could not be verified. Please start again.');
     sessionStorage.removeItem(TransactionKey);
-    let transaction: Transaction;
-    try {
-        transaction = JSON.parse(saved || 'null');
-    } catch {
-        throw new Error('Your sign-in attempt could not be verified. Please start again.');
-    }
-    if (!callback || !transaction || !callback.state || callback.state !== transaction.state ||
-        !Number.isFinite(transaction.created) || Date.now() - transaction.created > 10 * 60 * 1000 || transaction.created > Date.now() ||
-        transaction.redirect_uri !== window.location.origin + AuthCallbackPath || !/^[A-Za-z0-9_-]{43}$/.test(transaction.verifier)) {
-        throw new Error('Your sign-in attempt could not be verified. Please start again.');
-    }
-    if (callback.error) {
-        throw new Error(errorMessages[callback.error] || 'Authentication could not be completed. Please try again.');
-    }
-    if (!callback.code) throw new Error('Your sign-in attempt could not be completed. Please start again.');
+    const transaction: Transaction = JSON.parse(transactionJSON);
+    const authorizationCode = getValidatedAuthorizationCode(transaction);
     const response = await fetch(`https://${settings.API.host}/token`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         credentials: 'include',
-        body: new URLSearchParams({ grant_type: 'authorization_code', code: callback.code, code_verifier: transaction.verifier, client_id: ClientID, redirect_uri: transaction.redirect_uri }),
+        body: new URLSearchParams({
+            grant_type: 'authorization_code',
+            code: authorizationCode,
+            code_verifier: transaction.verifier,
+            client_id: ClientID,
+            redirect_uri: transaction.redirect_uri,
+        }),
     });
     if (!response.ok) throw new Error('Your sign-in attempt has expired or could not be completed. Please start again.');
     const token: TokenOutput = await response.json();
@@ -104,3 +102,29 @@ const exchangeAuthCode = async (): Promise<AuthCallback> => {
     const account: Account = await accountResponse.json();
     return { token, account, return_to: ['/', '/baby', '/parent'].includes(transaction.return_to) ? transaction.return_to : '/' };
 };
+
+export class AuthorizationError extends Error {
+    constructor(message: string) {
+        super(message);
+        this.name = 'AuthorizationError';
+    }
+}
+
+const getValidatedAuthorizationCode = (transaction: Transaction): string => {
+    if (!callbackResult) throw new AuthorizationError('no callback result');
+    const expectedState = transaction.state;
+    if (callbackResult.state !== expectedState) throw new AuthorizationError('callback state does not match expected state');
+    if (!Number.isFinite(transaction.created)) throw new AuthorizationError('transaction created timestamp is not finite');
+    const now = Date.now();
+    if (now < transaction.created) throw new AuthorizationError('transaction created timestamp is in the future');
+    const age = now - transaction.created;
+    const maxAge = 10 * 60 * 1000;
+    if (age > maxAge) throw new AuthorizationError('transaction has expired');
+    const expectedRedirectUri = window.location.origin + AuthCallbackPath;
+    if (transaction.redirect_uri !== expectedRedirectUri) throw new AuthorizationError('redirect URI does not match expected URI');
+    const verifierPattern = /^[A-Za-z0-9_-]{43}$/;
+    if (!verifierPattern.test(transaction.verifier)) throw new AuthorizationError('code verifier does not match expected pattern');
+    if (callbackResult.error) throw new AuthorizationError(`callback returned error: ${callbackResult.error}`);
+    if (!callbackResult.code) throw new AuthorizationError('callback code is missing');
+    return callbackResult.code;
+}
