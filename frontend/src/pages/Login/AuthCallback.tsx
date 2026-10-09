@@ -21,6 +21,9 @@ const AuthCallback: React.FC = () => {
             if (failure instanceof AuthorizationError) {
                 setError('Your sign-in attempt could not be verified. Please start again.');
                 return;
+            } else if (failure instanceof Error) {
+                setError(failure.message);
+                return;
             }
             setError('An unexpected error occurred. Please try again.');
         });
