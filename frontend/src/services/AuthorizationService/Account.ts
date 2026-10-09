@@ -5,9 +5,4 @@ export interface Account {
 
 export interface User {
     id: string
-    email?: string
-    password_salt?: string
-    password_hash?: string
-    issuer?: string
-    subject?: string
 }

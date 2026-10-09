@@ -23,9 +23,6 @@ const default_account: Account = {
     id: "test_account_id",
     user: {
         id: "test_user_id",
-        email: "test@example.com",
-        password_salt: "salt",
-        password_hash: "hash",
     },
 };
 
