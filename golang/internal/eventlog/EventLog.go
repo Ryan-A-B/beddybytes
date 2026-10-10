@@ -12,15 +12,17 @@ import (
 
 type Event struct {
 	ID            string          `json:"id"`
-	Type          string          `json:"type"`
+	Type          EventType       `json:"type"`
 	AccountID     string          `json:"account_id,omitempty"`
 	LogicalClock  int64           `json:"logical_clock"`
 	UnixTimestamp int64           `json:"unix_timestamp"`
 	Data          json.RawMessage `json:"data"`
 }
 
+type EventType string
+
 type AppendInput struct {
-	Type      string
+	Type      EventType
 	AccountID string
 	Data      json.RawMessage
 }

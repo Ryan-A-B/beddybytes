@@ -1,14 +1,11 @@
 package accounts
 
 import (
-	"crypto/rand"
 	"encoding/json"
-	"io"
 	"log"
 	"net/http"
 
-	"github.com/Ryan-A-B/beddybytes/golang/internal/eventlog"
-	"github.com/Ryan-A-B/beddybytes/golang/internal/fatal"
+	"github.com/Ryan-A-B/beddybytes/golang/internal/accountrepository"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/httpx"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/mailer"
 	"github.com/ansel1/merry"
@@ -77,15 +74,18 @@ func (handlers *Handlers) RequestPasswordReset(responseWriter http.ResponseWrite
 		return
 	}
 	ctx := request.Context()
-	account, err := handlers.AccountStore.GetByEmail(ctx, input.Email)
+	userID := accountrepository.UserID{
+		Issuer:  accountrepository.IssuerBeddybytes,
+		Subject: input.Email,
+	}
+	_, err = handlers.AccountQueryHandler.GetAccountIDForUser(ctx, userID)
 	if err != nil {
-		log.Println("attempting to reset password for unknown email:", input.Email)
-		err = nil
+		err = merry.WithHTTPCode(err, http.StatusBadRequest)
 		return
 	}
 	token := handlers.PasswordResetTokens.Create(input.Email)
 	err = handlers.Mailer.SendPasswordResetLink(ctx, mailer.SendPasswordResetLinkInput{
-		Email: account.User.InternalIdentity.Email,
+		Email: input.Email,
 		Token: token,
 	})
 	if err != nil {
@@ -123,24 +123,9 @@ func (handlers *Handlers) ResetPassword(responseWriter http.ResponseWriter, requ
 	}
 	ok := handlers.PasswordResetTokens.Consume(input.Token, func(email string) {
 		ctx := request.Context()
-		salt := make([]byte, 32)
-		_, err = io.ReadFull(rand.Reader, salt)
-		if err != nil {
-			log.Println("Error generating salt:", err)
-			return
-		}
-		passwordHash := calculatePasswordHash(input.Password, salt)
-		payload := PasswordResetData{
-			Email:        email,
-			PasswordSalt: salt,
-			PasswordHash: passwordHash,
-		}
-		err = handlers.AccountStore.SetPassword(ctx, &UpdatePasswordInput{Email: email, PasswordSalt: salt, PasswordHash: passwordHash}, func() error {
-			_, appendErr := handlers.EventLog.Append(ctx, eventlog.AppendInput{
-				Type: EventTypeAccountPasswordReset,
-				Data: fatal.UnlessMarshalJSON(payload),
-			})
-			return appendErr
+		err = handlers.AccountCommandHandler.ResetPassword(ctx, accountrepository.ResetPasswordInput{
+			Email:    email,
+			Password: input.Password,
 		})
 	})
 	if !ok {
