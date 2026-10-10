@@ -23,6 +23,21 @@ type QueryHandler struct {
 	hashedPasswordForEmail map[string]*HashedPassword
 }
 
+type NewQueryHandlerInput struct {
+	EventLog eventlog.EventLog
+}
+
+func NewQueryHandler(input NewQueryHandlerInput) (handler *QueryHandler) {
+	handler = &QueryHandler{
+		eventLog:               input.EventLog,
+		accountByID:            make(map[string]*Account),
+		userByID:               make(map[UserID]*User),
+		accountIDForUser:       make(map[UserID]string),
+		hashedPasswordForEmail: make(map[string]*HashedPassword),
+	}
+	return
+}
+
 func (handler *QueryHandler) GetAccountByID(ctx context.Context, accountID string) (account *Account, err error) {
 	handler.mutex.Lock()
 	defer handler.mutex.Unlock()

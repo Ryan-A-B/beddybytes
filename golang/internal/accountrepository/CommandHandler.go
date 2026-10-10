@@ -79,6 +79,18 @@ type CommandHandler struct {
 	users    map[UserID]struct{}
 }
 
+type NewCommandHandlerInput struct {
+	EventLog eventlog.EventLog
+}
+
+func NewCommandHandler(input NewCommandHandlerInput) (handler *CommandHandler) {
+	handler = &CommandHandler{
+		eventLog: input.EventLog,
+		users:    make(map[UserID]struct{}),
+	}
+	return
+}
+
 type CreateInput struct {
 	UserID   UserID
 	Email    string
@@ -107,7 +119,7 @@ func (input *CreateInput) validate() (err error) {
 	return nil
 }
 
-func (handler *CommandHandler) Create(ctx context.Context, input CreateInput) (account Account, err error) {
+func (handler *CommandHandler) Create(ctx context.Context, input CreateInput) (account *Account, err error) {
 	err = input.validate()
 	if err != nil {
 		return
@@ -145,6 +157,10 @@ func (handler *CommandHandler) Create(ctx context.Context, input CreateInput) (a
 	})
 	if err != nil {
 		return
+	}
+	account = &Account{
+		ID:    detail.AccountID,
+		Users: []*User{&user},
 	}
 	return
 }
