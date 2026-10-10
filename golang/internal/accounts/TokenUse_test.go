@@ -1,7 +1,6 @@
 package accounts
 
 import (
-	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -10,15 +9,13 @@ import (
 	"time"
 
 	"github.com/Ryan-A-B/beddybytes/golang/internal"
+	"github.com/Ryan-A-B/beddybytes/golang/internal/accountrepository"
 	"github.com/dgrijalva/jwt-go"
 )
 
 func TestPasswordGrantScopesSurviveRefresh(t *testing.T) {
 	handlers, router, _, _ := googleTestHandlers(t)
-	account := &Account{ID: "password-account", User: NewInternalIdentityUser(&NewInternalIdentityUserInput{Email: "user@example.com", Password: "long-enough-password"})}
-	if err := handlers.AccountStore.Put(context.Background(), account); err != nil {
-		t.Fatal(err)
-	}
+	createTestAccount(t, handlers, accountrepository.CreateInput{UserID: accountrepository.UserID{Issuer: accountrepository.IssuerBeddybytes, Subject: "user@example.com"}, Email: "user@example.com", Password: "long-enough-password"})
 	request := httptest.NewRequest("POST", "/token", strings.NewReader("grant_type=password&username=user%40example.com&password=long-enough-password"))
 	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	response := httptest.NewRecorder()
@@ -70,11 +67,9 @@ func TestRefreshTokenTypeAndLegacyMigration(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			handlers, router, _, _ := googleTestHandlers(t)
-			account := &Account{ID: "account", User: NewInternalIdentityUser(&NewInternalIdentityUserInput{Email: "user@example.com", Password: "long-enough-password"})}
-			if err := handlers.AccountStore.Put(context.Background(), account); err != nil {
-				t.Fatal(err)
-			}
-			claims := jwt.MapClaims{"iss": "beddybytes", "aud": "beddybytes", "exp": time.Now().Add(time.Hour).Unix(), "jti": "unique-refresh", "sub": (&internal.URN{Service: "iam", AccountID: account.ID, ResourceType: "user", ResourceID: account.User.ID}).String(), "scp": tc.scope}
+			userID := accountrepository.UserID{Issuer: accountrepository.IssuerBeddybytes, Subject: "user@example.com"}
+			account := createTestAccount(t, handlers, accountrepository.CreateInput{UserID: userID, Email: "user@example.com", Password: "long-enough-password"})
+			claims := jwt.MapClaims{"iss": "beddybytes", "aud": "beddybytes", "exp": time.Now().Add(time.Hour).Unix(), "jti": "unique-refresh", "sub": (&internal.URN{Service: "iam", AccountID: account.ID, ResourceType: "user", ResourceID: userID.Issuer + "/" + userID.Subject}).String(), "scp": tc.scope}
 			if tc.use != "" {
 				claims["token_use"] = tc.use
 			}
@@ -120,5 +115,39 @@ func TestRefreshTokenTypeAndLegacyMigration(t *testing.T) {
 				t.Fatalf("wrong migrated refresh claims: %+v", refresh)
 			}
 		})
+	}
+}
+
+func TestPasswordGrantErrorsAndMissingAccountResponse(t *testing.T) {
+	handlers, router, _, _ := googleTestHandlers(t)
+	createTestAccount(t, handlers, accountrepository.CreateInput{UserID: accountrepository.UserID{Issuer: accountrepository.IssuerBeddybytes, Subject: "user@example.com"}, Email: "user@example.com", Password: "correct-long-password"})
+	for _, tc := range []struct {
+		name, form string
+		status     int
+	}{
+		{"missing username", "grant_type=password&password=correct-long-password", 400},
+		{"missing password", "grant_type=password&username=user%40example.com", 400},
+		{"wrong password", "grant_type=password&username=user%40example.com&password=incorrect-long-password", 401},
+		{"missing user", "grant_type=password&username=unknown%40example.com&password=correct-long-password", 401},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			request := httptest.NewRequest("POST", "/token", strings.NewReader(tc.form))
+			request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+			response := httptest.NewRecorder()
+			router.ServeHTTP(response, request)
+			if response.Code != tc.status {
+				t.Fatalf("status %d, want %d: %s", response.Code, tc.status, response.Body.String())
+			}
+			if len(response.Result().Cookies()) != 0 {
+				t.Fatal("failed login issued a refresh cookie")
+			}
+		})
+	}
+	request := httptest.NewRequest("GET", "/accounts/current", nil)
+	request.Header.Set("Authorization", "Bearer "+handlers.createAccessToken(createSubject("missing-account", accountrepository.UserID{Issuer: accountrepository.IssuerBeddybytes, Subject: "missing@example.com"})))
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, request)
+	if response.Code != http.StatusNotFound {
+		t.Fatalf("missing account: %d %s", response.Code, response.Body.String())
 	}
 }

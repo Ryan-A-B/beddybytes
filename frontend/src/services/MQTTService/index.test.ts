@@ -21,9 +21,6 @@ const default_token_output: TokenOutput = {
 
 const default_account: Account = {
     id: "test_account_id",
-    user: {
-        id: "test_user_id",
-    },
 };
 
 const mocked_mqtt = mqtt as unknown as { connect: jest.Mock };

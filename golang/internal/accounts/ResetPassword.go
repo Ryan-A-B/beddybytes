@@ -2,6 +2,7 @@ package accounts
 
 import (
 	"encoding/json"
+	"errors"
 	"log"
 	"net/http"
 
@@ -79,8 +80,12 @@ func (handlers *Handlers) RequestPasswordReset(responseWriter http.ResponseWrite
 		Subject: input.Email,
 	}
 	_, err = handlers.AccountQueryHandler.GetAccountIDForUser(ctx, userID)
+	if errors.Is(err, accountrepository.ErrUserNotFound) {
+		// Match the response for a known email without revealing account existence.
+		err = nil
+		return
+	}
 	if err != nil {
-		err = merry.WithHTTPCode(err, http.StatusBadRequest)
 		return
 	}
 	token := handlers.PasswordResetTokens.Create(input.Email)

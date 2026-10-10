@@ -18,11 +18,11 @@ import (
 const EventTypeServerStarted = "server.started"
 
 type Event struct {
-	ID            string          `json:"id"`
-	Type          string          `json:"type"`
-	LogicalClock  int64           `json:"logical_clock"`
-	UnixTimestamp int64           `json:"unix_timestamp"`
-	Data          json.RawMessage `json:"data"`
+	ID            string             `json:"id"`
+	Type          eventlog.EventType `json:"type"`
+	LogicalClock  int64              `json:"logical_clock"`
+	UnixTimestamp int64              `json:"unix_timestamp"`
+	Data          json.RawMessage    `json:"data"`
 }
 
 func (handlers *Handlers) GetEvents(responseWriter http.ResponseWriter, request *http.Request) {

@@ -20,6 +20,7 @@ import (
 	"github.com/gorilla/websocket"
 
 	"github.com/Ryan-A-B/beddybytes/golang/internal"
+	"github.com/Ryan-A-B/beddybytes/golang/internal/accountrepository"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/accounts"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/babystationlist"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/backendmqtt"
@@ -33,7 +34,6 @@ import (
 	"github.com/Ryan-A-B/beddybytes/golang/internal/resetpassword"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/sessionlist"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/sessionstore"
-	"github.com/Ryan-A-B/beddybytes/golang/internal/store"
 )
 
 type IncomingMessageFrame struct {
@@ -236,11 +236,10 @@ func main() {
 		Retain:   4 * time.Hour,
 	})
 	accountHandlers := accounts.Handlers{
-		CookieDomain: cookieDomain,
-		EventLog:     eventLog,
-		AccountStore: &accounts.AccountStore{
-			Store: store.NewMemoryStore(),
-		},
+		CookieDomain:                 cookieDomain,
+		EventLog:                     eventLog,
+		AccountCommandHandler:        accountrepository.NewCommandHandler(accountrepository.NewCommandHandlerInput{EventLog: eventLog}),
+		AccountQueryHandler:          accountrepository.NewQueryHandler(accountrepository.NewQueryHandlerInput{EventLog: eventLog}),
 		SigningMethod:                jwt.SigningMethodHS256,
 		Key:                          key,
 		AccessTokenDuration:          1 * time.Hour,
@@ -257,17 +256,8 @@ func main() {
 	accountHandlers.Google = googleAuth
 	accountHandlers.FrontendAuthorizationRedirectURL, err = accounts.FrontendAuthorizationRedirectURLFromEnvironment(os.Getenv)
 	fatal.OnError(err)
-	// Rebuild identities before accepting signup/login. Otherwise an early
-	// callback after restart could create a duplicate of an unreplayed account.
-	accountIterator := eventLog.GetEventIterator(ctx, eventlog.GetEventIteratorInput{FromCursor: 0})
-	for accountIterator.Next(ctx) {
-		event := accountIterator.Event()
-		accountHandlers.ApplyEvent(ctx, event)
-	}
-	fatal.OnError(accountIterator.Err())
-	// Account commands append and update their projection under one lock.
-	// Reapplying those events asynchronously could resurrect a deleted account
-	// or overwrite a later credential change while the live projection catches up.
+	// The command and query handlers catch up from the durable log before
+	// each operation; no separate account projection goroutine is needed.
 	handlers := Handlers{
 		Upgrader: websocket.Upgrader{
 			ReadBufferSize:  1024,

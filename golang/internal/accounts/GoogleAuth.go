@@ -15,10 +15,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ansel1/merry"
-	uuid "github.com/satori/go.uuid"
-
-	"github.com/Ryan-A-B/beddybytes/golang/internal/eventlog"
+	"github.com/Ryan-A-B/beddybytes/golang/internal/accountrepository"
 )
 
 const browserClientID = "beddybytes-browser"
@@ -36,6 +33,7 @@ type googleTransaction struct {
 }
 
 type authorizationRequest struct {
+	UserID    accountrepository.UserID
 	AccountID string
 	Scope     string
 	Challenge string
@@ -257,9 +255,10 @@ func (handlers *Handlers) GoogleCallback(responseWriter http.ResponseWriter, req
 		handlers.redirectAuthorizationFailure(responseWriter, request, AuthorizationErrorTemporarilyUnavailable, transaction.FrontendState)
 		return
 	}
-	account, err := handlers.AccountStore.GetByIdentity(ctx, identity.Issuer, identity.Subject)
+	userID := accountrepository.UserID{Issuer: identity.Issuer, Subject: identity.Subject}
+	accountID, err := handlers.AccountQueryHandler.GetAccountIDForUser(ctx, userID)
 	if transaction.Intent == "login" {
-		if merry.HTTPCode(err) == http.StatusNotFound {
+		if errors.Is(err, accountrepository.ErrUserNotFound) {
 			handlers.redirectAuthorizationFailure(responseWriter, request, AuthorizationErrorAccountNotFound, transaction.FrontendState)
 			return
 		}
@@ -268,20 +267,15 @@ func (handlers *Handlers) GoogleCallback(responseWriter http.ResponseWriter, req
 			handlers.redirectAuthorizationFailure(responseWriter, request, AuthorizationErrorAccountAlreadyExists, transaction.FrontendState)
 			return
 		}
-		if merry.HTTPCode(err) == http.StatusNotFound {
-			account = &Account{ID: uuid.NewV4().String(), User: &User{ID: uuid.NewV4().String(), IdentityType: IdentityTypeExternal, ExternalIdentity: &ExternalIdentity{Issuer: identity.Issuer, Subject: identity.Subject, Email: identity.Email}}}
-			data, marshalErr := json.Marshal(account)
-			if marshalErr != nil {
-				handlers.redirectAuthorizationFailure(responseWriter, request, AuthorizationErrorServerError, transaction.FrontendState)
-				return
-			}
-			err = handlers.AccountStore.Create(ctx, account, func() error {
-				_, appendErr := handlers.EventLog.Append(ctx, eventlog.AppendInput{Type: EventTypeAccountCreated, Data: data})
-				return appendErr
-			})
-			if merry.HTTPCode(err) == http.StatusConflict {
+		if errors.Is(err, accountrepository.ErrUserNotFound) {
+			var account *accountrepository.Account
+			account, err = handlers.AccountCommandHandler.Create(ctx, accountrepository.CreateInput{UserID: userID, Email: identity.Email})
+			if errors.Is(err, accountrepository.ErrUserAlreadyExists) {
 				handlers.redirectAuthorizationFailure(responseWriter, request, AuthorizationErrorAccountAlreadyExists, transaction.FrontendState)
 				return
+			}
+			if err == nil {
+				accountID = account.ID
 			}
 		}
 	}
@@ -301,7 +295,7 @@ func (handlers *Handlers) GoogleCallback(responseWriter http.ResponseWriter, req
 		handlers.redirectAuthorizationFailure(responseWriter, request, AuthorizationErrorTemporarilyUnavailable, transaction.FrontendState)
 		return
 	}
-	auth.requests[code] = authorizationRequest{AccountID: account.ID, Scope: transaction.Scope, Challenge: transaction.Challenge, Expires: auth.now().Add(authorizationCodeTTL)}
+	auth.requests[code] = authorizationRequest{UserID: userID, AccountID: accountID, Scope: transaction.Scope, Challenge: transaction.Challenge, Expires: auth.now().Add(authorizationCodeTTL)}
 	auth.mutex.Unlock()
 	handlers.redirectAuthorizationSuccess(responseWriter, request, transaction.FrontendState, code)
 }
@@ -355,16 +349,16 @@ func (handlers *Handlers) GetTokenUsingAuthorizationCode(responseWriter http.Res
 		tokenError(responseWriter, "invalid_grant")
 		return
 	}
-	account, err := handlers.AccountStore.Get(request.Context(), authorizationRequest.AccountID)
+	account, err := handlers.AccountQueryHandler.GetAccountByID(request.Context(), authorizationRequest.AccountID)
 	if err != nil {
 		tokenError(responseWriter, "invalid_grant")
 		return
 	}
-	http.SetCookie(responseWriter, handlers.createRefreshTokenCookie(account))
+	http.SetCookie(responseWriter, handlers.createRefreshTokenCookie(createSubject(account.ID, authorizationRequest.UserID)))
 	responseWriter.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(responseWriter).Encode(AccessTokenOutput{
 		TokenType:   "Bearer",
-		AccessToken: handlers.createAccessToken(account),
+		AccessToken: handlers.createAccessToken(createSubject(account.ID, authorizationRequest.UserID)),
 		ExpiresIn:   int(handlers.AccessTokenDuration.Seconds()),
 	})
 }

@@ -64,7 +64,7 @@ func TestLowMemoryMatchesFullStateSessionLifetimeSemantics(t *testing.T) {
 	})
 }
 
-func analyzerEvent(accountID string, eventType string, eventTime time.Time, data interface{}) *eventlog.Event {
+func analyzerEvent(accountID string, eventType eventlog.EventType, eventTime time.Time, data interface{}) *eventlog.Event {
 	rawData, err := json.Marshal(data)
 	if err != nil {
 		panic(err)

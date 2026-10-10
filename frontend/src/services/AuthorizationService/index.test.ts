@@ -7,9 +7,6 @@ import { Account } from "./Account";
 
 const default_account: Account = {
     id: 'test_id',
-    user: {
-        id: 'user_id',
-    },
 };
 
 const default_token_output: TokenOutput = {

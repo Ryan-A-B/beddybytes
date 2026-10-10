@@ -424,7 +424,7 @@ func findRealEventLogPath(tb testing.TB) string {
 	}
 }
 
-func usageStatsEvent(accountID string, eventType string, eventTime time.Time, data interface{}) *eventlog.Event {
+func usageStatsEvent(accountID string, eventType eventlog.EventType, eventTime time.Time, data interface{}) *eventlog.Event {
 	rawData, err := json.Marshal(data)
 	if err != nil {
 		panic(err)

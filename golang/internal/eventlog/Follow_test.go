@@ -43,7 +43,7 @@ func TestFollow(t *testing.T) {
 				So(iterator.Err(), ShouldBeNil)
 			})
 			Convey("append", func() {
-				eventType := uuid.NewV4().String()
+				eventType := eventlog.EventType(uuid.NewV4().String())
 				data, err := json.Marshal(uuid.NewV4().String())
 				So(err, ShouldBeNil)
 				_, err = eventLog.Append(ctx, eventlog.AppendInput{
@@ -62,7 +62,7 @@ func TestFollow(t *testing.T) {
 			})
 		})
 		Convey("one event", func() {
-			eventType := uuid.NewV4().String()
+			eventType := eventlog.EventType(uuid.NewV4().String())
 			data, err := json.Marshal(uuid.NewV4().String())
 			So(err, ShouldBeNil)
 			_, err = eventLog.Append(ctx, eventlog.AppendInput{
@@ -103,7 +103,7 @@ func TestFollow(t *testing.T) {
 					So(iterator.Err(), ShouldBeNil)
 				})
 				Convey("append", func() {
-					eventType := uuid.NewV4().String()
+					eventType := eventlog.EventType(uuid.NewV4().String())
 					data, err := json.Marshal(uuid.NewV4().String())
 					So(err, ShouldBeNil)
 					_, err = eventLog.Append(ctx, eventlog.AppendInput{
@@ -143,7 +143,7 @@ func TestFollow(t *testing.T) {
 					So(iterator.Err(), ShouldBeNil)
 				})
 				Convey("append", func() {
-					eventType := uuid.NewV4().String()
+					eventType := eventlog.EventType(uuid.NewV4().String())
 					data, err := json.Marshal(uuid.NewV4().String())
 					So(err, ShouldBeNil)
 					_, err = eventLog.Append(ctx, eventlog.AppendInput{

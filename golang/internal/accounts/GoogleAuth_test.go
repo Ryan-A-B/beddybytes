@@ -15,12 +15,11 @@ import (
 
 	"github.com/Ryan-A-B/beddybytes/golang/internal"
 
-	"github.com/ansel1/merry"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/gorilla/mux"
 
+	"github.com/Ryan-A-B/beddybytes/golang/internal/accountrepository"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/eventlog"
-	"github.com/Ryan-A-B/beddybytes/golang/internal/store"
 )
 
 type fakeGoogleProvider struct {
@@ -52,8 +51,45 @@ func (log *recordedAccountLog) Append(_ context.Context, input eventlog.AppendIn
 	log.events = append(log.events, event)
 	return event, nil
 }
-func (*recordedAccountLog) GetEventIterator(context.Context, eventlog.GetEventIteratorInput) eventlog.EventIterator {
-	return &eventlog.NullEventIterator{}
+func (log *recordedAccountLog) GetEventIterator(_ context.Context, input eventlog.GetEventIteratorInput) eventlog.EventIterator {
+	log.mutex.Lock()
+	defer log.mutex.Unlock()
+	events := append([]*eventlog.Event(nil), log.events[input.FromCursor:]...)
+	return &recordedAccountIterator{events: events, index: -1}
+}
+
+type recordedAccountIterator struct {
+	events []*eventlog.Event
+	index  int
+}
+
+func (iterator *recordedAccountIterator) Next(context.Context) bool {
+	iterator.index++
+	return iterator.index < len(iterator.events)
+}
+func (iterator *recordedAccountIterator) Event() *eventlog.Event {
+	return iterator.events[iterator.index]
+}
+func (*recordedAccountIterator) Err() error { return nil }
+
+func testAccountForUser(t *testing.T, handlers *Handlers, userID accountrepository.UserID) *accountrepository.Account {
+	t.Helper()
+	id, err := handlers.AccountQueryHandler.GetAccountIDForUser(context.Background(), userID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	account, err := handlers.AccountQueryHandler.GetAccountByID(context.Background(), id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return account
+}
+func createTestAccount(t *testing.T, handlers *Handlers, input accountrepository.CreateInput) *accountrepository.Account {
+	t.Helper()
+	if _, err := handlers.AccountCommandHandler.Create(context.Background(), input); err != nil {
+		t.Fatal(err)
+	}
+	return testAccountForUser(t, handlers, input.UserID)
 }
 func (*recordedAccountLog) Wait(context.Context) <-chan struct{} { return make(chan struct{}) }
 
@@ -71,14 +107,15 @@ func googleTestHandlers(t *testing.T) (*Handlers, http.Handler, *fakeGoogleProvi
 			Host:   "app.example.com",
 			Path:   "/auth/callback",
 		},
-		Google:               auth,
-		AccountStore:         &AccountStore{Store: store.NewMemoryStore()},
-		EventLog:             log,
-		Key:                  []byte("test-key"),
-		SigningMethod:        jwt.SigningMethodHS256,
-		AccessTokenDuration:  time.Hour,
-		RefreshTokenDuration: time.Hour,
-		UsedTokens:           NewUsedTokens(),
+		Google:                auth,
+		AccountCommandHandler: accountrepository.NewCommandHandler(accountrepository.NewCommandHandlerInput{EventLog: log}),
+		AccountQueryHandler:   accountrepository.NewQueryHandler(accountrepository.NewQueryHandlerInput{EventLog: log}),
+		EventLog:              log,
+		Key:                   []byte("test-key"),
+		SigningMethod:         jwt.SigningMethodHS256,
+		AccessTokenDuration:   time.Hour,
+		RefreshTokenDuration:  time.Hour,
+		UsedTokens:            NewUsedTokens(),
 	}
 	router := mux.NewRouter()
 	handlers.AddRoutes(router)
@@ -146,26 +183,23 @@ func exchangeBeddybytes(router http.Handler, code, verifier string) *httptest.Re
 
 func TestGoogleSignupLoginUsesOpaqueSubjectAndStoresEmail(t *testing.T) {
 	handlers, router, provider, log := googleTestHandlers(t)
-	ctx := context.Background()
-	passwordAccount := &Account{ID: "password-account", User: NewInternalIdentityUser(&NewInternalIdentityUserInput{Email: "same@example.com", Password: "long-enough-password-for-tests"})}
-	if err := handlers.AccountStore.Put(ctx, passwordAccount); err != nil {
-		t.Fatal(err)
-	}
+	passwordUserID := accountrepository.UserID{Issuer: accountrepository.IssuerBeddybytes, Subject: "same@example.com"}
+	passwordAccount := createTestAccount(t, handlers, accountrepository.CreateInput{UserID: passwordUserID, Email: "same@example.com", Password: "long-enough-password-for-tests"})
 	flow := beginGoogle(t, router, "signup")
 	params := callbackValues(t, callbackGoogle(router, flow, "&intent=login"))
 	if params.Get("state") != flow.frontendState || params.Get("code") == "" || params.Get("error") != "" {
 		t.Fatalf("bad signup result: %v", params)
 	}
-	if len(log.events) != 1 {
+	if len(log.events) != 2 {
 		t.Fatal("signup did not append exactly one event")
 	}
-	googleAccount, err := handlers.AccountStore.GetByIdentity(ctx, GoogleIssuer, provider.identity.Subject)
-	if err != nil || googleAccount.ID == passwordAccount.ID || googleAccount.User.InternalIdentity != nil || googleAccount.User.ExternalIdentity == nil || googleAccount.User.ExternalIdentity.Subject != provider.identity.Subject || googleAccount.User.ExternalIdentity.Email != "same@example.com" {
+	googleAccount := testAccountForUser(t, handlers, accountrepository.UserID{Issuer: GoogleIssuer, Subject: provider.identity.Subject})
+	if googleAccount.ID == passwordAccount.ID || googleAccount.Users[0].HashedPassword != nil || googleAccount.Users[0].ID.Subject != provider.identity.Subject || googleAccount.Users[0].Email != "same@example.com" {
 		t.Fatal("accounts not independent")
 	}
-	legacy, err := handlers.AccountStore.GetByEmail(ctx, "same@example.com")
-	if err != nil || legacy.ID != passwordAccount.ID {
-		t.Fatal("Google overwrote password email index")
+	legacy := testAccountForUser(t, handlers, passwordUserID)
+	if legacy.ID != passwordAccount.ID {
+		t.Fatal("Google overwrote password identity")
 	}
 	w := exchangeBeddybytes(router, params.Get("code"), flow.verifier)
 	if w.Code != http.StatusOK {
@@ -178,6 +212,13 @@ func TestGoogleSignupLoginUsesOpaqueSubjectAndStoresEmail(t *testing.T) {
 	if err := json.Unmarshal(w.Body.Bytes(), &token); err != nil {
 		t.Fatal(err)
 	}
+	var claims internal.Claims
+	if _, err := jwt.ParseWithClaims(token.AccessToken, &claims, handlers.getKey); err != nil {
+		t.Fatal(err)
+	}
+	if claims.Subject != createSubject(googleAccount.ID, accountrepository.UserID{Issuer: GoogleIssuer, Subject: provider.identity.Subject}) {
+		t.Fatal("Google token lost authenticated user identity")
+	}
 	if token.TokenType != "Bearer" || token.AccessToken == "" || token.ExpiresIn != 3600 {
 		t.Fatal("wrong token response")
 	}
@@ -188,9 +229,9 @@ func TestGoogleSignupLoginUsesOpaqueSubjectAndStoresEmail(t *testing.T) {
 	r.Header.Set("Authorization", "Bearer "+token.AccessToken)
 	current := httptest.NewRecorder()
 	router.ServeHTTP(current, r)
-	var currentAccount Account
+	var currentAccount GetAccountOutput
 	json.Unmarshal(current.Body.Bytes(), &currentAccount)
-	if current.Code != 200 || currentAccount.ID != googleAccount.ID || currentAccount.User.ExternalIdentity == nil || currentAccount.User.ExternalIdentity.Email != "same@example.com" {
+	if current.Code != 200 || currentAccount.ID != googleAccount.ID {
 		t.Fatal("token does not resolve new account")
 	}
 	if exchangeBeddybytes(router, params.Get("code"), flow.verifier).Code != 400 {
@@ -198,19 +239,12 @@ func TestGoogleSignupLoginUsesOpaqueSubjectAndStoresEmail(t *testing.T) {
 	}
 	loginFlow := beginGoogle(t, router, "login")
 	loginParams := callbackValues(t, callbackGoogle(router, loginFlow, ""))
-	if loginParams.Get("code") == "" || len(log.events) != 1 {
+	if loginParams.Get("code") == "" || len(log.events) != 2 {
 		t.Fatal("repeat login created an account")
 	}
 	grant, ok := handlers.Google.redeem(loginParams.Get("code"), loginFlow.verifier, browserClientID)
-	if !ok || grant.AccountID != googleAccount.ID {
+	if !ok || grant.AccountID != googleAccount.ID || grant.UserID != (accountrepository.UserID{Issuer: GoogleIssuer, Subject: provider.identity.Subject}) {
 		t.Fatal("opaque subject did not resolve the same Google identity")
-	}
-	if err := handlers.AccountStore.Remove(ctx, googleAccount.ID); err != nil {
-		t.Fatal(err)
-	}
-	legacy, err = handlers.AccountStore.GetByEmail(ctx, "same@example.com")
-	if err != nil || legacy.ID != passwordAccount.ID {
-		t.Fatal("Google deletion deleted password account")
 	}
 }
 
@@ -230,7 +264,7 @@ func TestGoogleLoginNeverCreatesAndSignupDoesNotLoginExistingIdentity(t *testing
 	if params.Get("error") != "account_already_exists" || params.Get("code") != "" || len(log.events) != 1 {
 		t.Fatal("signup implicitly signed in existing account")
 	}
-	if _, err := handlers.AccountStore.GetByEmail(context.Background(), "same@example.com"); merry.HTTPCode(err) != 404 {
+	if _, err := handlers.AccountQueryHandler.GetAccountIDForUser(context.Background(), accountrepository.UserID{Issuer: accountrepository.IssuerBeddybytes, Subject: "same@example.com"}); !errors.Is(err, accountrepository.ErrUserNotFound) {
 		t.Fatal("Google-only account entered password lookup")
 	}
 	w := httptest.NewRecorder()
@@ -240,7 +274,7 @@ func TestGoogleLoginNeverCreatesAndSignupDoesNotLoginExistingIdentity(t *testing
 	if w.Code != 401 {
 		t.Fatal("Google-only account accepted password login")
 	}
-	if err := handlers.AccountStore.UpdatePassword(context.Background(), &UpdatePasswordInput{Email: "same@example.com"}); merry.HTTPCode(err) != 404 {
+	if err := handlers.AccountCommandHandler.ResetPassword(context.Background(), accountrepository.ResetPasswordInput{Email: "same@example.com", Password: "long-enough-password-for-tests"}); !errors.Is(err, accountrepository.ErrUserNotFound) {
 		t.Fatal("Google-only account accepted password reset")
 	}
 }
@@ -375,13 +409,11 @@ func TestGoogleSignupConcurrentUniquenessAndEventReplay(t *testing.T) {
 	if success.Load() != 1 || len(log.events) != 1 {
 		t.Fatal("parallel signup created duplicate identities")
 	}
-	replayed := &Handlers{AccountStore: &AccountStore{Store: store.NewMemoryStore()}}
-	for _, event := range log.events {
-		replayed.ApplyEvent(context.Background(), event)
-		replayed.ApplyEvent(context.Background(), event)
-	}
-	a, err := replayed.AccountStore.GetByIdentity(context.Background(), GoogleIssuer, "opaque:Google/Subject+01")
-	if err != nil || a.User.InternalIdentity != nil || a.User.ExternalIdentity == nil || a.User.ExternalIdentity.Subject != "opaque:Google/Subject+01" || a.User.ExternalIdentity.Email != "same@example.com" {
+	replayed := &Handlers{AccountQueryHandler: accountrepository.NewQueryHandler(accountrepository.NewQueryHandlerInput{EventLog: log})}
+	userID := accountrepository.UserID{Issuer: GoogleIssuer, Subject: "opaque:Google/Subject+01"}
+	a := testAccountForUser(t, replayed, userID)
+	again := testAccountForUser(t, replayed, userID)
+	if a.ID != again.ID || a.Users[0].HashedPassword != nil || a.Users[0].ID != userID || a.Users[0].Email != "same@example.com" {
 		t.Fatal("provider identity lost on event replay")
 	}
 }

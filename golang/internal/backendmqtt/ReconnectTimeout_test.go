@@ -55,7 +55,7 @@ func TestReconnectTimeoutScheduler(t *testing.T) {
 	})
 }
 
-func waitForEvent(ctx context.Context, log eventlog.EventLog, eventType string, timeout time.Duration) *eventlog.Event {
+func waitForEvent(ctx context.Context, log eventlog.EventLog, eventType eventlog.EventType, timeout time.Duration) *eventlog.Event {
 	deadline := time.Now().Add(timeout)
 	for time.Now().Before(deadline) {
 		iterator := log.GetEventIterator(ctx, eventlog.GetEventIteratorInput{})
