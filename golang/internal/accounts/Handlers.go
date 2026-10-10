@@ -210,7 +210,7 @@ func (handlers *Handlers) CreateAccount(responseWriter http.ResponseWriter, requ
 	}
 	userID := accountrepository.UserID{Issuer: accountrepository.IssuerBeddybytes, Subject: input.Email}
 	var account *accountrepository.Account
-	account, err = handlers.AccountCommandHandler.Create(ctx, accountrepository.CreateInput{UserID: userID, Email: input.Email, Password: input.Password})
+	account, err = handlers.AccountCommandHandler.CreateAccount(ctx, accountrepository.CreateAccountInput{UserID: userID, Email: input.Email, Password: input.Password})
 	if errors.Is(err, accountrepository.ErrUserAlreadyExists) {
 		err = httpx.ErrorWithCode(merry.WithUserMessage(merry.WithHTTPCode(err, http.StatusConflict), "email already in use"), "email_already_in_use")
 		return

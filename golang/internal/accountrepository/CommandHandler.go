@@ -91,13 +91,13 @@ func NewCommandHandler(input NewCommandHandlerInput) (handler *CommandHandler) {
 	return
 }
 
-type CreateInput struct {
+type CreateAccountInput struct {
 	UserID   UserID
 	Email    string
 	Password string
 }
 
-func (input *CreateInput) validate() (err error) {
+func (input *CreateAccountInput) validate() (err error) {
 	if input.UserID.Issuer == "" {
 		err = ErrIssuerRequired
 		return
@@ -119,7 +119,7 @@ func (input *CreateInput) validate() (err error) {
 	return nil
 }
 
-func (handler *CommandHandler) Create(ctx context.Context, input CreateInput) (account *Account, err error) {
+func (handler *CommandHandler) CreateAccount(ctx context.Context, input CreateAccountInput) (account *Account, err error) {
 	err = input.validate()
 	if err != nil {
 		return

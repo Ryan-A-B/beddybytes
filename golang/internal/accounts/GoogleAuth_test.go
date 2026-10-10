@@ -84,9 +84,9 @@ func testAccountForUser(t *testing.T, handlers *Handlers, userID accountreposito
 	}
 	return account
 }
-func createTestAccount(t *testing.T, handlers *Handlers, input accountrepository.CreateInput) *accountrepository.Account {
+func createTestAccount(t *testing.T, handlers *Handlers, input accountrepository.CreateAccountInput) *accountrepository.Account {
 	t.Helper()
-	if _, err := handlers.AccountCommandHandler.Create(context.Background(), input); err != nil {
+	if _, err := handlers.AccountCommandHandler.CreateAccount(context.Background(), input); err != nil {
 		t.Fatal(err)
 	}
 	return testAccountForUser(t, handlers, input.UserID)
@@ -183,7 +183,7 @@ func exchangeBeddybytes(router http.Handler, code, verifier string) *httptest.Re
 func TestGoogleSignupLoginUsesOpaqueSubjectAndStoresEmail(t *testing.T) {
 	handlers, router, provider, log := googleTestHandlers(t)
 	passwordUserID := accountrepository.UserID{Issuer: accountrepository.IssuerBeddybytes, Subject: "same@example.com"}
-	passwordAccount := createTestAccount(t, handlers, accountrepository.CreateInput{UserID: passwordUserID, Email: "same@example.com", Password: "long-enough-password-for-tests"})
+	passwordAccount := createTestAccount(t, handlers, accountrepository.CreateAccountInput{UserID: passwordUserID, Email: "same@example.com", Password: "long-enough-password-for-tests"})
 	flow := beginGoogle(t, router, "signup")
 	params := callbackValues(t, callbackGoogle(router, flow, "&intent=login"))
 	if params.Get("state") != flow.frontendState || params.Get("code") == "" || params.Get("error") != "" {

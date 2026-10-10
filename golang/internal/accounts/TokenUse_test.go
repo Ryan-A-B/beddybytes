@@ -15,7 +15,7 @@ import (
 
 func TestPasswordGrantScopesSurviveRefresh(t *testing.T) {
 	handlers, router, _, _ := googleTestHandlers(t)
-	createTestAccount(t, handlers, accountrepository.CreateInput{UserID: accountrepository.UserID{Issuer: accountrepository.IssuerBeddybytes, Subject: "user@example.com"}, Email: "user@example.com", Password: "long-enough-password"})
+	createTestAccount(t, handlers, accountrepository.CreateAccountInput{UserID: accountrepository.UserID{Issuer: accountrepository.IssuerBeddybytes, Subject: "user@example.com"}, Email: "user@example.com", Password: "long-enough-password"})
 	request := httptest.NewRequest("POST", "/token", strings.NewReader("grant_type=password&username=user%40example.com&password=long-enough-password"))
 	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	response := httptest.NewRecorder()
@@ -68,7 +68,7 @@ func TestRefreshTokenTypeAndLegacyMigration(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			handlers, router, _, _ := googleTestHandlers(t)
 			userID := accountrepository.UserID{Issuer: accountrepository.IssuerBeddybytes, Subject: "user@example.com"}
-			account := createTestAccount(t, handlers, accountrepository.CreateInput{UserID: userID, Email: "user@example.com", Password: "long-enough-password"})
+			account := createTestAccount(t, handlers, accountrepository.CreateAccountInput{UserID: userID, Email: "user@example.com", Password: "long-enough-password"})
 			claims := jwt.MapClaims{"iss": "beddybytes", "aud": "beddybytes", "exp": time.Now().Add(time.Hour).Unix(), "jti": "unique-refresh", "sub": (&internal.URN{Service: "iam", AccountID: account.ID, ResourceType: "user", ResourceID: userID.Issuer + "/" + userID.Subject}).String(), "scp": tc.scope}
 			if tc.use != "" {
 				claims["token_use"] = tc.use
@@ -120,7 +120,7 @@ func TestRefreshTokenTypeAndLegacyMigration(t *testing.T) {
 
 func TestPasswordGrantErrorsAndMissingAccountResponse(t *testing.T) {
 	handlers, router, _, _ := googleTestHandlers(t)
-	createTestAccount(t, handlers, accountrepository.CreateInput{UserID: accountrepository.UserID{Issuer: accountrepository.IssuerBeddybytes, Subject: "user@example.com"}, Email: "user@example.com", Password: "correct-long-password"})
+	createTestAccount(t, handlers, accountrepository.CreateAccountInput{UserID: accountrepository.UserID{Issuer: accountrepository.IssuerBeddybytes, Subject: "user@example.com"}, Email: "user@example.com", Password: "correct-long-password"})
 	for _, tc := range []struct {
 		name, form string
 		status     int

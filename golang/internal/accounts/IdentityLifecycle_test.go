@@ -64,9 +64,9 @@ func TestLegacyAndGoogleCQRSReplayAndPasswordReset(t *testing.T) {
 func TestIdentityUniquenessIsIssuerAndSubject(t *testing.T) {
 	handlers, _, _, _ := googleTestHandlers(t)
 	for _, issuer := range []string{"https://provider-one.example", "https://provider-two.example"} {
-		createTestAccount(t, handlers, accountrepository.CreateInput{UserID: accountrepository.UserID{Issuer: issuer, Subject: "same-subject"}, Email: "shared@example.com"})
+		createTestAccount(t, handlers, accountrepository.CreateAccountInput{UserID: accountrepository.UserID{Issuer: issuer, Subject: "same-subject"}, Email: "shared@example.com"})
 	}
-	_, err := handlers.AccountCommandHandler.Create(context.Background(), accountrepository.CreateInput{UserID: accountrepository.UserID{Issuer: "https://provider-one.example", Subject: "same-subject"}, Email: "different@example.com"})
+	_, err := handlers.AccountCommandHandler.CreateAccount(context.Background(), accountrepository.CreateAccountInput{UserID: accountrepository.UserID{Issuer: "https://provider-one.example", Subject: "same-subject"}, Email: "different@example.com"})
 	if !errors.Is(err, accountrepository.ErrUserAlreadyExists) {
 		t.Fatal("duplicate issuer/subject accepted", err)
 	}

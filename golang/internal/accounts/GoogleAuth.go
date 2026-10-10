@@ -262,7 +262,7 @@ func (handlers *Handlers) GoogleCallback(responseWriter http.ResponseWriter, req
 		}
 		if errors.Is(err, accountrepository.ErrUserNotFound) {
 			var account *accountrepository.Account
-			account, err = handlers.AccountCommandHandler.Create(ctx, accountrepository.CreateInput{UserID: userID, Email: identity.Email})
+			account, err = handlers.AccountCommandHandler.CreateAccount(ctx, accountrepository.CreateAccountInput{UserID: userID, Email: identity.Email})
 			if errors.Is(err, accountrepository.ErrUserAlreadyExists) {
 				handlers.redirectAuthorizationFailure(responseWriter, request, AuthorizationErrorAccountAlreadyExists, transaction.FrontendState)
 				return

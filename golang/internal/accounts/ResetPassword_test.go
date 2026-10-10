@@ -41,7 +41,7 @@ func TestResetPassword(t *testing.T) {
 		handlers.AccountQueryHandler = accountrepository.NewQueryHandler(accountrepository.NewQueryHandlerInput{EventLog: eventLog})
 		router := mux.NewRouter()
 		handlers.AddRoutes(router)
-		_, err := handlers.AccountCommandHandler.Create(ctx, accountrepository.CreateInput{
+		_, err := handlers.AccountCommandHandler.CreateAccount(ctx, accountrepository.CreateAccountInput{
 			UserID: accountrepository.UserID{Issuer: accountrepository.IssuerBeddybytes, Subject: email},
 			Email:  email, Password: uuid.NewV4().String(),
 		})
