@@ -1,35 +1,7 @@
 import React from "react";
-import { Tab, TabCreateAccount, TabLogin } from "./tab"
-import CreateAccountForm from "./CreateAccountForm";
-import LoginForm from "./LoginForm";
+import LoginOrCreateAccountForm from "./LoginOrCreateAccountForm";
 
-interface Props {
-
-}
-
-const useOnTabClick = (tab: Tab, setTab: React.Dispatch<React.SetStateAction<Tab>>) => {
-    return React.useCallback(() => {
-        setTab(tab)
-    }, [tab, setTab])
-}
-
-const getNavLinkClassName = (tab: string, activeTab: string) => {
-    if (tab === activeTab) return "nav-link active"
-    return "nav-link"
-}
-
-const LoginOrCreateAccount: React.FunctionComponent<Props> = () => {
-    const [email, setEmail] = React.useState<string>("");
-    const [password, setPassword] = React.useState<string>("");
-    const [tab, setTab] = React.useState<Tab>(() => {
-        const location_hash = window.location.hash.substring(1);
-        if (location_hash === TabCreateAccount) return TabCreateAccount
-        return TabLogin
-    });
-
-    const switchToLogin = useOnTabClick(TabLogin, setTab);
-    const switchToCreateAccount = useOnTabClick(TabCreateAccount, setTab);
-
+const LoginOrCreateAccount: React.FC = () => {
     return (
         <div className="container wrapper-content">
             <h1 className="d-md-block d-none mx-auto text-center">
@@ -37,42 +9,7 @@ const LoginOrCreateAccount: React.FunctionComponent<Props> = () => {
             </h1>
             <div className="row">
                 <div className="col-xl-4 col-lg-5 col-md-6 mt-5 mx-auto order-md-2">
-                    <div className="card">
-                        <div className="card-header">
-                            <ul className="nav nav-tabs card-header-tabs nav-fill">
-                                <li className="nav-item">
-                                    <button id="nav-button-login" className={getNavLinkClassName(TabLogin, tab)} onClick={switchToLogin}>
-                                        Log In
-                                    </button>
-                                </li>
-                                <li className="nav-item">
-                                    <button id="nav-button-create-account" className={getNavLinkClassName(TabCreateAccount, tab)} onClick={switchToCreateAccount}>
-                                        Create Account
-                                    </button>
-                                </li>
-                            </ul>
-                        </div>
-                        <div className="card-body">
-                            {tab === TabLogin && (
-                                <LoginForm
-                                    email={email}
-                                    setEmail={setEmail}
-                                    password={password}
-                                    setPassword={setPassword}
-                                    switchToCreateAccount={switchToCreateAccount}
-                                />
-                            )}
-                            {tab === TabCreateAccount && (
-                                <CreateAccountForm
-                                    email={email}
-                                    setEmail={setEmail}
-                                    password={password}
-                                    setPassword={setPassword}
-                                    switchToLogin={switchToLogin}
-                                />
-                            )}
-                        </div>
-                    </div>
+                    <LoginOrCreateAccountForm />
                 </div>
                 <div className="col-xl-4 col-lg-5 col-md-6 mt-5 mx-auto order-md-1">
                     <p>BeddyBytes is</p>

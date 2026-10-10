@@ -2,6 +2,7 @@ import moment from "moment";
 import LoggingService, { Severity } from '../LoggingService';
 import { AuthorizationClient, load_account_from_local_storage, remove_account_from_local_storage, TokenOutput } from "./AuthorizationClient";
 import Service from "../Service";
+import { AuthCallbackPath } from './AuthCodeFlow';
 
 const InitialRetryDelay = 1000;
 
@@ -163,6 +164,9 @@ class AuthorizationService extends Service<AuthorizationServiceState> {
     private proxy: ServiceProxy;
 
     private static get_initial_state(): AuthorizationServiceState {
+        // The callback must redeem its own code before publishing account/token
+        // readiness. Never refresh an older cached session in parallel.
+        if (window.location.pathname === AuthCallbackPath) return new Unauthorized();
         const account = load_account_from_local_storage();
         if (account === null) {
             return new Unauthorized();

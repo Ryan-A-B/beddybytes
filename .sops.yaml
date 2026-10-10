@@ -1,3 +1,5 @@
 creation_rules:
   - path_regex: ^config/.*\.sops\.env$
     age: age15ke8j8j5ryujwg37065tv2aa6f89t7q462wqp8jx4pekjztm233q6uyp87
+  - path_regex: ^config/.*\.sops\.json$
+    age: age15ke8j8j5ryujwg37065tv2aa6f89t7q462wqp8jx4pekjztm233q6uyp87

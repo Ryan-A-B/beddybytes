@@ -1,14 +1,12 @@
 package accounts
 
 import (
-	"crypto/rand"
 	"encoding/json"
-	"io"
+	"errors"
 	"log"
 	"net/http"
 
-	"github.com/Ryan-A-B/beddybytes/golang/internal/eventlog"
-	"github.com/Ryan-A-B/beddybytes/golang/internal/fatal"
+	"github.com/Ryan-A-B/beddybytes/golang/internal/accountrepository"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/httpx"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/mailer"
 	"github.com/ansel1/merry"
@@ -77,15 +75,22 @@ func (handlers *Handlers) RequestPasswordReset(responseWriter http.ResponseWrite
 		return
 	}
 	ctx := request.Context()
-	account, err := handlers.AccountStore.GetByEmail(ctx, input.Email)
-	if err != nil {
-		log.Println("attempting to reset password for unknown email:", input.Email)
+	userID := accountrepository.UserID{
+		Issuer:  accountrepository.IssuerBeddybytes,
+		Subject: input.Email,
+	}
+	_, err = handlers.AccountQueryHandler.GetAccountIDForUser(ctx, userID)
+	if errors.Is(err, accountrepository.ErrUserNotFound) {
+		// Match the response for a known email without revealing account existence.
 		err = nil
+		return
+	}
+	if err != nil {
 		return
 	}
 	token := handlers.PasswordResetTokens.Create(input.Email)
 	err = handlers.Mailer.SendPasswordResetLink(ctx, mailer.SendPasswordResetLinkInput{
-		Email: account.User.Email,
+		Email: input.Email,
 		Token: token,
 	})
 	if err != nil {
@@ -123,27 +128,17 @@ func (handlers *Handlers) ResetPassword(responseWriter http.ResponseWriter, requ
 	}
 	ok := handlers.PasswordResetTokens.Consume(input.Token, func(email string) {
 		ctx := request.Context()
-		salt := make([]byte, 32)
-		_, err = io.ReadFull(rand.Reader, salt)
-		if err != nil {
-			log.Println("Error generating salt:", err)
-			return
-		}
-		passwordHash := calculatePasswordHash(input.Password, salt)
-		payload := PasswordResetData{
-			Email:        email,
-			PasswordSalt: salt,
-			PasswordHash: passwordHash,
-		}
-		_, err = handlers.EventLog.Append(ctx, eventlog.AppendInput{
-			Type: EventTypeAccountPasswordReset,
-			Data: fatal.UnlessMarshalJSON(payload),
+		err = handlers.AccountCommandHandler.ResetPassword(ctx, accountrepository.ResetPasswordInput{
+			Email:    email,
+			Password: input.Password,
 		})
-		fatal.OnError(err)
 	})
 	if !ok {
 		err = merry.New("invalid or expired token").WithHTTPCode(http.StatusBadRequest)
 		err = merry.WithUserMessage(err, "invalid or expired token")
 		return
+	}
+	if err != nil {
+		err = merry.WithUserMessage(merry.WithHTTPCode(err, http.StatusBadRequest), "unable to reset password")
 	}
 }

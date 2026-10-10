@@ -6,11 +6,28 @@ import (
 	"time"
 
 	"github.com/Ryan-A-B/beddybytes/golang/internal"
+	"github.com/Ryan-A-B/beddybytes/golang/internal/secrets"
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/dgrijalva/jwt-go"
 )
 
 const testSigningKey = "test-signing-key"
+
+func TestAuthorizeUsesBackendBundleSigningKey(t *testing.T) {
+	data := `{"ENCRYPTION_KEY":"test-signing-key","GOOGLE_CLIENT_ID":"client-id","GOOGLE_CLIENT_SECRET":"different-secret"}`
+	bundle, err := secrets.ParseBackendBundle(&data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg := testConfig()
+	cfg.signingKey = []byte(bundle.EncryptionKey)
+	_, err = authorize(newRequest(newAccessToken(t, time.Now().Add(time.Hour), internal.URN{
+		Service: "iam", AccountID: "account-1", ResourceType: "user", ResourceID: "user-1",
+	}), "client-1"), cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
 
 func TestAuthorizeAllowsAccountScopedMQTTAccessForValidAccessToken(t *testing.T) {
 	accessToken := newAccessToken(t, time.Now().Add(time.Hour), internal.URN{
@@ -180,5 +197,30 @@ func assertPolicyResources(t *testing.T, policy *events.IAMPolicyDocument, expec
 		if !resources[expectedResource] {
 			t.Fatalf("missing policy resource %s", expectedResource)
 		}
+	}
+}
+
+func TestMQTTRejectsRefreshTokens(t *testing.T) {
+	for _, tc := range []struct {
+		name, use, scope string
+		allowed          bool
+	}{
+		{"access", "access", "account monitor", true},
+		{"legacy access", "", "", true},
+		{"refresh", "refresh", "account monitor", false},
+		{"legacy refresh", "", "refresh_token", false},
+		{"unknown type", "other", "account", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			claims := internal.Claims{Issuer: "beddybytes", Audience: "beddybytes", Expiry: time.Now().Add(time.Hour).Unix(), Subject: internal.URN{Service: "iam", AccountID: "account", ResourceType: "user", ResourceID: "user"}, TokenUse: tc.use, Scope: tc.scope}
+			token, err := jwt.NewWithClaims(jwt.SigningMethodHS256, &claims).SignedString([]byte(testSigningKey))
+			if err != nil {
+				t.Fatal(err)
+			}
+			_, err = authorize(newRequest(token, "client-1"), testConfig())
+			if (err == nil) != tc.allowed {
+				t.Fatalf("allowed=%v, error=%v", tc.allowed, err)
+			}
+		})
 	}
 }

@@ -1,10 +1,11 @@
 package accounts
 
 import (
-	"bytes"
 	"crypto/rsa"
 	"encoding/json"
+	"errors"
 	"net/http"
+	"net/url"
 	"regexp"
 	"strings"
 	"sync"
@@ -16,8 +17,8 @@ import (
 	uuid "github.com/satori/go.uuid"
 
 	"github.com/Ryan-A-B/beddybytes/golang/internal"
+	"github.com/Ryan-A-B/beddybytes/golang/internal/accountrepository"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/contextx"
-	"github.com/Ryan-A-B/beddybytes/golang/internal/eventlog"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/fatal"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/httpx"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/logx"
@@ -30,17 +31,19 @@ type Mailer interface {
 }
 
 type Handlers struct {
-	CookieDomain                 string
-	EventLog                     eventlog.EventLog
-	AccountStore                 *AccountStore
-	SigningMethod                jwt.SigningMethod
-	Key                          interface{}
-	AccessTokenDuration          time.Duration
-	RefreshTokenDuration         time.Duration
-	UsedTokens                   UsedTokens
-	AnonymousAccessTokenDuration time.Duration
-	PasswordResetTokens          *resetpassword.Tokens
-	Mailer                       Mailer
+	CookieDomain                     string
+	AccountCommandHandler            *accountrepository.CommandHandler
+	AccountQueryHandler              *accountrepository.QueryHandler
+	SigningMethod                    jwt.SigningMethod
+	Key                              interface{}
+	AccessTokenDuration              time.Duration
+	RefreshTokenDuration             time.Duration
+	UsedTokens                       UsedTokens
+	AnonymousAccessTokenDuration     time.Duration
+	PasswordResetTokens              *resetpassword.Tokens
+	Mailer                           Mailer
+	FrontendAuthorizationRedirectURL url.URL
+	Google                           *GoogleAuth
 }
 
 func (handlers *Handlers) AddRoutes(router *mux.Router) {
@@ -49,10 +52,11 @@ func (handlers *Handlers) AddRoutes(router *mux.Router) {
 	router.HandleFunc("/accounts", handlers.CreateAccount).Methods(http.MethodPost).Name("CreateAccount")
 	router.HandleFunc("/request-password-reset", handlers.RequestPasswordReset).Methods(http.MethodPost).Name("RequestPasswordReset")
 	router.HandleFunc("/reset-password", handlers.ResetPassword).Methods(http.MethodPost).Name("ResetPassword")
+	router.HandleFunc("/auth/start", handlers.StartAuth).Methods(http.MethodGet)
+	router.HandleFunc(googleCallbackPath, handlers.GoogleCallback).Methods(http.MethodGet)
 	authenticatedRouter := router.PathPrefix("/accounts/{account_id}").Subrouter()
 	authenticatedRouter.Use(internal.NewAuthorizationMiddleware(handlers.Key).Middleware)
 	authenticatedRouter.HandleFunc("", handlers.GetAccount).Methods(http.MethodGet).Name("GetAccount")
-	authenticatedRouter.HandleFunc("", handlers.DeleteAccount).Methods(http.MethodDelete).Name("DeleteAccount")
 }
 
 type UsedTokens struct {
@@ -156,6 +160,9 @@ func (handlers *Handlers) CheckAnonymousAuthorization(request *http.Request, exp
 		err = merry.New("failed to parse access token: " + err.Error()).WithHTTPCode(http.StatusUnauthorized)
 		return
 	}
+	if claims.EffectiveTokenUse() != internal.TokenUseAccess {
+		return merry.New("expected access token").WithHTTPCode(http.StatusUnauthorized)
+	}
 	if claims.Subject.ResourceType != "remote_address" {
 		err = merry.New("invalid resource type: " + claims.Subject.ResourceType).WithHTTPCode(http.StatusUnauthorized)
 		return
@@ -201,29 +208,18 @@ func (handlers *Handlers) CreateAccount(responseWriter http.ResponseWriter, requ
 	if err != nil {
 		return
 	}
-	err = handlers.AccountStore.checkEmail(ctx, input.Email)
-	if err != nil {
-		err = merry.WithUserMessage(err, "email already in use")
-		err = httpx.ErrorWithCode(err, "email_already_in_use")
+	userID := accountrepository.UserID{Issuer: accountrepository.IssuerBeddybytes, Subject: input.Email}
+	var account *accountrepository.Account
+	account, err = handlers.AccountCommandHandler.CreateAccount(ctx, accountrepository.CreateAccountInput{UserID: userID, Email: input.Email, Password: input.Password})
+	if errors.Is(err, accountrepository.ErrUserAlreadyExists) {
+		err = httpx.ErrorWithCode(merry.WithUserMessage(merry.WithHTTPCode(err, http.StatusConflict), "email already in use"), "email_already_in_use")
 		return
 	}
-	user := NewUser(&NewUserInput{
-		Email:    input.Email,
-		Password: input.Password,
-	})
-	account := Account{
-		ID:   uuid.NewV4().String(),
-		User: user,
+	if err != nil {
+		return
 	}
-	data, err := json.Marshal(account)
-	fatal.OnError(err)
-	_, err = handlers.EventLog.Append(ctx, eventlog.AppendInput{
-		Type: EventTypeAccountCreated,
-		Data: data,
-	})
-	fatal.OnError(err)
 	responseWriter.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(responseWriter).Encode(account)
+	json.NewEncoder(responseWriter).Encode(GetAccountOutput{ID: account.ID})
 }
 
 type AccessTokenOutput struct {
@@ -232,7 +228,19 @@ type AccessTokenOutput struct {
 	ExpiresIn   int    `json:"expires_in"`
 }
 
+func tokenError(responseWriter http.ResponseWriter, code string) {
+	responseWriter.Header().Set("Cache-Control", "no-store")
+	httpx.Error(responseWriter, httpx.ErrorWithCode(merry.New(code).WithHTTPCode(http.StatusBadRequest).WithUserMessage(code), code))
+}
+
 func (handlers *Handlers) GetToken(responseWriter http.ResponseWriter, request *http.Request) {
+	responseWriter.Header().Set("Cache-Control", "no-store")
+	responseWriter.Header().Set("Pragma", "no-cache")
+	request.Body = http.MaxBytesReader(responseWriter, request.Body, 8192)
+	if err := request.ParseForm(); err != nil {
+		tokenError(responseWriter, "invalid_request")
+		return
+	}
 	// Note: uses concepts from https://tools.ietf.org/html/rfc6749 but is not an OAuth 2.0 implementation
 	var err error
 	defer func() {
@@ -242,12 +250,14 @@ func (handlers *Handlers) GetToken(responseWriter http.ResponseWriter, request *
 			return
 		}
 	}()
-	grantType := request.FormValue("grant_type")
+	grantType := request.PostForm.Get("grant_type")
 	switch grantType {
 	case "password":
 		handlers.GetTokenUsingPasswordGrant(responseWriter, request)
 	case "refresh_token":
 		handlers.GetTokenUsingRefreshTokenGrant(responseWriter, request)
+	case "authorization_code":
+		handlers.GetTokenUsingAuthorizationCode(responseWriter, request)
 	default:
 		err = merry.New("invalid grant type").WithHTTPCode(http.StatusBadRequest)
 		return
@@ -265,31 +275,40 @@ func (handlers *Handlers) GetTokenUsingPasswordGrant(responseWriter http.Respons
 	}()
 	ctx := request.Context()
 	email := request.FormValue("username")
-	if email == "" {
-		err = merry.New("email is required").WithHTTPCode(http.StatusBadRequest)
-		return
-	}
 	password := request.FormValue("password")
-	if password == "" {
-		err = merry.New("password is required").WithHTTPCode(http.StatusBadRequest)
+	if email == "" || password == "" {
+		err = merry.New("username and password are required").WithHTTPCode(http.StatusBadRequest)
 		return
 	}
-	account, err := handlers.AccountStore.GetByEmail(ctx, email)
+	err = handlers.AccountQueryHandler.CheckCredentials(ctx, accountrepository.CheckCredentialsInput{
+		Email:    email,
+		Password: password,
+	})
 	if err != nil {
-		err = merry.New("account not found").WithUserMessage("unauthorized").WithHTTPCode(http.StatusUnauthorized)
+		switch {
+		case errors.Is(err, accountrepository.ErrEmailRequired):
+			err = merry.WithHTTPCode(err, http.StatusBadRequest)
+		case errors.Is(err, accountrepository.ErrUserNotFound), errors.Is(err, accountrepository.ErrInvalidPassword):
+			err = merry.WithUserMessage(merry.WithHTTPCode(err, http.StatusUnauthorized), "unauthorized")
+		}
 		return
 	}
-	passwordHash := calculatePasswordHash(password, account.User.PasswordSalt)
-	if !bytes.Equal(passwordHash, account.User.PasswordHash) {
-		err = merry.New("wrong password").WithUserMessage("unauthorized").WithHTTPCode(http.StatusUnauthorized)
+	userID := accountrepository.UserID{
+		Issuer:  accountrepository.IssuerBeddybytes,
+		Subject: email,
+	}
+	accountID, err := handlers.AccountQueryHandler.GetAccountIDForUser(ctx, userID)
+	if err != nil {
+		err = merry.Prepend(err, "failed to get account ID for user")
 		return
 	}
+	subject := createSubject(accountID, userID)
 	output := AccessTokenOutput{
 		TokenType:   "Bearer",
-		AccessToken: handlers.createAccessToken(account),
+		AccessToken: handlers.createAccessToken(subject),
 		ExpiresIn:   int(handlers.AccessTokenDuration.Seconds()),
 	}
-	http.SetCookie(responseWriter, handlers.createRefreshTokenCookie(account))
+	http.SetCookie(responseWriter, handlers.createRefreshTokenCookie(subject))
 	responseWriter.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(responseWriter).Encode(output)
 }
@@ -303,7 +322,6 @@ func (handlers *Handlers) GetTokenUsingRefreshTokenGrant(responseWriter http.Res
 			return
 		}
 	}()
-	ctx := request.Context()
 	cookie, err := request.Cookie("refresh_token")
 	if err != nil {
 		logx.Warnf("refresh_token cookie missing. Request details: Method=%s, URL=%s, Headers=%v\n", request.Method, request.URL.String(), request.Header)
@@ -317,25 +335,20 @@ func (handlers *Handlers) GetTokenUsingRefreshTokenGrant(responseWriter http.Res
 		err = merry.Prepend(err, "failed to parse refresh token").WithUserMessage("unauthorized").WithHTTPCode(http.StatusUnauthorized)
 		return
 	}
-	if claims.Scope != "refresh_token" {
-		err = merry.New(`claims.Scope != "refresh_token"`).WithUserMessage("unauthorized").WithHTTPCode(http.StatusUnauthorized)
+	if claims.EffectiveTokenUse() != internal.TokenUseRefresh {
+		err = merry.New("expected refresh token").WithUserMessage("unauthorized").WithHTTPCode(http.StatusUnauthorized)
 		return
 	}
 	if added := handlers.UsedTokens.TryAdd(claims.ID); !added {
 		err = merry.New("refresh token has already been used").WithUserMessage("unauthorized").WithHTTPCode(http.StatusUnauthorized)
 		return
 	}
-	account, err := handlers.AccountStore.Get(ctx, claims.Subject.AccountID)
-	if err != nil {
-		err = merry.Prepend(err, "failed to get account: "+claims.Subject.AccountID).WithUserMessage("unauthorized").WithHTTPCode(http.StatusUnauthorized)
-		return
-	}
 	output := AccessTokenOutput{
 		TokenType:   "Bearer",
-		AccessToken: handlers.createAccessToken(account),
+		AccessToken: handlers.createAccessToken(claims.Subject),
 		ExpiresIn:   int(handlers.AccessTokenDuration.Seconds()),
 	}
-	http.SetCookie(responseWriter, handlers.createRefreshTokenCookie(account))
+	http.SetCookie(responseWriter, handlers.createRefreshTokenCookie(claims.Subject))
 	responseWriter.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(responseWriter).Encode(output)
 }
@@ -363,6 +376,10 @@ func (handlers *Handlers) Logout(responseWriter http.ResponseWriter, request *ht
 	}
 }
 
+type GetAccountOutput struct {
+	ID string `json:"id"`
+}
+
 func (handlers *Handlers) GetAccount(responseWriter http.ResponseWriter, request *http.Request) {
 	var err error
 	defer func() {
@@ -374,22 +391,16 @@ func (handlers *Handlers) GetAccount(responseWriter http.ResponseWriter, request
 	}()
 	ctx := request.Context()
 	accountID := contextx.GetAccountID(ctx)
-	account, err := handlers.AccountStore.Get(ctx, accountID)
+	account, err := handlers.AccountQueryHandler.GetAccountByID(ctx, accountID)
 	if err != nil {
+		if errors.Is(err, accountrepository.ErrAccountNotFound) {
+			err = merry.WithHTTPCode(err, http.StatusNotFound)
+		}
 		return
 	}
-	json.NewEncoder(responseWriter).Encode(account)
-}
-
-func (handlers *Handlers) DeleteAccount(responseWriter http.ResponseWriter, request *http.Request) {
-	ctx := request.Context()
-	accountID := contextx.GetAccountID(ctx)
-	err := handlers.AccountStore.Remove(ctx, accountID)
-	if err != nil {
-		logx.Warnln(err)
-		httpx.Error(responseWriter, err)
-		return
-	}
+	json.NewEncoder(responseWriter).Encode(GetAccountOutput{
+		ID: account.ID,
+	})
 }
 
 func (handlers *Handlers) createAnonymousAccessToken(remoteAddress string, scope string) (accessToken string) {
@@ -405,58 +416,60 @@ func (handlers *Handlers) createAnonymousAccessToken(remoteAddress string, scope
 			ResourceType: "remote_address",
 			ResourceID:   remoteAddress,
 		},
-		Scope:  scope,
-		Expiry: expiry.Unix(),
+		Scope:    scope,
+		TokenUse: internal.TokenUseAccess,
+		Expiry:   expiry.Unix(),
 	}
 	accessToken, err := jwt.NewWithClaims(handlers.SigningMethod, &claims).SignedString(handlers.Key)
 	fatal.OnError(err)
 	return
 }
 
-func (handlers *Handlers) createAccessToken(account *Account) (accessToken string) {
+func (handlers *Handlers) createAccessToken(subject internal.URN) (accessToken string) {
 	expiry := time.Now().Add(handlers.AccessTokenDuration)
 	claims := internal.Claims{
 		Issuer:   "beddybytes",
 		Audience: "beddybytes",
-		Subject: internal.URN{
-			Service:      "iam",
-			Region:       "",
-			AccountID:    account.ID,
-			ResourceType: "user",
-			ResourceID:   account.User.ID,
-		},
-		Expiry: expiry.Unix(),
+		Subject:  subject,
+		Expiry:   expiry.Unix(),
+		Scope:    "account monitor",
+		TokenUse: internal.TokenUseAccess,
 	}
 	accessToken, err := jwt.NewWithClaims(handlers.SigningMethod, &claims).SignedString(handlers.Key)
 	fatal.OnError(err)
 	return
 }
 
-func (handlers *Handlers) createRefreshToken(account *Account) (refreshToken string) {
+func createSubject(accountID string, userID accountrepository.UserID) internal.URN {
+	return internal.URN{
+		Service:      "iam",
+		Region:       "",
+		AccountID:    accountID,
+		ResourceType: "user",
+		ResourceID:   userID.Issuer + "/" + userID.Subject,
+	}
+}
+
+func (handlers *Handlers) createRefreshToken(subject internal.URN) (refreshToken string) {
 	expiry := time.Now().Add(handlers.RefreshTokenDuration)
 	claims := internal.Claims{
 		ID:       uuid.NewV4().String(),
 		Issuer:   "beddybytes",
 		Audience: "beddybytes",
-		Subject: internal.URN{
-			Service:      "iam",
-			Region:       "",
-			AccountID:    account.ID,
-			ResourceType: "user",
-			ResourceID:   account.User.ID,
-		},
-		Expiry: expiry.Unix(),
-		Scope:  "refresh_token",
+		Subject:  subject,
+		Expiry:   expiry.Unix(),
+		Scope:    "account monitor",
+		TokenUse: internal.TokenUseRefresh,
 	}
 	refreshToken, err := jwt.NewWithClaims(handlers.SigningMethod, &claims).SignedString(handlers.Key)
 	fatal.OnError(err)
 	return
 }
 
-func (handlers *Handlers) createRefreshTokenCookie(account *Account) *http.Cookie {
+func (handlers *Handlers) createRefreshTokenCookie(subject internal.URN) *http.Cookie {
 	return &http.Cookie{
 		Name:     "refresh_token",
-		Value:    handlers.createRefreshToken(account),
+		Value:    handlers.createRefreshToken(subject),
 		Domain:   handlers.CookieDomain,
 		Path:     "/token",
 		HttpOnly: true,

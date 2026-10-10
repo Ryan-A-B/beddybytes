@@ -107,7 +107,7 @@ func benchmarkAppend(b *testing.B, factory EventLogFactory) {
 	ctx := context.Background()
 	eventLog := factory.Create(ctx)
 	input := eventlog.AppendInput{
-		Type: uuid.NewV4().String(),
+		Type: eventlog.EventType(uuid.NewV4().String()),
 		Data: fatal.UnlessMarshalJSON(map[string]string{
 			uuid.NewV4().String(): uuid.NewV4().String(),
 		}),

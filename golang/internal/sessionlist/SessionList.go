@@ -149,7 +149,7 @@ const EventTypeSessionStarted = "session.started"
 const EventTypeSessionEnded = "session.ended"
 const maxDisconnectedSessionsPerAccount = 4
 
-var applyByType = map[string]applyFunc{
+var applyByType = map[eventlog.EventType]applyFunc{
 	EventTypeServerStarted:            applyServerStartedEvent,
 	EventTypeSessionStarted:           applySessionStartedEvent,
 	EventTypeSessionEnded:             applySessionEndedEvent,

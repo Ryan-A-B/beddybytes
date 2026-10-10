@@ -90,7 +90,7 @@ func (stats *UsageStats) applyEvent(ctx context.Context, event *eventlog.Event) 
 
 type statsApplyFunc func(ctx context.Context, stats *UsageStats, event *eventlog.Event)
 
-var statsApplyByType = map[string]statsApplyFunc{
+var statsApplyByType = map[eventlog.EventType]statsApplyFunc{
 	EventTypeServerStarted:      applyServerStartedEvent,
 	EventTypeSessionStarted:     applySessionStartedEvent,
 	EventTypeSessionEnded:       applySessionEndedEvent,

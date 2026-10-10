@@ -28,7 +28,7 @@ type Decider struct {
 	eventLog             eventlog.EventLog
 	cursor               int64
 	mutex                sync.Mutex
-	applyFuncByEventType map[string]ApplyFunc
+	applyFuncByEventType map[eventlog.EventType]ApplyFunc
 	connectedKeySet      map[string]struct{}
 	disconnectedKeySet   map[string]struct{}
 }
@@ -43,7 +43,7 @@ func NewDecider(input NewDeciderInput) *Decider {
 		connectedKeySet:    make(map[string]struct{}),
 		disconnectedKeySet: make(map[string]struct{}),
 	}
-	decider.applyFuncByEventType = map[string]ApplyFunc{
+	decider.applyFuncByEventType = map[eventlog.EventType]ApplyFunc{
 		connections.EventTypeConnected:    decider.applyConnected,
 		connections.EventTypeDisconnected: decider.applyDisconnected,
 	}

@@ -43,6 +43,10 @@ func (middleware *AuthorizationMiddleware) Middleware(next http.Handler) http.Ha
 			err = merry.Prepend(err, "failed to parse access token").WithUserMessage("unauthorized").WithHTTPCode(http.StatusUnauthorized)
 			return
 		}
+		if claims.EffectiveTokenUse() != TokenUseAccess {
+			err = merry.New("expected access token").WithUserMessage("unauthorized").WithHTTPCode(http.StatusUnauthorized)
+			return
+		}
 		if claims.Subject.Service != "iam" {
 			err = merry.New("wrong subject service").WithUserMessage("unauthorized").WithHTTPCode(http.StatusUnauthorized)
 			return
