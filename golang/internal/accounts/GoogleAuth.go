@@ -28,14 +28,13 @@ var pkceChallengePattern = regexp.MustCompile(`^[A-Za-z0-9_-]{43}$`)
 var pkceVerifierPattern = regexp.MustCompile(`^[A-Za-z0-9._~-]{43,128}$`)
 
 type googleTransaction struct {
-	Intent, Scope, FrontendState, Challenge, Nonce, UpstreamVerifier, Binding string
-	Expires                                                                   time.Time
+	Intent, FrontendState, Challenge, Nonce, UpstreamVerifier, Binding string
+	Expires                                                            time.Time
 }
 
 type authorizationRequest struct {
 	UserID    accountrepository.UserID
 	AccountID string
-	Scope     string
 	Challenge string
 	Expires   time.Time
 }
@@ -105,28 +104,23 @@ func googleProviderSelected(request *http.Request) bool {
 	return len(providers) == 1 && providers[0] == "google"
 }
 
-// Scopes describe browser permissions. Account/subscription expiry does not
-// gate scope issuance in the Google sign-in project.
-func requestedBrowserScope(query url.Values) (string, bool) {
+// Validate requested scopes even while issued account tokens use fixed scopes.
+func validBrowserScope(query url.Values) bool {
 	values := query["scope"]
 	if len(values) != 1 {
-		return "", false
+		return false
 	}
-	seen := make(map[string]bool)
-	var scopes []string
+	found := false
 	for _, scope := range strings.Split(values[0], " ") {
 		if scope == "" {
 			continue
 		}
 		if scope != "account" && scope != "monitor" {
-			return "", false
+			return false
 		}
-		if !seen[scope] {
-			seen[scope] = true
-			scopes = append(scopes, scope)
-		}
+		found = true
 	}
-	return strings.Join(scopes, " "), len(scopes) > 0
+	return found
 }
 
 func (handlers *Handlers) startGoogle(responseWriter http.ResponseWriter, request *http.Request) {
@@ -157,8 +151,7 @@ func (handlers *Handlers) startGoogle(responseWriter http.ResponseWriter, reques
 		handlers.redirectAuthorizationFailure(responseWriter, request, AuthorizationErrorInvalidRequest, "")
 		return
 	}
-	scope, ok := requestedBrowserScope(query)
-	if !ok {
+	if !validBrowserScope(query) {
 		handlers.redirectAuthorizationFailure(responseWriter, request, AuthorizationErrorInvalidRequest, "")
 		return
 	}
@@ -182,7 +175,7 @@ func (handlers *Handlers) startGoogle(responseWriter http.ResponseWriter, reques
 		handlers.redirectAuthorizationFailure(responseWriter, request, AuthorizationErrorServerError, "")
 		return
 	}
-	transaction := googleTransaction{Intent: intent, Scope: scope, FrontendState: state, Challenge: challenge, Nonce: nonce, UpstreamVerifier: verifier, Binding: binding, Expires: auth.now().Add(googleTransactionTTL)}
+	transaction := googleTransaction{Intent: intent, FrontendState: state, Challenge: challenge, Nonce: nonce, UpstreamVerifier: verifier, Binding: binding, Expires: auth.now().Add(googleTransactionTTL)}
 	auth.mutex.Lock()
 	auth.cleanup()
 	if len(auth.transactions) >= maxPendingGoogleEntries {
@@ -295,7 +288,7 @@ func (handlers *Handlers) GoogleCallback(responseWriter http.ResponseWriter, req
 		handlers.redirectAuthorizationFailure(responseWriter, request, AuthorizationErrorTemporarilyUnavailable, transaction.FrontendState)
 		return
 	}
-	auth.requests[code] = authorizationRequest{UserID: userID, AccountID: accountID, Scope: transaction.Scope, Challenge: transaction.Challenge, Expires: auth.now().Add(authorizationCodeTTL)}
+	auth.requests[code] = authorizationRequest{UserID: userID, AccountID: accountID, Challenge: transaction.Challenge, Expires: auth.now().Add(authorizationCodeTTL)}
 	auth.mutex.Unlock()
 	handlers.redirectAuthorizationSuccess(responseWriter, request, transaction.FrontendState, code)
 }

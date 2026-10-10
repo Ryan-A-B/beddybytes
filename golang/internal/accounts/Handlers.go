@@ -19,7 +19,6 @@ import (
 	"github.com/Ryan-A-B/beddybytes/golang/internal"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/accountrepository"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/contextx"
-	"github.com/Ryan-A-B/beddybytes/golang/internal/eventlog"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/fatal"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/httpx"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/logx"
@@ -33,7 +32,6 @@ type Mailer interface {
 
 type Handlers struct {
 	CookieDomain                     string
-	EventLog                         eventlog.EventLog
 	AccountCommandHandler            *accountrepository.CommandHandler
 	AccountQueryHandler              *accountrepository.QueryHandler
 	SigningMethod                    jwt.SigningMethod

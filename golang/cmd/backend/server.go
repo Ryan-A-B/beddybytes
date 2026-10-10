@@ -237,7 +237,6 @@ func main() {
 	})
 	accountHandlers := accounts.Handlers{
 		CookieDomain:                 cookieDomain,
-		EventLog:                     eventLog,
 		AccountCommandHandler:        accountrepository.NewCommandHandler(accountrepository.NewCommandHandlerInput{EventLog: eventLog}),
 		AccountQueryHandler:          accountrepository.NewQueryHandler(accountrepository.NewQueryHandlerInput{EventLog: eventLog}),
 		SigningMethod:                jwt.SigningMethodHS256,

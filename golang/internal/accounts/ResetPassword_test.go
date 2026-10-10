@@ -26,8 +26,8 @@ func TestResetPassword(t *testing.T) {
 		ctx := context.Background()
 		email := "test@example.com"
 		mailer := new(MockPasswordResetMailer)
+		eventLog := newEventLog(ctx)
 		handlers := accounts.Handlers{
-			EventLog:                     newEventLog(ctx),
 			SigningMethod:                jwt.SigningMethodHS256,
 			Key:                          generateKey(),
 			UsedTokens:                   accounts.NewUsedTokens(),
@@ -37,8 +37,8 @@ func TestResetPassword(t *testing.T) {
 			}),
 			Mailer: mailer,
 		}
-		handlers.AccountCommandHandler = accountrepository.NewCommandHandler(accountrepository.NewCommandHandlerInput{EventLog: handlers.EventLog})
-		handlers.AccountQueryHandler = accountrepository.NewQueryHandler(accountrepository.NewQueryHandlerInput{EventLog: handlers.EventLog})
+		handlers.AccountCommandHandler = accountrepository.NewCommandHandler(accountrepository.NewCommandHandlerInput{EventLog: eventLog})
+		handlers.AccountQueryHandler = accountrepository.NewQueryHandler(accountrepository.NewQueryHandlerInput{EventLog: eventLog})
 		router := mux.NewRouter()
 		handlers.AddRoutes(router)
 		_, err := handlers.AccountCommandHandler.Create(ctx, accountrepository.CreateInput{

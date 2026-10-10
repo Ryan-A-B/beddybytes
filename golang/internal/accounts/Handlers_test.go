@@ -26,9 +26,9 @@ import (
 func TestHandlers(t *testing.T) {
 	Convey("TestHandlers", t, func() {
 		ctx := context.Background()
+		eventLog := newEventLog(ctx)
 		handlers := accounts.Handlers{
 			CookieDomain:                 "localhost",
-			EventLog:                     newEventLog(ctx),
 			SigningMethod:                jwt.SigningMethodHS256,
 			Key:                          generateKey(),
 			AccessTokenDuration:          1 * time.Hour,
@@ -36,8 +36,8 @@ func TestHandlers(t *testing.T) {
 			AnonymousAccessTokenDuration: 10 * time.Second,
 		}
 
-		handlers.AccountCommandHandler = accountrepository.NewCommandHandler(accountrepository.NewCommandHandlerInput{EventLog: handlers.EventLog})
-		handlers.AccountQueryHandler = accountrepository.NewQueryHandler(accountrepository.NewQueryHandlerInput{EventLog: handlers.EventLog})
+		handlers.AccountCommandHandler = accountrepository.NewCommandHandler(accountrepository.NewCommandHandlerInput{EventLog: eventLog})
+		handlers.AccountQueryHandler = accountrepository.NewQueryHandler(accountrepository.NewQueryHandlerInput{EventLog: eventLog})
 		router := mux.NewRouter()
 		handlers.AddRoutes(router.NewRoute().Subrouter())
 		server := httptest.NewServer(router)

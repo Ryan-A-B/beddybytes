@@ -110,7 +110,6 @@ func googleTestHandlers(t *testing.T) (*Handlers, http.Handler, *fakeGoogleProvi
 		Google:                auth,
 		AccountCommandHandler: accountrepository.NewCommandHandler(accountrepository.NewCommandHandlerInput{EventLog: log}),
 		AccountQueryHandler:   accountrepository.NewQueryHandler(accountrepository.NewQueryHandlerInput{EventLog: log}),
-		EventLog:              log,
 		Key:                   []byte("test-key"),
 		SigningMethod:         jwt.SigningMethodHS256,
 		AccessTokenDuration:   time.Hour,
@@ -559,12 +558,12 @@ func TestBrowserScopesRejectUnsupportedOrAmbiguousRequests(t *testing.T) {
 		{}, {"scope": {""}}, {"scope": {"admin"}}, {"scope": {"account create_account"}},
 		{"scope": {"account", "monitor"}}, {"scope": {"account\tmonitor"}},
 	} {
-		if _, ok := requestedBrowserScope(query); ok {
+		if validBrowserScope(query) {
 			t.Fatal("invalid scope accepted")
 		}
 	}
-	if scope, ok := requestedBrowserScope(url.Values{"scope": {"account monitor account"}}); !ok || scope != "account monitor" {
-		t.Fatal("supported scopes were not normalized")
+	if !validBrowserScope(url.Values{"scope": {"account monitor account"}}) {
+		t.Fatal("supported duplicate scopes were rejected")
 	}
 	_, router, _, _ := googleTestHandlers(t)
 	query := url.Values{
