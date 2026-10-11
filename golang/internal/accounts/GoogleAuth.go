@@ -135,7 +135,7 @@ func (handlers *Handlers) startGoogle(responseWriter http.ResponseWriter, reques
 		handlers.redirectAuthorizationFailure(responseWriter, request, AuthorizationErrorInvalidRequest, "")
 		return
 	}
-	if !pkceChallengePattern.MatchString(state) {
+	if state == "" {
 		handlers.redirectAuthorizationFailure(responseWriter, request, AuthorizationErrorInvalidRequest, "")
 		return
 	}

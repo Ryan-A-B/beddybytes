@@ -136,8 +136,13 @@ func beginGoogle(t *testing.T, router http.Handler, intent string) startedGoogle
 
 func beginGoogleWithScope(t *testing.T, router http.Handler, intent, scope string) startedGoogleFlow {
 	t.Helper()
-	verifier, _ := randomSecret()
 	frontendState, _ := randomSecret()
+	return beginGoogleWithState(t, router, intent, scope, frontendState)
+}
+
+func beginGoogleWithState(t *testing.T, router http.Handler, intent, scope, frontendState string) startedGoogleFlow {
+	t.Helper()
+	verifier, _ := randomSecret()
 	query := url.Values{"provider": {"google"}, "intent": {intent}, "scope": {scope}, "state": {frontendState}, "code_challenge": {challengeFor(verifier)}, "code_challenge_method": {"S256"}, "client_id": {browserClientID}, "redirect_uri": {"https://app.example.com/auth/callback"}}
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, httptest.NewRequest("GET", "/auth/start?"+query.Encode(), nil))
@@ -427,6 +432,19 @@ func TestGoogleSignupConcurrentUniquenessAndEventReplay(t *testing.T) {
 	again := testAccountIDForUser(t, replayed, userID)
 	if a != wantID || a != again {
 		t.Fatal("provider identity lost on event replay")
+	}
+}
+
+func TestGoogleFrontendStateIsOpaque(t *testing.T) {
+	for _, state := range []string{"frontend-state", "opaque+/value=with?query&fragment#", strings.Repeat("s", 128)} {
+		t.Run(state, func(t *testing.T) {
+			_, router, _, _ := googleTestHandlers(t)
+			flow := beginGoogleWithState(t, router, "signup", "account monitor", state)
+			params := callbackValues(t, callbackGoogle(router, flow, ""))
+			if params.Get("state") != state || params.Get("code") == "" || params.Get("error") != "" {
+				t.Fatalf("frontend state did not round trip: %v", params)
+			}
+		})
 	}
 }
 
