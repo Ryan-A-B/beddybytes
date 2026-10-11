@@ -68,8 +68,8 @@ func TestRefreshTokenTypeAndLegacyMigration(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			handlers, router, _, _ := googleTestHandlers(t)
 			userID := accountrepository.UserID{Issuer: accountrepository.IssuerBeddybytes, Subject: "user@example.com"}
-			account := createTestAccount(t, handlers, accountrepository.CreateAccountInput{UserID: userID, Email: "user@example.com", Password: "long-enough-password"})
-			claims := jwt.MapClaims{"iss": "beddybytes", "aud": "beddybytes", "exp": time.Now().Add(time.Hour).Unix(), "jti": "unique-refresh", "sub": (&internal.URN{Service: "iam", AccountID: account.ID, ResourceType: "user", ResourceID: userID.Issuer + "/" + userID.Subject}).String(), "scp": tc.scope}
+			accountID := createTestAccount(t, handlers, accountrepository.CreateAccountInput{UserID: userID, Email: "user@example.com", Password: "long-enough-password"})
+			claims := jwt.MapClaims{"iss": "beddybytes", "aud": "beddybytes", "exp": time.Now().Add(time.Hour).Unix(), "jti": "unique-refresh", "sub": (&internal.URN{Service: "iam", AccountID: accountID, ResourceType: "user", ResourceID: userID.Issuer + "/" + userID.Subject}).String(), "scp": tc.scope}
 			if tc.use != "" {
 				claims["token_use"] = tc.use
 			}
@@ -118,7 +118,7 @@ func TestRefreshTokenTypeAndLegacyMigration(t *testing.T) {
 	}
 }
 
-func TestPasswordGrantErrorsAndMissingAccountResponse(t *testing.T) {
+func TestPasswordGrantErrors(t *testing.T) {
 	handlers, router, _, _ := googleTestHandlers(t)
 	createTestAccount(t, handlers, accountrepository.CreateAccountInput{UserID: accountrepository.UserID{Issuer: accountrepository.IssuerBeddybytes, Subject: "user@example.com"}, Email: "user@example.com", Password: "correct-long-password"})
 	for _, tc := range []struct {
@@ -143,11 +143,24 @@ func TestPasswordGrantErrorsAndMissingAccountResponse(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestGetAccountReturnsJWTAccountIDWithoutRepositoryLookup(t *testing.T) {
+	handlers, router, _, _ := googleTestHandlers(t)
+	handlers.AccountQueryHandler = nil
+	const accountID = "jwt-account"
 	request := httptest.NewRequest("GET", "/accounts/current", nil)
-	request.Header.Set("Authorization", "Bearer "+handlers.createAccessToken(createSubject("missing-account", accountrepository.UserID{Issuer: accountrepository.IssuerBeddybytes, Subject: "missing@example.com"})))
+	request.Header.Set("Authorization", "Bearer "+handlers.createAccessToken(createSubject(accountID, accountrepository.UserID{Issuer: accountrepository.IssuerBeddybytes, Subject: "user@example.com"})))
 	response := httptest.NewRecorder()
 	router.ServeHTTP(response, request)
-	if response.Code != http.StatusNotFound {
-		t.Fatalf("missing account: %d %s", response.Code, response.Body.String())
+	if response.Code != http.StatusOK {
+		t.Fatalf("account response: %d %s", response.Code, response.Body.String())
+	}
+	var output map[string]string
+	if err := json.Unmarshal(response.Body.Bytes(), &output); err != nil {
+		t.Fatal(err)
+	}
+	if len(output) != 1 || output["id"] != accountID {
+		t.Fatalf("expected JWT account ID only, got %v", output)
 	}
 }

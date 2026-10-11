@@ -72,24 +72,28 @@ func (iterator *recordedAccountIterator) Event() *eventlog.Event {
 }
 func (*recordedAccountIterator) Err() error { return nil }
 
-func testAccountForUser(t *testing.T, handlers *Handlers, userID accountrepository.UserID) *accountrepository.Account {
+func testAccountIDForUser(t *testing.T, handlers *Handlers, userID accountrepository.UserID) string {
 	t.Helper()
 	id, err := handlers.AccountQueryHandler.GetAccountIDForUser(context.Background(), userID)
 	if err != nil {
 		t.Fatal(err)
 	}
-	account, err := handlers.AccountQueryHandler.GetAccountByID(context.Background(), id)
+	if id == "" {
+		t.Fatal("user resolved to an empty account ID")
+	}
+	return id
+}
+func createTestAccount(t *testing.T, handlers *Handlers, input accountrepository.CreateAccountInput) string {
+	t.Helper()
+	account, err := handlers.AccountCommandHandler.CreateAccount(context.Background(), input)
 	if err != nil {
 		t.Fatal(err)
 	}
-	return account
-}
-func createTestAccount(t *testing.T, handlers *Handlers, input accountrepository.CreateAccountInput) *accountrepository.Account {
-	t.Helper()
-	if _, err := handlers.AccountCommandHandler.CreateAccount(context.Background(), input); err != nil {
-		t.Fatal(err)
+	id := testAccountIDForUser(t, handlers, input.UserID)
+	if account == nil || account.ID != id {
+		t.Fatal("created account ID does not match the user lookup")
 	}
-	return testAccountForUser(t, handlers, input.UserID)
+	return id
 }
 func (*recordedAccountLog) Wait(context.Context) <-chan struct{} { return make(chan struct{}) }
 
@@ -183,7 +187,7 @@ func exchangeBeddybytes(router http.Handler, code, verifier string) *httptest.Re
 func TestGoogleSignupLoginUsesOpaqueSubjectAndStoresEmail(t *testing.T) {
 	handlers, router, provider, log := googleTestHandlers(t)
 	passwordUserID := accountrepository.UserID{Issuer: accountrepository.IssuerBeddybytes, Subject: "same@example.com"}
-	passwordAccount := createTestAccount(t, handlers, accountrepository.CreateAccountInput{UserID: passwordUserID, Email: "same@example.com", Password: "long-enough-password-for-tests"})
+	passwordAccountID := createTestAccount(t, handlers, accountrepository.CreateAccountInput{UserID: passwordUserID, Email: "same@example.com", Password: "long-enough-password-for-tests"})
 	flow := beginGoogle(t, router, "signup")
 	params := callbackValues(t, callbackGoogle(router, flow, "&intent=login"))
 	if params.Get("state") != flow.frontendState || params.Get("code") == "" || params.Get("error") != "" {
@@ -192,12 +196,20 @@ func TestGoogleSignupLoginUsesOpaqueSubjectAndStoresEmail(t *testing.T) {
 	if len(log.events) != 2 {
 		t.Fatal("signup did not append exactly one event")
 	}
-	googleAccount := testAccountForUser(t, handlers, accountrepository.UserID{Issuer: GoogleIssuer, Subject: provider.identity.Subject})
-	if googleAccount.ID == passwordAccount.ID || googleAccount.Users[0].HashedPassword != nil || googleAccount.Users[0].ID.Subject != provider.identity.Subject || googleAccount.Users[0].Email != "same@example.com" {
-		t.Fatal("accounts not independent")
+	googleAccountID := testAccountIDForUser(t, handlers, accountrepository.UserID{Issuer: GoogleIssuer, Subject: provider.identity.Subject})
+	if googleAccountID == passwordAccountID {
+		t.Fatal("Google and password users share an account")
 	}
-	legacy := testAccountForUser(t, handlers, passwordUserID)
-	if legacy.ID != passwordAccount.ID {
+	var detail accountrepository.AccountCreatedV2Detail
+	if err := json.Unmarshal(log.events[1].Data, &detail); err != nil {
+		t.Fatal(err)
+	}
+	googleUserID := accountrepository.UserID{Issuer: GoogleIssuer, Subject: provider.identity.Subject}
+	if log.events[1].Type != accountrepository.EventTypeAccountCreatedV2 || detail.AccountID != googleAccountID || detail.User.ID != googleUserID || detail.User.Email != "same@example.com" || detail.User.HashedPassword != nil {
+		t.Fatal("Google identity metadata was not persisted in its creation event")
+	}
+	legacy := testAccountIDForUser(t, handlers, passwordUserID)
+	if legacy != passwordAccountID {
 		t.Fatal("Google overwrote password identity")
 	}
 	w := exchangeBeddybytes(router, params.Get("code"), flow.verifier)
@@ -215,7 +227,7 @@ func TestGoogleSignupLoginUsesOpaqueSubjectAndStoresEmail(t *testing.T) {
 	if _, err := jwt.ParseWithClaims(token.AccessToken, &claims, handlers.getKey); err != nil {
 		t.Fatal(err)
 	}
-	if claims.Subject != createSubject(googleAccount.ID, accountrepository.UserID{Issuer: GoogleIssuer, Subject: provider.identity.Subject}) {
+	if claims.Subject != createSubject(googleAccountID, accountrepository.UserID{Issuer: GoogleIssuer, Subject: provider.identity.Subject}) {
 		t.Fatal("Google token lost authenticated user identity")
 	}
 	if token.TokenType != "Bearer" || token.AccessToken == "" || token.ExpiresIn != 3600 {
@@ -230,7 +242,7 @@ func TestGoogleSignupLoginUsesOpaqueSubjectAndStoresEmail(t *testing.T) {
 	router.ServeHTTP(current, r)
 	var currentAccount GetAccountOutput
 	json.Unmarshal(current.Body.Bytes(), &currentAccount)
-	if current.Code != 200 || currentAccount.ID != googleAccount.ID {
+	if current.Code != 200 || currentAccount.ID != googleAccountID {
 		t.Fatal("token does not resolve new account")
 	}
 	if exchangeBeddybytes(router, params.Get("code"), flow.verifier).Code != 400 {
@@ -242,7 +254,7 @@ func TestGoogleSignupLoginUsesOpaqueSubjectAndStoresEmail(t *testing.T) {
 		t.Fatal("repeat login created an account")
 	}
 	grant, ok := handlers.Google.redeem(loginParams.Get("code"), loginFlow.verifier, browserClientID)
-	if !ok || grant.AccountID != googleAccount.ID || grant.UserID != (accountrepository.UserID{Issuer: GoogleIssuer, Subject: provider.identity.Subject}) {
+	if !ok || grant.AccountID != googleAccountID || grant.UserID != (accountrepository.UserID{Issuer: GoogleIssuer, Subject: provider.identity.Subject}) {
 		t.Fatal("opaque subject did not resolve the same Google identity")
 	}
 }
@@ -386,7 +398,7 @@ func TestAuthorizationCodeRedirectBindingIsCheckedByHandlers(t *testing.T) {
 }
 
 func TestGoogleSignupConcurrentUniquenessAndEventReplay(t *testing.T) {
-	_, router, _, log := googleTestHandlers(t)
+	handlers, router, _, log := googleTestHandlers(t)
 	flows := make([]startedGoogleFlow, 12)
 	for i := range flows {
 		flows[i] = beginGoogle(t, router, "signup")
@@ -410,9 +422,10 @@ func TestGoogleSignupConcurrentUniquenessAndEventReplay(t *testing.T) {
 	}
 	replayed := &Handlers{AccountQueryHandler: accountrepository.NewQueryHandler(accountrepository.NewQueryHandlerInput{EventLog: log})}
 	userID := accountrepository.UserID{Issuer: GoogleIssuer, Subject: "opaque:Google/Subject+01"}
-	a := testAccountForUser(t, replayed, userID)
-	again := testAccountForUser(t, replayed, userID)
-	if a.ID != again.ID || a.Users[0].HashedPassword != nil || a.Users[0].ID != userID || a.Users[0].Email != "same@example.com" {
+	wantID := testAccountIDForUser(t, handlers, userID)
+	a := testAccountIDForUser(t, replayed, userID)
+	again := testAccountIDForUser(t, replayed, userID)
+	if a != wantID || a != again {
 		t.Fatal("provider identity lost on event replay")
 	}
 }
