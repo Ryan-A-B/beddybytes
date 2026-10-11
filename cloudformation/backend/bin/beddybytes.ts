@@ -35,8 +35,8 @@ const load_balancer_stack = new LoadBalancerStack(app, 'beddybytes-load-balancer
 new BackendStack(app, 'beddybytes-backend-prod', {
   deploy_env: 'prod',
   docker_repository: ci_stack.docker_repository,
-  docker_image_digest: 'sha256:a0cb92e4c302916898db2abb1f4bb5500f0fc3db8f3853a93b1b5d07063eff42',
-  iot_authorizer_sha: 'ad0b2008a1cfc697fa9e920fe23698b70914ac47236d08d3ed21d9a4254a00d3',
+  docker_image_digest: 'sha256:b006d90d077d4187b7714ec1bebd9e54a99eb54f68fc23915c35742f1c3fc718',
+  iot_authorizer_sha: '103066f58b7587791e9ea15f5fc1387f665c38790dc7705574f7c6aae513a538',
   cluster: core_stack.cluster,
   secrets_bundle: secrets_stack.backend_bundles.prod,
   elastic_ip: core_stack.elastic_ip,
@@ -46,8 +46,8 @@ new BackendStack(app, 'beddybytes-backend-prod', {
 new BackendStack(app, 'beddybytes-backend-qa', {
   deploy_env: 'qa',
   docker_repository: ci_stack.docker_repository,
-  docker_image_digest: 'sha256:a0cb92e4c302916898db2abb1f4bb5500f0fc3db8f3853a93b1b5d07063eff42',
-  iot_authorizer_sha: 'ad0b2008a1cfc697fa9e920fe23698b70914ac47236d08d3ed21d9a4254a00d3',
+  docker_image_digest: 'sha256:b006d90d077d4187b7714ec1bebd9e54a99eb54f68fc23915c35742f1c3fc718',
+  iot_authorizer_sha: '103066f58b7587791e9ea15f5fc1387f665c38790dc7705574f7c6aae513a538',
   cluster: core_stack.cluster,
   secrets_bundle: secrets_stack.backend_bundles.qa,
   elastic_ip: core_stack.elastic_ip,
