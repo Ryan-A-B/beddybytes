@@ -142,8 +142,13 @@ func beginGoogleWithScope(t *testing.T, router http.Handler, intent, scope strin
 
 func beginGoogleWithState(t *testing.T, router http.Handler, intent, scope, frontendState string) startedGoogleFlow {
 	t.Helper()
+	return beginGoogleWithStateValues(t, router, intent, scope, []string{frontendState})
+}
+
+func beginGoogleWithStateValues(t *testing.T, router http.Handler, intent, scope string, states []string) startedGoogleFlow {
+	t.Helper()
 	verifier, _ := randomSecret()
-	query := url.Values{"provider": {"google"}, "intent": {intent}, "scope": {scope}, "state": {frontendState}, "code_challenge": {challengeFor(verifier)}, "code_challenge_method": {"S256"}, "client_id": {browserClientID}, "redirect_uri": {"https://app.example.com/auth/callback"}}
+	query := url.Values{"provider": {"google"}, "intent": {intent}, "scope": {scope}, "state": states, "code_challenge": {challengeFor(verifier)}, "code_challenge_method": {"S256"}, "client_id": {browserClientID}, "redirect_uri": {"https://app.example.com/auth/callback"}}
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, httptest.NewRequest("GET", "/auth/start?"+query.Encode(), nil))
 	if w.Code != http.StatusSeeOther {
@@ -154,7 +159,7 @@ func beginGoogleWithState(t *testing.T, router http.Handler, intent, scope, fron
 	if len(cookies) != 1 || !cookies[0].Secure || !cookies[0].HttpOnly || cookies[0].SameSite != http.SameSiteLaxMode || cookies[0].Domain != "" {
 		t.Fatal("missing secure callback binding")
 	}
-	return startedGoogleFlow{verifier: verifier, state: redirect.Query().Get("state"), frontendState: frontendState, cookie: cookies[0]}
+	return startedGoogleFlow{verifier: verifier, state: redirect.Query().Get("state"), frontendState: query.Get("state"), cookie: cookies[0]}
 }
 func callbackGoogle(router http.Handler, flow startedGoogleFlow, extra string) *httptest.ResponseRecorder {
 	r := httptest.NewRequest("GET", "/auth/google/callback?code=google-code&state="+flow.state+extra, nil)
@@ -443,6 +448,28 @@ func TestGoogleFrontendStateIsOpaque(t *testing.T) {
 			params := callbackValues(t, callbackGoogle(router, flow, ""))
 			if params.Get("state") != state || params.Get("code") == "" || params.Get("error") != "" {
 				t.Fatalf("frontend state did not round trip: %v", params)
+			}
+		})
+	}
+}
+
+func TestGoogleFrontendStateIsOptional(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		states []string
+	}{
+		{name: "omitted"},
+		{name: "empty", states: []string{""}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			_, router, _, _ := googleTestHandlers(t)
+			flow := beginGoogleWithStateValues(t, router, "signup", "account monitor", tc.states)
+			params := callbackValues(t, callbackGoogle(router, flow, ""))
+			if params.Get("state") != "" || params.Get("code") == "" || params.Get("error") != "" {
+				t.Fatalf("authorization failed without frontend state: %v", params)
+			}
+			if response := exchangeBeddybytes(router, params.Get("code"), flow.verifier); response.Code != http.StatusOK {
+				t.Fatalf("code exchange: %d %s", response.Code, response.Body.String())
 			}
 		})
 	}
