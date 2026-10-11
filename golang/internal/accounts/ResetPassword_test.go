@@ -11,11 +11,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Ryan-A-B/beddybytes/golang/internal/accountrepository"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/accounts"
-	"github.com/Ryan-A-B/beddybytes/golang/internal/eventlog"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/mailer"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/resetpassword"
-	"github.com/Ryan-A-B/beddybytes/golang/internal/store"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/gorilla/mux"
 	uuid "github.com/satori/go.uuid"
@@ -27,11 +26,8 @@ func TestResetPassword(t *testing.T) {
 		ctx := context.Background()
 		email := "test@example.com"
 		mailer := new(MockPasswordResetMailer)
+		eventLog := newEventLog(ctx)
 		handlers := accounts.Handlers{
-			EventLog: newEventLog(ctx),
-			AccountStore: &accounts.AccountStore{
-				Store: store.NewMemoryStore(),
-			},
 			SigningMethod:                jwt.SigningMethodHS256,
 			Key:                          generateKey(),
 			UsedTokens:                   accounts.NewUsedTokens(),
@@ -41,30 +37,15 @@ func TestResetPassword(t *testing.T) {
 			}),
 			Mailer: mailer,
 		}
+		handlers.AccountCommandHandler = accountrepository.NewCommandHandler(accountrepository.NewCommandHandlerInput{EventLog: eventLog})
+		handlers.AccountQueryHandler = accountrepository.NewQueryHandler(accountrepository.NewQueryHandlerInput{EventLog: eventLog})
 		router := mux.NewRouter()
 		handlers.AddRoutes(router)
-		user := accounts.NewUser(&accounts.NewUserInput{
-			Email:    email,
-			Password: uuid.NewV4().String(),
-		})
-		account := accounts.Account{
-			ID:   uuid.NewV4().String(),
-			User: user,
-		}
-		data, err := json.Marshal(&account)
-		So(err, ShouldBeNil)
-		_, err = handlers.EventLog.Append(ctx, eventlog.AppendInput{
-			Type: accounts.EventTypeAccountCreated,
-			Data: data,
+		_, err := handlers.AccountCommandHandler.CreateAccount(ctx, accountrepository.CreateAccountInput{
+			UserID: accountrepository.UserID{Issuer: accountrepository.IssuerBeddybytes, Subject: email},
+			Email:  email, Password: uuid.NewV4().String(),
 		})
 		So(err, ShouldBeNil)
-		go eventlog.Project(ctx, eventlog.ProjectInput{
-			EventLog:   handlers.EventLog,
-			FromCursor: 0,
-			Apply:      handlers.ApplyEvent,
-		})
-		// Allow time for the event to be processed
-		time.Sleep(10 * time.Millisecond)
 
 		getAccessToken := func(scope string) string {
 			form := make(url.Values)

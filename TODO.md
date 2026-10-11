@@ -44,6 +44,7 @@
 
 ## Later
 ### Bugs
+- Remove the legacy JWT `refresh_token` scope discriminator after the `token_use` release has been in production for the maximum refresh-token lifetime (currently 30 days), measured from when the last old production instance stops issuing tokens. Require `token_use: "refresh"` for refresh grants and update API/MQTT compatibility tests. Production release date and removal date are still to be recorded.
 - microphone didn't come through when also playing sound from different app?
 - scale
     - use AWS IoT as message broker on production

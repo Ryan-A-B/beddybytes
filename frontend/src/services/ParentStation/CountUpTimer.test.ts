@@ -1,6 +1,8 @@
 import CountUpTimer from "./CountUpTimer"
 
 describe('Timer', () => {
+    beforeEach(() => { jest.useFakeTimers(); });
+    afterEach(() => { jest.useRealTimers(); });
     describe('initialisation', () => {
         test('initial_state', () => {
             const timer = new CountUpTimer();
@@ -38,7 +40,7 @@ describe('Timer', () => {
         const new_running_timer = async () => {
             const timer = new CountUpTimer();
             timer.start();
-            await new Promise(resolve => setTimeout(resolve, 2));
+            jest.advanceTimersByTime(2);
             return timer;
         }
         test('get_elapsed_time', async () => {
@@ -78,7 +80,7 @@ describe('Timer', () => {
         const new_paused_timer = async () => {
             const timer = new CountUpTimer();
             timer.start();
-            await new Promise(resolve => setTimeout(resolve, 2));
+            jest.advanceTimersByTime(2);
             timer.pause();
             return timer;
         }
@@ -91,7 +93,7 @@ describe('Timer', () => {
         test('start', async () => {
             const timer = await new_paused_timer();
             timer.start();
-            await new Promise(resolve => setTimeout(resolve, 2));
+            jest.advanceTimersByTime(2);
             const timer_state = timer.get_state();
             expect(timer_state).toBe('Running');
             const elapsed_time = timer.get_elapsed_time().asMilliseconds();
@@ -120,7 +122,7 @@ describe('Timer', () => {
         const new_reset_timer = async () => {
             const timer = new CountUpTimer();
             timer.start();
-            await new Promise(resolve => setTimeout(resolve, 2));
+            jest.advanceTimersByTime(2);
             timer.reset();
             return timer;
         }
@@ -138,7 +140,7 @@ describe('Timer', () => {
                 const elapsed_time = timer.get_elapsed_time().asMilliseconds();
                 expect(elapsed_time).toBe(0);
             }
-            await new Promise(resolve => setTimeout(resolve, 2));
+            jest.advanceTimersByTime(2);
             {
                 const elapsed_time = timer.get_elapsed_time().asMilliseconds();
                 expect(elapsed_time).toBeGreaterThanOrEqual(2);

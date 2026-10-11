@@ -1,8 +1,10 @@
 package connections
 
-const EventTypeConnected string = "client.connected"
-const EventTypeDisconnected string = "client.disconnected"
-const EventTypeReconnectTimeout string = "client.reconnect_timeout"
+import "github.com/Ryan-A-B/beddybytes/golang/internal/eventlog"
+
+const EventTypeConnected eventlog.EventType = "client.connected"
+const EventTypeDisconnected eventlog.EventType = "client.disconnected"
+const EventTypeReconnectTimeout eventlog.EventType = "client.reconnect_timeout"
 
 const DisconnectReasonClean string = "clean"
 const DisconnectReasonUnexpected string = "unexpected"

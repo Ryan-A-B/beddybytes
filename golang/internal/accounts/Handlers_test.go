@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 	"time"
 
@@ -15,33 +16,28 @@ import (
 	"github.com/gorilla/mux"
 	. "github.com/smartystreets/goconvey/convey"
 
+	"github.com/Ryan-A-B/beddybytes/golang/internal/accountrepository"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/accounts"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/eventlog"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/fatal"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/httpx"
-	"github.com/Ryan-A-B/beddybytes/golang/internal/store"
 )
 
 func TestHandlers(t *testing.T) {
 	Convey("TestHandlers", t, func() {
 		ctx := context.Background()
+		eventLog := newEventLog(ctx)
 		handlers := accounts.Handlers{
-			CookieDomain: "localhost",
-			EventLog:     newEventLog(ctx),
-			AccountStore: &accounts.AccountStore{
-				Store: store.NewMemoryStore(),
-			},
+			CookieDomain:                 "localhost",
 			SigningMethod:                jwt.SigningMethodHS256,
 			Key:                          generateKey(),
 			AccessTokenDuration:          1 * time.Hour,
 			UsedTokens:                   accounts.NewUsedTokens(),
 			AnonymousAccessTokenDuration: 10 * time.Second,
 		}
-		go eventlog.Project(ctx, eventlog.ProjectInput{
-			EventLog:   handlers.EventLog,
-			FromCursor: 0,
-			Apply:      handlers.ApplyEvent,
-		})
+
+		handlers.AccountCommandHandler = accountrepository.NewCommandHandler(accountrepository.NewCommandHandlerInput{EventLog: eventLog})
+		handlers.AccountQueryHandler = accountrepository.NewQueryHandler(accountrepository.NewQueryHandlerInput{EventLog: eventLog})
 		router := mux.NewRouter()
 		handlers.AddRoutes(router.NewRoute().Subrouter())
 		server := httptest.NewServer(router)
@@ -75,6 +71,13 @@ func TestHandlers(t *testing.T) {
 					response, err := client.Do(request)
 					So(err, ShouldBeNil)
 					So(response.StatusCode, ShouldEqual, 200)
+					var created accounts.GetAccountOutput
+					err = json.NewDecoder(response.Body).Decode(&created)
+					So(err, ShouldBeNil)
+					So(created.ID, ShouldNotBeEmpty)
+					accountID, err := handlers.AccountQueryHandler.GetAccountIDForUser(ctx, accountrepository.UserID{Issuer: accountrepository.IssuerBeddybytes, Subject: input.Email})
+					So(err, ShouldBeNil)
+					So(created.ID, ShouldEqual, accountID)
 
 					Convey("Email already in use", func() {
 						Convey("GetAnonymousAccessToken", func() {
@@ -95,7 +98,7 @@ func TestHandlers(t *testing.T) {
 								request.Header.Set("Authorization", "Bearer "+output.AccessToken)
 								response, err := client.Do(request)
 								So(err, ShouldBeNil)
-								So(response.StatusCode, ShouldEqual, 400)
+								So(response.StatusCode, ShouldEqual, http.StatusConflict)
 								var errorFrame httpx.ErrorFrame
 								err = json.NewDecoder(response.Body).Decode(&errorFrame)
 								So(err, ShouldBeNil)
@@ -155,4 +158,12 @@ func generateKey() (key []byte) {
 	_, err := io.ReadFull(rand.Reader, key)
 	fatal.OnError(err)
 	return
+}
+
+func newEventLog(ctx context.Context) eventlog.EventLog {
+	folderPath, err := os.MkdirTemp("testdata", "eventlog-*")
+	So(err, ShouldBeNil)
+	return eventlog.NewThreadSafeDecorator(&eventlog.NewThreadSafeDecoratorInput{
+		Decorated: eventlog.NewFileEventLog(&eventlog.NewFileEventLogInput{FolderPath: folderPath}),
+	})
 }

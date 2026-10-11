@@ -7,6 +7,6 @@ RUN go build -o backend ./golang/cmd/backend
 
 FROM alpine:latest
 WORKDIR /opt
-RUN mkdir eventlog
+RUN apk add --no-cache ca-certificates && mkdir eventlog
 COPY --from=builder /app/backend backend
 CMD [ "./backend" ]

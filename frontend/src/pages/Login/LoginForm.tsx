@@ -5,8 +5,10 @@ import { useAuthorizationService, useLoggingService } from "../../services";
 import { Link } from "react-router-dom";
 import PasswordInput from "../../components/PasswordInput";
 import { login } from "../../services/AuthorizationService/login";
+import GoogleButton from './GoogleButton';
 
 interface Props {
+    onAuthenticated?: () => void;
     email: string;
     setEmail: React.Dispatch<React.SetStateAction<string>>;
     password: string;
@@ -14,23 +16,24 @@ interface Props {
     switchToCreateAccount: () => void;
 }
 
-const LoginForm: React.FunctionComponent<Props> = ({ email, setEmail, password, setPassword, switchToCreateAccount }) => {
+const LoginForm: React.FunctionComponent<Props> = ({ email, setEmail, password, setPassword, switchToCreateAccount, onAuthenticated }) => {
     const authorization_service = useAuthorizationService();
     const logging_service = useLoggingService();
     const [error, setError] = React.useState<string | null>(null)
     const handleSubmit = React.useCallback((event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault()
         setError(null);
-        login(authorization_service, email, password).catch((error) => {
+        login(authorization_service, email, password).then(onAuthenticated).catch((error) => {
             logging_service.log({
                 severity: Severity.Error,
                 message: error.message,
             })
             setError(error.message)
         })
-    }, [logging_service, authorization_service, email, password])
+    }, [logging_service, authorization_service, email, password, onAuthenticated])
     return (
         <React.Fragment>
+            <GoogleButton intent="login" />
             <form id="form-login" onSubmit={handleSubmit}>
                 <div className="form-group mb-3">
                     <label>

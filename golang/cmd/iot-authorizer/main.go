@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/Ryan-A-B/beddybytes/golang/internal"
+	"github.com/Ryan-A-B/beddybytes/golang/internal/secrets"
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -170,7 +171,7 @@ func parseClaims(accessToken string, signingKey []byte) (*internal.Claims, error
 	if err != nil {
 		return nil, err
 	}
-	if !token.Valid {
+	if !token.Valid || claims.EffectiveTokenUse() != internal.TokenUseAccess {
 		return nil, errUnauthorized
 	}
 	return &claims, nil
@@ -249,5 +250,9 @@ func loadSigningKey(ctx context.Context) []byte {
 	if err != nil {
 		panic("failed to retrieve signing key secret: " + err.Error())
 	}
-	return []byte(*output.SecretString)
+	bundle, err := secrets.ParseBackendBundle(output.SecretString)
+	if err != nil {
+		panic("failed to read signing key secret: " + err.Error())
+	}
+	return []byte(bundle.EncryptionKey)
 }

@@ -1,0 +1,35 @@
+/* Google-provided logo and lettering, kept at their original dimensions.
+ * Asset source: https://developers.google.com/identity/branding-guidelines
+ */
+.google-signin-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 40px;
+    margin: 0 auto;
+    padding: 0;
+    border: 1px solid #8e918f;
+    border-radius: 4px;
+    background: #131314;
+    cursor: pointer;
+}
+
+.google-signin-button img {
+    display: block;
+    flex: 0 0 auto;
+}
+
+.google-signin-button:focus-visible {
+    outline: 2px solid #a8c7fa;
+    outline-offset: 3px;
+}
+
+.google-signin-button:hover:not(:disabled) {
+    box-shadow: 0 0 0 2px #8e918f;
+}
+
+.google-signin-button:disabled {
+    cursor: wait;
+    opacity: 0.6;
+}

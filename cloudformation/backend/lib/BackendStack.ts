@@ -16,7 +16,7 @@ interface StackProps extends cdk.StackProps {
     docker_image_digest: string;
     iot_authorizer_sha: string;
     cluster: cdk.aws_ecs.ICluster;
-    signing_key: cdk.aws_secretsmanager.ISecret;
+    secrets_bundle: cdk.aws_secretsmanager.ISecret;
     elastic_ip: cdk.aws_ec2.CfnEIP;
     bucket: cdk.aws_s3.IBucket;
 }
@@ -61,6 +61,8 @@ export class BackendStack extends cdk.Stack {
             memoryLimitMiB: memory_limit_by_env[props.deploy_env],
             portMappings: [{ containerPort: 9000 }],
             environment: {
+                'API_ORIGIN': `https://${host_names.api}`,
+                'FRONTEND_AUTH_REDIRECT': `https://${host_names.app}/auth/callback`,
                 'COOKIE_DOMAIN': `.${domain_name}`,
                 'SERVER_ADDR': ':9000',
                 'FILE_EVENT_LOG_FOLDER_PATH': '/opt/eventlog',
@@ -76,7 +78,9 @@ export class BackendStack extends cdk.Stack {
                 'MQTT_AWS_IOT_KEY_FILE': 'keys/private_key.pem',
             },
             secrets: {
-                'ENCRYPTION_KEY': cdk.aws_ecs.Secret.fromSecretsManager(props.signing_key),
+                'GOOGLE_CLIENT_ID': cdk.aws_ecs.Secret.fromSecretsManager(props.secrets_bundle, 'GOOGLE_CLIENT_ID'),
+                'GOOGLE_CLIENT_SECRET': cdk.aws_ecs.Secret.fromSecretsManager(props.secrets_bundle, 'GOOGLE_CLIENT_SECRET'),
+                'ENCRYPTION_KEY': cdk.aws_ecs.Secret.fromSecretsManager(props.secrets_bundle, 'ENCRYPTION_KEY'),
             },
             dockerLabels: {
                 'traefik.enable': 'true',
@@ -172,10 +176,10 @@ export class BackendStack extends cdk.Stack {
             timeout: cdk.Duration.seconds(10),
             environment: {
                 AWS_ACCOUNT_ID: this.account,
-                SIGNING_KEY_SECRET_ARN: props.signing_key.secretArn,
+                SIGNING_KEY_SECRET_ARN: props.secrets_bundle.secretArn,
             },
         });
-        props.signing_key.grantRead(iot_authorizer_function);
+        props.secrets_bundle.grantRead(iot_authorizer_function);
 
         const iot_authorizer_name = `beddybytes-${props.deploy_env}-jwt-authorizer`;
         const iot_authorizer = new cdk.aws_iot.CfnAuthorizer(this, "iot-authorizer", {
