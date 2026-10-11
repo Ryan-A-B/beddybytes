@@ -19,6 +19,7 @@ require (
 	github.com/gorilla/websocket v1.5.3
 	github.com/satori/go.uuid v1.2.0
 	github.com/smartystreets/goconvey v1.7.2
+	github.com/stripe/stripe-go/v87 v87.0.0
 	golang.org/x/oauth2 v0.30.0
 )
 
@@ -42,6 +43,7 @@ require (
 	github.com/go-jose/go-jose/v4 v4.1.3 // indirect
 	github.com/gopherjs/gopherjs v0.0.0-20181017120253-0766667cb4d1 // indirect
 	github.com/jtolds/gls v4.20.0+incompatible // indirect
+	github.com/shopspring/decimal v1.4.0 // indirect
 	github.com/smartystreets/assertions v1.2.0 // indirect
 	golang.org/x/net v0.37.0 // indirect
 	golang.org/x/sync v0.7.0 // indirect
