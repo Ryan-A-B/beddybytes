@@ -171,7 +171,15 @@ func (handlers *Handlers) startGoogle(responseWriter http.ResponseWriter, reques
 		handlers.redirectAuthorizationFailure(responseWriter, request, AuthorizationErrorServerError, "")
 		return
 	}
-	transaction := googleTransaction{Intent: intent, FrontendState: state, Challenge: challenge, Nonce: nonce, UpstreamVerifier: verifier, Binding: binding, Expires: auth.now().Add(googleTransactionTTL)}
+	transaction := googleTransaction{
+		Intent:           intent,
+		FrontendState:    state,
+		Challenge:        challenge,
+		Nonce:            nonce,
+		UpstreamVerifier: verifier,
+		Binding:          binding,
+		Expires:          auth.now().Add(googleTransactionTTL),
+	}
 	auth.mutex.Lock()
 	auth.cleanup()
 	if len(auth.transactions) >= maxPendingGoogleEntries {
@@ -244,33 +252,34 @@ func (handlers *Handlers) GoogleCallback(responseWriter http.ResponseWriter, req
 		handlers.redirectAuthorizationFailure(responseWriter, request, AuthorizationErrorTemporarilyUnavailable, transaction.FrontendState)
 		return
 	}
-	userID := accountrepository.UserID{Issuer: identity.Issuer, Subject: identity.Subject}
-	accountID, err := handlers.AccountQueryHandler.GetAccountIDForUser(ctx, userID)
-	if transaction.Intent == "login" {
+	userID := accountrepository.UserID{
+		Issuer:  identity.Issuer,
+		Subject: identity.Subject,
+	}
+	var accountID string
+	switch transaction.Intent {
+	case "login":
+		accountID, err = handlers.AccountQueryHandler.GetAccountIDForUser(ctx, userID)
 		if errors.Is(err, accountrepository.ErrUserNotFound) {
 			handlers.redirectAuthorizationFailure(responseWriter, request, AuthorizationErrorAccountNotFound, transaction.FrontendState)
 			return
 		}
-	} else {
-		if err == nil {
+	case "signup":
+		var account *accountrepository.Account
+		account, err = handlers.AccountCommandHandler.CreateAccount(ctx, accountrepository.CreateAccountInput{
+			UserID: userID,
+			Email:  identity.Email,
+		})
+		switch {
+		case err == nil:
+			accountID = account.ID
+		case errors.Is(err, accountrepository.ErrUserAlreadyExists):
 			handlers.redirectAuthorizationFailure(responseWriter, request, AuthorizationErrorAccountAlreadyExists, transaction.FrontendState)
 			return
+		default:
+			handlers.redirectAuthorizationFailure(responseWriter, request, AuthorizationErrorServerError, transaction.FrontendState)
+			return
 		}
-		if errors.Is(err, accountrepository.ErrUserNotFound) {
-			var account *accountrepository.Account
-			account, err = handlers.AccountCommandHandler.CreateAccount(ctx, accountrepository.CreateAccountInput{UserID: userID, Email: identity.Email})
-			if errors.Is(err, accountrepository.ErrUserAlreadyExists) {
-				handlers.redirectAuthorizationFailure(responseWriter, request, AuthorizationErrorAccountAlreadyExists, transaction.FrontendState)
-				return
-			}
-			if err == nil {
-				accountID = account.ID
-			}
-		}
-	}
-	if err != nil {
-		handlers.redirectAuthorizationFailure(responseWriter, request, AuthorizationErrorServerError, transaction.FrontendState)
-		return
 	}
 	code, err := randomSecret()
 	if err != nil {
@@ -284,7 +293,12 @@ func (handlers *Handlers) GoogleCallback(responseWriter http.ResponseWriter, req
 		handlers.redirectAuthorizationFailure(responseWriter, request, AuthorizationErrorTemporarilyUnavailable, transaction.FrontendState)
 		return
 	}
-	auth.requests[code] = authorizationRequest{UserID: userID, AccountID: accountID, Challenge: transaction.Challenge, Expires: auth.now().Add(authorizationCodeTTL)}
+	auth.requests[code] = authorizationRequest{
+		UserID:    userID,
+		AccountID: accountID,
+		Challenge: transaction.Challenge,
+		Expires:   auth.now().Add(authorizationCodeTTL),
+	}
 	auth.mutex.Unlock()
 	handlers.redirectAuthorizationSuccess(responseWriter, request, transaction.FrontendState, code)
 }
