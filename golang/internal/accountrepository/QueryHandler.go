@@ -12,15 +12,14 @@ import (
 )
 
 var ErrAccountNotFound = errors.New("account not found")
+var ErrPasswordRequired = errors.New("password required")
 
 type QueryHandler struct {
 	eventLog               eventlog.EventLog
 	cursor                 int64
 	mutex                  sync.Mutex
-	accountByID            map[string]*Account
-	userByID               map[UserID]*User
 	accountIDForUser       map[UserID]string
-	hashedPasswordForEmail map[string]*HashedPassword
+	hashedPasswordForEmail map[string]HashedPassword
 }
 
 type NewQueryHandlerInput struct {
@@ -30,25 +29,8 @@ type NewQueryHandlerInput struct {
 func NewQueryHandler(input NewQueryHandlerInput) (handler *QueryHandler) {
 	handler = &QueryHandler{
 		eventLog:               input.EventLog,
-		accountByID:            make(map[string]*Account),
-		userByID:               make(map[UserID]*User),
 		accountIDForUser:       make(map[UserID]string),
-		hashedPasswordForEmail: make(map[string]*HashedPassword),
-	}
-	return
-}
-
-func (handler *QueryHandler) GetAccountByID(ctx context.Context, accountID string) (account *Account, err error) {
-	handler.mutex.Lock()
-	defer handler.mutex.Unlock()
-	err = handler.catchup(ctx)
-	if err != nil {
-		return
-	}
-	account, exists := handler.accountByID[accountID]
-	if !exists {
-		err = ErrAccountNotFound
-		return
+		hashedPasswordForEmail: make(map[string]HashedPassword),
 	}
 	return
 }
@@ -76,6 +58,10 @@ type CheckCredentialsInput struct {
 func (input *CheckCredentialsInput) validate() (err error) {
 	if input.Email == "" {
 		err = ErrEmailRequired
+		return
+	}
+	if input.Password == "" {
+		err = ErrPasswordRequired
 		return
 	}
 	if len(input.Password) < 20 {
@@ -134,23 +120,10 @@ func (handler *QueryHandler) applyAccountCreatedV1(ctx context.Context, event *e
 		Issuer:  IssuerBeddybytes,
 		Subject: detail.User.Email,
 	}
-	user := &User{
-		ID:    userID,
-		Email: detail.User.Email,
-		HashedPassword: &HashedPassword{
-			Salt: detail.User.PasswordSalt,
-			Hash: detail.User.PasswordHash,
-		},
-	}
-	handler.accountByID[detail.AccountID] = &Account{
-		ID:    detail.AccountID,
-		Users: []*User{user},
-	}
-	handler.userByID[userID] = user
 	handler.accountIDForUser[userID] = detail.AccountID
-	handler.hashedPasswordForEmail[detail.User.Email] = &HashedPassword{
-		Salt: detail.User.PasswordSalt,
-		Hash: detail.User.PasswordHash,
+	handler.hashedPasswordForEmail[detail.User.Email] = HashedPassword{
+		Salt:   detail.User.PasswordSalt,
+		Digest: detail.User.PasswordHash,
 	}
 }
 
@@ -158,47 +131,27 @@ func (handler *QueryHandler) applyAccountCreatedV2(ctx context.Context, event *e
 	var detail AccountCreatedV2Detail
 	err := json.Unmarshal(event.Data, &detail)
 	fatal.OnError(err)
-	user := &detail.User
-	handler.accountByID[detail.AccountID] = &Account{
-		ID:    detail.AccountID,
-		Users: []*User{user},
-	}
-	handler.userByID[detail.User.ID] = user
 	handler.accountIDForUser[detail.User.ID] = detail.AccountID
 	if detail.User.ID.Issuer != IssuerBeddybytes {
 		return
 	}
 	email := detail.User.ID.Subject
-	handler.hashedPasswordForEmail[email] = detail.User.HashedPassword
+	handler.hashedPasswordForEmail[email] = *detail.User.HashedPassword
 }
 
 func (handler *QueryHandler) applyAccountPasswordReset(ctx context.Context, event *eventlog.Event) {
 	var detail AccountPasswordResetDetail
 	err := json.Unmarshal(event.Data, &detail)
 	fatal.OnError(err)
-	hashedPassword := &HashedPassword{
-		Salt: detail.PasswordSalt,
-		Hash: detail.PasswordHash,
+	handler.hashedPasswordForEmail[detail.Email] = HashedPassword{
+		Salt:   detail.PasswordSalt,
+		Digest: detail.PasswordHash,
 	}
-	userID := UserID{
-		Issuer:  IssuerBeddybytes,
-		Subject: detail.Email,
-	}
-	user := handler.userByID[userID]
-	user.HashedPassword = hashedPassword
-	handler.hashedPasswordForEmail[detail.Email] = hashedPassword
 }
 
 func (handler *QueryHandler) applyUserPasswordReset(ctx context.Context, event *eventlog.Event) {
 	var detail UserPasswordResetDetail
 	err := json.Unmarshal(event.Data, &detail)
 	fatal.OnError(err)
-	hashedPassword := &detail.HashedPassword
-	userID := UserID{
-		Issuer:  IssuerBeddybytes,
-		Subject: detail.Email,
-	}
-	user := handler.userByID[userID]
-	user.HashedPassword = hashedPassword
-	handler.hashedPasswordForEmail[detail.Email] = hashedPassword
+	handler.hashedPasswordForEmail[detail.Email] = detail.HashedPassword
 }

@@ -342,16 +342,17 @@ func (handlers *Handlers) GetTokenUsingAuthorizationCode(responseWriter http.Res
 		tokenError(responseWriter, "invalid_grant")
 		return
 	}
-	account, err := handlers.AccountQueryHandler.GetAccountByID(request.Context(), authorizationRequest.AccountID)
+	ctx := request.Context()
+	accountID, err := handlers.AccountQueryHandler.GetAccountIDForUser(ctx, authorizationRequest.UserID)
 	if err != nil {
 		tokenError(responseWriter, "invalid_grant")
 		return
 	}
-	http.SetCookie(responseWriter, handlers.createRefreshTokenCookie(createSubject(account.ID, authorizationRequest.UserID)))
+	http.SetCookie(responseWriter, handlers.createRefreshTokenCookie(createSubject(accountID, authorizationRequest.UserID)))
 	responseWriter.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(responseWriter).Encode(AccessTokenOutput{
 		TokenType:   "Bearer",
-		AccessToken: handlers.createAccessToken(createSubject(account.ID, authorizationRequest.UserID)),
+		AccessToken: handlers.createAccessToken(createSubject(accountID, authorizationRequest.UserID)),
 		ExpiresIn:   int(handlers.AccessTokenDuration.Seconds()),
 	})
 }

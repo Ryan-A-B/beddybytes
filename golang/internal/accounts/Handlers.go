@@ -208,9 +208,15 @@ func (handlers *Handlers) CreateAccount(responseWriter http.ResponseWriter, requ
 	if err != nil {
 		return
 	}
-	userID := accountrepository.UserID{Issuer: accountrepository.IssuerBeddybytes, Subject: input.Email}
+	userID := accountrepository.UserID{
+		Issuer:  accountrepository.IssuerBeddybytes,
+		Subject: input.Email}
 	var account *accountrepository.Account
-	account, err = handlers.AccountCommandHandler.CreateAccount(ctx, accountrepository.CreateAccountInput{UserID: userID, Email: input.Email, Password: input.Password})
+	account, err = handlers.AccountCommandHandler.CreateAccount(ctx, accountrepository.CreateAccountInput{
+		UserID:   userID,
+		Email:    input.Email,
+		Password: input.Password,
+	})
 	if errors.Is(err, accountrepository.ErrUserAlreadyExists) {
 		err = httpx.ErrorWithCode(merry.WithUserMessage(merry.WithHTTPCode(err, http.StatusConflict), "email already in use"), "email_already_in_use")
 		return
@@ -276,10 +282,6 @@ func (handlers *Handlers) GetTokenUsingPasswordGrant(responseWriter http.Respons
 	ctx := request.Context()
 	email := request.FormValue("username")
 	password := request.FormValue("password")
-	if email == "" || password == "" {
-		err = merry.New("username and password are required").WithHTTPCode(http.StatusBadRequest)
-		return
-	}
 	err = handlers.AccountQueryHandler.CheckCredentials(ctx, accountrepository.CheckCredentialsInput{
 		Email:    email,
 		Password: password,
@@ -287,6 +289,8 @@ func (handlers *Handlers) GetTokenUsingPasswordGrant(responseWriter http.Respons
 	if err != nil {
 		switch {
 		case errors.Is(err, accountrepository.ErrEmailRequired):
+			err = merry.WithHTTPCode(err, http.StatusBadRequest)
+		case errors.Is(err, accountrepository.ErrPasswordRequired):
 			err = merry.WithHTTPCode(err, http.StatusBadRequest)
 		case errors.Is(err, accountrepository.ErrUserNotFound), errors.Is(err, accountrepository.ErrInvalidPassword):
 			err = merry.WithUserMessage(merry.WithHTTPCode(err, http.StatusUnauthorized), "unauthorized")
@@ -380,6 +384,7 @@ type GetAccountOutput struct {
 	ID string `json:"id"`
 }
 
+// TODO this is only returning the accountID from the JWT. We don't need a call to the server for this.
 func (handlers *Handlers) GetAccount(responseWriter http.ResponseWriter, request *http.Request) {
 	var err error
 	defer func() {
@@ -390,16 +395,8 @@ func (handlers *Handlers) GetAccount(responseWriter http.ResponseWriter, request
 		}
 	}()
 	ctx := request.Context()
-	accountID := contextx.GetAccountID(ctx)
-	account, err := handlers.AccountQueryHandler.GetAccountByID(ctx, accountID)
-	if err != nil {
-		if errors.Is(err, accountrepository.ErrAccountNotFound) {
-			err = merry.WithHTTPCode(err, http.StatusNotFound)
-		}
-		return
-	}
 	json.NewEncoder(responseWriter).Encode(GetAccountOutput{
-		ID: account.ID,
+		ID: contextx.GetAccountID(ctx),
 	})
 }
 
