@@ -1,4 +1,4 @@
-package accountrepository
+package models
 
 import (
 	"bytes"
@@ -17,7 +17,7 @@ type HashedPassword struct {
 	Digest []byte
 }
 
-func NewHashedPassword(plaintext string) HashedPassword {
+func New(plaintext string) HashedPassword {
 	salt := make([]byte, 32)
 	_, err := io.ReadFull(rand.Reader, salt)
 	fatal.OnError(err)
