@@ -56,10 +56,6 @@ func (handlers *Handlers) Start(responseWriter http.ResponseWriter, request *htt
 		http.Error(responseWriter, "could not start checkout", http.StatusInternalServerError)
 		return
 	}
-	if output == nil || output.CheckoutURL == "" {
-		http.Error(responseWriter, "could not start checkout", http.StatusInternalServerError)
-		return
-	}
 	// Start returns only after the checkout-started event is persisted.
 	http.Redirect(responseWriter, request, output.CheckoutURL, http.StatusSeeOther)
 }

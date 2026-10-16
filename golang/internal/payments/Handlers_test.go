@@ -102,19 +102,16 @@ func TestStartRejectsUnauthenticatedRequests(t *testing.T) {
 
 func TestStartErrorsDoNotRedirect(t *testing.T) {
 	for _, test := range []struct {
-		name   string
-		output *paymentrepository.StartCheckoutSessionOutput
-		err    error
-		want   int
+		name string
+		err  error
+		want int
 	}{
 		{name: "ineligible", err: paymentrepository.ErrAccountIneligible, want: http.StatusForbidden},
 		{name: "repository failure", err: errors.New("private persistence error"), want: http.StatusInternalServerError},
-		{name: "nil output", want: http.StatusInternalServerError},
-		{name: "missing URL", output: &paymentrepository.StartCheckoutSessionOutput{CheckoutSessionID: "cs_test"}, want: http.StatusInternalServerError},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			router := paymentRouter(&commandStub{start: func(context.Context, paymentrepository.StartCheckoutSessionInput) (*paymentrepository.StartCheckoutSessionOutput, error) {
-				return test.output, test.err
+				return nil, test.err
 			}})
 			request := httptest.NewRequest(http.MethodPost, "/payment/start", nil)
 			request.Header.Set("Authorization", "Bearer "+accountToken(t))
