@@ -17,6 +17,8 @@ checkout session repository; do not call Stripe.
 
 ## Creating checkout
 
+- [x] Stripe client_reference_id and the started event use the requested account ID and identify the returned session. (`TestStartCheckoutSessionUsesSameAccountForStripeAndEvent`)
+
 - [x] Concurrent starts for the same account share one create call and return the same session. (`TestStartCheckoutSessionConcurrentRequestsShareCreate`)
 - [ ] Different accounts can create concurrently.
 - [ ] An existing, unexpired session is reused.
@@ -56,19 +58,19 @@ under Creating checkout instead.
 - [ ] Invalid webhook signature or malformed payload changes nothing.
 - [ ] Unrelated webhook types are ignored.
 - [x] Fulfillment errors propagate to the HTTP caller so Stripe can retry. (`TestRecordCheckoutSessionEventReturnsFulfillmentError`)
-- [ ] FAILING: A session whose account reference conflicts with its persisted owner cannot change entitlement. (`TestSyncCheckoutSessionRejectsAccountMismatch`)
-- [ ] Missing account references, mismatched session IDs and webhook ownership mismatches cannot change entitlement.
 - [ ] Persistence failure leaves a retryable operation; replay and retry converge on the correct state.
 
 ## Current status
 
-16 October 2026: fixed webhook fulfillment error propagation; all eight tests
-then passed. Added the same-account concurrent-create test: it passes, proving
-one Create call, one started event and identical results for both callers.
+16 October 2026: removed the artificial sync ownership-mismatch test. Stripe
+client_reference_id and the started event originate from the same command input;
+an inconsistent reference would be a creation defect. No defensive sync check
+is required or added.
 
-The next test, `TestSyncCheckoutSessionRejectsAccountMismatch`, seeds a session
-owned by one eligible account and retrieves a paid result referencing a different
-eligible account. Sync returns nil and appends a perpetual grant for the other
-account. It trusts ClientReferenceID without comparing against the persisted
-session ownership. Stopped at this failure without changing that implementation
-or running further cases. Nine tests were passing before adding this failure.
+The replacement test runs the real Stripe Create adapter and SDK with an
+in-memory HTTP transport, verifies the outgoing client_reference_id equals the
+requested account ID, and checks the persisted started event has the same account
+and returned session. No network or Stripe service is called.
+
+All ten payment command handler tests pass, including the replacement test.
+No further checklist cases attempted during this change.

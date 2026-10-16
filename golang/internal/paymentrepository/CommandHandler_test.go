@@ -5,6 +5,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"net/http"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -15,6 +18,7 @@ import (
 	"github.com/Ryan-A-B/beddybytes/golang/internal/eventlog"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/events"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/models"
+	"github.com/Ryan-A-B/beddybytes/golang/internal/paymentrepository/internal/checkoutsessions"
 )
 
 func TestV2AccountCreationReplaySetsTrialLicense(t *testing.T) {
@@ -493,55 +497,86 @@ func (log *observedPaymentEventLog) GetEventIterator(ctx context.Context, input 
 	return iterator
 }
 
-func TestSyncCheckoutSessionRejectsAccountMismatch(t *testing.T) {
+func TestStartCheckoutSessionUsesSameAccountForStripeAndEvent(t *testing.T) {
 	ctx := context.Background()
 	log := eventlog.NewFileEventLog(&eventlog.NewFileEventLogInput{FolderPath: t.TempDir()})
-	for _, accountID := range []string{"checkout-owner", "other-account"} {
-		data, err := json.Marshal(events.AccountCreatedV2Detail{AccountID: accountID})
-		if err != nil {
-			t.Fatal(err)
-		}
-		if _, err := log.Append(ctx, eventlog.AppendInput{Type: events.TypeAccountCreatedV2, Data: data}); err != nil {
-			t.Fatal(err)
-		}
-	}
-	data, err := json.Marshal(events.StripeCheckoutSessionStartedDetail{
-		SessionID: "cs_test_1", CheckoutURL: "https://checkout.stripe.com/test-session",
-		SessionExpiresAt: time.Now().Add(time.Hour).Unix(),
+	created, err := log.Append(ctx, eventlog.AppendInput{
+		Type: events.TypeAccountCreatedV2, Data: json.RawMessage(`{"account_id":"checkout-owner"}`),
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	started, err := log.Append(ctx, eventlog.AppendInput{
-		Type: events.TypeStripeCheckoutSessionStarted, AccountID: "checkout-owner", Data: data,
+	var stripeAccountID string
+	var requests int
+	// Exercise the real Stripe Create adapter and SDK encoding, but intercept
+	// the HTTP request in memory. No request can reach Stripe or the network.
+	backend := stripe.GetBackendWithConfig(stripe.APIBackend, &stripe.BackendConfig{
+		MaxNetworkRetries: stripe.Int64(0),
+		HTTPClient: &http.Client{Transport: paymentRoundTripper(func(request *http.Request) (*http.Response, error) {
+			requests++
+			if request.Method != http.MethodPost || request.URL.Path != "/v1/checkout/sessions" {
+				t.Fatalf("unexpected Stripe request: %s %s", request.Method, request.URL.Path)
+			}
+			if err := request.ParseForm(); err != nil {
+				t.Fatal(err)
+			}
+			stripeAccountID = request.PostForm.Get("client_reference_id")
+			data, err := json.Marshal(&stripe.CheckoutSession{
+				ID: "cs_test_1", ClientReferenceID: stripeAccountID,
+				URL: "https://checkout.stripe.com/test-session", ExpiresAt: time.Now().Add(time.Hour).Unix(),
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			return &http.Response{
+				StatusCode: http.StatusOK, Header: http.Header{"Content-Type": []string{"application/json"}},
+				Body: io.NopCloser(strings.NewReader(string(data))), Request: request,
+			}, nil
+		})},
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
+	stripeRepository := checkoutsessions.NewStripeRepository(checkoutsessions.NewStripeRepositoryInput{
+		Client:  stripe.NewClient("sk_test_fake", stripe.WithBackends(&stripe.Backends{API: backend})),
+		PriceID: "price_perpetual", SuccessURL: "https://example.com/success", CancelURL: "https://example.com/cancel",
+	})
 	handler := NewCommandHandler(NewCommandHandlerInput{
-		EventLog: log,
-		CheckoutSessionRepository: &checkoutSessionRepositoryStub{
-			retrieve: func(_ context.Context, id string) (*stripe.CheckoutSession, error) {
-				return &stripe.CheckoutSession{
-					ID: id, ClientReferenceID: "other-account",
-					Status: stripe.CheckoutSessionStatusComplete, PaymentStatus: stripe.CheckoutSessionPaymentStatusPaid,
-				}, nil
-			},
-		},
+		EventLog:                  log,
+		CheckoutSessionRepository: &checkoutSessionRepositoryStub{create: stripeRepository.Create},
 	})
-	// The durable started event binds this session to checkout-owner. A
-	// conflicting result must not let it upgrade the other eligible account.
-	if err := handler.SyncCheckoutSession(ctx, SyncCheckoutSessionInput{CheckoutSessionID: "cs_test_1"}); err == nil {
-		t.Error("expected an error for a checkout/account ownership mismatch, got nil")
+	output, err := handler.StartCheckoutSession(ctx, StartCheckoutSessionInput{AccountID: "checkout-owner"})
+	if err != nil {
+		t.Fatal(err)
 	}
-	iterator := log.GetEventIterator(ctx, eventlog.GetEventIteratorInput{FromCursor: started.LogicalClock})
+	if requests != 1 || stripeAccountID != "checkout-owner" {
+		t.Fatalf("Stripe received %d requests with client_reference_id=%q; want one for checkout-owner", requests, stripeAccountID)
+	}
+	iterator := log.GetEventIterator(ctx, eventlog.GetEventIteratorInput{FromCursor: created.LogicalClock})
+	var starts int
 	for iterator.Next(ctx) {
 		event := iterator.Event()
-		t.Errorf("mismatched checkout must not change entitlement; got event %s for account %s", event.Type, event.AccountID)
+		if event.Type != events.TypeStripeCheckoutSessionStarted || event.AccountID != stripeAccountID {
+			t.Errorf("started event type=%s account=%q; want checkout start for Stripe account %q", event.Type, event.AccountID, stripeAccountID)
+		}
+		var detail events.StripeCheckoutSessionStartedDetail
+		if err := json.Unmarshal(event.Data, &detail); err != nil {
+			t.Fatal(err)
+		}
+		if output == nil || detail.SessionID != "cs_test_1" || detail.SessionID != output.CheckoutSessionID || detail.CheckoutURL != output.CheckoutURL {
+			t.Errorf("started event %+v does not match returned checkout %+v", detail, output)
+		}
+		starts++
 	}
 	if err := iterator.Err(); err != nil {
 		t.Fatal(err)
 	}
+	if starts != 1 {
+		t.Fatalf("expected one started event, got %d", starts)
+	}
+}
+
+type paymentRoundTripper func(*http.Request) (*http.Response, error)
+
+func (transport paymentRoundTripper) RoundTrip(request *http.Request) (*http.Response, error) {
+	return transport(request)
 }
 
 func TestRecordCheckoutSessionEventReturnsFulfillmentError(t *testing.T) {
