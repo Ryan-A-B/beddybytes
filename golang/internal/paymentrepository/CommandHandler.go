@@ -39,6 +39,7 @@ type CommandHandler struct {
 	sessionInfoByID             map[string]*CheckoutSessionInfo
 	sessionInfoByAccount        map[string]*CheckoutSessionInfo
 	sessionInfoFutureForAccount map[string]*future.Future[*CheckoutSessionInfo]
+	syncInProgress              map[string]struct{}
 }
 
 type CheckoutSessionInfo struct {
@@ -93,6 +94,7 @@ type StartCheckoutSessionOutput struct {
 	CheckoutURL       string
 }
 
+// TODO this is over complicated because I put the Create in a future instead of the full result.
 func (handler *CommandHandler) StartCheckoutSession(ctx context.Context, input StartCheckoutSessionInput) (output *StartCheckoutSessionOutput, err error) {
 	err = input.validate()
 	if err != nil {
@@ -251,9 +253,14 @@ func (handler *CommandHandler) SyncCheckoutSession(ctx context.Context, input Sy
 	if err != nil {
 		return err
 	}
-	if err != nil {
+	if preflightOutput.syncInProgress {
 		return
 	}
+	defer func() {
+		handler.mutex.Lock()
+		defer handler.mutex.Unlock()
+		delete(handler.syncInProgress, input.CheckoutSessionID)
+	}()
 	session, err := handler.stripe.V1CheckoutSessions.Retrieve(ctx, input.CheckoutSessionID, nil)
 	if err != nil {
 		return
@@ -266,7 +273,7 @@ func (handler *CommandHandler) SyncCheckoutSession(ctx context.Context, input Sy
 }
 
 type syncCheckoutSessionPreflightOutput struct {
-	// Add fields as needed for the preflight output
+	syncInProgress bool
 }
 
 func (handler *CommandHandler) syncCheckoutSessionPreflight(ctx context.Context, input SyncCheckoutSessionInput) (output syncCheckoutSessionPreflightOutput, err error) {
@@ -276,24 +283,11 @@ func (handler *CommandHandler) syncCheckoutSessionPreflight(ctx context.Context,
 	if err != nil {
 		return
 	}
-	// TODO
-	// ensure the session exists
-	// check if there is already a sync in progress for this session
-	return
-}
-
-func (handler *CommandHandler) getCheckoutSessionInfo(ctx context.Context, checkoutSessionID string) (info *CheckoutSessionInfo, err error) {
-	handler.mutex.Lock()
-	defer handler.mutex.Unlock()
-	err = handler.catchup(ctx)
-	if err != nil {
+	if _, exists := handler.syncInProgress[input.CheckoutSessionID]; exists {
+		output.syncInProgress = true
 		return
 	}
-	info, ok := handler.sessionInfoByID[checkoutSessionID]
-	if !ok {
-		err = ErrCheckoutSessionNotFound
-		return
-	}
+	handler.syncInProgress[input.CheckoutSessionID] = struct{}{}
 	return
 }
 
