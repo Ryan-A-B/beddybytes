@@ -14,6 +14,7 @@ import (
 	"github.com/Ryan-A-B/beddybytes/golang/internal/fatal"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/future"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/models"
+	"github.com/Ryan-A-B/beddybytes/golang/internal/paymentrepository/internal/checkoutsessions"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/subscription"
 )
 
@@ -25,14 +26,10 @@ var ErrUnexpectedCheckoutSessionPaymentStatus = errors.New("unexpected checkout 
 var ErrCheckoutSessionNotFound = errors.New("checkout session not found")
 
 type CommandHandler struct {
-	mutex         sync.Mutex
-	eventLog      eventlog.EventLog
-	cursor        int64
-	stripe        *stripe.Client
-	webhookSecret string
-	priceID       string
-	successURL    string
-	cancelURL     string
+	mutex                     sync.Mutex
+	eventLog                  eventlog.EventLog
+	cursor                    int64
+	checkoutSessionRepository checkoutsessions.Repository
 
 	trialAccountIDs             map[string]struct{}
 	licenseForAccount           map[string]*models.License
@@ -54,22 +51,14 @@ func (info *CheckoutSessionInfo) HasExpired() bool {
 }
 
 type NewCommandHandlerInput struct {
-	EventLog      eventlog.EventLog
-	Stripe        *stripe.Client
-	PriceID       string
-	WebhookSecret string
-	SuccessURL    string
-	CancelURL     string
+	EventLog                  eventlog.EventLog
+	CheckoutSessionRepository checkoutsessions.Repository
 }
 
 func NewCommandHandler(input NewCommandHandlerInput) *CommandHandler {
 	return &CommandHandler{
-		eventLog:      input.EventLog,
-		stripe:        input.Stripe,
-		priceID:       input.PriceID,
-		webhookSecret: input.WebhookSecret,
-		successURL:    input.SuccessURL,
-		cancelURL:     input.CancelURL,
+		eventLog:                  input.EventLog,
+		checkoutSessionRepository: input.CheckoutSessionRepository,
 
 		trialAccountIDs:             make(map[string]struct{}),
 		sessionInfoByID:             make(map[string]*CheckoutSessionInfo),
@@ -131,18 +120,7 @@ func (handler *CommandHandler) StartCheckoutSession(ctx context.Context, input S
 		}
 	}()
 	// Stripe's default TTL is 24 hours
-	session, err := handler.stripe.V1CheckoutSessions.Create(ctx, &stripe.CheckoutSessionCreateParams{
-		Mode:              stripe.String("payment"),
-		ClientReferenceID: stripe.String(input.AccountID),
-		LineItems: []*stripe.CheckoutSessionCreateLineItemParams{
-			{
-				Price:    stripe.String(handler.priceID),
-				Quantity: stripe.Int64(1),
-			},
-		},
-		SuccessURL: stripe.String(handler.successURL),
-		CancelURL:  stripe.String(handler.cancelURL),
-	})
+	session, err := handler.checkoutSessionRepository.Create(ctx, input.AccountID)
 	if err != nil {
 		return
 	}
@@ -217,12 +195,12 @@ func (handler *CommandHandler) preflight(ctx context.Context, input StartCheckou
 }
 
 type RecordCheckoutSessionEventInput struct {
-	Payload         []byte
-	StripeSignature string
+	Payload   []byte
+	Signature string
 }
 
 func (handler *CommandHandler) RecordCheckoutSessionEvent(ctx context.Context, input RecordCheckoutSessionEventInput) (err error) {
-	event, err := handler.stripe.ConstructEvent(input.Payload, input.StripeSignature, handler.webhookSecret)
+	event, err := handler.checkoutSessionRepository.ConstructEvent(input.Payload, input.Signature)
 	if err != nil {
 		return
 	}
@@ -261,7 +239,7 @@ func (handler *CommandHandler) SyncCheckoutSession(ctx context.Context, input Sy
 		defer handler.mutex.Unlock()
 		delete(handler.syncInProgress, input.CheckoutSessionID)
 	}()
-	session, err := handler.stripe.V1CheckoutSessions.Retrieve(ctx, input.CheckoutSessionID, nil)
+	session, err := handler.checkoutSessionRepository.Retrieve(ctx, input.CheckoutSessionID)
 	if err != nil {
 		return
 	}
