@@ -372,6 +372,8 @@ func (handler *CommandHandler) apply(ctx context.Context, event *eventlog.Event)
 	switch event.Type {
 	case events.TypeAccountCreatedV2:
 		handler.applyAccountCreatedV2(ctx, event)
+	case events.TypePerpetualLicenseGranted:
+		handler.applyPerpetualLicenseGranted(ctx, event)
 	case events.TypeStripeCheckoutSessionStarted:
 		handler.applyStripeCheckoutSessionStarted(ctx, event)
 	}
@@ -383,6 +385,13 @@ func (handler *CommandHandler) applyAccountCreatedV2(ctx context.Context, event 
 	fatal.OnError(err)
 	handler.licenseForAccount[detail.AccountID] = &models.License{
 		Type:             models.LicenseTypeTrial,
+		StartUnixSeconds: event.UnixTimestamp,
+	}
+}
+
+func (handler *CommandHandler) applyPerpetualLicenseGranted(ctx context.Context, event *eventlog.Event) {
+	handler.licenseForAccount[event.AccountID] = &models.License{
+		Type:             models.LicenseTypePerpetual,
 		StartUnixSeconds: event.UnixTimestamp,
 	}
 }

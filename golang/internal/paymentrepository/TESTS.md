@@ -30,7 +30,7 @@ checkout session repository; do not call Stripe.
 - [ ] Different sessions can sync concurrently.
 - [ ] Retrieval failure clears the in-flight marker so retry works.
 - [ ] A completed, unpaid session follows the agreed pending/provisional policy. POLICY PENDING: the handler currently grants provisional access; confirm desired policy before testing that transition.
-- [ ] FAILING: Repeated sync of a paid session grants perpetual access only once. (`TestSyncCheckoutSessionRepeatedPaidResultGrantsLicenseOnce`)
+- [x] Repeated sync of a paid session grants perpetual access only once. (`TestSyncCheckoutSessionRepeatedPaidResultGrantsLicenseOnce`)
 - [ ] An expired session revokes provisional access while preserving original trial dates. POLICY PENDING: depends on provisional-access policy.
 - [ ] Unexpected statuses return an error without changing entitlement.
 
@@ -57,10 +57,10 @@ under Creating checkout instead.
 - [ ] Missing or mismatched session/account references cannot change another account's license.
 - [ ] Persistence failure leaves a retryable operation; replay and retry converge on the correct state.
 
-## Current stopping point
+## Current status
 
-16 October 2026: the first new test ran two sequential syncs returning the same
-paid session and observed two perpetual-license grant events instead of one.
-The first grant is persisted before the second sync. Catch-up does not apply
-`TypePerpetualLicenseGranted` to `licenseForAccount`, so the second sync still
-sees a trial license. Implementation left unchanged; no further cases run.
+16 October 2026: fixed the duplicate-grant case by applying
+`TypePerpetualLicenseGranted` during catch-up. Replay now stores a perpetual
+license with the grant event's timestamp and clears any provisional license
+metadata. All three existing payment repository tests pass. No additional
+checklist cases have been implemented or run yet.
