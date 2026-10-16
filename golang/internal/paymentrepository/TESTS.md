@@ -17,7 +17,7 @@ checkout session repository; do not call Stripe.
 
 ## Creating checkout
 
-- [ ] Concurrent starts for the same account share one create call and return the same session.
+- [x] Concurrent starts for the same account share one create call and return the same session. (`TestStartCheckoutSessionConcurrentRequestsShareCreate`)
 - [ ] Different accounts can create concurrently.
 - [ ] An existing, unexpired session is reused.
 - [ ] An expired session permits a new create.
@@ -55,7 +55,7 @@ under Creating checkout instead.
 
 - [ ] Invalid webhook signature or malformed payload changes nothing.
 - [ ] Unrelated webhook types are ignored.
-- [ ] FAILING: Fulfillment errors propagate to the HTTP caller so Stripe can retry. (`TestRecordCheckoutSessionEventReturnsFulfillmentError`)
+- [x] Fulfillment errors propagate to the HTTP caller so Stripe can retry. (`TestRecordCheckoutSessionEventReturnsFulfillmentError`)
 - [ ] Missing or mismatched session/account references cannot change another account's license.
 - [ ] Persistence failure leaves a retryable operation; replay and retry converge on the correct state.
 

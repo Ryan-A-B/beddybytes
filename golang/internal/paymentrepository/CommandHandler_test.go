@@ -385,6 +385,114 @@ func TestSyncCheckoutSessionRepeatedPaidResultGrantsLicenseOnce(t *testing.T) {
 	}
 }
 
+func TestStartCheckoutSessionConcurrentRequestsShareCreate(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	log := eventlog.NewFileEventLog(&eventlog.NewFileEventLogInput{FolderPath: t.TempDir()})
+	created, err := log.Append(ctx, eventlog.AppendInput{
+		Type: events.TypeAccountCreatedV2, Data: json.RawMessage(`{"account_id":"account-1"}`),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	createEntered := make(chan struct{})
+	secondPreflight := make(chan struct{})
+	release := make(chan struct{})
+	var releaseOnce sync.Once
+	t.Cleanup(func() { releaseOnce.Do(func() { close(release) }) })
+	var reads, creates atomic.Int32
+	handler := NewCommandHandler(NewCommandHandlerInput{
+		EventLog: &observedPaymentEventLog{EventLog: log, onRead: func() {
+			if reads.Add(1) == 2 {
+				close(secondPreflight)
+			}
+		}},
+		CheckoutSessionRepository: &checkoutSessionRepositoryStub{
+			create: func(ctx context.Context, accountID string) (*stripe.CheckoutSession, error) {
+				if creates.Add(1) == 1 {
+					close(createEntered)
+				}
+				select {
+				case <-release:
+					return &stripe.CheckoutSession{
+						ID: "cs_test_shared", ClientReferenceID: accountID,
+						URL:       "https://checkout.stripe.com/shared-session",
+						ExpiresAt: time.Now().Add(time.Hour).Unix(),
+					}, nil
+				case <-ctx.Done():
+					return nil, ctx.Err()
+				}
+			},
+		},
+	})
+	type result struct {
+		output *StartCheckoutSessionOutput
+		err    error
+	}
+	results := make(chan result, 2)
+	start := func() {
+		output, err := handler.StartCheckoutSession(ctx, StartCheckoutSessionInput{AccountID: "account-1"})
+		results <- result{output, err}
+	}
+	go start()
+	select {
+	case <-createEntered:
+	case <-ctx.Done():
+		t.Fatal("first request did not reach Create")
+	}
+	go start()
+	select {
+	case <-secondPreflight:
+	case <-ctx.Done():
+		t.Fatal("second request could not enter preflight while Create was in flight")
+	}
+	// The second preflight holds the handler lock when it signals. It must
+	// either find the shared future or the first request's persisted session.
+	releaseOnce.Do(func() { close(release) })
+	for request := 0; request < 2; request++ {
+		select {
+		case result := <-results:
+			if result.err != nil {
+				t.Fatalf("checkout request failed: %v", result.err)
+			}
+			if result.output == nil || result.output.CheckoutSessionID != "cs_test_shared" || result.output.CheckoutURL != "https://checkout.stripe.com/shared-session" {
+				t.Fatalf("unexpected shared checkout: %+v", result.output)
+			}
+		case <-ctx.Done():
+			t.Fatal("checkout requests did not finish after Create was released")
+		}
+	}
+	if got := creates.Load(); got != 1 {
+		t.Fatalf("expected one Create call, got %d", got)
+	}
+	iterator := log.GetEventIterator(ctx, eventlog.GetEventIteratorInput{FromCursor: created.LogicalClock})
+	var starts int
+	for iterator.Next(ctx) {
+		event := iterator.Event()
+		if event.Type != events.TypeStripeCheckoutSessionStarted || event.AccountID != "account-1" {
+			t.Errorf("unexpected event: type=%s account=%s", event.Type, event.AccountID)
+		}
+		starts++
+	}
+	if err := iterator.Err(); err != nil {
+		t.Fatal(err)
+	}
+	if starts != 1 {
+		t.Fatalf("expected one checkout-started event, got %d", starts)
+	}
+}
+
+type observedPaymentEventLog struct {
+	eventlog.EventLog
+	onRead func()
+}
+
+func (log *observedPaymentEventLog) GetEventIterator(ctx context.Context, input eventlog.GetEventIteratorInput) eventlog.EventIterator {
+	iterator := log.EventLog.GetEventIterator(ctx, input)
+	log.onRead()
+	return iterator
+}
+
 func TestRecordCheckoutSessionEventReturnsFulfillmentError(t *testing.T) {
 	ctx := context.Background()
 	log := eventlog.NewFileEventLog(&eventlog.NewFileEventLogInput{FolderPath: t.TempDir()})
