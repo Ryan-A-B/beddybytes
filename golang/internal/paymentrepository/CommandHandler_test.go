@@ -385,9 +385,68 @@ func TestSyncCheckoutSessionRepeatedPaidResultGrantsLicenseOnce(t *testing.T) {
 	}
 }
 
+func TestRecordCheckoutSessionEventReturnsFulfillmentError(t *testing.T) {
+	ctx := context.Background()
+	log := eventlog.NewFileEventLog(&eventlog.NewFileEventLogInput{FolderPath: t.TempDir()})
+	for _, input := range []eventlog.AppendInput{
+		{Type: events.TypeAccountCreatedV2, Data: json.RawMessage(`{"account_id":"account-1"}`)},
+		{
+			Type: events.TypeStripeCheckoutSessionStarted, AccountID: "account-1",
+			Data: json.RawMessage(`{"session_id":"cs_test_1","checkout_url":"https://checkout.stripe.com/test-session","session_expires_at":4102444800}`),
+		},
+	} {
+		if _, err := log.Append(ctx, input); err != nil {
+			t.Fatal(err)
+		}
+	}
+	appendError := errors.New("license grant persistence failed")
+	failingLog := &appendFailingPaymentEventLog{EventLog: log, err: appendError}
+	data, err := json.Marshal(&stripe.CheckoutSession{
+		ID: "cs_test_1", ClientReferenceID: "account-1",
+		Status: stripe.CheckoutSessionStatusComplete, PaymentStatus: stripe.CheckoutSessionPaymentStatusPaid,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	handler := NewCommandHandler(NewCommandHandlerInput{
+		EventLog: failingLog,
+		CheckoutSessionRepository: &checkoutSessionRepositoryStub{
+			constructEvent: func([]byte, string) (*stripe.Event, error) {
+				return &stripe.Event{
+					Type: stripe.EventTypeCheckoutSessionCompleted,
+					Data: &stripe.EventData{Raw: data},
+				}, nil
+			},
+		},
+	})
+	// A valid paid webhook reaches fulfillment, but its license event cannot
+	// be saved. Return that error so the HTTP layer can request a Stripe retry.
+	err = handler.RecordCheckoutSessionEvent(ctx, RecordCheckoutSessionEventInput{
+		Payload: []byte("verified by the fake repository"), Signature: "test-signature",
+	})
+	if failingLog.appends != 1 {
+		t.Fatalf("expected one attempt to persist the grant, got %d", failingLog.appends)
+	}
+	if !errors.Is(err, appendError) {
+		t.Fatalf("expected fulfillment error %q, got %v", appendError, err)
+	}
+}
+
+type appendFailingPaymentEventLog struct {
+	eventlog.EventLog
+	err     error
+	appends int
+}
+
+func (log *appendFailingPaymentEventLog) Append(context.Context, eventlog.AppendInput) (*eventlog.Event, error) {
+	log.appends++
+	return nil, log.err
+}
+
 type checkoutSessionRepositoryStub struct {
-	create   func(context.Context, string) (*stripe.CheckoutSession, error)
-	retrieve func(context.Context, string) (*stripe.CheckoutSession, error)
+	create         func(context.Context, string) (*stripe.CheckoutSession, error)
+	retrieve       func(context.Context, string) (*stripe.CheckoutSession, error)
+	constructEvent func([]byte, string) (*stripe.Event, error)
 }
 
 func (stub *checkoutSessionRepositoryStub) Create(ctx context.Context, accountID string) (*stripe.CheckoutSession, error) {
@@ -401,7 +460,10 @@ func (stub *checkoutSessionRepositoryStub) Retrieve(ctx context.Context, id stri
 	return stub.retrieve(ctx, id)
 }
 
-func (*checkoutSessionRepositoryStub) ConstructEvent([]byte, string) (*stripe.Event, error) {
+func (stub *checkoutSessionRepositoryStub) ConstructEvent(payload []byte, signature string) (*stripe.Event, error) {
+	if stub.constructEvent != nil {
+		return stub.constructEvent(payload, signature)
+	}
 	return nil, fmt.Errorf("unexpected ConstructEvent call")
 }
 

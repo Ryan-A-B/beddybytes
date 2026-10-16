@@ -55,19 +55,19 @@ under Creating checkout instead.
 
 - [ ] Invalid webhook signature or malformed payload changes nothing.
 - [ ] Unrelated webhook types are ignored.
-- [ ] Fulfillment errors propagate to the HTTP caller so Stripe can retry.
+- [ ] FAILING: Fulfillment errors propagate to the HTTP caller so Stripe can retry. (`TestRecordCheckoutSessionEventReturnsFulfillmentError`)
 - [ ] Missing or mismatched session/account references cannot change another account's license.
 - [ ] Persistence failure leaves a retryable operation; replay and retry converge on the correct state.
 
 ## Current status
 
-16 October 2026: renamed the payment account projection to `eligibleAccounts`.
-V2 creation adds an eligible trial account; perpetual-license grant replay
-removes the account. V1 accounts remain outside this projection. Checkout
-preflight rejects absent accounts before creating or reusing a session.
+16 October 2026: tested webhook fulfillment error propagation next, independently
+of the unresolved pending/provisional policy. A completed, paid session is
+supplied by the fake repository; the event log rejects its license grant append.
+`TestRecordCheckoutSessionEventReturnsFulfillmentError` fails because
+`RecordCheckoutSessionEvent` discards the error from `fulfillCheckout` and
+returns nil. This could cause the HTTP layer to acknowledge a payment whose
+license grant was not persisted, preventing Stripe's normal delivery retry.
 
-License commands treat absent accounts as a no-op, so duplicate paid results and
-late payment notifications cannot grant again or fail solely because perpetual
-grant replay removed eligibility. The repeated paid-sync regression test passes.
-All seven existing payment repository tests pass. No further checklist cases
-have been attempted.
+Stopped at this failure. No implementation changes or further test cases run.
+The seven previously passing tests remain listed above.
