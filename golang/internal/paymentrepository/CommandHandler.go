@@ -31,7 +31,6 @@ type CommandHandler struct {
 	cursor                    int64
 	checkoutSessionRepository checkoutsessions.Repository
 
-	trialAccountIDs             map[string]struct{}
 	licenseForAccount           map[string]*models.License
 	sessionInfoByID             map[string]*CheckoutSessionInfo
 	sessionInfoByAccount        map[string]*CheckoutSessionInfo
@@ -60,7 +59,7 @@ func NewCommandHandler(input NewCommandHandlerInput) *CommandHandler {
 		eventLog:                  input.EventLog,
 		checkoutSessionRepository: input.CheckoutSessionRepository,
 
-		trialAccountIDs:             make(map[string]struct{}),
+		licenseForAccount:           make(map[string]*models.License),
 		sessionInfoByID:             make(map[string]*CheckoutSessionInfo),
 		sessionInfoByAccount:        make(map[string]*CheckoutSessionInfo),
 		sessionInfoFutureForAccount: make(map[string]*future.Future[*CheckoutSessionInfo]),
@@ -382,7 +381,10 @@ func (handler *CommandHandler) applyAccountCreatedV2(ctx context.Context, event 
 	var detail events.AccountCreatedV2Detail
 	err := json.Unmarshal(event.Data, &detail)
 	fatal.OnError(err)
-	handler.trialAccountIDs[detail.AccountID] = struct{}{}
+	handler.licenseForAccount[detail.AccountID] = &models.License{
+		Type:             models.LicenseTypeTrial,
+		StartUnixSeconds: event.UnixTimestamp,
+	}
 }
 
 func (handler *CommandHandler) applyStripeCheckoutSessionStarted(ctx context.Context, event *eventlog.Event) {
