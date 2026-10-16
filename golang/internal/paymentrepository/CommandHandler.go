@@ -370,12 +370,24 @@ func (handler *CommandHandler) catchup(ctx context.Context) (err error) {
 
 func (handler *CommandHandler) apply(ctx context.Context, event *eventlog.Event) {
 	switch event.Type {
+	case events.TypeAccountCreatedV1:
+		handler.applyAccountCreatedV1(ctx, event)
 	case events.TypeAccountCreatedV2:
 		handler.applyAccountCreatedV2(ctx, event)
 	case events.TypePerpetualLicenseGranted:
 		handler.applyPerpetualLicenseGranted(ctx, event)
 	case events.TypeStripeCheckoutSessionStarted:
 		handler.applyStripeCheckoutSessionStarted(ctx, event)
+	}
+}
+
+func (handler *CommandHandler) applyAccountCreatedV1(ctx context.Context, event *eventlog.Event) {
+	var detail events.AccountCreatedV1Detail
+	err := json.Unmarshal(event.Data, &detail)
+	fatal.OnError(err)
+	handler.licenseForAccount[detail.AccountID] = &models.License{
+		Type:             models.LicenseTypePerpetual,
+		StartUnixSeconds: event.UnixTimestamp,
 	}
 }
 

@@ -13,7 +13,49 @@ import (
 
 	"github.com/Ryan-A-B/beddybytes/golang/internal/eventlog"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/events"
+	"github.com/Ryan-A-B/beddybytes/golang/internal/models"
 )
+
+func TestAccountCreationReplaySetsInitialLicense(t *testing.T) {
+	for _, test := range []struct {
+		name        string
+		eventType   eventlog.EventType
+		detail      interface{}
+		licenseType models.LicenseType
+	}{
+		{"v1 is perpetual", events.TypeAccountCreatedV1, events.AccountCreatedV1Detail{AccountID: "account-1"}, models.LicenseTypePerpetual},
+		{"v2 is trial", events.TypeAccountCreatedV2, events.AccountCreatedV2Detail{AccountID: "account-1"}, models.LicenseTypeTrial},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			ctx := context.Background()
+			log := eventlog.NewFileEventLog(&eventlog.NewFileEventLogInput{FolderPath: t.TempDir()})
+			data, err := json.Marshal(test.detail)
+			if err != nil {
+				t.Fatal(err)
+			}
+			created, err := log.Append(ctx, eventlog.AppendInput{Type: test.eventType, Data: data})
+			if err != nil {
+				t.Fatal(err)
+			}
+			handler := NewCommandHandler(NewCommandHandlerInput{
+				EventLog: log, CheckoutSessionRepository: &checkoutSessionRepositoryStub{},
+			})
+			if err := handler.catchup(ctx); err != nil {
+				t.Fatal(err)
+			}
+			license := handler.licenseForAccount["account-1"]
+			if license == nil {
+				t.Fatal("account creation was not projected into licenseForAccount")
+			}
+			if license.Type != test.licenseType || license.StartUnixSeconds != created.UnixTimestamp {
+				t.Fatalf("license = %+v, want type %s starting at %d", license, test.licenseType, created.UnixTimestamp)
+			}
+			if license.ProvisionalLicense != nil {
+				t.Fatal("initial license should not have provisional metadata")
+			}
+		})
+	}
+}
 
 func TestSyncCheckoutSessionPaidSessionGrantsPerpetualLicense(t *testing.T) {
 	ctx := context.Background()

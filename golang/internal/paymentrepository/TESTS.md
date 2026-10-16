@@ -2,12 +2,13 @@
 
 Maintain this list as tests are added and run. Checked items have passing tests;
 unchecked items are untested unless explicitly marked FAILING or POLICY PENDING.
-Work on one test at a time and stop at the first breaking case. Use the fake
+Work on one test at a time. Fix missing event replay handling and continue;
+stop at the first other breaking case. Use the fake
 checkout session repository; do not call Stripe.
 
 ## Account and license replay
 
-- [ ] V1 account starts perpetual; v2 account starts trial.
+- [x] V1 account starts perpetual; v2 account starts trial. (`TestAccountCreationReplaySetsInitialLicense`)
 - [ ] Unknown account cannot start checkout.
 - [ ] Perpetual account cannot start another purchase.
 - [ ] License grants and revocations rebuild the correct state after restart.
