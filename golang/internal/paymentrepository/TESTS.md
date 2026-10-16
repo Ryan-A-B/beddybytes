@@ -72,21 +72,14 @@ under Creating checkout instead.
 ## Errors and identity
 
 - [ ] Invalid webhook signature or malformed JSON changes nothing.
-- [ ] FAILING: A verified webhook whose Checkout Session data is JSON null returns an error without panicking or appending events. (`TestRecordCheckoutSessionEventRejectsNullCheckoutPayload`)
+- [x] A verified webhook whose Checkout Session data is JSON null returns an error without panicking or appending events. (`TestRecordCheckoutSessionEventRejectsNullCheckoutPayload`)
 - [ ] Unrelated webhook types are ignored.
 - [x] Fulfillment errors propagate to the HTTP caller so Stripe can retry. (`TestRecordCheckoutSessionEventReturnsFulfillmentError`)
 - [ ] Persistence failure leaves a retryable operation; replay and retry converge on the correct state.
 
 ## Current status
 
-16 October 2026: added and ran `TestRestartAfterPaidSyncDoesNotGrantTwice`.
-It passes: a fresh handler retrieves again, reconstructs account ineligibility,
-rejects another checkout and emits no duplicate perpetual grant.
-
-The next malformed-payload test fails: when the constructed webhook has a
-Checkout Session payload of JSON null, unmarshalling succeeds with a nil session,
-and fulfillment dereferences it. `TestRecordCheckoutSessionEventRejectsNullCheckoutPayload`
-expects an error without mutation but observes a nil-pointer panic. This is a
-malformed-input case, not an ordinary Stripe payment-state sequence.
-
-Stopped at that failure. No implementation changes or further test cases run.
+16 October 2026: fixed the null Checkout Session payload panic by returning an
+error after unmarshalling and before calling fulfillment. The regression test
+passes without event appends. All future, payment command handler and Stripe
+adapter tests pass. No further checklist cases attempted during this fix.

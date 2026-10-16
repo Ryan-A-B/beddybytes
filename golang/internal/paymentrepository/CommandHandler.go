@@ -222,6 +222,9 @@ func (handler *CommandHandler) RecordCheckoutSessionEvent(ctx context.Context, i
 	if err := json.Unmarshal(event.Data.Raw, &session); err != nil {
 		return err
 	}
+	if session == nil {
+		return errors.New("checkout session payload must not be null")
+	}
 	return handler.fulfillCheckout(ctx, session)
 }
 
