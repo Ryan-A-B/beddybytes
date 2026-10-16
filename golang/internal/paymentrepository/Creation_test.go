@@ -3,6 +3,8 @@ package paymentrepository
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -164,5 +166,91 @@ func TestStartCheckoutSessionReusesOnlyUnexpiredSession(t *testing.T) {
 				t.Errorf("new started events=%d, want %d", appended, wantCreates)
 			}
 		})
+	}
+}
+
+func TestCreateFailureReachesWaitersAndAllowsRetry(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	log := newRestartTestLog(t)
+	createError := errors.New("checkout creation failed")
+	entered := make(chan struct{})
+	secondPreflight := make(chan struct{})
+	release := make(chan struct{})
+	var creates, reads atomic.Int32
+	handler := NewCommandHandler(NewCommandHandlerInput{
+		EventLog: &observedPaymentEventLog{EventLog: log, onRead: func() {
+			if reads.Add(1) == 2 {
+				close(secondPreflight)
+			}
+		}},
+		CheckoutSessionRepository: &checkoutSessionRepositoryStub{
+			create: func(ctx context.Context, _ string) (*stripe.CheckoutSession, error) {
+				if creates.Add(1) == 1 {
+					close(entered)
+					select {
+					case <-release:
+						return nil, createError
+					case <-ctx.Done():
+						return nil, ctx.Err()
+					}
+				}
+				return &stripe.CheckoutSession{
+					ID: "cs_retry", URL: "https://checkout.stripe.com/retry", ExpiresAt: time.Now().Add(time.Hour).Unix(),
+				}, nil
+			},
+		},
+	})
+	type result struct {
+		output *StartCheckoutSessionOutput
+		err    error
+	}
+	results := make(chan result, 2)
+	start := func() {
+		output, err := handler.StartCheckoutSession(ctx, StartCheckoutSessionInput{AccountID: "account-1"})
+		results <- result{output, err}
+	}
+	go start()
+	select {
+	case <-entered:
+	case <-ctx.Done():
+		t.Fatal("first caller did not enter Create")
+	}
+	go start()
+	select {
+	case <-secondPreflight:
+	case <-ctx.Done():
+		t.Fatal("second caller did not reach preflight")
+	}
+	close(release)
+	for i := 0; i < 2; i++ {
+		select {
+		case got := <-results:
+			if !errors.Is(got.err, createError) || got.output != nil {
+				t.Errorf("shared creation failure: output=%+v err=%v, want original error", got.output, got.err)
+			}
+		case <-ctx.Done():
+			t.Fatal("creation failure left a caller blocked")
+		}
+	}
+	if got := creates.Load(); got != 1 {
+		t.Fatalf("expected one shared failed Create, got %d", got)
+	}
+	output, err := handler.StartCheckoutSession(ctx, StartCheckoutSessionInput{AccountID: "account-1"})
+	if err != nil || output == nil || output.CheckoutSessionID != "cs_retry" || creates.Load() != 2 {
+		t.Fatalf("retry did not start fresh: output=%+v err=%v creates=%d", output, err, creates.Load())
+	}
+	iterator := log.GetEventIterator(ctx, eventlog.GetEventIteratorInput{})
+	var starts int
+	for iterator.Next(ctx) {
+		if iterator.Event().Type == events.TypeStripeCheckoutSessionStarted {
+			starts++
+		}
+	}
+	if err := iterator.Err(); err != nil {
+		t.Fatal(err)
+	}
+	if starts != 1 {
+		t.Errorf("expected only the successful retry to emit a started event, got %d", starts)
 	}
 }

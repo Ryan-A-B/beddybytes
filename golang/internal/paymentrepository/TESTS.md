@@ -25,7 +25,7 @@ checkout session repository; do not call Stripe.
 - [x] Different accounts can create concurrently. (`TestDifferentAccountsCanCreateConcurrently`)
 - [x] An existing, unexpired session is reused. (`TestStartCheckoutSessionReusesOnlyUnexpiredSession`)
 - [x] An expired session permits a new create. (`TestStartCheckoutSessionReusesOnlyUnexpiredSession`)
-- [ ] Create failure reaches all waiting callers; a subsequent request can retry.
+- [x] Create failure reaches all waiting callers; a subsequent request can retry. (`TestCreateFailureReachesWaitersAndAllowsRetry`)
 - [x] A caller waiting on a shared Create can cancel independently, returning context.Canceled while the leader continues. (`TestStartCheckoutSessionWaitingCallerCanCancel`)
 - [ ] Event-append failure reaches all waiting callers without leaving them blocked.
 - [ ] No caller receives success before the started event is persisted.
@@ -79,6 +79,8 @@ under Creating checkout instead.
 
 ## Errors and identity
 
+- [ ] FAILING (compile-time): The concrete StripeRepository satisfies the Repository interface accepted by the command handler. (`internal/checkoutsessions/Stripe_test.go`, interface assertion)
+
 - [ ] Invalid webhook signature or malformed JSON changes nothing.
 - [x] A verified webhook whose Checkout Session data is JSON null returns an error without panicking or appending events. (`TestRecordCheckoutSessionEventRejectsNullCheckoutPayload`)
 - [ ] Unrelated webhook types are ignored.
@@ -87,9 +89,16 @@ under Creating checkout instead.
 
 ## Current status
 
-16 October 2026: Ryan accepted the overlapping-processing-payment case for
-manual resolution. Recorded the mechanism, assumptions and response in
-[KNOWN_LIMITATIONS.md](KNOWN_LIMITATIONS.md). Preserved the failing reproducer
-as a skipped test, not a fixed or passing case. Payment behavior is unchanged.
-The intended card-only scope reduces the expected likelihood but is not
-implemented by this documentation update. No new checklist cases attempted.
+16 October 2026: the shared Create failure/retry test passes. Both callers receive
+the original creation error; a subsequent call creates and persists a new session.
+
+A compile-time interface assertion exposed the next issue: StripeRepository
+cannot be passed as Repository. Its ConstructEvent method returns
+(stripe.Event, error), while the interface requires (*stripe.Event, error).
+The adapter tests previously called its methods directly and missed this
+integration mismatch. The new assertion intentionally leaves the adapter test
+package failing to build until the signatures agree.
+
+Stopped at this failure without implementation changes or further test cases.
+The overlapping-payment limitation remains accepted/skipped. The human's
+uncommitted command handler edit remains unchanged.

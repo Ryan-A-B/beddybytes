@@ -10,6 +10,10 @@ import (
 	"github.com/stripe/stripe-go/v87"
 )
 
+// Check that the production adapter can be supplied wherever the command
+// handler accepts the same Repository contract as the test fake.
+var _ Repository = (*StripeRepository)(nil)
+
 func TestCreateSetsClientReferenceIDToAccountID(t *testing.T) {
 	var requests int
 	// Exercise the adapter and SDK encoding without sending network requests.
