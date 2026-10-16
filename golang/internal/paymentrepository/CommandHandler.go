@@ -64,6 +64,7 @@ func NewCommandHandler(input NewCommandHandlerInput) *CommandHandler {
 		sessionInfoByID:             make(map[string]*CheckoutSessionInfo),
 		sessionInfoByAccount:        make(map[string]*CheckoutSessionInfo),
 		sessionInfoFutureForAccount: make(map[string]*future.Future[*CheckoutSessionInfo]),
+		syncInProgress:              make(map[string]struct{}),
 	}
 }
 
