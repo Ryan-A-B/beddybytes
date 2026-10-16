@@ -151,6 +151,73 @@ func TestSyncCheckoutSessionOnlyOneRetrieveInFlight(t *testing.T) {
 	}
 }
 
+func TestSyncCheckoutSessionRepeatedPaidResultGrantsLicenseOnce(t *testing.T) {
+	ctx := context.Background()
+	log := eventlog.NewFileEventLog(&eventlog.NewFileEventLogInput{FolderPath: t.TempDir()})
+	accountData, err := json.Marshal(events.AccountCreatedV2Detail{AccountID: "account-1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := log.Append(ctx, eventlog.AppendInput{
+		Type: events.TypeAccountCreatedV2, AccountID: "account-1", Data: accountData,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	checkoutData, err := json.Marshal(events.StripeCheckoutSessionStartedDetail{
+		SessionID: "cs_test_1", CheckoutURL: "https://checkout.stripe.com/test-session",
+		SessionExpiresAt: time.Now().Add(time.Hour).Unix(),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	started, err := log.Append(ctx, eventlog.AppendInput{
+		Type: events.TypeStripeCheckoutSessionStarted, AccountID: "account-1", Data: checkoutData,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var retrieves int
+	repository := &checkoutSessionRepositoryStub{
+		retrieve: func(_ context.Context, id string) (*stripe.CheckoutSession, error) {
+			retrieves++
+			return &stripe.CheckoutSession{
+				ID: id, ClientReferenceID: "account-1",
+				Status:        stripe.CheckoutSessionStatusComplete,
+				PaymentStatus: stripe.CheckoutSessionPaymentStatusPaid,
+			}, nil
+		},
+	}
+	handler := NewCommandHandler(NewCommandHandlerInput{
+		EventLog: log, CheckoutSessionRepository: repository,
+	})
+	// The second sync observes the same Stripe result after the first grant
+	// has been persisted. Catch-up must make that grant effective before the
+	// second result is applied, preventing a duplicate event.
+	for attempt := 1; attempt <= 2; attempt++ {
+		if err := handler.SyncCheckoutSession(ctx, SyncCheckoutSessionInput{CheckoutSessionID: "cs_test_1"}); err != nil {
+			t.Fatalf("sync %d: %v", attempt, err)
+		}
+	}
+	if retrieves != 2 {
+		t.Fatalf("expected both sequential syncs to retrieve the session, got %d", retrieves)
+	}
+	iterator := log.GetEventIterator(ctx, eventlog.GetEventIteratorInput{FromCursor: started.LogicalClock})
+	var grants int
+	for iterator.Next(ctx) {
+		event := iterator.Event()
+		if event.Type != events.TypePerpetualLicenseGranted || event.AccountID != "account-1" {
+			t.Errorf("unexpected event: type=%s account=%s", event.Type, event.AccountID)
+		}
+		grants++
+	}
+	if err := iterator.Err(); err != nil {
+		t.Fatal(err)
+	}
+	if grants != 1 {
+		t.Fatalf("expected exactly one perpetual license grant after two paid syncs, got %d", grants)
+	}
+}
+
 type checkoutSessionRepositoryStub struct {
 	retrieve func(context.Context, string) (*stripe.CheckoutSession, error)
 }
