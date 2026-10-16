@@ -16,6 +16,15 @@ import (
 )
 
 func TestPaidWebhookDuringOlderUnpaidSyncGrantsPerpetualLicense(t *testing.T) {
+	testPaidWebhookDuringSync(t, stripe.CheckoutSessionStatusComplete, stripe.CheckoutSessionPaymentStatusUnpaid)
+}
+
+func TestConcurrentPaidWebhookAndSyncGrantOnce(t *testing.T) {
+	testPaidWebhookDuringSync(t, stripe.CheckoutSessionStatusComplete, stripe.CheckoutSessionPaymentStatusPaid)
+}
+
+func testPaidWebhookDuringSync(t *testing.T, oldStatus stripe.CheckoutSessionStatus, oldPaymentStatus stripe.CheckoutSessionPaymentStatus) {
+	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	log := newRestartTestLog(t)
@@ -48,9 +57,9 @@ func TestPaidWebhookDuringOlderUnpaidSyncGrantsPerpetualLicense(t *testing.T) {
 					PaymentStatus: stripe.CheckoutSessionPaymentStatusPaid,
 				}
 				if retrieves.Add(1) == 1 {
-					// Capture the processing snapshot before payment succeeds. Later
-					// retrievals see paid, but this request returns its older snapshot.
-					session.PaymentStatus = stripe.CheckoutSessionPaymentStatusUnpaid
+					// Hold the sync snapshot while a paid webhook is fulfilled.
+					session.Status = oldStatus
+					session.PaymentStatus = oldPaymentStatus
 					session.PaymentIntent = &stripe.PaymentIntent{ID: "pi_ordering", Status: stripe.PaymentIntentStatusProcessing}
 					close(oldRetrieveEntered)
 					select {
@@ -87,7 +96,7 @@ func TestPaidWebhookDuringOlderUnpaidSyncGrantsPerpetualLicense(t *testing.T) {
 		t.Fatal("paid webhook did not reach fulfillment")
 	}
 	// Webhook fulfillment holds the handler lock: the older retrieval cannot
-	// apply its processing snapshot until the paid grant has been persisted.
+	// apply its snapshot until the paid grant has been persisted.
 	close(releaseOldRetrieve)
 	for i := 0; i < 2; i++ {
 		select {
@@ -104,6 +113,25 @@ func TestPaidWebhookDuringOlderUnpaidSyncGrantsPerpetualLicense(t *testing.T) {
 	}
 	if license, eligible := handler.eligibleAccounts["account-1"]; eligible {
 		t.Fatalf("paid webhook was acknowledged but account is still eligible with license %+v (Retrieve calls=%d)", license, retrieves.Load())
+	}
+	if retrieves.Load() != 1 {
+		t.Errorf("Retrieve calls=%d, want 1", retrieves.Load())
+	}
+	iterator := log.GetEventIterator(ctx, eventlog.GetEventIteratorInput{})
+	var grants int
+	for iterator.Next(ctx) {
+		switch event := iterator.Event(); event.Type {
+		case events.TypePerpetualLicenseGranted:
+			grants++
+		case events.TypeProvisionalLicenseGranted, events.TypeProvisionalLicenseRevoked:
+			t.Errorf("older sync emitted %s after paid webhook", event.Type)
+		}
+	}
+	if err := iterator.Err(); err != nil {
+		t.Fatal(err)
+	}
+	if grants != 1 {
+		t.Fatalf("perpetual grants=%d, want 1", grants)
 	}
 }
 
@@ -180,4 +208,8 @@ func TestOlderFailedAttemptDoesNotRevokeNewerProcessingCheckout(t *testing.T) {
 	if err := iterator.Err(); err != nil {
 		t.Fatal(err)
 	}
+}
+
+func TestPaidWebhookDuringOlderExpiredSyncKeepsPerpetualLicense(t *testing.T) {
+	testPaidWebhookDuringSync(t, stripe.CheckoutSessionStatusExpired, stripe.CheckoutSessionPaymentStatusUnpaid)
 }

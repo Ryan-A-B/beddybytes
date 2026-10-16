@@ -308,3 +308,144 @@ func newRestartTestLog(t *testing.T) *eventlog.FileEventLog {
 	}
 	return log
 }
+
+func TestRestartCreatesAgainAfterStartedEventAppendFailure(t *testing.T) {
+	ctx := context.Background()
+	log := newRestartTestLog(t)
+	appendError := errors.New("started event not persisted")
+	failedLog := &appendFailingPaymentEventLog{EventLog: log, err: appendError}
+	var creates int
+	repository := &checkoutSessionRepositoryStub{create: func(context.Context, string) (*stripe.CheckoutSession, error) {
+		creates++
+		id := "cs_orphan"
+		if creates > 1 {
+			id = "cs_recovered"
+		}
+		return &stripe.CheckoutSession{ID: id, URL: "https://checkout.stripe.com/" + id, ExpiresAt: time.Now().Add(time.Hour).Unix()}, nil
+	}}
+	old := NewCommandHandler(NewCommandHandlerInput{EventLog: failedLog, CheckoutSessionRepository: repository})
+	output, err := old.StartCheckoutSession(ctx, StartCheckoutSessionInput{AccountID: "account-1"})
+	if !errors.Is(err, appendError) || output != nil {
+		t.Fatalf("failed start: output=%+v err=%v", output, err)
+	}
+	restarted := NewCommandHandler(NewCommandHandlerInput{EventLog: log, CheckoutSessionRepository: repository})
+	output, err = restarted.StartCheckoutSession(ctx, StartCheckoutSessionInput{AccountID: "account-1"})
+	if err != nil || output == nil || output.CheckoutSessionID != "cs_recovered" || creates != 2 {
+		t.Fatalf("restart: output=%+v err=%v creates=%d", output, err, creates)
+	}
+	iterator := log.GetEventIterator(ctx, eventlog.GetEventIteratorInput{})
+	var starts int
+	for iterator.Next(ctx) {
+		event := iterator.Event()
+		if event.Type != events.TypeStripeCheckoutSessionStarted {
+			continue
+		}
+		var detail events.StripeCheckoutSessionStartedDetail
+		if err := json.Unmarshal(event.Data, &detail); err != nil {
+			t.Fatal(err)
+		}
+		if detail.SessionID != "cs_recovered" {
+			t.Errorf("persisted unexpected session: %s", detail.SessionID)
+		}
+		starts++
+	}
+	if err := iterator.Err(); err != nil {
+		t.Fatal(err)
+	}
+	if starts != 1 {
+		t.Fatalf("started events=%d, want 1", starts)
+	}
+}
+
+func TestRestartAfterOpenSyncRetrievesAgain(t *testing.T) {
+	ctx := context.Background()
+	log := newRestartTestLog(t)
+	var retrieves int
+	repository := &checkoutSessionRepositoryStub{retrieve: func(_ context.Context, id string) (*stripe.CheckoutSession, error) {
+		retrieves++
+		return &stripe.CheckoutSession{ID: id, Status: stripe.CheckoutSessionStatusOpen}, nil
+	}}
+	for i := 0; i < 2; i++ {
+		handler := NewCommandHandler(NewCommandHandlerInput{EventLog: log, CheckoutSessionRepository: repository})
+		if err := handler.SyncCheckoutSession(ctx, SyncCheckoutSessionInput{CheckoutSessionID: "cs_open"}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if retrieves != 2 {
+		t.Fatalf("Retrieve calls=%d, want 2", retrieves)
+	}
+	iterator := log.GetEventIterator(ctx, eventlog.GetEventIteratorInput{})
+	for iterator.Next(ctx) {
+		if event := iterator.Event(); event.Type != events.TypeAccountCreatedV2 {
+			t.Errorf("open sync emitted %s", event.Type)
+		}
+	}
+	if err := iterator.Err(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestRestartAfterProvisionalSyncsPreservesTrialDates(t *testing.T) {
+	ctx := context.Background()
+	log := newRestartTestLog(t)
+	status := stripe.PaymentIntentStatusProcessing
+	var retrieves int
+	repository := &checkoutSessionRepositoryStub{retrieve: func(_ context.Context, id string) (*stripe.CheckoutSession, error) {
+		retrieves++
+		return &stripe.CheckoutSession{ID: id, ClientReferenceID: "account-1", Status: stripe.CheckoutSessionStatusComplete, PaymentStatus: stripe.CheckoutSessionPaymentStatusUnpaid, PaymentIntent: &stripe.PaymentIntent{ID: "pi_restart", Status: status}}, nil
+	}}
+	handler := NewCommandHandler(NewCommandHandlerInput{EventLog: log, CheckoutSessionRepository: repository})
+	if err := handler.catchup(ctx); err != nil {
+		t.Fatal(err)
+	}
+	trialStart := handler.eligibleAccounts["account-1"].StartUnixSeconds
+	input := SyncCheckoutSessionInput{CheckoutSessionID: "cs_restart"}
+	if err := handler.SyncCheckoutSession(ctx, input); err != nil {
+		t.Fatal(err)
+	}
+	restarted := NewCommandHandler(NewCommandHandlerInput{EventLog: log, CheckoutSessionRepository: repository})
+	if err := restarted.catchup(ctx); err != nil {
+		t.Fatal(err)
+	}
+	license := restarted.eligibleAccounts["account-1"]
+	if license == nil || license.Type != models.LicenseTypeProvisional || license.ProvisionalLicense == nil || license.ProvisionalLicense.TrialStartUnixSeconds != trialStart {
+		t.Fatalf("restarted provisional license lost original trial %d: %+v", trialStart, license)
+	}
+	if err := restarted.SyncCheckoutSession(ctx, input); err != nil {
+		t.Fatal(err)
+	}
+	status = stripe.PaymentIntentStatusRequiresPaymentMethod
+	if err := restarted.SyncCheckoutSession(ctx, input); err != nil {
+		t.Fatal(err)
+	}
+	afterRevocation := NewCommandHandler(NewCommandHandlerInput{EventLog: log, CheckoutSessionRepository: repository})
+	if err := afterRevocation.catchup(ctx); err != nil {
+		t.Fatal(err)
+	}
+	license = afterRevocation.eligibleAccounts["account-1"]
+	if license == nil || license.Type != models.LicenseTypeTrial || license.StartUnixSeconds != trialStart || license.ProvisionalLicense != nil {
+		t.Fatalf("revocation did not restore original trial %d: %+v", trialStart, license)
+	}
+	if err := afterRevocation.SyncCheckoutSession(ctx, input); err != nil {
+		t.Fatal(err)
+	}
+	if retrieves != 4 {
+		t.Fatalf("Retrieve calls=%d, want 4", retrieves)
+	}
+	iterator := log.GetEventIterator(ctx, eventlog.GetEventIteratorInput{})
+	var grants, revocations int
+	for iterator.Next(ctx) {
+		switch iterator.Event().Type {
+		case events.TypeProvisionalLicenseGranted:
+			grants++
+		case events.TypeProvisionalLicenseRevoked:
+			revocations++
+		}
+	}
+	if err := iterator.Err(); err != nil {
+		t.Fatal(err)
+	}
+	if grants != 1 || revocations != 1 {
+		t.Fatalf("grants=%d revocations=%d, want one each", grants, revocations)
+	}
+}

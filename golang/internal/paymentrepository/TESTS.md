@@ -34,8 +34,8 @@ checkout session repository; do not call Stripe.
 ## Syncing checkout
 
 - [x] Only one retrieval is in flight for the same session; an open result emits no license event. (`TestSyncCheckoutSessionOnlyOneRetrieveInFlight`)
-- [ ] Different sessions can sync concurrently.
-- [ ] Retrieval failure clears the in-flight marker so retry works.
+- [x] Different sessions can sync concurrently. (`TestDifferentSessionsCanSyncConcurrently`)
+- [x] Retrieval failure clears the in-flight marker so retry works. (`TestRetrieveFailureAllowsSyncRetry`)
 - [x] Completed/unpaid grants or retains provisional access only when the expanded PaymentIntent is processing; other statuses revoke it and preserve the original trial. (`TestFulfillCheckoutPaymentIntentStates`)
 - [x] Missing or unexpanded PaymentIntent returns an error without changing access. (`TestFulfillCheckoutPaymentIntentStates`)
 - [x] Stripe Retrieve requests payment_intent expansion. (`internal/checkoutsessions/Stripe_test.go`: `TestRetrieveExpandsPaymentIntent`)
@@ -51,11 +51,11 @@ a durable lock or a guarantee against duplicate Stripe sessions after a crash.
 
 - [x] After a persisted checkout start, a fresh handler rebuilds eligibility and reuses the unexpired session without Create. (`TestRestartReusesPersistedCheckout`)
 - [x] If Create was in flight with no started event persisted, a fresh handler starts a new Create rather than waiting on the old future. (`TestRestartStartsNewCreateWhenOldCreateWasNotPersisted`)
-- [ ] If Stripe creation succeeded but the started event was not persisted, a fresh handler starts a new Create; the orphan Stripe session is not recoverable from this log.
+- [x] If Stripe creation succeeded but the started event was not persisted, a fresh handler starts a new Create; the orphan Stripe session is not recoverable from this log. (`TestRestartCreatesAgainAfterStartedEventAppendFailure`)
 - [x] If sync was in flight, a fresh handler starts a new Retrieve rather than inheriting syncInProgress. (`TestRestartStartsNewSyncWhenOldSyncIsInFlight`)
 - [x] After a completed paid sync, a fresh handler rebuilds ineligibility; another sync can retrieve but must not append a duplicate perpetual grant. (`TestRestartAfterPaidSyncDoesNotGrantTwice`)
-- [ ] After an open sync that emitted no license event, a fresh handler retrieves again.
-- [ ] After provisional grant/revocation syncs, a fresh handler restores the appropriate license and original trial dates.
+- [x] After an open sync that emitted no license event, a fresh handler retrieves again. (`TestRestartAfterOpenSyncRetrievesAgain`)
+- [x] After provisional grant/revocation syncs, a fresh handler restores the appropriate license and original trial dates. (`TestRestartAfterProvisionalSyncsPreservesTrialDates`)
 
 ## Webhook and sync ordering
 
@@ -64,13 +64,13 @@ a durable lock or a guarantee against duplicate Stripe sessions after a crash.
 - [x] Polling retrieves a failed PaymentIntent and revokes provisional access without receiving a failure webhook. (`TestSyncFailedPaymentIntentRevokesProvisionalLicense`)
 - [x] A verified webhook fulfills its delivered session directly without Retrieve or entering sync coordination. (`TestWebhookFulfillsDeliveredSessionWithoutRetrieve`)
 
-- [ ] Repeated delivery of the same webhook produces no duplicate license change.
-- [ ] Concurrent webhook and sync results produce one effective transition.
+- [x] Repeated delivery of the same webhook produces no duplicate license change. (`TestRepeatedWebhookDoesNotDuplicateLicenseChanges`)
+- [x] Concurrent webhook and sync results produce one effective transition. (`TestConcurrentPaidWebhookAndSyncGrantOnce`)
 - [x] Paid webhook arrives while sync holds an older unpaid result: account becomes perpetual and the older result cannot downgrade it. (`TestPaidWebhookDuringOlderUnpaidSyncGrantsPerpetualLicense`)
-- [ ] Paid webhook arrives while sync holds an older expired result: account remains perpetual.
-- [ ] Sync confirms payment before an older unpaid or expired webhook arrives: account remains perpetual.
-- [ ] Account or license events appended during retrieval are caught up before applying its result.
-- [ ] Failure or expiry of an older attempt cannot revoke entitlement from a newer successful attempt.
+- [x] Paid webhook arrives while sync holds an older expired result: account remains perpetual. (`TestPaidWebhookDuringOlderExpiredSyncKeepsPerpetualLicense`)
+- [x] Sync confirms payment before an older unpaid or expired webhook arrives: account remains perpetual. (`TestOlderWebhooksAfterPaidSyncKeepPerpetualLicense`)
+- [x] Account or license events appended during retrieval are caught up before applying its result. (`TestSyncCatchesUpEventsArrivingDuringRetrieve`)
+- [x] Failure or expiry of an older attempt cannot revoke entitlement from a newer successful attempt. (`TestOlderAttemptFailureOrExpiryKeepsNewerPaidLicense`)
 
 The earlier webhook-before-checkout-started case is removed: this flow only
 releases the Checkout URL after the started event is persisted, so the customer
@@ -81,25 +81,25 @@ under Creating checkout instead.
 
 - [x] The concrete StripeRepository satisfies the Repository interface accepted by the command handler. (`internal/checkoutsessions/Stripe_test.go`, interface assertion)
 
-- [ ] Invalid webhook signature or malformed JSON changes nothing.
+- [x] Invalid webhook signature or malformed JSON changes nothing. (`TestInvalidWebhookDoesNotChangeState`)
 - [x] A verified webhook whose Checkout Session data is JSON null returns an error without panicking or appending events. (`TestRecordCheckoutSessionEventRejectsNullCheckoutPayload`)
-- [ ] Unrelated webhook types are ignored.
+- [x] Unrelated webhook types are ignored. (`TestUnrelatedWebhookIsIgnored`)
 - [x] Fulfillment errors propagate to the HTTP caller so Stripe can retry. (`TestRecordCheckoutSessionEventReturnsFulfillmentError`)
-- [ ] Persistence failure leaves a retryable operation; replay and retry converge on the correct state.
+- [x] Persistence failure leaves a retryable operation; replay and retry converge on the correct state. (`TestLicensePersistenceFailureConvergesOnRetry`, same/fresh handler, perpetual grant, provisional grant and revocation)
 
 ## Current status
 
-16 October 2026: corrected RecordCheckoutSessionEvent to pass its verified,
-decoded Checkout Session directly to fulfillCheckout. It must not call across
-into SyncCheckoutSession. Sync retrieves a session; webhook handling consumes
-the delivered session. They share fulfillment, not in-flight sync coordination.
+16 October 2026: completed the remaining checklist cases, adding and running one
+test at a time. No new breaking case was found. Coverage now includes independent
+syncs, retrieval retries, restart recovery after an unpersisted Stripe creation
+and after open/provisional syncs, repeated webhooks, concurrent paid fulfillment,
+older results after perpetual grants, catch-up during retrieval, invalid and
+unrelated webhooks, and retry/replay after license persistence failures.
 
-Replaced the test that incorrectly required webhook retrieval with a test that
-asserts fulfillment uses the delivered session without Retrieve. The paid-webhook
-versus older processing-sync reproducer now passes: paid access is granted and
-cannot be downgraded by the processing result.
+Verified all payment repository, checkout adapter and future tests with -race.
+The accepted overlapping-processing-payment reproducer remains skipped; all
+other checklist items have passing coverage. No production code changed. The
+human's uncommitted handler edit remains unchanged.
 
-All payment repository, checkout adapter and future tests pass with -race. The
-accepted overlapping-payment reproducer remains skipped. No further checklist
-cases attempted during this correction. The human's uncommitted handler edit
-remains unchanged.
+Webhook handling continues to fulfill the verified delivered session directly;
+it does not call SyncCheckoutSession or enter sync coordination.
