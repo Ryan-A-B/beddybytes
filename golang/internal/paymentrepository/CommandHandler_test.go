@@ -2,6 +2,7 @@ package paymentrepository
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"sync"
 	"sync/atomic"
@@ -11,7 +12,70 @@ import (
 	"github.com/stripe/stripe-go/v87"
 
 	"github.com/Ryan-A-B/beddybytes/golang/internal/eventlog"
+	"github.com/Ryan-A-B/beddybytes/golang/internal/events"
 )
+
+func TestSyncCheckoutSessionPaidSessionGrantsPerpetualLicense(t *testing.T) {
+	ctx := context.Background()
+	log := eventlog.NewFileEventLog(&eventlog.NewFileEventLogInput{FolderPath: t.TempDir()})
+	accountData, err := json.Marshal(events.AccountCreatedV2Detail{AccountID: "account-1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := log.Append(ctx, eventlog.AppendInput{
+		Type: events.TypeAccountCreatedV2, AccountID: "account-1", Data: accountData,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	checkoutData, err := json.Marshal(events.StripeCheckoutSessionStartedDetail{
+		SessionID: "cs_test_1", CheckoutURL: "https://checkout.stripe.com/test-session",
+		SessionExpiresAt: time.Now().Add(time.Hour).Unix(),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	started, err := log.Append(ctx, eventlog.AppendInput{
+		Type: events.TypeStripeCheckoutSessionStarted, AccountID: "account-1", Data: checkoutData,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	repository := &checkoutSessionRepositoryStub{
+		retrieve: func(_ context.Context, id string) (*stripe.CheckoutSession, error) {
+			if id != "cs_test_1" {
+				t.Errorf("unexpected session ID: %q", id)
+			}
+			return &stripe.CheckoutSession{
+				ID: id, ClientReferenceID: "account-1",
+				Status:        stripe.CheckoutSessionStatusComplete,
+				PaymentStatus: stripe.CheckoutSessionPaymentStatusPaid,
+			}, nil
+		},
+	}
+	handler := NewCommandHandler(NewCommandHandlerInput{
+		EventLog: log, CheckoutSessionRepository: repository,
+	})
+	// Account creation and checkout start precede sync. Catch-up must rebuild
+	// the trial account before applying the retrieved paid result.
+	if err := handler.SyncCheckoutSession(ctx, SyncCheckoutSessionInput{CheckoutSessionID: "cs_test_1"}); err != nil {
+		t.Fatalf("sync paid checkout for an existing trial account: %v", err)
+	}
+	iterator := log.GetEventIterator(ctx, eventlog.GetEventIteratorInput{FromCursor: started.LogicalClock})
+	var grants int
+	for iterator.Next(ctx) {
+		event := iterator.Event()
+		if event.Type != events.TypePerpetualLicenseGranted || event.AccountID != "account-1" {
+			t.Errorf("unexpected event after sync: type=%s account=%s", event.Type, event.AccountID)
+		}
+		grants++
+	}
+	if err := iterator.Err(); err != nil {
+		t.Fatal(err)
+	}
+	if grants != 1 {
+		t.Fatalf("expected exactly one perpetual license grant, got %d", grants)
+	}
+}
 
 func TestSyncCheckoutSessionOnlyOneRetrieveInFlight(t *testing.T) {
 	// Hold the first retrieval open while a second sync targets the same
