@@ -493,6 +493,57 @@ func (log *observedPaymentEventLog) GetEventIterator(ctx context.Context, input 
 	return iterator
 }
 
+func TestSyncCheckoutSessionRejectsAccountMismatch(t *testing.T) {
+	ctx := context.Background()
+	log := eventlog.NewFileEventLog(&eventlog.NewFileEventLogInput{FolderPath: t.TempDir()})
+	for _, accountID := range []string{"checkout-owner", "other-account"} {
+		data, err := json.Marshal(events.AccountCreatedV2Detail{AccountID: accountID})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := log.Append(ctx, eventlog.AppendInput{Type: events.TypeAccountCreatedV2, Data: data}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	data, err := json.Marshal(events.StripeCheckoutSessionStartedDetail{
+		SessionID: "cs_test_1", CheckoutURL: "https://checkout.stripe.com/test-session",
+		SessionExpiresAt: time.Now().Add(time.Hour).Unix(),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	started, err := log.Append(ctx, eventlog.AppendInput{
+		Type: events.TypeStripeCheckoutSessionStarted, AccountID: "checkout-owner", Data: data,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	handler := NewCommandHandler(NewCommandHandlerInput{
+		EventLog: log,
+		CheckoutSessionRepository: &checkoutSessionRepositoryStub{
+			retrieve: func(_ context.Context, id string) (*stripe.CheckoutSession, error) {
+				return &stripe.CheckoutSession{
+					ID: id, ClientReferenceID: "other-account",
+					Status: stripe.CheckoutSessionStatusComplete, PaymentStatus: stripe.CheckoutSessionPaymentStatusPaid,
+				}, nil
+			},
+		},
+	})
+	// The durable started event binds this session to checkout-owner. A
+	// conflicting result must not let it upgrade the other eligible account.
+	if err := handler.SyncCheckoutSession(ctx, SyncCheckoutSessionInput{CheckoutSessionID: "cs_test_1"}); err == nil {
+		t.Error("expected an error for a checkout/account ownership mismatch, got nil")
+	}
+	iterator := log.GetEventIterator(ctx, eventlog.GetEventIteratorInput{FromCursor: started.LogicalClock})
+	for iterator.Next(ctx) {
+		event := iterator.Event()
+		t.Errorf("mismatched checkout must not change entitlement; got event %s for account %s", event.Type, event.AccountID)
+	}
+	if err := iterator.Err(); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestRecordCheckoutSessionEventReturnsFulfillmentError(t *testing.T) {
 	ctx := context.Background()
 	log := eventlog.NewFileEventLog(&eventlog.NewFileEventLogInput{FolderPath: t.TempDir()})

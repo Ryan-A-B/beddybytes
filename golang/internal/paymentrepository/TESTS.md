@@ -56,18 +56,19 @@ under Creating checkout instead.
 - [ ] Invalid webhook signature or malformed payload changes nothing.
 - [ ] Unrelated webhook types are ignored.
 - [x] Fulfillment errors propagate to the HTTP caller so Stripe can retry. (`TestRecordCheckoutSessionEventReturnsFulfillmentError`)
-- [ ] Missing or mismatched session/account references cannot change another account's license.
+- [ ] FAILING: A session whose account reference conflicts with its persisted owner cannot change entitlement. (`TestSyncCheckoutSessionRejectsAccountMismatch`)
+- [ ] Missing account references, mismatched session IDs and webhook ownership mismatches cannot change entitlement.
 - [ ] Persistence failure leaves a retryable operation; replay and retry converge on the correct state.
 
 ## Current status
 
-16 October 2026: tested webhook fulfillment error propagation next, independently
-of the unresolved pending/provisional policy. A completed, paid session is
-supplied by the fake repository; the event log rejects its license grant append.
-`TestRecordCheckoutSessionEventReturnsFulfillmentError` fails because
-`RecordCheckoutSessionEvent` discards the error from `fulfillCheckout` and
-returns nil. This could cause the HTTP layer to acknowledge a payment whose
-license grant was not persisted, preventing Stripe's normal delivery retry.
+16 October 2026: fixed webhook fulfillment error propagation; all eight tests
+then passed. Added the same-account concurrent-create test: it passes, proving
+one Create call, one started event and identical results for both callers.
 
-Stopped at this failure. No implementation changes or further test cases run.
-The seven previously passing tests remain listed above.
+The next test, `TestSyncCheckoutSessionRejectsAccountMismatch`, seeds a session
+owned by one eligible account and retrieves a paid result referencing a different
+eligible account. Sync returns nil and appends a perpetual grant for the other
+account. It trusts ClientReferenceID without comparing against the persisted
+session ownership. Stopped at this failure without changing that implementation
+or running further cases. Nine tests were passing before adding this failure.
