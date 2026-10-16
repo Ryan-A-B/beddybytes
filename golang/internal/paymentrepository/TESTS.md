@@ -9,7 +9,7 @@ checkout session repository; do not call Stripe.
 ## Account and license replay
 
 - [x] V1 account starts perpetual; v2 account starts trial. (`TestAccountCreationReplaySetsInitialLicense`)
-- [ ] Unknown account cannot start checkout.
+- [ ] FAILING: Unknown account cannot start checkout. (`TestStartCheckoutSessionRejectsUnknownAccount`)
 - [ ] Perpetual account cannot start another purchase.
 - [ ] License grants and revocations rebuild the correct state after restart.
 - [x] Paid sync for an existing trial account appends a perpetual-license grant. (`TestSyncCheckoutSessionPaidSessionGrantsPerpetualLicense`)
@@ -60,8 +60,11 @@ under Creating checkout instead.
 
 ## Current status
 
-16 October 2026: fixed the duplicate-grant case by applying
-`TypePerpetualLicenseGranted` during catch-up. Replay now stores a perpetual
-license with the grant event's timestamp and clears any provisional license
-metadata. All three existing payment repository tests pass. No additional
-checklist cases have been implemented or run yet.
+16 October 2026: added account-creation replay coverage. V1 replay was missing;
+implemented it and verified all four tests then passed (including v1/v2 subtests).
+
+The next test, `TestStartCheckoutSessionRejectsUnknownAccount`, fails: starting
+checkout with an unknown account calls Create, persists a started event, and
+returns a Checkout URL with no error. Preflight catches up but does not validate
+account existence. This is command validation, not missing event replay, so
+stopped without fixing it. No further checklist cases run.

@@ -3,6 +3,7 @@ package paymentrepository
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"sync"
 	"sync/atomic"
@@ -54,6 +55,42 @@ func TestAccountCreationReplaySetsInitialLicense(t *testing.T) {
 				t.Fatal("initial license should not have provisional metadata")
 			}
 		})
+	}
+}
+
+func TestStartCheckoutSessionRejectsUnknownAccount(t *testing.T) {
+	ctx := context.Background()
+	log := eventlog.NewFileEventLog(&eventlog.NewFileEventLogInput{FolderPath: t.TempDir()})
+	var creates int
+	repository := &checkoutSessionRepositoryStub{
+		create: func(_ context.Context, accountID string) (*stripe.CheckoutSession, error) {
+			creates++
+			return &stripe.CheckoutSession{
+				ID: "cs_test_unknown", ClientReferenceID: accountID,
+				URL:       "https://checkout.stripe.com/test-session",
+				ExpiresAt: time.Now().Add(time.Hour).Unix(),
+			}, nil
+		},
+	}
+	handler := NewCommandHandler(NewCommandHandlerInput{
+		EventLog: log, CheckoutSessionRepository: repository,
+	})
+	output, err := handler.StartCheckoutSession(ctx, StartCheckoutSessionInput{AccountID: "unknown-account"})
+	if !errors.Is(err, ErrAccountNotFound) {
+		t.Errorf("expected ErrAccountNotFound, got %v (output=%+v)", err, output)
+	}
+	if output != nil {
+		t.Errorf("unknown account received a checkout session: %+v", output)
+	}
+	if creates != 0 {
+		t.Errorf("unknown account must be rejected before Create; got %d create calls", creates)
+	}
+	iterator := log.GetEventIterator(ctx, eventlog.GetEventIteratorInput{})
+	for iterator.Next(ctx) {
+		t.Errorf("unknown account emitted event %s", iterator.Event().Type)
+	}
+	if err := iterator.Err(); err != nil {
+		t.Fatal(err)
 	}
 }
 
@@ -261,10 +298,14 @@ func TestSyncCheckoutSessionRepeatedPaidResultGrantsLicenseOnce(t *testing.T) {
 }
 
 type checkoutSessionRepositoryStub struct {
+	create   func(context.Context, string) (*stripe.CheckoutSession, error)
 	retrieve func(context.Context, string) (*stripe.CheckoutSession, error)
 }
 
-func (*checkoutSessionRepositoryStub) Create(context.Context, string) (*stripe.CheckoutSession, error) {
+func (stub *checkoutSessionRepositoryStub) Create(ctx context.Context, accountID string) (*stripe.CheckoutSession, error) {
+	if stub.create != nil {
+		return stub.create(ctx, accountID)
+	}
 	return nil, fmt.Errorf("unexpected Create call")
 }
 
