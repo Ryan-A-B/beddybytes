@@ -130,6 +130,55 @@ func TestStartCheckoutSessionRejectsV1Account(t *testing.T) {
 	}
 }
 
+func TestStartCheckoutSessionRejectsPerpetualAccount(t *testing.T) {
+	ctx := context.Background()
+	log := eventlog.NewFileEventLog(&eventlog.NewFileEventLogInput{FolderPath: t.TempDir()})
+	data, err := json.Marshal(events.AccountCreatedV2Detail{AccountID: "account-1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := log.Append(ctx, eventlog.AppendInput{Type: events.TypeAccountCreatedV2, Data: data}); err != nil {
+		t.Fatal(err)
+	}
+	grant, err := log.Append(ctx, eventlog.AppendInput{
+		Type: events.TypePerpetualLicenseGranted, AccountID: "account-1",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var creates int
+	handler := NewCommandHandler(NewCommandHandlerInput{
+		EventLog: log,
+		CheckoutSessionRepository: &checkoutSessionRepositoryStub{
+			create: func(_ context.Context, accountID string) (*stripe.CheckoutSession, error) {
+				creates++
+				return &stripe.CheckoutSession{
+					ID: "cs_test_repeat_purchase", ClientReferenceID: accountID,
+					URL:       "https://checkout.stripe.com/test-session",
+					ExpiresAt: time.Now().Add(time.Hour).Unix(),
+				}, nil
+			},
+		},
+	})
+	output, err := handler.StartCheckoutSession(ctx, StartCheckoutSessionInput{AccountID: "account-1"})
+	if err == nil {
+		t.Errorf("expected an error preventing a second purchase, got nil (output=%+v)", output)
+	}
+	if output != nil {
+		t.Errorf("perpetual account received a checkout session: %+v", output)
+	}
+	if creates != 0 {
+		t.Errorf("perpetual account must be rejected before Create; got %d create calls", creates)
+	}
+	iterator := log.GetEventIterator(ctx, eventlog.GetEventIteratorInput{FromCursor: grant.LogicalClock})
+	for iterator.Next(ctx) {
+		t.Errorf("perpetual account emitted payment event %s", iterator.Event().Type)
+	}
+	if err := iterator.Err(); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestSyncCheckoutSessionPaidSessionGrantsPerpetualLicense(t *testing.T) {
 	ctx := context.Background()
 	log := eventlog.NewFileEventLog(&eventlog.NewFileEventLogInput{FolderPath: t.TempDir()})

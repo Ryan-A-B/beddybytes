@@ -11,7 +11,7 @@ checkout session repository; do not call Stripe.
 - [x] V2 account starts trial. (`TestV2AccountCreationReplaySetsTrialLicense`)
 - [x] V1 accounts are not projected or allowed to create checkout. (`TestStartCheckoutSessionRejectsV1Account`)
 - [x] Unknown account cannot start checkout. (`TestStartCheckoutSessionRejectsUnknownAccount`)
-- [ ] Perpetual account cannot start another purchase.
+- [ ] FAILING: Perpetual account cannot start another purchase. (`TestStartCheckoutSessionRejectsPerpetualAccount`)
 - [ ] License grants and revocations rebuild the correct state after restart.
 - [x] Paid sync for an existing trial account appends a perpetual-license grant. (`TestSyncCheckoutSessionPaidSessionGrantsPerpetualLicense`)
 
@@ -61,12 +61,12 @@ under Creating checkout instead.
 
 ## Current status
 
-16 October 2026: preflight now checks account existence after catch-up and before
-returning an existing checkout or starting a create. Unknown accounts return
-`ErrAccountNotFound` without calling the checkout repository or appending events.
+16 October 2026: the next test seeds v2 account creation followed by a perpetual
+license grant, constructs a fresh handler, and attempts to start checkout.
+`TestStartCheckoutSessionRejectsPerpetualAccount` fails: it creates a new session,
+appends a started event and returns its URL with no error. Preflight checks
+existence but does not reject the perpetual license. Grant replay is already
+implemented; this is command validation, not missing event handling.
 
-V1 projection was removed from the payment repository: those accounts already
-have perpetual access and are outside its scope. V1 creation events are ignored,
-so v1 accounts are also rejected before checkout. Other account handling retains
-its v1 support. All six current payment repository tests pass. No further
-checklist cases have been attempted.
+Stopped at this failure without changing implementation or running further cases.
+The six previously passing tests remain listed above.
