@@ -285,7 +285,34 @@ func (handler *CommandHandler) syncCheckoutSessionPreflight(ctx context.Context,
 	return
 }
 
+func validateSession(session *stripe.CheckoutSession) error {
+	if session == nil {
+		return errors.New("checkout session is required")
+	}
+	switch session.Status {
+	case stripe.CheckoutSessionStatusOpen, stripe.CheckoutSessionStatusExpired:
+		return nil
+	case stripe.CheckoutSessionStatusComplete:
+	default:
+		return ErrUnexpectedCheckoutSessionStatus
+	}
+	switch session.PaymentStatus {
+	case stripe.CheckoutSessionPaymentStatusPaid:
+		return nil
+	case stripe.CheckoutSessionPaymentStatusUnpaid:
+		if session.PaymentIntent == nil || session.PaymentIntent.Status == "" {
+			return ErrPaymentIntentNotExpanded
+		}
+		return nil
+	default:
+		return ErrUnexpectedCheckoutSessionPaymentStatus
+	}
+}
+
 func (handler *CommandHandler) fulfillCheckout(ctx context.Context, session *stripe.CheckoutSession) error {
+	if err := validateSession(session); err != nil {
+		return err
+	}
 	accountID := session.ClientReferenceID
 	if session.Status == stripe.CheckoutSessionStatusOpen {
 		return nil
@@ -293,23 +320,13 @@ func (handler *CommandHandler) fulfillCheckout(ctx context.Context, session *str
 	if session.Status == stripe.CheckoutSessionStatusExpired {
 		return handler.revokeProvisionalLicense(ctx, accountID)
 	}
-	if session.Status != stripe.CheckoutSessionStatusComplete {
-		return ErrUnexpectedCheckoutSessionStatus
-	}
-	switch session.PaymentStatus {
-	case stripe.CheckoutSessionPaymentStatusPaid:
+	if session.PaymentStatus == stripe.CheckoutSessionPaymentStatusPaid {
 		return handler.grantPerpetualLicense(ctx, accountID)
-	case stripe.CheckoutSessionPaymentStatusUnpaid:
-		if session.PaymentIntent == nil || session.PaymentIntent.Status == "" {
-			return ErrPaymentIntentNotExpanded
-		}
-		if session.PaymentIntent.Status == stripe.PaymentIntentStatusProcessing {
-			return handler.grantProvisionalLicense(ctx, accountID)
-		}
-		return handler.revokeProvisionalLicense(ctx, accountID)
-	default:
-		return ErrUnexpectedCheckoutSessionPaymentStatus
 	}
+	if session.PaymentIntent.Status == stripe.PaymentIntentStatusProcessing {
+		return handler.grantProvisionalLicense(ctx, accountID)
+	}
+	return handler.revokeProvisionalLicense(ctx, accountID)
 }
 
 func (handler *CommandHandler) grantPerpetualLicense(ctx context.Context, accountID string) (err error) {

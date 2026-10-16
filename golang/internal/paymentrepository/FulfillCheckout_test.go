@@ -105,6 +105,30 @@ func TestFulfillCheckoutPaymentIntentStates(t *testing.T) {
 	}
 }
 
+func TestFulfillCheckoutRejectsInvalidSessionWithoutEvents(t *testing.T) {
+	for _, test := range []struct {
+		name    string
+		session *stripe.CheckoutSession
+		wantErr error
+	}{
+		{name: "nil session"},
+		{name: "unknown session status", session: &stripe.CheckoutSession{Status: "unknown"}, wantErr: ErrUnexpectedCheckoutSessionStatus},
+		{name: "unknown payment status", session: &stripe.CheckoutSession{Status: stripe.CheckoutSessionStatusComplete, PaymentStatus: "unknown"}, wantErr: ErrUnexpectedCheckoutSessionPaymentStatus},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			log := &emptyPaymentEventLog{}
+			handler := NewCommandHandler(NewCommandHandlerInput{EventLog: log})
+			err := handler.fulfillCheckout(context.Background(), test.session)
+			if err == nil || (test.wantErr != nil && !errors.Is(err, test.wantErr)) {
+				t.Fatalf("validation error=%v, want non-nil matching %v", err, test.wantErr)
+			}
+			if got := log.appends.Load(); got != 0 {
+				t.Errorf("invalid session attempted %d event appends", got)
+			}
+		})
+	}
+}
+
 func TestWebhookReconcilesCurrentStateInsteadOfFailureSnapshot(t *testing.T) {
 	ctx := context.Background()
 	log := newRestartTestLog(t)

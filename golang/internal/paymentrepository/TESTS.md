@@ -40,7 +40,7 @@ checkout session repository; do not call Stripe.
 - [x] Stripe Retrieve requests payment_intent expansion. (`internal/checkoutsessions/Stripe_test.go`: `TestRetrieveExpandsPaymentIntent`)
 - [x] Repeated sync of a paid session grants perpetual access only once. (`TestSyncCheckoutSessionRepeatedPaidResultGrantsLicenseOnce`)
 - [ ] An expired session revokes provisional access while preserving original trial dates.
-- [ ] Unexpected statuses return an error without changing entitlement.
+- [x] Nil sessions and unexpected session/payment statuses return an error without appending license events. (`TestFulfillCheckoutRejectsInvalidSessionWithoutEvents`)
 
 ## Restart recovery
 
@@ -84,17 +84,13 @@ under Creating checkout instead.
 
 ## Current status
 
-16 October 2026: agreed and implemented the completed-session policy: paid grants
-perpetual; unpaid grants/retains provisional only while the expanded PaymentIntent
-is processing, otherwise revokes provisional and restores the original trial.
-Missing/unexpanded intent returns an error without changing entitlement.
+16 October 2026: extracted `validateSession` and call it first in
+`fulfillCheckout`. It checks nil input, supported session/payment statuses and
+expanded PaymentIntent availability for completed/unpaid sessions. Fulfillment
+now contains the license transitions, with validation errors returned before
+any transition is attempted. Existing open/expired behavior is preserved.
 
-Stripe Retrieve expands payment_intent. Verified webhooks extract the session ID
-and call the same sync/retrieve/fulfill path as polling. The failure regression
-now polls a failed PaymentIntent without any webhook; a separate test confirms
-an older failure snapshot cannot override current processing state. Stripe
-adapter tests check outgoing expansion with an in-memory HTTP transport.
-
-All future and payment tests pass with -race. No further unchecked checklist
-cases attempted during this implementation. The human's uncommitted JSON
-unmarshal error-style edit remains unchanged and unstaged.
+All future and payment tests pass with -race, including invalid-session checks
+and the existing PaymentIntent-state scenarios. No further unchecked checklist
+cases attempted during this refactor. The human's uncommitted JSON unmarshal
+error-style edit remains unchanged and unstaged.
