@@ -31,7 +31,7 @@ type CommandHandler struct {
 	cursor                    int64
 	checkoutSessionRepository checkoutsessions.Repository
 
-	licenseForAccount           map[string]*models.License
+	eligibleAccounts            map[string]*models.License
 	sessionInfoByID             map[string]*CheckoutSessionInfo
 	sessionInfoByAccount        map[string]*CheckoutSessionInfo
 	sessionInfoFutureForAccount map[string]*future.Future[*CheckoutSessionInfo]
@@ -59,7 +59,7 @@ func NewCommandHandler(input NewCommandHandlerInput) *CommandHandler {
 		eventLog:                  input.EventLog,
 		checkoutSessionRepository: input.CheckoutSessionRepository,
 
-		licenseForAccount:           make(map[string]*models.License),
+		eligibleAccounts:            make(map[string]*models.License),
 		sessionInfoByID:             make(map[string]*CheckoutSessionInfo),
 		sessionInfoByAccount:        make(map[string]*CheckoutSessionInfo),
 		sessionInfoFutureForAccount: make(map[string]*future.Future[*CheckoutSessionInfo]),
@@ -168,7 +168,7 @@ func (handler *CommandHandler) preflight(ctx context.Context, input StartCheckou
 	if err != nil {
 		return
 	}
-	if _, exists := handler.licenseForAccount[input.AccountID]; !exists {
+	if _, exists := handler.eligibleAccounts[input.AccountID]; !exists {
 		return output, ErrAccountNotFound
 	}
 
@@ -301,12 +301,9 @@ func (handler *CommandHandler) grantPerpetualLicense(ctx context.Context, accoun
 	if err != nil {
 		return
 	}
-	license, exists := handler.licenseForAccount[accountID]
-	if !exists {
-		err = ErrAccountNotFound
-		return
-	}
-	if license.Type == models.LicenseTypePerpetual {
+	if _, eligible := handler.eligibleAccounts[accountID]; !eligible {
+		// A replayed perpetual grant removes eligibility. Repeated payment
+		// confirmations must not grant again or fail after that removal.
 		return
 	}
 	_, err = handler.eventLog.Append(ctx, eventlog.AppendInput{
@@ -324,9 +321,8 @@ func (handler *CommandHandler) grantProvisionalLicense(ctx context.Context, acco
 	if err != nil {
 		return
 	}
-	license, exists := handler.licenseForAccount[accountID]
+	license, exists := handler.eligibleAccounts[accountID]
 	if !exists {
-		err = ErrAccountNotFound
 		return
 	}
 	if license.Type != models.LicenseTypeTrial {
@@ -347,9 +343,8 @@ func (handler *CommandHandler) revokeProvisionalLicense(ctx context.Context, acc
 	if err != nil {
 		return
 	}
-	license, exists := handler.licenseForAccount[accountID]
+	license, exists := handler.eligibleAccounts[accountID]
 	if !exists {
-		err = ErrAccountNotFound
 		return
 	}
 	if license.Type != models.LicenseTypeProvisional {
@@ -387,17 +382,14 @@ func (handler *CommandHandler) applyAccountCreatedV2(ctx context.Context, event 
 	var detail events.AccountCreatedV2Detail
 	err := json.Unmarshal(event.Data, &detail)
 	fatal.OnError(err)
-	handler.licenseForAccount[detail.AccountID] = &models.License{
+	handler.eligibleAccounts[detail.AccountID] = &models.License{
 		Type:             models.LicenseTypeTrial,
 		StartUnixSeconds: event.UnixTimestamp,
 	}
 }
 
 func (handler *CommandHandler) applyPerpetualLicenseGranted(ctx context.Context, event *eventlog.Event) {
-	handler.licenseForAccount[event.AccountID] = &models.License{
-		Type:             models.LicenseTypePerpetual,
-		StartUnixSeconds: event.UnixTimestamp,
-	}
+	delete(handler.eligibleAccounts, event.AccountID)
 }
 
 func (handler *CommandHandler) applyStripeCheckoutSessionStarted(ctx context.Context, event *eventlog.Event) {

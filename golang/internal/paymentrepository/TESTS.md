@@ -11,7 +11,7 @@ checkout session repository; do not call Stripe.
 - [x] V2 account starts trial. (`TestV2AccountCreationReplaySetsTrialLicense`)
 - [x] V1 accounts are not projected or allowed to create checkout. (`TestStartCheckoutSessionRejectsV1Account`)
 - [x] Unknown account cannot start checkout. (`TestStartCheckoutSessionRejectsUnknownAccount`)
-- [ ] FAILING: Perpetual account cannot start another purchase. (`TestStartCheckoutSessionRejectsPerpetualAccount`)
+- [x] Perpetual account cannot start another purchase. (`TestStartCheckoutSessionRejectsPerpetualAccount`)
 - [ ] License grants and revocations rebuild the correct state after restart.
 - [x] Paid sync for an existing trial account appends a perpetual-license grant. (`TestSyncCheckoutSessionPaidSessionGrantsPerpetualLicense`)
 
@@ -61,12 +61,13 @@ under Creating checkout instead.
 
 ## Current status
 
-16 October 2026: the next test seeds v2 account creation followed by a perpetual
-license grant, constructs a fresh handler, and attempts to start checkout.
-`TestStartCheckoutSessionRejectsPerpetualAccount` fails: it creates a new session,
-appends a started event and returns its URL with no error. Preflight checks
-existence but does not reject the perpetual license. Grant replay is already
-implemented; this is command validation, not missing event handling.
+16 October 2026: renamed the payment account projection to `eligibleAccounts`.
+V2 creation adds an eligible trial account; perpetual-license grant replay
+removes the account. V1 accounts remain outside this projection. Checkout
+preflight rejects absent accounts before creating or reusing a session.
 
-Stopped at this failure without changing implementation or running further cases.
-The six previously passing tests remain listed above.
+License commands treat absent accounts as a no-op, so duplicate paid results and
+late payment notifications cannot grant again or fail solely because perpetual
+grant replay removed eligibility. The repeated paid-sync regression test passes.
+All seven existing payment repository tests pass. No further checklist cases
+have been attempted.

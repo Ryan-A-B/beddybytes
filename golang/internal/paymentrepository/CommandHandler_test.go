@@ -43,9 +43,9 @@ func TestV2AccountCreationReplaySetsTrialLicense(t *testing.T) {
 			if err := handler.catchup(ctx); err != nil {
 				t.Fatal(err)
 			}
-			license := handler.licenseForAccount["account-1"]
+			license := handler.eligibleAccounts["account-1"]
 			if license == nil {
-				t.Fatal("account creation was not projected into licenseForAccount")
+				t.Fatal("account creation was not projected into eligibleAccounts")
 			}
 			if license.Type != test.licenseType || license.StartUnixSeconds != created.UnixTimestamp {
 				t.Fatalf("license = %+v, want type %s starting at %d", license, test.licenseType, created.UnixTimestamp)
@@ -118,7 +118,7 @@ func TestStartCheckoutSessionRejectsV1Account(t *testing.T) {
 	if !errors.Is(err, ErrAccountNotFound) || output != nil || creates != 0 {
 		t.Fatalf("v1 checkout: output=%+v error=%v creates=%d; want ErrAccountNotFound without Create", output, err, creates)
 	}
-	if _, exists := handler.licenseForAccount["legacy-account"]; exists {
+	if _, exists := handler.eligibleAccounts["legacy-account"]; exists {
 		t.Error("payment repository should not project v1 accounts")
 	}
 	iterator := log.GetEventIterator(ctx, eventlog.GetEventIteratorInput{FromCursor: created.LogicalClock})
@@ -161,6 +161,9 @@ func TestStartCheckoutSessionRejectsPerpetualAccount(t *testing.T) {
 		},
 	})
 	output, err := handler.StartCheckoutSession(ctx, StartCheckoutSessionInput{AccountID: "account-1"})
+	if _, eligible := handler.eligibleAccounts["account-1"]; eligible {
+		t.Error("perpetual grant should remove the account from eligibleAccounts")
+	}
 	if err == nil {
 		t.Errorf("expected an error preventing a second purchase, got nil (output=%+v)", output)
 	}
