@@ -17,7 +17,8 @@ checkout session repository; do not call Stripe.
 
 ## Creating checkout
 
-- [x] Stripe client_reference_id and the started event use the requested account ID and identify the returned session. (`TestStartCheckoutSessionUsesSameAccountForStripeAndEvent`)
+- [x] Create receives the requested account ID; the started event uses that account and identifies the returned session. (`TestStartCheckoutSessionUsesSameAccountForCreateAndEvent`, using the fake repository)
+- [x] Stripe Create sends client_reference_id equal to its account ID argument. (`internal/checkoutsessions/Stripe_test.go`: `TestCreateSetsClientReferenceIDToAccountID`, using an in-memory HTTP transport)
 
 - [x] Concurrent starts for the same account share one create call and return the same session. (`TestStartCheckoutSessionConcurrentRequestsShareCreate`)
 - [ ] Different accounts can create concurrently.
@@ -62,15 +63,12 @@ under Creating checkout instead.
 
 ## Current status
 
-16 October 2026: removed the artificial sync ownership-mismatch test. Stripe
-client_reference_id and the started event originate from the same command input;
-an inconsistent reference would be a creation defect. No defensive sync check
-is required or added.
+16 October 2026: split account-agreement coverage along the repository boundary.
+The command handler test uses the fake checkout repository to verify the account
+passed to Create matches the started event and returned session. The Stripe
+adapter test lives beside `Stripe.go` and verifies outgoing client_reference_id
+with an in-memory HTTP transport. No live Stripe or network requests occur.
 
-The replacement test runs the real Stripe Create adapter and SDK with an
-in-memory HTTP transport, verifies the outgoing client_reference_id equals the
-requested account ID, and checks the persisted started event has the same account
-and returned session. No network or Stripe service is called.
-
-All ten payment command handler tests pass, including the replacement test.
-No further checklist cases attempted during this change.
+All ten command handler tests and the Stripe adapter test pass. No production
+code changed and no defensive sync check was added. No further checklist cases
+attempted during this change.
