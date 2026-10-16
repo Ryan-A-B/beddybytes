@@ -143,8 +143,8 @@ func TestWebhookReconcilesCurrentStateInsteadOfFailureSnapshot(t *testing.T) {
 	handler := NewCommandHandler(NewCommandHandlerInput{
 		EventLog: log,
 		CheckoutSessionRepository: &checkoutSessionRepositoryStub{
-			constructEvent: func([]byte, string) (*stripe.Event, error) {
-				return &stripe.Event{
+			constructEvent: func([]byte, string) (stripe.Event, error) {
+				return stripe.Event{
 					Type: stripe.EventTypeCheckoutSessionAsyncPaymentFailed,
 					Data: &stripe.EventData{Raw: json.RawMessage(`{"id":"cs_test_1","client_reference_id":"account-1","status":"complete","payment_status":"unpaid","payment_intent":{"id":"pi_test_1","status":"requires_payment_method"}}`)},
 				}, nil

@@ -707,10 +707,10 @@ func TestRecordCheckoutSessionEventRejectsNullCheckoutPayload(t *testing.T) {
 	handler := NewCommandHandler(NewCommandHandlerInput{
 		EventLog: log,
 		CheckoutSessionRepository: &checkoutSessionRepositoryStub{
-			constructEvent: func([]byte, string) (*stripe.Event, error) {
+			constructEvent: func([]byte, string) (stripe.Event, error) {
 				// JSON null is syntactically valid, but is not a Checkout
 				// Session. Signature verification does not validate this shape.
-				return &stripe.Event{
+				return stripe.Event{
 					Type: stripe.EventTypeCheckoutSessionCompleted,
 					Data: &stripe.EventData{Raw: json.RawMessage("null")},
 				}, nil
@@ -764,8 +764,8 @@ func TestRecordCheckoutSessionEventReturnsFulfillmentError(t *testing.T) {
 					Status: stripe.CheckoutSessionStatusComplete, PaymentStatus: stripe.CheckoutSessionPaymentStatusPaid,
 				}, nil
 			},
-			constructEvent: func([]byte, string) (*stripe.Event, error) {
-				return &stripe.Event{
+			constructEvent: func([]byte, string) (stripe.Event, error) {
+				return stripe.Event{
 					Type: stripe.EventTypeCheckoutSessionCompleted,
 					Data: &stripe.EventData{Raw: data},
 				}, nil
@@ -799,7 +799,7 @@ func (log *appendFailingPaymentEventLog) Append(context.Context, eventlog.Append
 type checkoutSessionRepositoryStub struct {
 	create         func(context.Context, string) (*stripe.CheckoutSession, error)
 	retrieve       func(context.Context, string) (*stripe.CheckoutSession, error)
-	constructEvent func([]byte, string) (*stripe.Event, error)
+	constructEvent func([]byte, string) (stripe.Event, error)
 }
 
 func (stub *checkoutSessionRepositoryStub) Create(ctx context.Context, accountID string) (*stripe.CheckoutSession, error) {
@@ -813,11 +813,11 @@ func (stub *checkoutSessionRepositoryStub) Retrieve(ctx context.Context, id stri
 	return stub.retrieve(ctx, id)
 }
 
-func (stub *checkoutSessionRepositoryStub) ConstructEvent(payload []byte, signature string) (*stripe.Event, error) {
+func (stub *checkoutSessionRepositoryStub) ConstructEvent(payload []byte, signature string) (stripe.Event, error) {
 	if stub.constructEvent != nil {
 		return stub.constructEvent(payload, signature)
 	}
-	return nil, fmt.Errorf("unexpected ConstructEvent call")
+	return stripe.Event{}, fmt.Errorf("unexpected ConstructEvent call")
 }
 
 type emptyPaymentEventLog struct{ appends atomic.Int32 }

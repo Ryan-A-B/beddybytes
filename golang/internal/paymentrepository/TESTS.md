@@ -79,7 +79,7 @@ under Creating checkout instead.
 
 ## Errors and identity
 
-- [ ] FAILING (compile-time): The concrete StripeRepository satisfies the Repository interface accepted by the command handler. (`internal/checkoutsessions/Stripe_test.go`, interface assertion)
+- [x] The concrete StripeRepository satisfies the Repository interface accepted by the command handler. (`internal/checkoutsessions/Stripe_test.go`, interface assertion)
 
 - [ ] Invalid webhook signature or malformed JSON changes nothing.
 - [x] A verified webhook whose Checkout Session data is JSON null returns an error without panicking or appending events. (`TestRecordCheckoutSessionEventRejectsNullCheckoutPayload`)
@@ -89,16 +89,10 @@ under Creating checkout instead.
 
 ## Current status
 
-16 October 2026: the shared Create failure/retry test passes. Both callers receive
-the original creation error; a subsequent call creates and persists a new session.
+16 October 2026: corrected Repository.ConstructEvent to return stripe.Event by
+value, matching the Stripe SDK and concrete adapter. Updated the test fake and
+webhook fixtures to match. The compile-time adapter assertion now passes.
 
-A compile-time interface assertion exposed the next issue: StripeRepository
-cannot be passed as Repository. Its ConstructEvent method returns
-(stripe.Event, error), while the interface requires (*stripe.Event, error).
-The adapter tests previously called its methods directly and missed this
-integration mismatch. The new assertion intentionally leaves the adapter test
-package failing to build until the signatures agree.
-
-Stopped at this failure without implementation changes or further test cases.
-The overlapping-payment limitation remains accepted/skipped. The human's
-uncommitted command handler edit remains unchanged.
+All future and payment tests pass with -race, with the accepted overlapping
+payment reproducer still skipped. No further checklist cases attempted during
+this fix. The human's uncommitted command handler edit remains unchanged.
