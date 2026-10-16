@@ -226,9 +226,7 @@ func (handler *CommandHandler) RecordCheckoutSessionEvent(ctx context.Context, i
 	if session == nil {
 		return errors.New("checkout session payload must not be null")
 	}
-	// Reconcile current state so webhooks and polling follow the same path,
-	// including when a webhook contains an older snapshot of the session.
-	return handler.SyncCheckoutSession(ctx, SyncCheckoutSessionInput{CheckoutSessionID: session.ID})
+	return handler.fulfillCheckout(ctx, session)
 }
 
 var checkoutSessionEventTypes = []stripe.EventType{

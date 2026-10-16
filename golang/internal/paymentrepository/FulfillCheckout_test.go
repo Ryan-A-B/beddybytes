@@ -136,7 +136,7 @@ func TestFulfillCheckoutRejectsInvalidSessionWithoutEvents(t *testing.T) {
 	}
 }
 
-func TestWebhookReconcilesCurrentStateInsteadOfFailureSnapshot(t *testing.T) {
+func TestWebhookFulfillsDeliveredSessionWithoutRetrieve(t *testing.T) {
 	ctx := context.Background()
 	log := newRestartTestLog(t)
 	var retrieves int
@@ -145,8 +145,8 @@ func TestWebhookReconcilesCurrentStateInsteadOfFailureSnapshot(t *testing.T) {
 		CheckoutSessionRepository: &checkoutSessionRepositoryStub{
 			constructEvent: func([]byte, string) (stripe.Event, error) {
 				return stripe.Event{
-					Type: stripe.EventTypeCheckoutSessionAsyncPaymentFailed,
-					Data: &stripe.EventData{Raw: json.RawMessage(`{"id":"cs_test_1","client_reference_id":"account-1","status":"complete","payment_status":"unpaid","payment_intent":{"id":"pi_test_1","status":"requires_payment_method"}}`)},
+					Type: stripe.EventTypeCheckoutSessionCompleted,
+					Data: &stripe.EventData{Raw: json.RawMessage(`{"id":"cs_test_1","client_reference_id":"account-1","status":"complete","payment_status":"unpaid","payment_intent":{"id":"pi_test_1","status":"processing"}}`)},
 				}, nil
 			},
 			retrieve: func(_ context.Context, id string) (*stripe.CheckoutSession, error) {
@@ -156,8 +156,7 @@ func TestWebhookReconcilesCurrentStateInsteadOfFailureSnapshot(t *testing.T) {
 				}
 				return &stripe.CheckoutSession{
 					ID: id, ClientReferenceID: "account-1", Status: stripe.CheckoutSessionStatusComplete,
-					PaymentStatus: stripe.CheckoutSessionPaymentStatusUnpaid,
-					PaymentIntent: &stripe.PaymentIntent{ID: "pi_test_1", Status: stripe.PaymentIntentStatusProcessing},
+					PaymentStatus: stripe.CheckoutSessionPaymentStatusPaid,
 				}, nil
 			},
 		},
@@ -169,7 +168,7 @@ func TestWebhookReconcilesCurrentStateInsteadOfFailureSnapshot(t *testing.T) {
 		t.Fatal(err)
 	}
 	license := handler.eligibleAccounts["account-1"]
-	if retrieves != 1 || license == nil || license.Type != models.LicenseTypeProvisional {
-		t.Fatalf("expected provisional access from current processing state, not old failure; retrieves=%d license=%+v", retrieves, license)
+	if retrieves != 0 || license == nil || license.Type != models.LicenseTypeProvisional {
+		t.Fatalf("expected provisional access from delivered processing session without Retrieve; retrieves=%d license=%+v", retrieves, license)
 	}
 }

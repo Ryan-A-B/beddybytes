@@ -62,11 +62,11 @@ a durable lock or a guarantee against duplicate Stripe sessions after a crash.
 - [ ] ACCEPTED LIMITATION: Failure of an older payment may revoke provisional access while a newer checkout is processing. Manually resolve if it occurs. (`TestOlderFailedAttemptDoesNotRevokeNewerProcessingCheckout`, skipped; see [known limitation](KNOWN_LIMITATIONS.md#overlapping-processing-payments))
 
 - [x] Polling retrieves a failed PaymentIntent and revokes provisional access without receiving a failure webhook. (`TestSyncFailedPaymentIntentRevokesProvisionalLicense`)
-- [x] A webhook triggers retrieval and uses current PaymentIntent state rather than its older failure snapshot. (`TestWebhookReconcilesCurrentStateInsteadOfFailureSnapshot`)
+- [x] A verified webhook fulfills its delivered session directly without Retrieve or entering sync coordination. (`TestWebhookFulfillsDeliveredSessionWithoutRetrieve`)
 
 - [ ] Repeated delivery of the same webhook produces no duplicate license change.
 - [ ] Concurrent webhook and sync results produce one effective transition.
-- [ ] FAILING: Paid webhook arrives while sync holds an older unpaid result: account must become perpetual. (`TestPaidWebhookDuringOlderUnpaidSyncGrantsPerpetualLicense`)
+- [x] Paid webhook arrives while sync holds an older unpaid result: account becomes perpetual and the older result cannot downgrade it. (`TestPaidWebhookDuringOlderUnpaidSyncGrantsPerpetualLicense`)
 - [ ] Paid webhook arrives while sync holds an older expired result: account remains perpetual.
 - [ ] Sync confirms payment before an older unpaid or expired webhook arrives: account remains perpetual.
 - [ ] Account or license events appended during retrieval are caught up before applying its result.
@@ -89,17 +89,17 @@ under Creating checkout instead.
 
 ## Current status
 
-16 October 2026: added passing append-failure and persistence-boundary tests.
-Both pass with -race, along with the existing shared Create failure test whose
-setup is now shared with the append-failure test.
+16 October 2026: corrected RecordCheckoutSessionEvent to pass its verified,
+decoded Checkout Session directly to fulfillCheckout. It must not call across
+into SyncCheckoutSession. Sync retrieves a session; webhook handling consumes
+the delivered session. They share fulfillment, not in-flight sync coordination.
 
-Stopped at `TestPaidWebhookDuringOlderUnpaidSyncGrantsPerpetualLicense`.
-The initial Retrieve holds an older complete/unpaid/processing snapshot. A paid
-webhook arrives before it returns. Its sync preflight sees syncInProgress and
-returns success without retrieving current state or scheduling reconciliation.
-The initial sync then grants provisional access. Both calls return nil, but only
-one Retrieve occurred and no perpetual grant was persisted. This is one checkout
-session, separate from the accepted overlapping-payment limitation.
+Replaced the test that incorrectly required webhook retrieval with a test that
+asserts fulfillment uses the delivered session without Retrieve. The paid-webhook
+versus older processing-sync reproducer now passes: paid access is granted and
+cannot be downgraded by the processing result.
 
-The failing reproducer is retained; no implementation fix was made. The human's
-uncommitted command handler edit remains unchanged.
+All payment repository, checkout adapter and future tests pass with -race. The
+accepted overlapping-payment reproducer remains skipped. No further checklist
+cases attempted during this correction. The human's uncommitted handler edit
+remains unchanged.

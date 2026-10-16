@@ -33,12 +33,12 @@ func TestPaidWebhookDuringOlderUnpaidSyncGrantsPerpetualLicense(t *testing.T) {
 	}
 	oldRetrieveEntered := make(chan struct{})
 	releaseOldRetrieve := make(chan struct{})
-	webhookPreflight := make(chan struct{})
+	webhookFulfillment := make(chan struct{})
 	var retrieves, reads atomic.Int32
 	handler := NewCommandHandler(NewCommandHandlerInput{
 		EventLog: &observedPaymentEventLog{EventLog: log, onRead: func() {
 			if reads.Add(1) == 2 {
-				close(webhookPreflight)
+				close(webhookFulfillment)
 			}
 		}},
 		CheckoutSessionRepository: &checkoutSessionRepositoryStub{
@@ -82,12 +82,12 @@ func TestPaidWebhookDuringOlderUnpaidSyncGrantsPerpetualLicense(t *testing.T) {
 		results <- handler.RecordCheckoutSessionEvent(ctx, RecordCheckoutSessionEventInput{})
 	}()
 	select {
-	case <-webhookPreflight:
+	case <-webhookFulfillment:
 	case <-ctx.Done():
-		t.Fatal("paid webhook did not reach sync preflight")
+		t.Fatal("paid webhook did not reach fulfillment")
 	}
-	// Preflight holds the handler lock: the older retrieval cannot finish
-	// fulfillment until the paid webhook has observed the in-flight sync.
+	// Webhook fulfillment holds the handler lock: the older retrieval cannot
+	// apply its processing snapshot until the paid grant has been persisted.
 	close(releaseOldRetrieve)
 	for i := 0; i < 2; i++ {
 		select {
