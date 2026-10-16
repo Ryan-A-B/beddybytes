@@ -1,56 +1,54 @@
-# Payment HTTP sketch
+# Payment HTTP handlers
 
-`Handlers.go` shows real Stripe Go SDK calls for creating and retrieving hosted
-Checkout Sessions and verifying webhook signatures. It is intentionally not
-registered in the backend yet. No Stripe requests run until the handlers are
-configured and invoked.
+`payments` owns HTTP parsing, authenticated account extraction, responses and
+redirects. Its `Commands` interface is implemented by
+`paymentrepository.CommandHandler`. Stripe calls, signature verification,
+fulfillment and durable events stay in the payment repository.
 
-The `Commands` interface is a proposed boundary, not an adapter already
-implemented by `paymentrepository.CommandHandler`. Adjust it alongside that
-repository's input/output models. The important sequence is:
+| Route | Behavior |
+| --- | --- |
+| `POST /payment/start` | Authenticate, start or reuse Checkout for that account, then redirect to the returned Checkout URL with 303. |
+| `GET /payment/stripe/success?session_id=...` | Sync the session through the repository, then redirect to the configured frontend with `payment_status=pending`. |
+| `GET /payment/stripe/cancel` | Redirect to the configured frontend with `payment_status=cancelled`. No repository mutation. |
+| `POST /payment/stripe/webhook` | Pass the raw body and `Stripe-Signature` to `RecordCheckoutSessionEvent`; acknowledge only after the command succeeds. |
 
-1. Start a durable attempt and obtain its unguessable payment ID.
-2. Create Stripe Checkout, with that ID as metadata and its idempotency key.
-3. Record the Stripe Checkout ID before redirecting to Stripe.
-4. Retrieve and verify Checkout on browser success or webhook notification.
-5. Record success using the payment ID, account ID and Stripe references.
+Start accepts the existing authorization middleware's Bearer header or browser
+form `access_token`. The account ID comes from the verified token. Submit a
+browser form to navigate to Checkout; a fetch redirect does not navigate the
+page. An ineligible account receives 403. Other start/sync command failures
+receive 500 and do not redirect.
 
-Cancellation carries the payment ID; the repository resolves the recorded account
-and checkout. It records browser abandonment, not a terminal Stripe failure.
-Success can follow cancellation, and cancellation after success is a no-op.
+A success callback is browser navigation, not proof of payment. Sync currently
+returns only an error, so `pending` means the frontend must read the account's
+license to determine access, including when payment has already succeeded.
+Cancellation does not expire the session or revoke a license; the current
+repository has no browser-cancellation command.
 
-Example backend wiring once the command adapter exists:
+Webhook bodies are limited to 1 MiB. Missing signatures and unreadable bodies
+receive 400; oversized bodies receive 413. Command errors receive 500, including
+verification errors, because the command currently does not distinguish webhook
+validation failures from persistence failures. This preserves retries when
+processing cannot complete. This controller never retrieves a session for a
+webhook; the repository fulfills the delivered session directly.
+
+Configure the Stripe repository's callback URLs as:
+
+- Success: `https://api.example.com/payment/stripe/success?session_id={CHECKOUT_SESSION_ID}`
+- Cancel: `https://api.example.com/payment/stripe/cancel`
+
+Register the handlers with an existing command handler and a fixed frontend URL:
 
 ```go
 paymentHandlers := &payments.Handlers{
-    Stripe:        stripe.NewClient(os.Getenv("STRIPE_SECRET_KEY")),
-    Commands:      paymentCommandsAdapter,
-    Key:           key,
-    PriceID:       os.Getenv("STRIPE_PERPETUAL_PRICE_ID"),
-    WebhookSecret: os.Getenv("STRIPE_WEBHOOK_SECRET"),
-    APIBaseURL:    "https://api.example.com",
-    FrontendURL:   "https://app.example.com/payment/result",
-    LiveMode:      false, // true for live Stripe credentials
+    Commands:    paymentCommandHandler,
+    Key:         key,
+    FrontendURL: "https://app.example.com/payment/result",
 }
 paymentHandlers.AddRoutes(router.NewRoute().Subrouter())
 ```
 
-The frontend submits an ordinary browser form POST to `/payment/start` with an
-`access_token` field. The backend responds with a 303 redirect to Stripe. A fetch
-request following a redirect would not navigate the browser to Checkout.
+The backend startup does not yet construct or register payment services. This
+package supplies the routes for that wiring; configuration of Stripe keys,
+webhook secrets, prices and callback URLs belongs with repository construction.
 
-Use a snapshot webhook destination with an API version matching the SDK. Handle
-`checkout.session.completed` and `checkout.session.async_payment_succeeded`.
-Only `payment_status=paid` grants access. The webhook acknowledges after the
-repository command succeeds so failures remain retryable.
-
-Remaining integration work includes account scope checks, configuration
-validation, durable duplicate/concurrency handling, checkout-creation failure
-and orphan reconciliation, and failed/expired attempts. The repository must
-validate callback IDs against its own recorded attempt, allow fulfillment after
-abandonment, and preserve enough history to do that after pending entries are
-removed. This sketch does not change token scopes, licenses or the frontend.
-
-References: [Checkout creation](https://docs.stripe.com/api/checkout/sessions/create),
-[fulfillment](https://docs.stripe.com/checkout/fulfillment.md?payment-ui=stripe-hosted),
-[webhooks](https://docs.stripe.com/webhooks).
+Tests use fake commands and an in-process HTTP router; no Stripe requests run.

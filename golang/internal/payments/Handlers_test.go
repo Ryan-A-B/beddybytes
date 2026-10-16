@@ -1,0 +1,244 @@
+package payments
+
+import (
+	"context"
+	"errors"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/dgrijalva/jwt-go"
+	"github.com/gorilla/mux"
+
+	"github.com/Ryan-A-B/beddybytes/golang/internal"
+	"github.com/Ryan-A-B/beddybytes/golang/internal/paymentrepository"
+)
+
+var _ Commands = (*paymentrepository.CommandHandler)(nil)
+
+type commandStub struct {
+	start  func(context.Context, paymentrepository.StartCheckoutSessionInput) (*paymentrepository.StartCheckoutSessionOutput, error)
+	sync   func(context.Context, paymentrepository.SyncCheckoutSessionInput) error
+	record func(context.Context, paymentrepository.RecordCheckoutSessionEventInput) error
+}
+
+func (s *commandStub) StartCheckoutSession(ctx context.Context, input paymentrepository.StartCheckoutSessionInput) (*paymentrepository.StartCheckoutSessionOutput, error) {
+	return s.start(ctx, input)
+}
+func (s *commandStub) SyncCheckoutSession(ctx context.Context, input paymentrepository.SyncCheckoutSessionInput) error {
+	return s.sync(ctx, input)
+}
+func (s *commandStub) RecordCheckoutSessionEvent(ctx context.Context, input paymentrepository.RecordCheckoutSessionEventInput) error {
+	return s.record(ctx, input)
+}
+
+var testKey = []byte("payments-http-test-key")
+
+func paymentRouter(commands Commands) http.Handler {
+	h := &Handlers{Commands: commands, Key: testKey, FrontendURL: "https://app.example/payment/result?keep=value"}
+	router := mux.NewRouter()
+	h.AddRoutes(router)
+	return router
+}
+
+func accountToken(t *testing.T) string {
+	t.Helper()
+	token, err := jwt.NewWithClaims(jwt.SigningMethodHS256, &internal.Claims{
+		Issuer: "beddybytes", Audience: "beddybytes", Expiry: time.Now().Add(time.Hour).Unix(), TokenUse: internal.TokenUseAccess, Scope: "account",
+		Subject: internal.URN{Service: "iam", AccountID: "account-1", ResourceType: "user", ResourceID: "user-1"},
+	}).SignedString(testKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return token
+}
+
+func TestStartUsesAuthenticatedAccountAndRedirects(t *testing.T) {
+	for _, auth := range []string{"form", "header"} {
+		t.Run(auth, func(t *testing.T) {
+			var calls int
+			router := paymentRouter(&commandStub{start: func(ctx context.Context, input paymentrepository.StartCheckoutSessionInput) (*paymentrepository.StartCheckoutSessionOutput, error) {
+				calls++
+				if input.AccountID != "account-1" {
+					t.Errorf("checkout account=%q, want authenticated account", input.AccountID)
+				}
+				return &paymentrepository.StartCheckoutSessionOutput{CheckoutSessionID: "cs_test", CheckoutURL: "https://checkout.stripe.com/test"}, nil
+			}})
+			form := url.Values{"account_id": {"attacker-account"}, "return_url": {"https://attacker.example"}}
+			if auth == "form" {
+				form.Set("access_token", accountToken(t))
+			}
+			request := httptest.NewRequest(http.MethodPost, "/payment/start", strings.NewReader(form.Encode()))
+			request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+			if auth == "header" {
+				request.Header.Set("Authorization", "Bearer "+accountToken(t))
+			}
+			response := httptest.NewRecorder()
+			router.ServeHTTP(response, request)
+			if response.Code != http.StatusSeeOther || response.Header().Get("Location") != "https://checkout.stripe.com/test" || calls != 1 {
+				t.Fatalf("response=%d location=%q calls=%d", response.Code, response.Header().Get("Location"), calls)
+			}
+			if response.Header().Get("Cache-Control") != "no-store" {
+				t.Error("checkout response must not be cached")
+			}
+		})
+	}
+}
+
+func TestStartRejectsUnauthenticatedRequests(t *testing.T) {
+	for _, authorization := range []string{"", "Bearer invalid"} {
+		request := httptest.NewRequest(http.MethodPost, "/payment/start", nil)
+		request.Header.Set("Authorization", authorization)
+		response := httptest.NewRecorder()
+		paymentRouter(&commandStub{}).ServeHTTP(response, request)
+		if response.Code != http.StatusUnauthorized {
+			t.Fatalf("status=%d, want 401", response.Code)
+		}
+	}
+}
+
+func TestStartErrorsDoNotRedirect(t *testing.T) {
+	for _, test := range []struct {
+		name   string
+		output *paymentrepository.StartCheckoutSessionOutput
+		err    error
+		want   int
+	}{
+		{name: "ineligible", err: paymentrepository.ErrAccountIneligible, want: http.StatusForbidden},
+		{name: "repository failure", err: errors.New("private persistence error"), want: http.StatusInternalServerError},
+		{name: "nil output", want: http.StatusInternalServerError},
+		{name: "missing URL", output: &paymentrepository.StartCheckoutSessionOutput{CheckoutSessionID: "cs_test"}, want: http.StatusInternalServerError},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			router := paymentRouter(&commandStub{start: func(context.Context, paymentrepository.StartCheckoutSessionInput) (*paymentrepository.StartCheckoutSessionOutput, error) {
+				return test.output, test.err
+			}})
+			request := httptest.NewRequest(http.MethodPost, "/payment/start", nil)
+			request.Header.Set("Authorization", "Bearer "+accountToken(t))
+			response := httptest.NewRecorder()
+			router.ServeHTTP(response, request)
+			if response.Code != test.want || response.Header().Get("Location") != "" {
+				t.Fatalf("status=%d location=%q", response.Code, response.Header().Get("Location"))
+			}
+			if strings.Contains(response.Body.String(), "private persistence error") {
+				t.Error("response exposed internal error")
+			}
+		})
+	}
+}
+
+func TestSuccessSyncsSessionBeforeReturningToFrontend(t *testing.T) {
+	var calls int
+	router := paymentRouter(&commandStub{sync: func(_ context.Context, input paymentrepository.SyncCheckoutSessionInput) error {
+		calls++
+		if input.CheckoutSessionID != "cs_test" {
+			t.Errorf("session ID=%q", input.CheckoutSessionID)
+		}
+		return nil
+	}})
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/payment/stripe/success?session_id=cs_test&return_url=https://attacker.example", nil))
+	if response.Code != http.StatusSeeOther || response.Header().Get("Location") != "https://app.example/payment/result?keep=value&payment_status=pending" || calls != 1 {
+		t.Fatalf("status=%d location=%q syncs=%d", response.Code, response.Header().Get("Location"), calls)
+	}
+}
+
+func TestSuccessErrorsDoNotRedirect(t *testing.T) {
+	for _, test := range []struct {
+		name, path  string
+		want, calls int
+	}{
+		{name: "missing session", path: "/payment/stripe/success", want: http.StatusBadRequest},
+		{name: "sync failure", path: "/payment/stripe/success?session_id=cs_test", want: http.StatusInternalServerError, calls: 1},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			var calls int
+			router := paymentRouter(&commandStub{sync: func(context.Context, paymentrepository.SyncCheckoutSessionInput) error {
+				calls++
+				return errors.New("sync failed")
+			}})
+			response := httptest.NewRecorder()
+			router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, test.path, nil))
+			if response.Code != test.want || calls != test.calls || response.Header().Get("Location") != "" {
+				t.Fatalf("status=%d calls=%d location=%q", response.Code, calls, response.Header().Get("Location"))
+			}
+		})
+	}
+}
+
+func TestCancelOnlyRedirectsToConfiguredFrontend(t *testing.T) {
+	response := httptest.NewRecorder()
+	paymentRouter(&commandStub{}).ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/payment/stripe/cancel?return_url=https://attacker.example", nil))
+	if response.Code != http.StatusSeeOther || response.Header().Get("Location") != "https://app.example/payment/result?keep=value&payment_status=cancelled" {
+		t.Fatalf("status=%d location=%q", response.Code, response.Header().Get("Location"))
+	}
+}
+
+func TestWebhookForwardsRawBodyAndSignature(t *testing.T) {
+	const payload = "{\n  \"id\": \"evt_test\"\n}\n"
+	for _, commandError := range []error{nil, errors.New("persistence failed")} {
+		var calls int
+		request := httptest.NewRequest(http.MethodPost, "/payment/stripe/webhook", strings.NewReader(payload))
+		type contextKey struct{}
+		request = request.WithContext(context.WithValue(request.Context(), contextKey{}, "request marker"))
+		request.Header.Set("Stripe-Signature", "raw-signature")
+		router := paymentRouter(&commandStub{record: func(ctx context.Context, input paymentrepository.RecordCheckoutSessionEventInput) error {
+			calls++
+			if string(input.Payload) != payload || input.Signature != "raw-signature" {
+				t.Errorf("webhook input=%+v", input)
+			}
+			if ctx.Value(contextKey{}) != "request marker" {
+				t.Error("request context not forwarded")
+			}
+			return commandError
+		}})
+		response := httptest.NewRecorder()
+		router.ServeHTTP(response, request)
+		want := http.StatusOK
+		if commandError != nil {
+			want = http.StatusInternalServerError
+		}
+		if response.Code != want || calls != 1 {
+			t.Fatalf("status=%d want=%d calls=%d", response.Code, want, calls)
+		}
+	}
+}
+
+func TestWebhookRejectsMissingSignatureAndOversizedBody(t *testing.T) {
+	for _, test := range []struct {
+		name, payload, signature string
+		want                     int
+	}{
+		{name: "missing signature", payload: "{}", want: http.StatusBadRequest},
+		{name: "oversized", payload: strings.Repeat("x", 1024*1024+1), signature: "test", want: http.StatusRequestEntityTooLarge},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			request := httptest.NewRequest(http.MethodPost, "/payment/stripe/webhook", strings.NewReader(test.payload))
+			request.Header.Set("Stripe-Signature", test.signature)
+			response := httptest.NewRecorder()
+			paymentRouter(&commandStub{}).ServeHTTP(response, request)
+			if response.Code != test.want {
+				t.Fatalf("status=%d want=%d", response.Code, test.want)
+			}
+		})
+	}
+}
+
+func TestPaymentRoutesRejectWrongMethods(t *testing.T) {
+	for _, test := range []struct{ method, path string }{
+		{http.MethodGet, "/payment/start"},
+		{http.MethodPost, "/payment/stripe/success"},
+		{http.MethodPost, "/payment/stripe/cancel"},
+		{http.MethodGet, "/payment/stripe/webhook"},
+	} {
+		response := httptest.NewRecorder()
+		paymentRouter(&commandStub{}).ServeHTTP(response, httptest.NewRequest(test.method, test.path, nil))
+		// Gorilla's nested start router can report 404 for a method mismatch.
+		if response.Code != http.StatusMethodNotAllowed && response.Code != http.StatusNotFound {
+			t.Errorf("%s %s: status=%d", test.method, test.path, response.Code)
+		}
+	}
+}
