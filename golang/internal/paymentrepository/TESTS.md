@@ -56,6 +56,8 @@ a durable lock or a guarantee against duplicate Stripe sessions after a crash.
 
 ## Webhook and sync ordering
 
+- [ ] FAILING: An async payment failure revokes an existing provisional license from that payment and restores the original trial. (`TestAsyncPaymentFailureRevokesExistingProvisionalLicense`)
+
 - [ ] Repeated delivery of the same webhook produces no duplicate license change.
 - [ ] Concurrent webhook and sync results produce one effective transition.
 - [ ] Paid webhook arrives while sync holds an older unpaid result: account remains perpetual.
@@ -80,8 +82,15 @@ under Creating checkout instead.
 ## Current status
 
 16 October 2026: added restart replay tests for persisted provisional grants and
-revocations. Both initially exposed missing replay handlers, which were added
-under the standing instruction to fix event replay and continue. Grant replay
-preserves the original trial start; revocation restores that trial without
-resetting its dates. This does not change when provisional access is granted.
-All future and payment tests pass before proceeding to the next case.
+revocations. Fixed both missing replay handlers under the standing instruction
+to handle missing events and continue. Original trial dates are preserved and
+restored. All future and payment tests then passed.
+
+The next test, `TestAsyncPaymentFailureRevokesExistingProvisionalLicense`, fails.
+It starts with a recorded provisional grant, then delivers
+checkout.session.async_payment_failed for that same session, whose status is
+complete and payment_status is unpaid. The handler discards the event type and
+interprets the session as pending; it emits no revocation and leaves provisional
+access enabled. This is event interpretation, not missing replay handling.
+Stopped without fixing it or running further cases. The human's unrelated
+uncommitted error-style change is preserved.

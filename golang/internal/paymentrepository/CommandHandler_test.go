@@ -640,6 +640,76 @@ func TestStartCheckoutSessionUsesSameAccountForCreateAndEvent(t *testing.T) {
 	}
 }
 
+func TestAsyncPaymentFailureRevokesExistingProvisionalLicense(t *testing.T) {
+	ctx := context.Background()
+	log := newRestartTestLog(t)
+	data, err := json.Marshal(events.StripeCheckoutSessionStartedDetail{
+		SessionID: "cs_pending", CheckoutURL: "https://checkout.stripe.com/pending",
+		SessionExpiresAt: time.Now().Add(time.Hour).Unix(),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := log.Append(ctx, eventlog.AppendInput{
+		Type: events.TypeStripeCheckoutSessionStarted, AccountID: "account-1", Data: data,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	grant, err := log.Append(ctx, eventlog.AppendInput{
+		Type: events.TypeProvisionalLicenseGranted, AccountID: "account-1",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	data, err = json.Marshal(&stripe.CheckoutSession{
+		ID: "cs_pending", ClientReferenceID: "account-1",
+		Status: stripe.CheckoutSessionStatusComplete, PaymentStatus: stripe.CheckoutSessionPaymentStatusUnpaid,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	handler := NewCommandHandler(NewCommandHandlerInput{
+		EventLog: log,
+		CheckoutSessionRepository: &checkoutSessionRepositoryStub{
+			constructEvent: func([]byte, string) (*stripe.Event, error) {
+				return &stripe.Event{
+					Type: stripe.EventTypeCheckoutSessionAsyncPaymentFailed,
+					Data: &stripe.EventData{Raw: data},
+				}, nil
+			},
+		},
+	})
+	// This tests failure of an already-granted provisional license, not the
+	// separate policy decision about when to grant provisional access.
+	if err := handler.RecordCheckoutSessionEvent(ctx, RecordCheckoutSessionEventInput{
+		Payload: []byte("verified by fake repository"), Signature: "test-signature",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	iterator := log.GetEventIterator(ctx, eventlog.GetEventIteratorInput{FromCursor: grant.LogicalClock})
+	var revocations int
+	for iterator.Next(ctx) {
+		event := iterator.Event()
+		if event.Type != events.TypeProvisionalLicenseRevoked || event.AccountID != "account-1" {
+			t.Errorf("unexpected event: type=%s account=%s", event.Type, event.AccountID)
+		}
+		revocations++
+	}
+	if err := iterator.Err(); err != nil {
+		t.Fatal(err)
+	}
+	if revocations != 1 {
+		t.Errorf("expected one provisional revocation after async failure, got %d", revocations)
+	}
+	if err := handler.catchup(ctx); err != nil {
+		t.Fatal(err)
+	}
+	license := handler.eligibleAccounts["account-1"]
+	if license == nil || license.Type != models.LicenseTypeTrial {
+		t.Errorf("failed payment should leave the account on its original trial, got %+v", license)
+	}
+}
+
 func TestRecordCheckoutSessionEventRejectsNullCheckoutPayload(t *testing.T) {
 	log := &emptyPaymentEventLog{}
 	handler := NewCommandHandler(NewCommandHandlerInput{
