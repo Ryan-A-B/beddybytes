@@ -215,8 +215,7 @@ func (handler *CommandHandler) RecordCheckoutSessionEvent(ctx context.Context, i
 	if err := json.Unmarshal(event.Data.Raw, &session); err != nil {
 		return err
 	}
-	handler.fulfillCheckout(ctx, session)
-	return
+	return handler.fulfillCheckout(ctx, session)
 }
 
 var checkoutSessionEventTypes = []stripe.EventType{
