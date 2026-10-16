@@ -170,16 +170,35 @@ func TestStartCheckoutSessionReusesOnlyUnexpiredSession(t *testing.T) {
 }
 
 func TestCreateFailureReachesWaitersAndAllowsRetry(t *testing.T) {
+	testSharedCheckoutFailure(t, false)
+}
+
+func TestAppendFailureReachesWaitersAndAllowsRetry(t *testing.T) {
+	testSharedCheckoutFailure(t, true)
+}
+
+func testSharedCheckoutFailure(t *testing.T, failAppend bool) {
+	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	log := newRestartTestLog(t)
-	createError := errors.New("checkout creation failed")
+	failureError := errors.New("checkout operation failed")
+	var operationLog eventlog.EventLog = log
+	var appendAttempts atomic.Int32
+	if failAppend {
+		operationLog = &interceptedPaymentEventLog{EventLog: log, append: func(ctx context.Context, input eventlog.AppendInput) (*eventlog.Event, error) {
+			if appendAttempts.Add(1) == 1 {
+				return nil, failureError
+			}
+			return log.Append(ctx, input)
+		}}
+	}
 	entered := make(chan struct{})
 	secondPreflight := make(chan struct{})
 	release := make(chan struct{})
 	var creates, reads atomic.Int32
 	handler := NewCommandHandler(NewCommandHandlerInput{
-		EventLog: &observedPaymentEventLog{EventLog: log, onRead: func() {
+		EventLog: &observedPaymentEventLog{EventLog: operationLog, onRead: func() {
 			if reads.Add(1) == 2 {
 				close(secondPreflight)
 			}
@@ -190,7 +209,9 @@ func TestCreateFailureReachesWaitersAndAllowsRetry(t *testing.T) {
 					close(entered)
 					select {
 					case <-release:
-						return nil, createError
+						if !failAppend {
+							return nil, failureError
+						}
 					case <-ctx.Done():
 						return nil, ctx.Err()
 					}
@@ -226,7 +247,7 @@ func TestCreateFailureReachesWaitersAndAllowsRetry(t *testing.T) {
 	for i := 0; i < 2; i++ {
 		select {
 		case got := <-results:
-			if !errors.Is(got.err, createError) || got.output != nil {
+			if !errors.Is(got.err, failureError) || got.output != nil {
 				t.Errorf("shared creation failure: output=%+v err=%v, want original error", got.output, got.err)
 			}
 		case <-ctx.Done():
@@ -253,4 +274,105 @@ func TestCreateFailureReachesWaitersAndAllowsRetry(t *testing.T) {
 	if starts != 1 {
 		t.Errorf("expected only the successful retry to emit a started event, got %d", starts)
 	}
+}
+
+type interceptedPaymentEventLog struct {
+	eventlog.EventLog
+	append func(context.Context, eventlog.AppendInput) (*eventlog.Event, error)
+}
+
+func TestCheckoutSuccessWaitsForStartedEventPersistence(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	log := newRestartTestLog(t)
+	createEntered := make(chan struct{})
+	releaseCreate := make(chan struct{})
+	appendEntered := make(chan struct{})
+	releaseAppend := make(chan struct{})
+	handler := NewCommandHandler(NewCommandHandlerInput{
+		EventLog: &interceptedPaymentEventLog{EventLog: log, append: func(ctx context.Context, input eventlog.AppendInput) (*eventlog.Event, error) {
+			close(appendEntered)
+			select {
+			case <-releaseAppend:
+				return log.Append(ctx, input)
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			}
+		}},
+		CheckoutSessionRepository: &checkoutSessionRepositoryStub{
+			create: func(ctx context.Context, _ string) (*stripe.CheckoutSession, error) {
+				close(createEntered)
+				select {
+				case <-releaseCreate:
+					return &stripe.CheckoutSession{ID: "cs_persist", URL: "https://checkout.stripe.com/persist", ExpiresAt: time.Now().Add(time.Hour).Unix()}, nil
+				case <-ctx.Done():
+					return nil, ctx.Err()
+				}
+			},
+		},
+	})
+	finished := make(chan error, 1)
+	go func() {
+		output, err := handler.StartCheckoutSession(ctx, StartCheckoutSessionInput{AccountID: "account-1"})
+		if err == nil && (output == nil || output.CheckoutSessionID != "cs_persist") {
+			err = errors.New("unexpected checkout output")
+		}
+		finished <- err
+	}()
+	select {
+	case <-createEntered:
+	case <-ctx.Done():
+		t.Fatal("Create did not start")
+	}
+	// Join the same future before allowing Create to return.
+	waiter, err := handler.startCheckoutSessionPreflight(ctx, StartCheckoutSessionInput{AccountID: "account-1"})
+	if err != nil || !waiter.futureAlreadyExisted {
+		t.Fatalf("join shared future: output=%+v err=%v", waiter, err)
+	}
+	close(releaseCreate)
+	select {
+	case <-appendEntered:
+	case <-ctx.Done():
+		t.Fatal("Append did not start")
+	}
+	select {
+	case <-waiter.sessionInfoFuture.Ready():
+		t.Error("shared checkout resolved before persistence")
+	default:
+	}
+	select {
+	case err := <-finished:
+		t.Fatalf("checkout returned before persistence: %v", err)
+	default:
+	}
+	close(releaseAppend)
+	select {
+	case err := <-finished:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-ctx.Done():
+		t.Fatal("checkout did not finish after persistence")
+	}
+	info, err := waiter.sessionInfoFuture.Result()
+	if err != nil || info == nil || info.CheckoutSessionID != "cs_persist" {
+		t.Fatalf("shared result after persistence: info=%+v err=%v", info, err)
+	}
+	iterator := log.GetEventIterator(ctx, eventlog.GetEventIteratorInput{})
+	var starts int
+	for iterator.Next(ctx) {
+		if iterator.Event().Type == events.TypeStripeCheckoutSessionStarted {
+			starts++
+		}
+	}
+	if err := iterator.Err(); err != nil {
+		t.Fatal(err)
+	}
+	if starts != 1 {
+		t.Fatalf("expected one persisted started event, got %d", starts)
+	}
+}
+
+func (log *interceptedPaymentEventLog) Append(ctx context.Context, input eventlog.AppendInput) (*eventlog.Event, error) {
+	return log.append(ctx, input)
 }

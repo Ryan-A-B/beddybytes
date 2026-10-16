@@ -27,8 +27,8 @@ checkout session repository; do not call Stripe.
 - [x] An expired session permits a new create. (`TestStartCheckoutSessionReusesOnlyUnexpiredSession`)
 - [x] Create failure reaches all waiting callers; a subsequent request can retry. (`TestCreateFailureReachesWaitersAndAllowsRetry`)
 - [x] A caller waiting on a shared Create can cancel independently, returning context.Canceled while the leader continues. (`TestStartCheckoutSessionWaitingCallerCanCancel`)
-- [ ] Event-append failure reaches all waiting callers without leaving them blocked.
-- [ ] No caller receives success before the started event is persisted.
+- [x] Event-append failure reaches all waiting callers without leaving them blocked; a subsequent request can retry. (`TestAppendFailureReachesWaitersAndAllowsRetry`)
+- [x] No caller receives success before the started event is persisted. (`TestCheckoutSuccessWaitsForStartedEventPersistence`)
 - [x] Replaying the started event allows reuse without another create. (`TestRestartReusesPersistedCheckout`)
 
 ## Syncing checkout
@@ -66,7 +66,7 @@ a durable lock or a guarantee against duplicate Stripe sessions after a crash.
 
 - [ ] Repeated delivery of the same webhook produces no duplicate license change.
 - [ ] Concurrent webhook and sync results produce one effective transition.
-- [ ] Paid webhook arrives while sync holds an older unpaid result: account remains perpetual.
+- [ ] FAILING: Paid webhook arrives while sync holds an older unpaid result: account must become perpetual. (`TestPaidWebhookDuringOlderUnpaidSyncGrantsPerpetualLicense`)
 - [ ] Paid webhook arrives while sync holds an older expired result: account remains perpetual.
 - [ ] Sync confirms payment before an older unpaid or expired webhook arrives: account remains perpetual.
 - [ ] Account or license events appended during retrieval are caught up before applying its result.
@@ -89,10 +89,17 @@ under Creating checkout instead.
 
 ## Current status
 
-16 October 2026: corrected Repository.ConstructEvent to return stripe.Event by
-value, matching the Stripe SDK and concrete adapter. Updated the test fake and
-webhook fixtures to match. The compile-time adapter assertion now passes.
+16 October 2026: added passing append-failure and persistence-boundary tests.
+Both pass with -race, along with the existing shared Create failure test whose
+setup is now shared with the append-failure test.
 
-All future and payment tests pass with -race, with the accepted overlapping
-payment reproducer still skipped. No further checklist cases attempted during
-this fix. The human's uncommitted command handler edit remains unchanged.
+Stopped at `TestPaidWebhookDuringOlderUnpaidSyncGrantsPerpetualLicense`.
+The initial Retrieve holds an older complete/unpaid/processing snapshot. A paid
+webhook arrives before it returns. Its sync preflight sees syncInProgress and
+returns success without retrieving current state or scheduling reconciliation.
+The initial sync then grants provisional access. Both calls return nil, but only
+one Retrieve occurred and no perpetual grant was persisted. This is one checkout
+session, separate from the accepted overlapping-payment limitation.
+
+The failing reproducer is retained; no implementation fix was made. The human's
+uncommitted command handler edit remains unchanged.
