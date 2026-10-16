@@ -1,7 +1,8 @@
 # Payment command handler test list
 
 Maintain this list as tests are added and run. Checked items have passing tests;
-unchecked items are untested unless explicitly marked FAILING or POLICY PENDING.
+unchecked items are untested unless explicitly marked FAILING, POLICY PENDING,
+or ACCEPTED LIMITATION (a skipped reproducer, not a passing test).
 Work on one test at a time. Fix missing event replay handling and continue;
 stop at the first other breaking case. Use the fake
 checkout session repository; do not call Stripe.
@@ -58,7 +59,7 @@ a durable lock or a guarantee against duplicate Stripe sessions after a crash.
 
 ## Webhook and sync ordering
 
-- [ ] FAILING: Failure of an older payment must not revoke provisional access while a newer checkout for that account is processing. (`TestOlderFailedAttemptDoesNotRevokeNewerProcessingCheckout`)
+- [ ] ACCEPTED LIMITATION: Failure of an older payment may revoke provisional access while a newer checkout is processing. Manually resolve if it occurs. (`TestOlderFailedAttemptDoesNotRevokeNewerProcessingCheckout`, skipped; see [known limitation](KNOWN_LIMITATIONS.md#overlapping-processing-payments))
 
 - [x] Polling retrieves a failed PaymentIntent and revokes provisional access without receiving a failure webhook. (`TestSyncFailedPaymentIntentRevokesProvisionalLicense`)
 - [x] A webhook triggers retrieval and uses current PaymentIntent state rather than its older failure snapshot. (`TestWebhookReconcilesCurrentStateInsteadOfFailureSnapshot`)
@@ -86,16 +87,9 @@ under Creating checkout instead.
 
 ## Current status
 
-16 October 2026: new cases pass for expired sessions leaving trial/provisional
-licenses unchanged, concurrent creation for different accounts, reuse of an
-unexpired session and replacement of an expired stored session.
-
-`TestOlderFailedAttemptDoesNotRevokeNewerProcessingCheckout` fails: an old
-completed payment remains processing beyond its stored checkout deadline;
-Start then permits a new checkout. Both payments are processing, but when only
-the older one fails, its sync appends a provisional revocation for the account,
-even though the newer payment is still processing. Fulfillment revokes by
-account without tracking which session currently supports provisional access.
-
-Stopped at this failure. No implementation changes or further cases run. The
-human's existing uncommitted command handler change is preserved.
+16 October 2026: Ryan accepted the overlapping-processing-payment case for
+manual resolution. Recorded the mechanism, assumptions and response in
+[KNOWN_LIMITATIONS.md](KNOWN_LIMITATIONS.md). Preserved the failing reproducer
+as a skipped test, not a fixed or passing case. Payment behavior is unchanged.
+The intended card-only scope reduces the expected likelihood but is not
+implemented by this documentation update. No new checklist cases attempted.
