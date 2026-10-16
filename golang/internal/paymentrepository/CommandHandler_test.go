@@ -75,8 +75,8 @@ func TestStartCheckoutSessionRejectsUnknownAccount(t *testing.T) {
 		EventLog: log, CheckoutSessionRepository: repository,
 	})
 	output, err := handler.StartCheckoutSession(ctx, StartCheckoutSessionInput{AccountID: "unknown-account"})
-	if !errors.Is(err, ErrAccountNotFound) {
-		t.Errorf("expected ErrAccountNotFound, got %v (output=%+v)", err, output)
+	if !errors.Is(err, ErrAccountIneligible) {
+		t.Errorf("expected ErrAccountIneligible, got %v (output=%+v)", err, output)
 	}
 	if output != nil {
 		t.Errorf("unknown account received a checkout session: %+v", output)
@@ -115,8 +115,8 @@ func TestStartCheckoutSessionRejectsV1Account(t *testing.T) {
 		},
 	})
 	output, err := handler.StartCheckoutSession(ctx, StartCheckoutSessionInput{AccountID: "legacy-account"})
-	if !errors.Is(err, ErrAccountNotFound) || output != nil || creates != 0 {
-		t.Fatalf("v1 checkout: output=%+v error=%v creates=%d; want ErrAccountNotFound without Create", output, err, creates)
+	if !errors.Is(err, ErrAccountIneligible) || output != nil || creates != 0 {
+		t.Fatalf("v1 checkout: output=%+v error=%v creates=%d; want ErrAccountIneligible without Create", output, err, creates)
 	}
 	if _, exists := handler.eligibleAccounts["legacy-account"]; exists {
 		t.Error("payment repository should not project v1 accounts")

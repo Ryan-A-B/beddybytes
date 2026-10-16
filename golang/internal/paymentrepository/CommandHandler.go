@@ -19,7 +19,7 @@ import (
 )
 
 var ErrAccountIDRequired = errors.New("account ID is required")
-var ErrAccountNotFound = errors.New("account not found")
+var ErrAccountIneligible = errors.New("account ineligible")
 var ErrNoActiveSession = errors.New("no active session for account")
 var ErrUnexpectedCheckoutSessionStatus = errors.New("unexpected checkout session status")
 var ErrUnexpectedCheckoutSessionPaymentStatus = errors.New("unexpected checkout session payment status")
@@ -169,7 +169,7 @@ func (handler *CommandHandler) preflight(ctx context.Context, input StartCheckou
 		return
 	}
 	if _, exists := handler.eligibleAccounts[input.AccountID]; !exists {
-		return output, ErrAccountNotFound
+		return output, ErrAccountIneligible
 	}
 
 	sessionInfo, ok := handler.sessionInfoByAccount[input.AccountID]
