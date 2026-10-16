@@ -178,6 +178,71 @@ func TestRestartStartsNewSyncWhenOldSyncIsInFlight(t *testing.T) {
 	}
 }
 
+func TestRestartAfterPaidSyncDoesNotGrantTwice(t *testing.T) {
+	ctx := context.Background()
+	log := newRestartTestLog(t)
+	data, err := json.Marshal(events.StripeCheckoutSessionStartedDetail{
+		SessionID: "cs_paid", CheckoutURL: "https://checkout.stripe.com/paid",
+		SessionExpiresAt: time.Now().Add(time.Hour).Unix(),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	started, err := log.Append(ctx, eventlog.AppendInput{
+		Type: events.TypeStripeCheckoutSessionStarted, AccountID: "account-1", Data: data,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var retrieves, creates int
+	repository := &checkoutSessionRepositoryStub{
+		retrieve: func(_ context.Context, id string) (*stripe.CheckoutSession, error) {
+			retrieves++
+			return &stripe.CheckoutSession{
+				ID: id, ClientReferenceID: "account-1",
+				Status: stripe.CheckoutSessionStatusComplete, PaymentStatus: stripe.CheckoutSessionPaymentStatusPaid,
+			}, nil
+		},
+		create: func(context.Context, string) (*stripe.CheckoutSession, error) {
+			creates++
+			return nil, errors.New("unexpected Create for a paid account")
+		},
+	}
+	first := NewCommandHandler(NewCommandHandlerInput{EventLog: log, CheckoutSessionRepository: repository})
+	if err := first.SyncCheckoutSession(ctx, SyncCheckoutSessionInput{CheckoutSessionID: "cs_paid"}); err != nil {
+		t.Fatal(err)
+	}
+	restarted := NewCommandHandler(NewCommandHandlerInput{EventLog: log, CheckoutSessionRepository: repository})
+	if err := restarted.SyncCheckoutSession(ctx, SyncCheckoutSessionInput{CheckoutSessionID: "cs_paid"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, eligible := restarted.eligibleAccounts["account-1"]; eligible {
+		t.Error("fresh handler did not rebuild paid account ineligibility")
+	}
+	output, err := restarted.StartCheckoutSession(ctx, StartCheckoutSessionInput{AccountID: "account-1"})
+	if !errors.Is(err, ErrAccountIneligible) || output != nil || creates != 0 {
+		t.Errorf("paid account checkout after restart: output=%+v err=%v creates=%d", output, err, creates)
+	}
+	if retrieves != 2 {
+		t.Errorf("expected a fresh Retrieve after restart, got %d", retrieves)
+	}
+	iterator := log.GetEventIterator(ctx, eventlog.GetEventIteratorInput{FromCursor: started.LogicalClock})
+	var grants int
+	for iterator.Next(ctx) {
+		event := iterator.Event()
+		if event.Type != events.TypePerpetualLicenseGranted || event.AccountID != "account-1" {
+			t.Errorf("unexpected event: type=%s account=%s", event.Type, event.AccountID)
+		}
+		grants++
+	}
+	if err := iterator.Err(); err != nil {
+		t.Fatal(err)
+	}
+	if grants != 1 {
+		t.Fatalf("expected one perpetual grant across restart, got %d", grants)
+	}
+}
+
 func newRestartTestLog(t *testing.T) *eventlog.FileEventLog {
 	t.Helper()
 	log := eventlog.NewFileEventLog(&eventlog.NewFileEventLogInput{FolderPath: t.TempDir()})

@@ -50,7 +50,7 @@ a durable lock or a guarantee against duplicate Stripe sessions after a crash.
 - [x] If Create was in flight with no started event persisted, a fresh handler starts a new Create rather than waiting on the old future. (`TestRestartStartsNewCreateWhenOldCreateWasNotPersisted`)
 - [ ] If Stripe creation succeeded but the started event was not persisted, a fresh handler starts a new Create; the orphan Stripe session is not recoverable from this log.
 - [x] If sync was in flight, a fresh handler starts a new Retrieve rather than inheriting syncInProgress. (`TestRestartStartsNewSyncWhenOldSyncIsInFlight`)
-- [ ] After a completed paid sync, a fresh handler rebuilds ineligibility; another sync can retrieve but must not append a duplicate perpetual grant.
+- [x] After a completed paid sync, a fresh handler rebuilds ineligibility; another sync can retrieve but must not append a duplicate perpetual grant. (`TestRestartAfterPaidSyncDoesNotGrantTwice`)
 - [ ] After an open sync that emitted no license event, a fresh handler retrieves again.
 - [ ] After provisional grant/revocation syncs, a fresh handler restores the appropriate license and original trial dates. POLICY PENDING for the provisional-access transitions.
 
@@ -71,20 +71,22 @@ under Creating checkout instead.
 
 ## Errors and identity
 
-- [ ] Invalid webhook signature or malformed payload changes nothing.
+- [ ] Invalid webhook signature or malformed JSON changes nothing.
+- [ ] FAILING: A verified webhook whose Checkout Session data is JSON null returns an error without panicking or appending events. (`TestRecordCheckoutSessionEventRejectsNullCheckoutPayload`)
 - [ ] Unrelated webhook types are ignored.
 - [x] Fulfillment errors propagate to the HTTP caller so Stripe can retry. (`TestRecordCheckoutSessionEventReturnsFulfillmentError`)
 - [ ] Persistence failure leaves a retryable operation; replay and retry converge on the correct state.
 
 ## Current status
 
-16 October 2026: completed the promise/read-only future split. The creator holds
-its Promise; shared callers receive Future and select on Ready or their context.
-Cancelling a waiter now returns context.Canceled without stopping the leader.
-NewPromise initializes the completion channel. Resolve panics on a second call,
-even concurrently, before mutating the first result.
+16 October 2026: added and ran `TestRestartAfterPaidSyncDoesNotGrantTwice`.
+It passes: a fresh handler retrieves again, reconstructs account ineligibility,
+rejects another checkout and emits no duplicate perpetual grant.
 
-Future tests cover broadcast readers, late readers, error delivery, repeated
-resolution and concurrent resolvers. All future and payment repository tests,
-including restart recovery and the cancellation regression, pass with -race.
-No additional unchecked payment cases were attempted during this fix.
+The next malformed-payload test fails: when the constructed webhook has a
+Checkout Session payload of JSON null, unmarshalling succeeds with a nil session,
+and fulfillment dereferences it. `TestRecordCheckoutSessionEventRejectsNullCheckoutPayload`
+expects an error without mutation but observes a nil-pointer panic. This is a
+malformed-input case, not an ordinary Stripe payment-state sequence.
+
+Stopped at that failure. No implementation changes or further test cases run.

@@ -640,6 +640,36 @@ func TestStartCheckoutSessionUsesSameAccountForCreateAndEvent(t *testing.T) {
 	}
 }
 
+func TestRecordCheckoutSessionEventRejectsNullCheckoutPayload(t *testing.T) {
+	log := &emptyPaymentEventLog{}
+	handler := NewCommandHandler(NewCommandHandlerInput{
+		EventLog: log,
+		CheckoutSessionRepository: &checkoutSessionRepositoryStub{
+			constructEvent: func([]byte, string) (*stripe.Event, error) {
+				// JSON null is syntactically valid, but is not a Checkout
+				// Session. Signature verification does not validate this shape.
+				return &stripe.Event{
+					Type: stripe.EventTypeCheckoutSessionCompleted,
+					Data: &stripe.EventData{Raw: json.RawMessage("null")},
+				}, nil
+			},
+		},
+	})
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			t.Errorf("malformed checkout payload should return an error, not panic: %v", recovered)
+		}
+		if appends := log.appends.Load(); appends != 0 {
+			t.Errorf("malformed checkout payload attempted %d event appends", appends)
+		}
+	}()
+	if err := handler.RecordCheckoutSessionEvent(context.Background(), RecordCheckoutSessionEventInput{
+		Payload: []byte("verified by fake repository"), Signature: "test-signature",
+	}); err == nil {
+		t.Error("null Checkout Session payload was accepted without an error")
+	}
+}
+
 func TestRecordCheckoutSessionEventReturnsFulfillmentError(t *testing.T) {
 	ctx := context.Background()
 	log := eventlog.NewFileEventLog(&eventlog.NewFileEventLogInput{FolderPath: t.TempDir()})
