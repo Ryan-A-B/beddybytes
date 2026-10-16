@@ -1,24 +1,27 @@
 package future
 
+type Result[T any] struct {
+	Value T
+	Error error
+}
+
 type Future[T any] struct {
-	result T
-	err    error
-	done   chan struct{}
+	result Result[T]
+	readyC chan struct{}
 }
 
 func New[T any]() *Future[T] {
 	return &Future[T]{
-		done: make(chan struct{}),
+		readyC: make(chan struct{}),
 	}
 }
 
-func (f *Future[T]) Resolve(result T, err error) {
-	f.result = result
-	f.err = err
-	close(f.done)
+func (future *Future[T]) Resolve(result T, err error) {
+	future.result = Result[T]{Value: result, Error: err}
+	close(future.readyC)
 }
 
-func (f *Future[T]) Wait() (T, error) {
-	<-f.done
-	return f.result, f.err
+func (future *Future[T]) Result() Result[T] {
+	<-future.readyC
+	return future.result
 }

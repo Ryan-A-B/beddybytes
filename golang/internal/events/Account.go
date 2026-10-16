@@ -9,6 +9,10 @@ const (
 	TypeAccountCreatedV1     eventlog.EventType = "account.created"
 	TypeAccountCreatedV2     eventlog.EventType = "account.created.v2"
 	TypeAccountPasswordReset eventlog.EventType = "account.password_reset"
+
+	TypePerpetualLicenseGranted   eventlog.EventType = "account.license.perpetual_granted"
+	TypeProvisionalLicenseGranted eventlog.EventType = "account.license.provisional_granted"
+	TypeProvisionalLicenseRevoked eventlog.EventType = "account.license.provisional_revoked"
 )
 
 type UserV1 struct {

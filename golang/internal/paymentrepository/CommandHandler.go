@@ -13,12 +13,16 @@ import (
 	"github.com/Ryan-A-B/beddybytes/golang/internal/events"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/fatal"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/future"
+	"github.com/Ryan-A-B/beddybytes/golang/internal/models"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/subscription"
 )
 
 var ErrAccountIDRequired = errors.New("account ID is required")
 var ErrAccountNotFound = errors.New("account not found")
 var ErrNoActiveSession = errors.New("no active session for account")
+var ErrUnexpectedCheckoutSessionStatus = errors.New("unexpected checkout session status")
+var ErrUnexpectedCheckoutSessionPaymentStatus = errors.New("unexpected checkout session payment status")
+var ErrCheckoutSessionNotFound = errors.New("checkout session not found")
 
 type CommandHandler struct {
 	mutex         sync.Mutex
@@ -31,11 +35,14 @@ type CommandHandler struct {
 	cancelURL     string
 
 	trialAccountIDs             map[string]struct{}
-	sessionInfoForAccount       map[string]*CheckoutSessionInfo
+	licenseForAccount           map[string]*models.License
+	sessionInfoByID             map[string]*CheckoutSessionInfo
+	sessionInfoByAccount        map[string]*CheckoutSessionInfo
 	sessionInfoFutureForAccount map[string]*future.Future[*CheckoutSessionInfo]
 }
 
 type CheckoutSessionInfo struct {
+	AccountID         string
 	CheckoutSessionID string
 	CheckoutURL       string
 	SessionExpiresAt  int64
@@ -64,7 +71,8 @@ func NewCommandHandler(input NewCommandHandlerInput) *CommandHandler {
 		cancelURL:     input.CancelURL,
 
 		trialAccountIDs:             make(map[string]struct{}),
-		sessionInfoForAccount:       make(map[string]*CheckoutSessionInfo),
+		sessionInfoByID:             make(map[string]*CheckoutSessionInfo),
+		sessionInfoByAccount:        make(map[string]*CheckoutSessionInfo),
 		sessionInfoFutureForAccount: make(map[string]*future.Future[*CheckoutSessionInfo]),
 	}
 }
@@ -90,44 +98,22 @@ func (handler *CommandHandler) StartCheckoutSession(ctx context.Context, input S
 	if err != nil {
 		return
 	}
-	var sessionInfoFuture *future.Future[*CheckoutSessionInfo]
-	var futureAlreadyExisted bool
-	func() {
-		handler.mutex.Lock()
-		defer handler.mutex.Unlock()
-		err = handler.catchup(ctx)
-		if err != nil {
-			return
-		}
-		sessionInfo, ok := handler.sessionInfoForAccount[input.AccountID]
-		if ok {
-			if !sessionInfo.HasExpired() {
-				output = &StartCheckoutSessionOutput{
-					CheckoutSessionID: sessionInfo.CheckoutSessionID,
-					CheckoutURL:       sessionInfo.CheckoutURL,
-				}
-				return
-			}
-			delete(handler.sessionInfoForAccount, input.AccountID)
-		}
-		sessionInfoFuture, futureAlreadyExisted := handler.sessionInfoFutureForAccount[input.AccountID]
-		if !futureAlreadyExisted {
-			sessionInfoFuture = future.New[*CheckoutSessionInfo]()
-			handler.sessionInfoFutureForAccount[input.AccountID] = sessionInfoFuture
-		}
-	}()
+	preflightOutput, err := handler.preflight(ctx, input)
 	if err != nil {
 		return
 	}
-	if output != nil {
+	if preflightOutput.startCheckoutSessionOutput != nil {
+		output = preflightOutput.startCheckoutSessionOutput
 		return
 	}
 	var sessionInfo *CheckoutSessionInfo
-	if futureAlreadyExisted {
-		sessionInfo, err = sessionInfoFuture.Wait()
-		if err != nil {
+	if preflightOutput.futureAlreadyExisted {
+		result := preflightOutput.sessionInfoFuture.Result()
+		if result.Error != nil {
+			err = result.Error
 			return
 		}
+		sessionInfo = result.Value
 		output = &StartCheckoutSessionOutput{
 			CheckoutSessionID: sessionInfo.CheckoutSessionID,
 			CheckoutURL:       sessionInfo.CheckoutURL,
@@ -139,11 +125,13 @@ func (handler *CommandHandler) StartCheckoutSession(ctx context.Context, input S
 			handler.mutex.Lock()
 			defer handler.mutex.Unlock()
 			delete(handler.sessionInfoFutureForAccount, input.AccountID)
-			sessionInfoFuture.Resolve(nil, err)
+			preflightOutput.sessionInfoFuture.Resolve(nil, err)
 		}
 	}()
+	// Stripe's default TTL is 24 hours
 	session, err := handler.stripe.V1CheckoutSessions.Create(ctx, &stripe.CheckoutSessionCreateParams{
-		Mode: stripe.String("payment"),
+		Mode:              stripe.String("payment"),
+		ClientReferenceID: stripe.String(input.AccountID),
 		LineItems: []*stripe.CheckoutSessionCreateLineItemParams{
 			{
 				Price:    stripe.String(handler.priceID),
@@ -162,6 +150,7 @@ func (handler *CommandHandler) StartCheckoutSession(ctx context.Context, input S
 		SessionExpiresAt:  session.ExpiresAt,
 	}
 	handler.mutex.Lock()
+	defer handler.mutex.Unlock()
 	delete(handler.sessionInfoFutureForAccount, input.AccountID)
 	detail := events.StripeCheckoutSessionStartedDetail{
 		SessionID:        session.ID,
@@ -178,10 +167,49 @@ func (handler *CommandHandler) StartCheckoutSession(ctx context.Context, input S
 	if err != nil {
 		return
 	}
-	sessionInfoFuture.Resolve(sessionInfo, nil)
+	preflightOutput.sessionInfoFuture.Resolve(sessionInfo, nil)
 	output = &StartCheckoutSessionOutput{
 		CheckoutSessionID: session.ID,
 		CheckoutURL:       session.URL,
+	}
+	return
+}
+
+type PreflightOutput struct {
+	startCheckoutSessionOutput *StartCheckoutSessionOutput
+	sessionInfoFuture          *future.Future[*CheckoutSessionInfo]
+	futureAlreadyExisted       bool
+}
+
+func (handler *CommandHandler) preflight(ctx context.Context, input StartCheckoutSessionInput) (output PreflightOutput, err error) {
+	handler.mutex.Lock()
+	defer handler.mutex.Unlock()
+	err = handler.catchup(ctx)
+	if err != nil {
+		return
+	}
+	sessionInfo, ok := handler.sessionInfoByAccount[input.AccountID]
+	if ok {
+		if !sessionInfo.HasExpired() {
+			output = PreflightOutput{
+				startCheckoutSessionOutput: &StartCheckoutSessionOutput{
+					CheckoutSessionID: sessionInfo.CheckoutSessionID,
+					CheckoutURL:       sessionInfo.CheckoutURL,
+				},
+			}
+			return
+		}
+		delete(handler.sessionInfoByAccount, input.AccountID)
+	}
+	sessionInfoFuture, futureAlreadyExisted := handler.sessionInfoFutureForAccount[input.AccountID]
+	if !futureAlreadyExisted {
+		sessionInfoFuture = future.New[*CheckoutSessionInfo]()
+		handler.sessionInfoFutureForAccount[input.AccountID] = sessionInfoFuture
+	}
+	output = PreflightOutput{
+		startCheckoutSessionOutput: nil,
+		sessionInfoFuture:          sessionInfoFuture,
+		futureAlreadyExisted:       futureAlreadyExisted,
 	}
 	return
 }
@@ -196,12 +224,166 @@ func (handler *CommandHandler) RecordCheckoutSessionEvent(ctx context.Context, i
 	if err != nil {
 		return
 	}
-	switch event.Type {
-	case stripe.EventTypeCheckoutSessionCompleted:
-	case stripe.EventTypeCheckoutSessionExpired:
-	case stripe.EventTypeCheckoutSessionAsyncPaymentFailed:
-	case stripe.EventTypeCheckoutSessionAsyncPaymentSucceeded:
+	if !contains(checkoutSessionEventTypes, event.Type) {
+		return
 	}
+	var session *stripe.CheckoutSession
+	if err := json.Unmarshal(event.Data.Raw, &session); err != nil {
+		return err
+	}
+	handler.fulfillCheckout(ctx, session)
+	return
+}
+
+var checkoutSessionEventTypes = []stripe.EventType{
+	stripe.EventTypeCheckoutSessionCompleted,
+	stripe.EventTypeCheckoutSessionExpired,
+	stripe.EventTypeCheckoutSessionAsyncPaymentFailed,
+	stripe.EventTypeCheckoutSessionAsyncPaymentSucceeded,
+}
+
+type SyncCheckoutSessionInput struct {
+	CheckoutSessionID string
+}
+
+func (handler *CommandHandler) SyncCheckoutSession(ctx context.Context, input SyncCheckoutSessionInput) (err error) {
+	preflightOutput, err := handler.syncCheckoutSessionPreflight(ctx, input)
+	if err != nil {
+		return err
+	}
+	if err != nil {
+		return
+	}
+	session, err := handler.stripe.V1CheckoutSessions.Retrieve(ctx, input.CheckoutSessionID, nil)
+	if err != nil {
+		return
+	}
+	err = handler.fulfillCheckout(ctx, session)
+	if err != nil {
+		return
+	}
+	return
+}
+
+type syncCheckoutSessionPreflightOutput struct {
+	// Add fields as needed for the preflight output
+}
+
+func (handler *CommandHandler) syncCheckoutSessionPreflight(ctx context.Context, input SyncCheckoutSessionInput) (output syncCheckoutSessionPreflightOutput, err error) {
+	handler.mutex.Lock()
+	defer handler.mutex.Unlock()
+	err = handler.catchup(ctx)
+	if err != nil {
+		return
+	}
+	// TODO
+	// ensure the session exists
+	// check if there is already a sync in progress for this session
+	return
+}
+
+func (handler *CommandHandler) getCheckoutSessionInfo(ctx context.Context, checkoutSessionID string) (info *CheckoutSessionInfo, err error) {
+	handler.mutex.Lock()
+	defer handler.mutex.Unlock()
+	err = handler.catchup(ctx)
+	if err != nil {
+		return
+	}
+	info, ok := handler.sessionInfoByID[checkoutSessionID]
+	if !ok {
+		err = ErrCheckoutSessionNotFound
+		return
+	}
+	return
+}
+
+func (handler *CommandHandler) fulfillCheckout(ctx context.Context, session *stripe.CheckoutSession) error {
+	accountID := session.ClientReferenceID
+	if session.Status == stripe.CheckoutSessionStatusOpen {
+		return nil
+	}
+	if session.Status == stripe.CheckoutSessionStatusExpired {
+		return handler.revokeProvisionalLicense(ctx, accountID)
+	}
+	if session.Status != stripe.CheckoutSessionStatusComplete {
+		return ErrUnexpectedCheckoutSessionStatus
+	}
+	switch session.PaymentStatus {
+	case stripe.CheckoutSessionPaymentStatusPaid:
+		return handler.grantPerpetualLicense(ctx, accountID)
+	case stripe.CheckoutSessionPaymentStatusUnpaid:
+		return handler.grantProvisionalLicense(ctx, accountID)
+	default:
+		return ErrUnexpectedCheckoutSessionPaymentStatus
+	}
+}
+
+func (handler *CommandHandler) grantPerpetualLicense(ctx context.Context, accountID string) (err error) {
+	handler.mutex.Lock()
+	defer handler.mutex.Unlock()
+	err = handler.catchup(ctx)
+	if err != nil {
+		return
+	}
+	license, exists := handler.licenseForAccount[accountID]
+	if !exists {
+		err = ErrAccountNotFound
+		return
+	}
+	if license.Type == models.LicenseTypePerpetual {
+		return
+	}
+	_, err = handler.eventLog.Append(ctx, eventlog.AppendInput{
+		Type:      events.TypePerpetualLicenseGranted,
+		AccountID: accountID,
+		Data:      nil,
+	})
+	return
+}
+
+func (handler *CommandHandler) grantProvisionalLicense(ctx context.Context, accountID string) (err error) {
+	handler.mutex.Lock()
+	defer handler.mutex.Unlock()
+	err = handler.catchup(ctx)
+	if err != nil {
+		return
+	}
+	license, exists := handler.licenseForAccount[accountID]
+	if !exists {
+		err = ErrAccountNotFound
+		return
+	}
+	if license.Type != models.LicenseTypeTrial {
+		return
+	}
+	_, err = handler.eventLog.Append(ctx, eventlog.AppendInput{
+		Type:      events.TypeProvisionalLicenseGranted,
+		AccountID: accountID,
+		Data:      nil,
+	})
+	return
+}
+
+func (handler *CommandHandler) revokeProvisionalLicense(ctx context.Context, accountID string) (err error) {
+	handler.mutex.Lock()
+	defer handler.mutex.Unlock()
+	err = handler.catchup(ctx)
+	if err != nil {
+		return
+	}
+	license, exists := handler.licenseForAccount[accountID]
+	if !exists {
+		err = ErrAccountNotFound
+		return
+	}
+	if license.Type != models.LicenseTypeProvisional {
+		return
+	}
+	_, err = handler.eventLog.Append(ctx, eventlog.AppendInput{
+		Type:      events.TypeProvisionalLicenseRevoked,
+		AccountID: accountID,
+		Data:      nil,
+	})
 	return
 }
 
@@ -234,9 +416,18 @@ func (handler *CommandHandler) applyStripeCheckoutSessionStarted(ctx context.Con
 	var detail events.StripeCheckoutSessionStartedDetail
 	err := json.Unmarshal(event.Data, &detail)
 	fatal.OnError(err)
-	handler.sessionInfoForAccount[event.AccountID] = &CheckoutSessionInfo{
+	handler.sessionInfoByAccount[event.AccountID] = &CheckoutSessionInfo{
 		CheckoutSessionID: detail.SessionID,
 		CheckoutURL:       detail.CheckoutURL,
 		SessionExpiresAt:  detail.SessionExpiresAt,
 	}
+}
+
+func contains[T comparable](slice []T, item T) bool {
+	for _, v := range slice {
+		if v == item {
+			return true
+		}
+	}
+	return false
 }
