@@ -25,7 +25,7 @@ checkout session repository; do not call Stripe.
 - [ ] An existing, unexpired session is reused.
 - [ ] An expired session permits a new create.
 - [ ] Create failure reaches all waiting callers; a subsequent request can retry.
-- [ ] FAILING: A caller waiting on a shared Create can cancel independently, returning context.Canceled while the leader continues. (`TestStartCheckoutSessionWaitingCallerCanCancel`)
+- [x] A caller waiting on a shared Create can cancel independently, returning context.Canceled while the leader continues. (`TestStartCheckoutSessionWaitingCallerCanCancel`)
 - [ ] Event-append failure reaches all waiting callers without leaving them blocked.
 - [ ] No caller receives success before the started event is persisted.
 - [x] Replaying the started event allows reuse without another create. (`TestRestartReusesPersistedCheckout`)
@@ -78,15 +78,13 @@ under Creating checkout instead.
 
 ## Current status
 
-16 October 2026: added restart-recovery cases to distinguish ephemeral futures
-and sync markers from projections rebuilt from the log. Added and individually
-ran three passing tests: persisted checkout reuse after restart, new creation
-when an old create is in flight without a started event, and new retrieval when
-an old sync is in flight. Each uses a fresh handler without copying old state.
+16 October 2026: completed the promise/read-only future split. The creator holds
+its Promise; shared callers receive Future and select on Ready or their context.
+Cancelling a waiter now returns context.Canceled without stopping the leader.
+NewPromise initializes the completion channel. Resolve panics on a second call,
+even concurrently, before mutating the first result.
 
-The next test, `TestStartCheckoutSessionWaitingCallerCanCancel`, fails: a waiting
-caller's context is cancelled while the shared Create remains blocked. The
-waiter stays blocked until Create finishes, then returns success rather than
-context.Canceled. The shared future's Result wait does not observe the waiting
-caller's context. Stopped here without changing implementation or running
-further cases. Existing uncommitted command handler refactoring was preserved.
+Future tests cover broadcast readers, late readers, error delivery, repeated
+resolution and concurrent resolvers. All future and payment repository tests,
+including restart recovery and the cancellation regression, pass with -race.
+No additional unchecked payment cases were attempted during this fix.

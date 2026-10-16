@@ -1,27 +1,40 @@
 package future
 
-type Result[T any] struct {
-	Value T
-	Error error
+import "sync/atomic"
+
+type Promise[T any] struct {
+	value    T
+	err      error
+	readyC   chan struct{}
+	resolved atomic.Bool
+}
+
+func NewPromise[T any]() *Promise[T] {
+	return &Promise[T]{readyC: make(chan struct{})}
+}
+
+func (promise *Promise[T]) Resolve(value T, err error) {
+	if !promise.resolved.CompareAndSwap(false, true) {
+		panic("future: promise already resolved")
+	}
+	promise.value = value
+	promise.err = err
+	close(promise.readyC)
+}
+
+func (promise *Promise[T]) Future() *Future[T] {
+	return &Future[T]{promise: promise}
 }
 
 type Future[T any] struct {
-	result Result[T]
-	readyC chan struct{}
+	promise *Promise[T]
 }
 
-func New[T any]() *Future[T] {
-	return &Future[T]{
-		readyC: make(chan struct{}),
-	}
+func (future *Future[T]) Ready() <-chan struct{} {
+	return future.promise.readyC
 }
 
-func (future *Future[T]) Resolve(result T, err error) {
-	future.result = Result[T]{Value: result, Error: err}
-	close(future.readyC)
-}
-
-func (future *Future[T]) Result() Result[T] {
-	<-future.readyC
-	return future.result
+func (future *Future[T]) Result() (T, error) {
+	<-future.promise.readyC
+	return future.promise.value, future.promise.err
 }

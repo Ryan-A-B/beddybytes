@@ -31,9 +31,9 @@ type CommandHandler struct {
 	cursor                    int64
 	checkoutSessionRepository checkoutsessions.Repository
 
-	eligibleAccounts            map[string]*models.License
-	sessionInfoByID             map[string]*CheckoutSessionInfo
-	sessionInfoByAccount        map[string]*CheckoutSessionInfo
+	eligibleAccounts     map[string]*models.License
+	sessionInfoByAccount map[string]*CheckoutSessionInfo
+
 	sessionInfoFutureForAccount map[string]*future.Future[*CheckoutSessionInfo]
 	syncInProgress              map[string]struct{}
 }
@@ -59,9 +59,9 @@ func NewCommandHandler(input NewCommandHandlerInput) *CommandHandler {
 		eventLog:                  input.EventLog,
 		checkoutSessionRepository: input.CheckoutSessionRepository,
 
-		eligibleAccounts:            make(map[string]*models.License),
-		sessionInfoByID:             make(map[string]*CheckoutSessionInfo),
-		sessionInfoByAccount:        make(map[string]*CheckoutSessionInfo),
+		eligibleAccounts:     make(map[string]*models.License),
+		sessionInfoByAccount: make(map[string]*CheckoutSessionInfo),
+
 		sessionInfoFutureForAccount: make(map[string]*future.Future[*CheckoutSessionInfo]),
 		syncInProgress:              make(map[string]struct{}),
 	}
@@ -89,7 +89,7 @@ func (handler *CommandHandler) StartCheckoutSession(ctx context.Context, input S
 	if err != nil {
 		return
 	}
-	preflightOutput, err := handler.preflight(ctx, input)
+	preflightOutput, err := handler.startCheckoutSessionPreflight(ctx, input)
 	if err != nil {
 		return
 	}
@@ -99,12 +99,15 @@ func (handler *CommandHandler) StartCheckoutSession(ctx context.Context, input S
 	}
 	var sessionInfo *CheckoutSessionInfo
 	if preflightOutput.futureAlreadyExisted {
-		result := preflightOutput.sessionInfoFuture.Result()
-		if result.Error != nil {
-			err = result.Error
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-preflightOutput.sessionInfoFuture.Ready():
+		}
+		sessionInfo, err = preflightOutput.sessionInfoFuture.Result()
+		if err != nil {
 			return
 		}
-		sessionInfo = result.Value
 		output = &StartCheckoutSessionOutput{
 			CheckoutSessionID: sessionInfo.CheckoutSessionID,
 			CheckoutURL:       sessionInfo.CheckoutURL,
@@ -116,7 +119,7 @@ func (handler *CommandHandler) StartCheckoutSession(ctx context.Context, input S
 			handler.mutex.Lock()
 			defer handler.mutex.Unlock()
 			delete(handler.sessionInfoFutureForAccount, input.AccountID)
-			preflightOutput.sessionInfoFuture.Resolve(nil, err)
+			preflightOutput.sessionInfoPromise.Resolve(nil, err)
 		}
 	}()
 	// Stripe's default TTL is 24 hours
@@ -147,7 +150,7 @@ func (handler *CommandHandler) StartCheckoutSession(ctx context.Context, input S
 	if err != nil {
 		return
 	}
-	preflightOutput.sessionInfoFuture.Resolve(sessionInfo, nil)
+	preflightOutput.sessionInfoPromise.Resolve(sessionInfo, nil)
 	output = &StartCheckoutSessionOutput{
 		CheckoutSessionID: session.ID,
 		CheckoutURL:       session.URL,
@@ -155,13 +158,14 @@ func (handler *CommandHandler) StartCheckoutSession(ctx context.Context, input S
 	return
 }
 
-type PreflightOutput struct {
+type startCheckoutSessionPreflightOutput struct {
 	startCheckoutSessionOutput *StartCheckoutSessionOutput
 	sessionInfoFuture          *future.Future[*CheckoutSessionInfo]
+	sessionInfoPromise         *future.Promise[*CheckoutSessionInfo]
 	futureAlreadyExisted       bool
 }
 
-func (handler *CommandHandler) preflight(ctx context.Context, input StartCheckoutSessionInput) (output PreflightOutput, err error) {
+func (handler *CommandHandler) startCheckoutSessionPreflight(ctx context.Context, input StartCheckoutSessionInput) (output startCheckoutSessionPreflightOutput, err error) {
 	handler.mutex.Lock()
 	defer handler.mutex.Unlock()
 	err = handler.catchup(ctx)
@@ -175,7 +179,7 @@ func (handler *CommandHandler) preflight(ctx context.Context, input StartCheckou
 	sessionInfo, ok := handler.sessionInfoByAccount[input.AccountID]
 	if ok {
 		if !sessionInfo.HasExpired() {
-			output = PreflightOutput{
+			output = startCheckoutSessionPreflightOutput{
 				startCheckoutSessionOutput: &StartCheckoutSessionOutput{
 					CheckoutSessionID: sessionInfo.CheckoutSessionID,
 					CheckoutURL:       sessionInfo.CheckoutURL,
@@ -186,13 +190,16 @@ func (handler *CommandHandler) preflight(ctx context.Context, input StartCheckou
 		delete(handler.sessionInfoByAccount, input.AccountID)
 	}
 	sessionInfoFuture, futureAlreadyExisted := handler.sessionInfoFutureForAccount[input.AccountID]
+	var sessionInfoPromise *future.Promise[*CheckoutSessionInfo]
 	if !futureAlreadyExisted {
-		sessionInfoFuture = future.New[*CheckoutSessionInfo]()
+		sessionInfoPromise = future.NewPromise[*CheckoutSessionInfo]()
+		sessionInfoFuture = sessionInfoPromise.Future()
 		handler.sessionInfoFutureForAccount[input.AccountID] = sessionInfoFuture
 	}
-	output = PreflightOutput{
+	output = startCheckoutSessionPreflightOutput{
 		startCheckoutSessionOutput: nil,
 		sessionInfoFuture:          sessionInfoFuture,
+		sessionInfoPromise:         sessionInfoPromise,
 		futureAlreadyExisted:       futureAlreadyExisted,
 	}
 	return
