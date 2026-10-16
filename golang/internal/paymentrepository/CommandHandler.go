@@ -382,6 +382,10 @@ func (handler *CommandHandler) apply(ctx context.Context, event *eventlog.Event)
 		handler.applyAccountCreatedV2(ctx, event)
 	case events.TypePerpetualLicenseGranted:
 		handler.applyPerpetualLicenseGranted(ctx, event)
+	case events.TypeProvisionalLicenseGranted:
+		handler.applyProvisionalLicenseGranted(ctx, event)
+	case events.TypeProvisionalLicenseRevoked:
+		handler.applyProvisionalLicenseRevoked(ctx, event)
 	case events.TypeStripeCheckoutSessionStarted:
 		handler.applyStripeCheckoutSessionStarted(ctx, event)
 	}
@@ -399,6 +403,31 @@ func (handler *CommandHandler) applyAccountCreatedV2(ctx context.Context, event 
 
 func (handler *CommandHandler) applyPerpetualLicenseGranted(ctx context.Context, event *eventlog.Event) {
 	delete(handler.eligibleAccounts, event.AccountID)
+}
+
+func (handler *CommandHandler) applyProvisionalLicenseGranted(ctx context.Context, event *eventlog.Event) {
+	license, eligible := handler.eligibleAccounts[event.AccountID]
+	if !eligible || license.Type != models.LicenseTypeTrial {
+		return
+	}
+	handler.eligibleAccounts[event.AccountID] = &models.License{
+		Type:             models.LicenseTypeProvisional,
+		StartUnixSeconds: event.UnixTimestamp,
+		ProvisionalLicense: &models.ProvisionalLicense{
+			TrialStartUnixSeconds: license.StartUnixSeconds,
+		},
+	}
+}
+
+func (handler *CommandHandler) applyProvisionalLicenseRevoked(ctx context.Context, event *eventlog.Event) {
+	license, eligible := handler.eligibleAccounts[event.AccountID]
+	if !eligible || license.Type != models.LicenseTypeProvisional {
+		return
+	}
+	handler.eligibleAccounts[event.AccountID] = &models.License{
+		Type:             models.LicenseTypeTrial,
+		StartUnixSeconds: license.ProvisionalLicense.TrialStartUnixSeconds,
+	}
 }
 
 func (handler *CommandHandler) applyStripeCheckoutSessionStarted(ctx context.Context, event *eventlog.Event) {

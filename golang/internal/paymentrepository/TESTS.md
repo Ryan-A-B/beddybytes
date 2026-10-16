@@ -12,7 +12,7 @@ checkout session repository; do not call Stripe.
 - [x] V1 accounts are not projected or allowed to create checkout. (`TestStartCheckoutSessionRejectsV1Account`)
 - [x] Unknown account cannot start checkout. (`TestStartCheckoutSessionRejectsUnknownAccount`)
 - [x] Perpetual account cannot start another purchase. (`TestStartCheckoutSessionRejectsPerpetualAccount`)
-- [ ] License grants and revocations rebuild the correct state after restart.
+- [x] License grants and revocations rebuild the correct state after restart. (`TestRestartAfterPaidSyncDoesNotGrantTwice`, `TestRestartReplaysProvisionalGrantPreservingTrialStart`, `TestRestartReplaysProvisionalRevocationRestoringTrialStart`)
 - [x] Paid sync for an existing trial account appends a perpetual-license grant. (`TestSyncCheckoutSessionPaidSessionGrantsPerpetualLicense`)
 
 ## Creating checkout
@@ -79,7 +79,9 @@ under Creating checkout instead.
 
 ## Current status
 
-16 October 2026: fixed the null Checkout Session payload panic by returning an
-error after unmarshalling and before calling fulfillment. The regression test
-passes without event appends. All future, payment command handler and Stripe
-adapter tests pass. No further checklist cases attempted during this fix.
+16 October 2026: added restart replay tests for persisted provisional grants and
+revocations. Both initially exposed missing replay handlers, which were added
+under the standing instruction to fix event replay and continue. Grant replay
+preserves the original trial start; revocation restores that trial without
+resetting its dates. This does not change when provisional access is granted.
+All future and payment tests pass before proceeding to the next case.

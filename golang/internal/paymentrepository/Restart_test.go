@@ -12,6 +12,7 @@ import (
 
 	"github.com/Ryan-A-B/beddybytes/golang/internal/eventlog"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/events"
+	"github.com/Ryan-A-B/beddybytes/golang/internal/models"
 )
 
 func TestRestartReusesPersistedCheckout(t *testing.T) {
@@ -240,6 +241,60 @@ func TestRestartAfterPaidSyncDoesNotGrantTwice(t *testing.T) {
 	}
 	if grants != 1 {
 		t.Fatalf("expected one perpetual grant across restart, got %d", grants)
+	}
+}
+
+func TestRestartReplaysProvisionalGrantPreservingTrialStart(t *testing.T) {
+	ctx := context.Background()
+	log := newRestartTestLog(t)
+	initial := NewCommandHandler(NewCommandHandlerInput{EventLog: log})
+	if err := initial.catchup(ctx); err != nil {
+		t.Fatal(err)
+	}
+	trialStart := initial.eligibleAccounts["account-1"].StartUnixSeconds
+	grant, err := log.Append(ctx, eventlog.AppendInput{
+		Type: events.TypeProvisionalLicenseGranted, AccountID: "account-1",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Only the log is reused. The original handler still has a trial license.
+	restarted := NewCommandHandler(NewCommandHandlerInput{EventLog: log})
+	if err := restarted.catchup(ctx); err != nil {
+		t.Fatal(err)
+	}
+	license := restarted.eligibleAccounts["account-1"]
+	if license == nil || license.Type != models.LicenseTypeProvisional {
+		t.Fatalf("expected replayed provisional license, got %+v", license)
+	}
+	if license.StartUnixSeconds != grant.UnixTimestamp {
+		t.Errorf("provisional start=%d, want grant time %d", license.StartUnixSeconds, grant.UnixTimestamp)
+	}
+	if license.ProvisionalLicense == nil || license.ProvisionalLicense.TrialStartUnixSeconds != trialStart {
+		t.Fatalf("original trial start was not preserved: %+v, want %d", license.ProvisionalLicense, trialStart)
+	}
+}
+
+func TestRestartReplaysProvisionalRevocationRestoringTrialStart(t *testing.T) {
+	ctx := context.Background()
+	log := newRestartTestLog(t)
+	initial := NewCommandHandler(NewCommandHandlerInput{EventLog: log})
+	if err := initial.catchup(ctx); err != nil {
+		t.Fatal(err)
+	}
+	trialStart := initial.eligibleAccounts["account-1"].StartUnixSeconds
+	for _, eventType := range []eventlog.EventType{events.TypeProvisionalLicenseGranted, events.TypeProvisionalLicenseRevoked} {
+		if _, err := log.Append(ctx, eventlog.AppendInput{Type: eventType, AccountID: "account-1"}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	restarted := NewCommandHandler(NewCommandHandlerInput{EventLog: log})
+	if err := restarted.catchup(ctx); err != nil {
+		t.Fatal(err)
+	}
+	license := restarted.eligibleAccounts["account-1"]
+	if license == nil || license.Type != models.LicenseTypeTrial || license.StartUnixSeconds != trialStart || license.ProvisionalLicense != nil {
+		t.Fatalf("replayed revocation should restore trial starting at %d without provisional metadata, got %+v", trialStart, license)
 	}
 }
 
