@@ -39,7 +39,7 @@ checkout session repository; do not call Stripe.
 - [x] Missing or unexpanded PaymentIntent returns an error without changing access. (`TestFulfillCheckoutPaymentIntentStates`)
 - [x] Stripe Retrieve requests payment_intent expansion. (`internal/checkoutsessions/Stripe_test.go`: `TestRetrieveExpandsPaymentIntent`)
 - [x] Repeated sync of a paid session grants perpetual access only once. (`TestSyncCheckoutSessionRepeatedPaidResultGrantsLicenseOnce`)
-- [ ] An expired session revokes provisional access while preserving original trial dates.
+- [ ] An expired session emits no license change; it cannot transition from completed and must not revoke access associated with another checkout.
 - [x] Nil sessions and unexpected session/payment statuses return an error without appending license events. (`TestFulfillCheckoutRejectsInvalidSessionWithoutEvents`)
 
 ## Restart recovery
@@ -84,13 +84,13 @@ under Creating checkout instead.
 
 ## Current status
 
-16 October 2026: extracted `validateSession` and call it first in
-`fulfillCheckout`. It checks nil input, supported session/payment statuses and
-expanded PaymentIntent availability for completed/unpaid sessions. Fulfillment
-now contains the license transitions, with validation errors returned before
-any transition is attempted. Existing open/expired behavior is preserved.
+16 October 2026: removed provisional revocation for expired Checkout Sessions.
+After validation, fulfillment returns without changes unless the session is
+complete. Expiry cannot follow completion, so it cannot terminate provisional
+access granted for that same session. Expired attempts must also leave access
+from another attempt alone. Updated the expired-session test expectation;
+its dedicated test remains unchecked.
 
-All future and payment tests pass with -race, including invalid-session checks
-and the existing PaymentIntent-state scenarios. No further unchecked checklist
-cases attempted during this refactor. The human's uncommitted JSON unmarshal
-error-style edit remains unchanged and unstaged.
+All existing future and payment tests pass. No further checklist cases attempted
+during this simplification. The human's uncommitted JSON unmarshal error-style
+edit remains unchanged and unstaged.

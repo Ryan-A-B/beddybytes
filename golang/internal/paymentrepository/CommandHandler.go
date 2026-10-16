@@ -313,13 +313,10 @@ func (handler *CommandHandler) fulfillCheckout(ctx context.Context, session *str
 	if err := validateSession(session); err != nil {
 		return err
 	}
-	accountID := session.ClientReferenceID
-	if session.Status == stripe.CheckoutSessionStatusOpen {
+	if session.Status != stripe.CheckoutSessionStatusComplete {
 		return nil
 	}
-	if session.Status == stripe.CheckoutSessionStatusExpired {
-		return handler.revokeProvisionalLicense(ctx, accountID)
-	}
+	accountID := session.ClientReferenceID
 	if session.PaymentStatus == stripe.CheckoutSessionPaymentStatusPaid {
 		return handler.grantPerpetualLicense(ctx, accountID)
 	}
