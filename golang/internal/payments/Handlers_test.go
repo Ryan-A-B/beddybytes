@@ -25,22 +25,22 @@ type commandStub struct {
 	record func(context.Context, paymentrepository.RecordCheckoutSessionEventInput) error
 }
 
-func (s *commandStub) StartCheckoutSession(ctx context.Context, input paymentrepository.StartCheckoutSessionInput) (*paymentrepository.StartCheckoutSessionOutput, error) {
-	return s.start(ctx, input)
+func (stub *commandStub) StartCheckoutSession(ctx context.Context, input paymentrepository.StartCheckoutSessionInput) (*paymentrepository.StartCheckoutSessionOutput, error) {
+	return stub.start(ctx, input)
 }
-func (s *commandStub) SyncCheckoutSession(ctx context.Context, input paymentrepository.SyncCheckoutSessionInput) error {
-	return s.sync(ctx, input)
+func (stub *commandStub) SyncCheckoutSession(ctx context.Context, input paymentrepository.SyncCheckoutSessionInput) error {
+	return stub.sync(ctx, input)
 }
-func (s *commandStub) RecordCheckoutSessionEvent(ctx context.Context, input paymentrepository.RecordCheckoutSessionEventInput) error {
-	return s.record(ctx, input)
+func (stub *commandStub) RecordCheckoutSessionEvent(ctx context.Context, input paymentrepository.RecordCheckoutSessionEventInput) error {
+	return stub.record(ctx, input)
 }
 
 var testKey = []byte("payments-http-test-key")
 
 func paymentRouter(commands Commands) http.Handler {
-	h := &Handlers{Commands: commands, Key: testKey, FrontendURL: "https://app.example/payment/result?keep=value"}
+	handlers := &Handlers{Commands: commands, Key: testKey, FrontendURL: "https://app.example/payment/result?keep=value"}
 	router := mux.NewRouter()
-	h.AddRoutes(router)
+	handlers.AddRoutes(router)
 	return router
 }
 

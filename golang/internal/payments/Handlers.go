@@ -29,99 +29,99 @@ type Handlers struct {
 	FrontendURL string // Fixed payment result page, not a caller-supplied URL.
 }
 
-func (h *Handlers) AddRoutes(router *mux.Router) {
+func (handlers *Handlers) AddRoutes(router *mux.Router) {
 	start := router.PathPrefix("/payment/start").Subrouter()
-	start.Use(internal.NewAuthorizationMiddleware(h.Key).Middleware)
-	start.HandleFunc("", h.Start).Methods(http.MethodPost)
+	start.Use(internal.NewAuthorizationMiddleware(handlers.Key).Middleware)
+	start.HandleFunc("", handlers.Start).Methods(http.MethodPost)
 
-	router.HandleFunc("/payment/stripe/success", h.Success).Methods(http.MethodGet)
-	router.HandleFunc("/payment/stripe/cancel", h.Cancel).Methods(http.MethodGet)
-	router.HandleFunc("/payment/stripe/webhook", h.Webhook).Methods(http.MethodPost)
+	router.HandleFunc("/payment/stripe/success", handlers.Success).Methods(http.MethodGet)
+	router.HandleFunc("/payment/stripe/cancel", handlers.Cancel).Methods(http.MethodGet)
+	router.HandleFunc("/payment/stripe/webhook", handlers.Webhook).Methods(http.MethodPost)
 }
 
-func (h *Handlers) Start(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Cache-Control", "no-store")
-	accountID := contextx.GetAccountID(r.Context())
+func (handlers *Handlers) Start(responseWriter http.ResponseWriter, request *http.Request) {
+	responseWriter.Header().Set("Cache-Control", "no-store")
+	accountID := contextx.GetAccountID(request.Context())
 	if accountID == "" {
-		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		http.Error(responseWriter, "unauthorized", http.StatusUnauthorized)
 		return
 	}
-	output, err := h.Commands.StartCheckoutSession(r.Context(), paymentrepository.StartCheckoutSessionInput{AccountID: accountID})
+	output, err := handlers.Commands.StartCheckoutSession(request.Context(), paymentrepository.StartCheckoutSessionInput{AccountID: accountID})
 	if err != nil {
 		if errors.Is(err, paymentrepository.ErrAccountIneligible) {
-			http.Error(w, "account is not eligible for checkout", http.StatusForbidden)
+			http.Error(responseWriter, "account is not eligible for checkout", http.StatusForbidden)
 			return
 		}
 		logx.Warnln(err)
-		http.Error(w, "could not start checkout", http.StatusInternalServerError)
+		http.Error(responseWriter, "could not start checkout", http.StatusInternalServerError)
 		return
 	}
 	if output == nil || output.CheckoutURL == "" {
-		http.Error(w, "could not start checkout", http.StatusInternalServerError)
+		http.Error(responseWriter, "could not start checkout", http.StatusInternalServerError)
 		return
 	}
 	// Start returns only after the checkout-started event is persisted.
-	http.Redirect(w, r, output.CheckoutURL, http.StatusSeeOther)
+	http.Redirect(responseWriter, request, output.CheckoutURL, http.StatusSeeOther)
 }
 
-func (h *Handlers) Success(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Cache-Control", "no-store")
-	sessionID := r.URL.Query().Get("session_id")
+func (handlers *Handlers) Success(responseWriter http.ResponseWriter, request *http.Request) {
+	responseWriter.Header().Set("Cache-Control", "no-store")
+	sessionID := request.URL.Query().Get("session_id")
 	if sessionID == "" {
-		http.Error(w, "session ID is required", http.StatusBadRequest)
+		http.Error(responseWriter, "session ID is required", http.StatusBadRequest)
 		return
 	}
-	if err := h.Commands.SyncCheckoutSession(r.Context(), paymentrepository.SyncCheckoutSessionInput{CheckoutSessionID: sessionID}); err != nil {
+	if err := handlers.Commands.SyncCheckoutSession(request.Context(), paymentrepository.SyncCheckoutSessionInput{CheckoutSessionID: sessionID}); err != nil {
 		logx.Warnln(err)
-		http.Error(w, "could not sync checkout", http.StatusInternalServerError)
+		http.Error(responseWriter, "could not sync checkout", http.StatusInternalServerError)
 		return
 	}
 	// Sync does not return payment status. The frontend must read the account
 	// license rather than treating a browser return as proof of payment.
-	h.redirect(w, r, "pending")
+	handlers.redirect(responseWriter, request, "pending")
 }
 
-func (h *Handlers) Cancel(w http.ResponseWriter, r *http.Request) {
+func (handlers *Handlers) Cancel(responseWriter http.ResponseWriter, request *http.Request) {
 	// Leaving Checkout is browser navigation, not a failed or expired payment.
 	// There is no repository cancellation command; leave the session reusable.
-	h.redirect(w, r, "cancelled")
+	handlers.redirect(responseWriter, request, "cancelled")
 }
 
-func (h *Handlers) Webhook(w http.ResponseWriter, r *http.Request) {
-	payload, err := io.ReadAll(http.MaxBytesReader(w, r.Body, 1024*1024))
+func (handlers *Handlers) Webhook(responseWriter http.ResponseWriter, request *http.Request) {
+	payload, err := io.ReadAll(http.MaxBytesReader(responseWriter, request.Body, 1024*1024))
 	if err != nil {
 		status := http.StatusBadRequest
 		var tooLarge *http.MaxBytesError
 		if errors.As(err, &tooLarge) {
 			status = http.StatusRequestEntityTooLarge
 		}
-		http.Error(w, "invalid webhook body", status)
+		http.Error(responseWriter, "invalid webhook body", status)
 		return
 	}
-	signature := r.Header.Get("Stripe-Signature")
+	signature := request.Header.Get("Stripe-Signature")
 	if signature == "" {
-		http.Error(w, "Stripe signature is required", http.StatusBadRequest)
+		http.Error(responseWriter, "Stripe signature is required", http.StatusBadRequest)
 		return
 	}
-	if err := h.Commands.RecordCheckoutSessionEvent(r.Context(), paymentrepository.RecordCheckoutSessionEventInput{Payload: payload, Signature: signature}); err != nil {
+	if err := handlers.Commands.RecordCheckoutSessionEvent(request.Context(), paymentrepository.RecordCheckoutSessionEventInput{Payload: payload, Signature: signature}); err != nil {
 		logx.Warnln(err)
 		// Repository errors include failed event persistence. Keep them retryable;
 		// never acknowledge a webhook that the command failed to process.
-		http.Error(w, "could not process checkout event", http.StatusInternalServerError)
+		http.Error(responseWriter, "could not process checkout event", http.StatusInternalServerError)
 		return
 	}
-	w.WriteHeader(http.StatusOK)
+	responseWriter.WriteHeader(http.StatusOK)
 }
 
-func (h *Handlers) redirect(w http.ResponseWriter, r *http.Request, status string) {
-	w.Header().Set("Cache-Control", "no-store")
-	u, err := url.Parse(h.FrontendURL)
-	if err != nil || (u.Scheme != "https" && u.Scheme != "http") || u.Host == "" {
-		http.Error(w, "invalid frontend configuration", http.StatusInternalServerError)
+func (handlers *Handlers) redirect(responseWriter http.ResponseWriter, request *http.Request, status string) {
+	responseWriter.Header().Set("Cache-Control", "no-store")
+	frontendURL, err := url.Parse(handlers.FrontendURL)
+	if err != nil || (frontendURL.Scheme != "https" && frontendURL.Scheme != "http") || frontendURL.Host == "" {
+		http.Error(responseWriter, "invalid frontend configuration", http.StatusInternalServerError)
 		return
 	}
-	query := u.Query()
+	query := frontendURL.Query()
 	query.Set("payment_status", status)
-	u.RawQuery = query.Encode()
-	http.Redirect(w, r, u.String(), http.StatusSeeOther)
+	frontendURL.RawQuery = query.Encode()
+	http.Redirect(responseWriter, request, frontendURL.String(), http.StatusSeeOther)
 }
