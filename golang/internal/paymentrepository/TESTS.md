@@ -8,8 +8,9 @@ checkout session repository; do not call Stripe.
 
 ## Account and license replay
 
-- [x] V1 account starts perpetual; v2 account starts trial. (`TestAccountCreationReplaySetsInitialLicense`)
-- [ ] FAILING: Unknown account cannot start checkout. (`TestStartCheckoutSessionRejectsUnknownAccount`)
+- [x] V2 account starts trial. (`TestV2AccountCreationReplaySetsTrialLicense`)
+- [x] V1 accounts are not projected or allowed to create checkout. (`TestStartCheckoutSessionRejectsV1Account`)
+- [x] Unknown account cannot start checkout. (`TestStartCheckoutSessionRejectsUnknownAccount`)
 - [ ] Perpetual account cannot start another purchase.
 - [ ] License grants and revocations rebuild the correct state after restart.
 - [x] Paid sync for an existing trial account appends a perpetual-license grant. (`TestSyncCheckoutSessionPaidSessionGrantsPerpetualLicense`)
@@ -60,11 +61,12 @@ under Creating checkout instead.
 
 ## Current status
 
-16 October 2026: added account-creation replay coverage. V1 replay was missing;
-implemented it and verified all four tests then passed (including v1/v2 subtests).
+16 October 2026: preflight now checks account existence after catch-up and before
+returning an existing checkout or starting a create. Unknown accounts return
+`ErrAccountNotFound` without calling the checkout repository or appending events.
 
-The next test, `TestStartCheckoutSessionRejectsUnknownAccount`, fails: starting
-checkout with an unknown account calls Create, persists a started event, and
-returns a Checkout URL with no error. Preflight catches up but does not validate
-account existence. This is command validation, not missing event replay, so
-stopped without fixing it. No further checklist cases run.
+V1 projection was removed from the payment repository: those accounts already
+have perpetual access and are outside its scope. V1 creation events are ignored,
+so v1 accounts are also rejected before checkout. Other account handling retains
+its v1 support. All six current payment repository tests pass. No further
+checklist cases have been attempted.

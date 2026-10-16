@@ -17,14 +17,13 @@ import (
 	"github.com/Ryan-A-B/beddybytes/golang/internal/models"
 )
 
-func TestAccountCreationReplaySetsInitialLicense(t *testing.T) {
+func TestV2AccountCreationReplaySetsTrialLicense(t *testing.T) {
 	for _, test := range []struct {
 		name        string
 		eventType   eventlog.EventType
 		detail      interface{}
 		licenseType models.LicenseType
 	}{
-		{"v1 is perpetual", events.TypeAccountCreatedV1, events.AccountCreatedV1Detail{AccountID: "account-1"}, models.LicenseTypePerpetual},
 		{"v2 is trial", events.TypeAccountCreatedV2, events.AccountCreatedV2Detail{AccountID: "account-1"}, models.LicenseTypeTrial},
 	} {
 		t.Run(test.name, func(t *testing.T) {
@@ -88,6 +87,43 @@ func TestStartCheckoutSessionRejectsUnknownAccount(t *testing.T) {
 	iterator := log.GetEventIterator(ctx, eventlog.GetEventIteratorInput{})
 	for iterator.Next(ctx) {
 		t.Errorf("unknown account emitted event %s", iterator.Event().Type)
+	}
+	if err := iterator.Err(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestStartCheckoutSessionRejectsV1Account(t *testing.T) {
+	ctx := context.Background()
+	log := eventlog.NewFileEventLog(&eventlog.NewFileEventLogInput{FolderPath: t.TempDir()})
+	data, err := json.Marshal(events.AccountCreatedV1Detail{AccountID: "legacy-account"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	created, err := log.Append(ctx, eventlog.AppendInput{Type: events.TypeAccountCreatedV1, Data: data})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var creates int
+	handler := NewCommandHandler(NewCommandHandlerInput{
+		EventLog: log,
+		CheckoutSessionRepository: &checkoutSessionRepositoryStub{
+			create: func(context.Context, string) (*stripe.CheckoutSession, error) {
+				creates++
+				return nil, fmt.Errorf("unexpected Create call for v1 account")
+			},
+		},
+	})
+	output, err := handler.StartCheckoutSession(ctx, StartCheckoutSessionInput{AccountID: "legacy-account"})
+	if !errors.Is(err, ErrAccountNotFound) || output != nil || creates != 0 {
+		t.Fatalf("v1 checkout: output=%+v error=%v creates=%d; want ErrAccountNotFound without Create", output, err, creates)
+	}
+	if _, exists := handler.licenseForAccount["legacy-account"]; exists {
+		t.Error("payment repository should not project v1 accounts")
+	}
+	iterator := log.GetEventIterator(ctx, eventlog.GetEventIteratorInput{FromCursor: created.LogicalClock})
+	for iterator.Next(ctx) {
+		t.Errorf("v1 account emitted payment event %s", iterator.Event().Type)
 	}
 	if err := iterator.Err(); err != nil {
 		t.Fatal(err)
