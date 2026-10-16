@@ -21,9 +21,9 @@ checkout session repository; do not call Stripe.
 - [x] Stripe Create sends client_reference_id equal to its account ID argument. (`internal/checkoutsessions/Stripe_test.go`: `TestCreateSetsClientReferenceIDToAccountID`, using an in-memory HTTP transport)
 
 - [x] Concurrent starts for the same account share one create call and return the same session. (`TestStartCheckoutSessionConcurrentRequestsShareCreate`)
-- [ ] Different accounts can create concurrently.
-- [ ] An existing, unexpired session is reused.
-- [ ] An expired session permits a new create.
+- [x] Different accounts can create concurrently. (`TestDifferentAccountsCanCreateConcurrently`)
+- [x] An existing, unexpired session is reused. (`TestStartCheckoutSessionReusesOnlyUnexpiredSession`)
+- [x] An expired session permits a new create. (`TestStartCheckoutSessionReusesOnlyUnexpiredSession`)
 - [ ] Create failure reaches all waiting callers; a subsequent request can retry.
 - [x] A caller waiting on a shared Create can cancel independently, returning context.Canceled while the leader continues. (`TestStartCheckoutSessionWaitingCallerCanCancel`)
 - [ ] Event-append failure reaches all waiting callers without leaving them blocked.
@@ -39,7 +39,7 @@ checkout session repository; do not call Stripe.
 - [x] Missing or unexpanded PaymentIntent returns an error without changing access. (`TestFulfillCheckoutPaymentIntentStates`)
 - [x] Stripe Retrieve requests payment_intent expansion. (`internal/checkoutsessions/Stripe_test.go`: `TestRetrieveExpandsPaymentIntent`)
 - [x] Repeated sync of a paid session grants perpetual access only once. (`TestSyncCheckoutSessionRepeatedPaidResultGrantsLicenseOnce`)
-- [ ] An expired session emits no license change; it cannot transition from completed and must not revoke access associated with another checkout.
+- [x] An expired session emits no license change; it cannot transition from completed and must not revoke access associated with another checkout. (`TestFulfillCheckoutPaymentIntentStates`, expired-session subtests)
 - [x] Nil sessions and unexpected session/payment statuses return an error without appending license events. (`TestFulfillCheckoutRejectsInvalidSessionWithoutEvents`)
 
 ## Restart recovery
@@ -57,6 +57,8 @@ a durable lock or a guarantee against duplicate Stripe sessions after a crash.
 - [ ] After provisional grant/revocation syncs, a fresh handler restores the appropriate license and original trial dates.
 
 ## Webhook and sync ordering
+
+- [ ] FAILING: Failure of an older payment must not revoke provisional access while a newer checkout for that account is processing. (`TestOlderFailedAttemptDoesNotRevokeNewerProcessingCheckout`)
 
 - [x] Polling retrieves a failed PaymentIntent and revokes provisional access without receiving a failure webhook. (`TestSyncFailedPaymentIntentRevokesProvisionalLicense`)
 - [x] A webhook triggers retrieval and uses current PaymentIntent state rather than its older failure snapshot. (`TestWebhookReconcilesCurrentStateInsteadOfFailureSnapshot`)
@@ -84,13 +86,16 @@ under Creating checkout instead.
 
 ## Current status
 
-16 October 2026: removed provisional revocation for expired Checkout Sessions.
-After validation, fulfillment returns without changes unless the session is
-complete. Expiry cannot follow completion, so it cannot terminate provisional
-access granted for that same session. Expired attempts must also leave access
-from another attempt alone. Updated the expired-session test expectation;
-its dedicated test remains unchecked.
+16 October 2026: new cases pass for expired sessions leaving trial/provisional
+licenses unchanged, concurrent creation for different accounts, reuse of an
+unexpired session and replacement of an expired stored session.
 
-All existing future and payment tests pass. No further checklist cases attempted
-during this simplification. The human's uncommitted JSON unmarshal error-style
-edit remains unchanged and unstaged.
+`TestOlderFailedAttemptDoesNotRevokeNewerProcessingCheckout` fails: an old
+completed payment remains processing beyond its stored checkout deadline;
+Start then permits a new checkout. Both payments are processing, but when only
+the older one fails, its sync appends a provisional revocation for the account,
+even though the newer payment is still processing. Fulfillment revokes by
+account without tracking which session currently supports provisional access.
+
+Stopped at this failure. No implementation changes or further cases run. The
+human's existing uncommitted command handler change is preserved.

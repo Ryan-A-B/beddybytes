@@ -15,14 +15,17 @@ import (
 
 func TestFulfillCheckoutPaymentIntentStates(t *testing.T) {
 	for _, test := range []struct {
-		name        string
-		intent      *stripe.PaymentIntent
-		provisional bool
-		paid        bool
-		wantType    models.LicenseType
-		wantEvent   eventlog.EventType
-		wantErr     error
+		name          string
+		sessionStatus stripe.CheckoutSessionStatus
+		intent        *stripe.PaymentIntent
+		provisional   bool
+		paid          bool
+		wantType      models.LicenseType
+		wantEvent     eventlog.EventType
+		wantErr       error
 	}{
+		{name: "expired session leaves trial unchanged", sessionStatus: stripe.CheckoutSessionStatusExpired, wantType: models.LicenseTypeTrial},
+		{name: "expired session leaves provisional access from another checkout unchanged", sessionStatus: stripe.CheckoutSessionStatusExpired, provisional: true, wantType: models.LicenseTypeProvisional},
 		{name: "processing grants provisional", intent: &stripe.PaymentIntent{Status: stripe.PaymentIntentStatusProcessing}, wantType: models.LicenseTypeProvisional, wantEvent: events.TypeProvisionalLicenseGranted},
 		{name: "processing retains provisional", intent: &stripe.PaymentIntent{Status: stripe.PaymentIntentStatusProcessing}, provisional: true, wantType: models.LicenseTypeProvisional},
 		{name: "requires payment method revokes", intent: &stripe.PaymentIntent{Status: stripe.PaymentIntentStatusRequiresPaymentMethod}, provisional: true, wantType: models.LicenseTypeTrial, wantEvent: events.TypeProvisionalLicenseRevoked},
@@ -56,8 +59,12 @@ func TestFulfillCheckoutPaymentIntentStates(t *testing.T) {
 			if test.paid {
 				status = stripe.CheckoutSessionPaymentStatusPaid
 			}
+			sessionStatus := test.sessionStatus
+			if sessionStatus == "" {
+				sessionStatus = stripe.CheckoutSessionStatusComplete
+			}
 			err := handler.fulfillCheckout(ctx, &stripe.CheckoutSession{
-				ID: "cs_test_1", ClientReferenceID: "account-1", Status: stripe.CheckoutSessionStatusComplete,
+				ID: "cs_test_1", ClientReferenceID: "account-1", Status: sessionStatus,
 				PaymentStatus: status, PaymentIntent: test.intent,
 			})
 			if !errors.Is(err, test.wantErr) {
