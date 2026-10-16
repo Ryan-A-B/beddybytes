@@ -482,6 +482,98 @@ func TestStartCheckoutSessionConcurrentRequestsShareCreate(t *testing.T) {
 	}
 }
 
+func TestStartCheckoutSessionWaitingCallerCanCancel(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	waiterCtx, cancelWaiter := context.WithCancel(ctx)
+	defer cancelWaiter()
+	log := newRestartTestLog(t)
+	entered := make(chan struct{})
+	secondPreflight := make(chan struct{})
+	release := make(chan struct{})
+	var reads, creates atomic.Int32
+	handler := NewCommandHandler(NewCommandHandlerInput{
+		EventLog: &observedPaymentEventLog{EventLog: log, onRead: func() {
+			if reads.Add(1) == 2 {
+				close(secondPreflight)
+			}
+		}},
+		CheckoutSessionRepository: &checkoutSessionRepositoryStub{
+			create: func(ctx context.Context, _ string) (*stripe.CheckoutSession, error) {
+				if creates.Add(1) == 1 {
+					close(entered)
+				}
+				select {
+				case <-release:
+					return &stripe.CheckoutSession{
+						ID: "cs_shared", URL: "https://checkout.stripe.com/shared",
+						ExpiresAt: time.Now().Add(time.Hour).Unix(),
+					}, nil
+				case <-ctx.Done():
+					return nil, ctx.Err()
+				}
+			},
+		},
+	})
+	leaderDone := make(chan error, 1)
+	go func() {
+		_, err := handler.StartCheckoutSession(ctx, StartCheckoutSessionInput{AccountID: "account-1"})
+		leaderDone <- err
+	}()
+	select {
+	case <-entered:
+	case <-ctx.Done():
+		t.Fatal("leader did not reach Create")
+	}
+	waiterDone := make(chan error, 1)
+	go func() {
+		_, err := handler.StartCheckoutSession(waiterCtx, StartCheckoutSessionInput{AccountID: "account-1"})
+		waiterDone <- err
+	}()
+	select {
+	case <-secondPreflight:
+	case <-ctx.Done():
+		t.Fatal("waiter did not reach preflight")
+	}
+	cancelWaiter()
+	var waiterErr error
+	var returnedBeforeCreateFinished bool
+	select {
+	case waiterErr = <-waiterDone:
+		returnedBeforeCreateFinished = true
+	case <-time.After(time.Second):
+		// A timeout is only a deadlock guard. The ordering is established by
+		// preflight and Create barriers, not by timing goroutine scheduling.
+	}
+	// Finish and join both calls even on failure. Cancelling the waiter should
+	// not cancel the leader or prevent its valid checkout from being persisted.
+	close(release)
+	if !returnedBeforeCreateFinished {
+		select {
+		case waiterErr = <-waiterDone:
+		case <-ctx.Done():
+			t.Fatal("waiter did not finish after Create was released")
+		}
+	}
+	select {
+	case err := <-leaderDone:
+		if err != nil {
+			t.Errorf("waiter cancellation affected leader: %v", err)
+		}
+	case <-ctx.Done():
+		t.Fatal("leader did not finish")
+	}
+	if !returnedBeforeCreateFinished {
+		t.Error("cancelled waiting caller stayed blocked until shared Create finished")
+	}
+	if !errors.Is(waiterErr, context.Canceled) {
+		t.Errorf("waiting caller returned %v, want context.Canceled", waiterErr)
+	}
+	if got := creates.Load(); got != 1 {
+		t.Errorf("expected one shared Create, got %d", got)
+	}
+}
+
 type observedPaymentEventLog struct {
 	eventlog.EventLog
 	onRead func()

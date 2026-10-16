@@ -25,9 +25,10 @@ checkout session repository; do not call Stripe.
 - [ ] An existing, unexpired session is reused.
 - [ ] An expired session permits a new create.
 - [ ] Create failure reaches all waiting callers; a subsequent request can retry.
+- [ ] FAILING: A caller waiting on a shared Create can cancel independently, returning context.Canceled while the leader continues. (`TestStartCheckoutSessionWaitingCallerCanCancel`)
 - [ ] Event-append failure reaches all waiting callers without leaving them blocked.
 - [ ] No caller receives success before the started event is persisted.
-- [ ] Replaying the started event allows reuse without another create.
+- [x] Replaying the started event allows reuse without another create. (`TestRestartReusesPersistedCheckout`)
 
 ## Syncing checkout
 
@@ -38,6 +39,20 @@ checkout session repository; do not call Stripe.
 - [x] Repeated sync of a paid session grants perpetual access only once. (`TestSyncCheckoutSessionRepeatedPaidResultGrantsLicenseOnce`)
 - [ ] An expired session revokes provisional access while preserving original trial dates. POLICY PENDING: depends on provisional-access policy.
 - [ ] Unexpected statuses return an error without changing entitlement.
+
+## Restart recovery
+
+Use a fresh command handler with the same durable event log. Never copy maps or
+futures from the old instance. In-flight coordination is per process; it is not
+a durable lock or a guarantee against duplicate Stripe sessions after a crash.
+
+- [x] After a persisted checkout start, a fresh handler rebuilds eligibility and reuses the unexpired session without Create. (`TestRestartReusesPersistedCheckout`)
+- [x] If Create was in flight with no started event persisted, a fresh handler starts a new Create rather than waiting on the old future. (`TestRestartStartsNewCreateWhenOldCreateWasNotPersisted`)
+- [ ] If Stripe creation succeeded but the started event was not persisted, a fresh handler starts a new Create; the orphan Stripe session is not recoverable from this log.
+- [x] If sync was in flight, a fresh handler starts a new Retrieve rather than inheriting syncInProgress. (`TestRestartStartsNewSyncWhenOldSyncIsInFlight`)
+- [ ] After a completed paid sync, a fresh handler rebuilds ineligibility; another sync can retrieve but must not append a duplicate perpetual grant.
+- [ ] After an open sync that emitted no license event, a fresh handler retrieves again.
+- [ ] After provisional grant/revocation syncs, a fresh handler restores the appropriate license and original trial dates. POLICY PENDING for the provisional-access transitions.
 
 ## Webhook and sync ordering
 
@@ -63,12 +78,15 @@ under Creating checkout instead.
 
 ## Current status
 
-16 October 2026: split account-agreement coverage along the repository boundary.
-The command handler test uses the fake checkout repository to verify the account
-passed to Create matches the started event and returned session. The Stripe
-adapter test lives beside `Stripe.go` and verifies outgoing client_reference_id
-with an in-memory HTTP transport. No live Stripe or network requests occur.
+16 October 2026: added restart-recovery cases to distinguish ephemeral futures
+and sync markers from projections rebuilt from the log. Added and individually
+ran three passing tests: persisted checkout reuse after restart, new creation
+when an old create is in flight without a started event, and new retrieval when
+an old sync is in flight. Each uses a fresh handler without copying old state.
 
-All ten command handler tests and the Stripe adapter test pass. No production
-code changed and no defensive sync check was added. No further checklist cases
-attempted during this change.
+The next test, `TestStartCheckoutSessionWaitingCallerCanCancel`, fails: a waiting
+caller's context is cancelled while the shared Create remains blocked. The
+waiter stays blocked until Create finishes, then returns success rather than
+context.Canceled. The shared future's Result wait does not observe the waiting
+caller's context. Stopped here without changing implementation or running
+further cases. Existing uncommitted command handler refactoring was preserved.
