@@ -220,11 +220,12 @@ func (handler *CommandHandler) RecordCheckoutSessionEvent(ctx context.Context, i
 		return
 	}
 	var session *stripe.CheckoutSession
-	if err := json.Unmarshal(event.Data.Raw, &session); err != nil {
-		return err
+	if err = json.Unmarshal(event.Data.Raw, &session); err != nil {
+		return
 	}
 	if session == nil {
-		return errors.New("checkout session payload must not be null")
+		err = errors.New("checkout session payload must not be null")
+		return
 	}
 	return handler.fulfillCheckout(ctx, session)
 }
