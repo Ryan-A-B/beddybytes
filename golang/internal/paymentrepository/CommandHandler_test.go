@@ -640,7 +640,7 @@ func TestStartCheckoutSessionUsesSameAccountForCreateAndEvent(t *testing.T) {
 	}
 }
 
-func TestAsyncPaymentFailureRevokesExistingProvisionalLicense(t *testing.T) {
+func TestSyncFailedPaymentIntentRevokesProvisionalLicense(t *testing.T) {
 	ctx := context.Background()
 	log := newRestartTestLog(t)
 	data, err := json.Marshal(events.StripeCheckoutSessionStartedDetail{
@@ -661,29 +661,21 @@ func TestAsyncPaymentFailureRevokesExistingProvisionalLicense(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	data, err = json.Marshal(&stripe.CheckoutSession{
+	session := &stripe.CheckoutSession{
 		ID: "cs_pending", ClientReferenceID: "account-1",
 		Status: stripe.CheckoutSessionStatusComplete, PaymentStatus: stripe.CheckoutSessionPaymentStatusUnpaid,
-	})
-	if err != nil {
-		t.Fatal(err)
+		PaymentIntent: &stripe.PaymentIntent{ID: "pi_failed", Status: stripe.PaymentIntentStatusRequiresPaymentMethod},
 	}
 	handler := NewCommandHandler(NewCommandHandlerInput{
 		EventLog: log,
 		CheckoutSessionRepository: &checkoutSessionRepositoryStub{
-			constructEvent: func([]byte, string) (*stripe.Event, error) {
-				return &stripe.Event{
-					Type: stripe.EventTypeCheckoutSessionAsyncPaymentFailed,
-					Data: &stripe.EventData{Raw: data},
-				}, nil
+			retrieve: func(context.Context, string) (*stripe.CheckoutSession, error) {
+				return session, nil
 			},
 		},
 	})
-	// This tests failure of an already-granted provisional license, not the
-	// separate policy decision about when to grant provisional access.
-	if err := handler.RecordCheckoutSessionEvent(ctx, RecordCheckoutSessionEventInput{
-		Payload: []byte("verified by fake repository"), Signature: "test-signature",
-	}); err != nil {
+	// No failure webhook is delivered: polling must still revoke access.
+	if err := handler.SyncCheckoutSession(ctx, SyncCheckoutSessionInput{CheckoutSessionID: session.ID}); err != nil {
 		t.Fatal(err)
 	}
 	iterator := log.GetEventIterator(ctx, eventlog.GetEventIteratorInput{FromCursor: grant.LogicalClock})
@@ -766,6 +758,12 @@ func TestRecordCheckoutSessionEventReturnsFulfillmentError(t *testing.T) {
 	handler := NewCommandHandler(NewCommandHandlerInput{
 		EventLog: failingLog,
 		CheckoutSessionRepository: &checkoutSessionRepositoryStub{
+			retrieve: func(context.Context, string) (*stripe.CheckoutSession, error) {
+				return &stripe.CheckoutSession{
+					ID: "cs_test_1", ClientReferenceID: "account-1",
+					Status: stripe.CheckoutSessionStatusComplete, PaymentStatus: stripe.CheckoutSessionPaymentStatusPaid,
+				}, nil
+			},
 			constructEvent: func([]byte, string) (*stripe.Event, error) {
 				return &stripe.Event{
 					Type: stripe.EventTypeCheckoutSessionCompleted,

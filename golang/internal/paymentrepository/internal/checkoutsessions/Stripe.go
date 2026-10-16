@@ -48,7 +48,9 @@ func (repository *StripeRepository) Create(ctx context.Context, accountID string
 }
 
 func (repository *StripeRepository) Retrieve(ctx context.Context, sessionID string) (checkoutSession *stripe.CheckoutSession, err error) {
-	return repository.client.V1CheckoutSessions.Retrieve(ctx, sessionID, nil)
+	params := &stripe.CheckoutSessionRetrieveParams{}
+	params.AddExpand("payment_intent")
+	return repository.client.V1CheckoutSessions.Retrieve(ctx, sessionID, params)
 }
 
 func (repository *StripeRepository) ConstructEvent(payload []byte, signature string) (event stripe.Event, err error) {

@@ -35,9 +35,11 @@ checkout session repository; do not call Stripe.
 - [x] Only one retrieval is in flight for the same session; an open result emits no license event. (`TestSyncCheckoutSessionOnlyOneRetrieveInFlight`)
 - [ ] Different sessions can sync concurrently.
 - [ ] Retrieval failure clears the in-flight marker so retry works.
-- [ ] A completed, unpaid session follows the agreed pending/provisional policy. POLICY PENDING: the handler currently grants provisional access; confirm desired policy before testing that transition.
+- [x] Completed/unpaid grants or retains provisional access only when the expanded PaymentIntent is processing; other statuses revoke it and preserve the original trial. (`TestFulfillCheckoutPaymentIntentStates`)
+- [x] Missing or unexpanded PaymentIntent returns an error without changing access. (`TestFulfillCheckoutPaymentIntentStates`)
+- [x] Stripe Retrieve requests payment_intent expansion. (`internal/checkoutsessions/Stripe_test.go`: `TestRetrieveExpandsPaymentIntent`)
 - [x] Repeated sync of a paid session grants perpetual access only once. (`TestSyncCheckoutSessionRepeatedPaidResultGrantsLicenseOnce`)
-- [ ] An expired session revokes provisional access while preserving original trial dates. POLICY PENDING: depends on provisional-access policy.
+- [ ] An expired session revokes provisional access while preserving original trial dates.
 - [ ] Unexpected statuses return an error without changing entitlement.
 
 ## Restart recovery
@@ -52,11 +54,12 @@ a durable lock or a guarantee against duplicate Stripe sessions after a crash.
 - [x] If sync was in flight, a fresh handler starts a new Retrieve rather than inheriting syncInProgress. (`TestRestartStartsNewSyncWhenOldSyncIsInFlight`)
 - [x] After a completed paid sync, a fresh handler rebuilds ineligibility; another sync can retrieve but must not append a duplicate perpetual grant. (`TestRestartAfterPaidSyncDoesNotGrantTwice`)
 - [ ] After an open sync that emitted no license event, a fresh handler retrieves again.
-- [ ] After provisional grant/revocation syncs, a fresh handler restores the appropriate license and original trial dates. POLICY PENDING for the provisional-access transitions.
+- [ ] After provisional grant/revocation syncs, a fresh handler restores the appropriate license and original trial dates.
 
 ## Webhook and sync ordering
 
-- [ ] FAILING: An async payment failure revokes an existing provisional license from that payment and restores the original trial. (`TestAsyncPaymentFailureRevokesExistingProvisionalLicense`)
+- [x] Polling retrieves a failed PaymentIntent and revokes provisional access without receiving a failure webhook. (`TestSyncFailedPaymentIntentRevokesProvisionalLicense`)
+- [x] A webhook triggers retrieval and uses current PaymentIntent state rather than its older failure snapshot. (`TestWebhookReconcilesCurrentStateInsteadOfFailureSnapshot`)
 
 - [ ] Repeated delivery of the same webhook produces no duplicate license change.
 - [ ] Concurrent webhook and sync results produce one effective transition.
@@ -81,16 +84,17 @@ under Creating checkout instead.
 
 ## Current status
 
-16 October 2026: added restart replay tests for persisted provisional grants and
-revocations. Fixed both missing replay handlers under the standing instruction
-to handle missing events and continue. Original trial dates are preserved and
-restored. All future and payment tests then passed.
+16 October 2026: agreed and implemented the completed-session policy: paid grants
+perpetual; unpaid grants/retains provisional only while the expanded PaymentIntent
+is processing, otherwise revokes provisional and restores the original trial.
+Missing/unexpanded intent returns an error without changing entitlement.
 
-The next test, `TestAsyncPaymentFailureRevokesExistingProvisionalLicense`, fails.
-It starts with a recorded provisional grant, then delivers
-checkout.session.async_payment_failed for that same session, whose status is
-complete and payment_status is unpaid. The handler discards the event type and
-interprets the session as pending; it emits no revocation and leaves provisional
-access enabled. This is event interpretation, not missing replay handling.
-Stopped without fixing it or running further cases. The human's unrelated
-uncommitted error-style change is preserved.
+Stripe Retrieve expands payment_intent. Verified webhooks extract the session ID
+and call the same sync/retrieve/fulfill path as polling. The failure regression
+now polls a failed PaymentIntent without any webhook; a separate test confirms
+an older failure snapshot cannot override current processing state. Stripe
+adapter tests check outgoing expansion with an in-memory HTTP transport.
+
+All future and payment tests pass with -race. No further unchecked checklist
+cases attempted during this implementation. The human's uncommitted JSON
+unmarshal error-style edit remains unchanged and unstaged.

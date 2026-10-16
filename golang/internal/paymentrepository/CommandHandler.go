@@ -24,6 +24,7 @@ var ErrNoActiveSession = errors.New("no active session for account")
 var ErrUnexpectedCheckoutSessionStatus = errors.New("unexpected checkout session status")
 var ErrUnexpectedCheckoutSessionPaymentStatus = errors.New("unexpected checkout session payment status")
 var ErrCheckoutSessionNotFound = errors.New("checkout session not found")
+var ErrPaymentIntentNotExpanded = errors.New("expanded payment intent is required for unpaid checkout")
 
 type CommandHandler struct {
 	mutex                     sync.Mutex
@@ -225,7 +226,9 @@ func (handler *CommandHandler) RecordCheckoutSessionEvent(ctx context.Context, i
 	if session == nil {
 		return errors.New("checkout session payload must not be null")
 	}
-	return handler.fulfillCheckout(ctx, session)
+	// Reconcile current state so webhooks and polling follow the same path,
+	// including when a webhook contains an older snapshot of the session.
+	return handler.SyncCheckoutSession(ctx, SyncCheckoutSessionInput{CheckoutSessionID: session.ID})
 }
 
 var checkoutSessionEventTypes = []stripe.EventType{
@@ -297,7 +300,13 @@ func (handler *CommandHandler) fulfillCheckout(ctx context.Context, session *str
 	case stripe.CheckoutSessionPaymentStatusPaid:
 		return handler.grantPerpetualLicense(ctx, accountID)
 	case stripe.CheckoutSessionPaymentStatusUnpaid:
-		return handler.grantProvisionalLicense(ctx, accountID)
+		if session.PaymentIntent == nil || session.PaymentIntent.Status == "" {
+			return ErrPaymentIntentNotExpanded
+		}
+		if session.PaymentIntent.Status == stripe.PaymentIntentStatusProcessing {
+			return handler.grantProvisionalLicense(ctx, accountID)
+		}
+		return handler.revokeProvisionalLicense(ctx, accountID)
 	default:
 		return ErrUnexpectedCheckoutSessionPaymentStatus
 	}

@@ -49,6 +49,37 @@ func TestCreateSetsClientReferenceIDToAccountID(t *testing.T) {
 	}
 }
 
+func TestRetrieveExpandsPaymentIntent(t *testing.T) {
+	var requests int
+	backend := stripe.GetBackendWithConfig(stripe.APIBackend, &stripe.BackendConfig{
+		MaxNetworkRetries: stripe.Int64(0),
+		HTTPClient: &http.Client{Transport: stripeRoundTripper(func(request *http.Request) (*http.Response, error) {
+			requests++
+			if request.Method != http.MethodGet || request.URL.Path != "/v1/checkout/sessions/cs_test_1" {
+				t.Fatalf("unexpected Stripe request: %s %s", request.Method, request.URL.Path)
+			}
+			if expand := request.URL.Query().Get("expand[0]"); expand != "payment_intent" {
+				t.Errorf("expansion=%q, want payment_intent", expand)
+			}
+			return &http.Response{
+				StatusCode: http.StatusOK, Header: http.Header{"Content-Type": []string{"application/json"}},
+				Body:    io.NopCloser(strings.NewReader(`{"id":"cs_test_1","payment_intent":{"id":"pi_test_1","status":"processing"}}`)),
+				Request: request,
+			}, nil
+		})},
+	})
+	repository := NewStripeRepository(NewStripeRepositoryInput{
+		Client: stripe.NewClient("sk_test_fake", stripe.WithBackends(&stripe.Backends{API: backend})),
+	})
+	session, err := repository.Retrieve(context.Background(), "cs_test_1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if requests != 1 || session == nil || session.PaymentIntent == nil || session.PaymentIntent.Status != stripe.PaymentIntentStatusProcessing {
+		t.Fatalf("expected one retrieval with expanded processing intent; requests=%d session=%+v", requests, session)
+	}
+}
+
 type stripeRoundTripper func(*http.Request) (*http.Response, error)
 
 func (transport stripeRoundTripper) RoundTrip(request *http.Request) (*http.Response, error) {
