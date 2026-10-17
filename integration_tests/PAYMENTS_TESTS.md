@@ -444,3 +444,30 @@ Evidence: [E24b unresolved approval](artifacts/payments/test_e24b_successful_car
 
 Outcome-classification checks rerun: **5 passed**. Fixture cases: **3 skipped**.
 No application failures were found in this continuation.
+
+## Live verification after `/payments` rename — 17 October 2026
+
+After Ryan recreated the local services, **13 Selenium cases passed** on the
+plural routes: E01–E03, E05, E09–E15 and E20–E21. This includes actual sandbox
+purchases, the browser proxy return to `/payments/callback`, Perpetual grants,
+fresh-session persistence, repeated backend returns, error callbacks, mobile
+layout and manual account refresh. E09–E15 plus E20–E21 ran independently in
+58.772s after the first browser stalled.
+
+Direct live HTTP checks also passed:
+
+- `POST /payments/start` without authentication: 401.
+- `POST /payments/stripe/webhook` without a signature: 400.
+- `GET /payments/stripe/cancel`: 303 to `/payments/callback?error=payment_cancelled`.
+- `GET /payments/stripe/success` without a session: 303 to `/payments/callback?error=invalid_request`.
+
+E04 skipped because the independently expected checkout total is still absent.
+E06 stalled in its browser run and was stopped: **INCONCLUSIVE**, not a pass or
+an established application failure. The remaining independent cases were run
+in a separate browser; E06b, E07, E16–E18 and E24 were not reached in the stopped
+suite. Their previous results above are historical. E08 remains explicitly
+skipped; E19/E22/E23 prerequisites remain outstanding. The direct webhook check
+verifies routing/signature rejection only, not delivery by the Stripe listener.
+
+No code changes were needed for this verification. Local and QA encrypted
+configuration changes were left untouched.
