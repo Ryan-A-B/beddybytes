@@ -25,3 +25,14 @@ remove that record immediately before the first deployment so CloudFormation can
 create and manage it. A normal deployment cannot adopt the existing record.
 
 Run `npm run test:local` to verify the stack contains only the DNS record.
+
+## Stripe configuration
+
+The backend task injects `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, and
+`STRIPE_PERPETUAL_PRICE_ID` from matching JSON fields in its environment's
+backend secrets bundle. Populate those fields before deploying the backend.
+The task also sets `FRONTEND_PAYMENT_CALLBACK_URL` to the environment's app
+`/payments/callback` URL. `API_ORIGIN` supplies the Stripe success/cancel origin.
+The webhook endpoint is `https://<api-host>/payments/stripe/webhook`.
+
+The backend stack references the existing bundle; it does not update its contents.
