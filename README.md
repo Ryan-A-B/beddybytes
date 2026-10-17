@@ -84,6 +84,8 @@ Use the optional `stripe-cli` service for sandbox webhooks. It forwards directly
 to the API over the Docker network and persists its login in a named volume.
 See [local Stripe setup](scripts/stripe/README.md) for first-time login, the
 `payments` Compose profile and configuring the listener's signing secret.
+The [Selenium payment checklist](integration_tests/PAYMENTS_TESTS.md) tracks
+account-license, Checkout, callback and webhook end-to-end coverage.
 
 **Marketing Build and Deployment with SOPS**
 
