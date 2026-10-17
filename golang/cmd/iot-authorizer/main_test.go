@@ -168,6 +168,7 @@ func newAccessToken(t *testing.T, expiry time.Time, subject internal.URN) string
 		Issuer:   "beddybytes",
 		Audience: "beddybytes",
 		Subject:  subject,
+		Scope:    "account monitor",
 		Expiry:   expiry.Unix(),
 	}
 	accessToken, err := jwt.NewWithClaims(jwt.SigningMethodHS256, &claims).SignedString([]byte(testSigningKey))
@@ -206,7 +207,14 @@ func TestMQTTRejectsRefreshTokens(t *testing.T) {
 		allowed          bool
 	}{
 		{"access", "access", "account monitor", true},
-		{"legacy access", "", "", true},
+		{"scope order", "access", "monitor account", true},
+		{"monitor only", "access", "monitor", true},
+		{"account only", "access", "account", false},
+		{"missing scope", "access", "", false},
+		{"scope prefix", "access", "monitoring", false},
+		{"scope suffix", "access", "not_monitor", false},
+		{"legacy access with monitor", "", "account monitor", true},
+		{"legacy access without scope", "", "", false},
 		{"refresh", "refresh", "account monitor", false},
 		{"legacy refresh", "", "refresh_token", false},
 		{"unknown type", "other", "account", false},
@@ -217,9 +225,12 @@ func TestMQTTRejectsRefreshTokens(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			_, err = authorize(newRequest(token, "client-1"), testConfig())
+			response, err := authorize(newRequest(token, "client-1"), testConfig())
 			if (err == nil) != tc.allowed {
 				t.Fatalf("allowed=%v, error=%v", tc.allowed, err)
+			}
+			if !tc.allowed && (response.IsAuthenticated || len(response.PolicyDocuments) != 0) {
+				t.Fatal("denied token received an MQTT policy")
 			}
 		})
 	}

@@ -14,12 +14,14 @@ import (
 )
 
 type AuthorizationMiddleware struct {
-	Key interface{}
+	Key            interface{}
+	RequiredScopes []string
 }
 
-func NewAuthorizationMiddleware(key interface{}) *AuthorizationMiddleware {
+func NewAuthorizationMiddleware(key interface{}, requiredScopes ...string) *AuthorizationMiddleware {
 	return &AuthorizationMiddleware{
-		Key: key,
+		Key:            key,
+		RequiredScopes: requiredScopes,
 	}
 }
 
@@ -60,6 +62,12 @@ func (middleware *AuthorizationMiddleware) Middleware(next http.Handler) http.Ha
 		if accountID != "" && accountID != "current" && claims.Subject.AccountID != accountID {
 			err = merry.New("forbidden").WithHTTPCode(http.StatusForbidden)
 			return
+		}
+		for _, requiredScope := range middleware.RequiredScopes {
+			if !claims.HasScope(requiredScope) {
+				err = httpx.ErrorWithCode(merry.New("insufficient scope").WithHTTPCode(http.StatusForbidden).WithUserMessage("forbidden"), "insufficient_scope")
+				return
+			}
 		}
 		ctx := request.Context()
 		ctx = contextx.WithAccountID(ctx, claims.Subject.AccountID)

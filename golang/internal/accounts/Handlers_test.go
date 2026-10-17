@@ -21,6 +21,7 @@ import (
 	"github.com/Ryan-A-B/beddybytes/golang/internal/eventlog"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/fatal"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/httpx"
+	"github.com/Ryan-A-B/beddybytes/golang/internal/models"
 )
 
 func TestHandlers(t *testing.T) {
@@ -75,9 +76,13 @@ func TestHandlers(t *testing.T) {
 					err = json.NewDecoder(response.Body).Decode(&created)
 					So(err, ShouldBeNil)
 					So(created.ID, ShouldNotBeEmpty)
-					accountID, err := handlers.AccountQueryHandler.GetAccountIDForUser(ctx, accountrepository.UserID{Issuer: accountrepository.IssuerBeddybytes, Subject: input.Email})
+					accountID, err := handlers.AccountQueryHandler.GetAccountIDForUser(ctx, models.UserID{Issuer: accountrepository.IssuerBeddybytes, Subject: input.Email})
 					So(err, ShouldBeNil)
 					So(created.ID, ShouldEqual, accountID)
+					So(created.License.Type, ShouldEqual, models.LicenseTypeTrial)
+					So(created.License.StartUnixSeconds, ShouldBeGreaterThan, 0)
+					So(created.License.EndUnixSeconds, ShouldNotBeNil)
+					So(*created.License.EndUnixSeconds, ShouldEqual, created.License.StartUnixSeconds+7*24*60*60)
 
 					Convey("Email already in use", func() {
 						Convey("GetAnonymousAccessToken", func() {

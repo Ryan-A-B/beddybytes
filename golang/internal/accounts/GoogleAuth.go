@@ -16,6 +16,8 @@ import (
 	"time"
 
 	"github.com/Ryan-A-B/beddybytes/golang/internal/accountrepository"
+	"github.com/Ryan-A-B/beddybytes/golang/internal/httpx"
+	"github.com/Ryan-A-B/beddybytes/golang/internal/models"
 )
 
 const browserClientID = "beddybytes-browser"
@@ -33,7 +35,7 @@ type googleTransaction struct {
 }
 
 type authorizationRequest struct {
-	UserID    accountrepository.UserID
+	UserID    models.UserID
 	AccountID string
 	Challenge string
 	Expires   time.Time
@@ -252,7 +254,7 @@ func (handlers *Handlers) GoogleCallback(responseWriter http.ResponseWriter, req
 		handlers.redirectAuthorizationFailure(responseWriter, request, AuthorizationErrorTemporarilyUnavailable, transaction.FrontendState)
 		return
 	}
-	userID := accountrepository.UserID{
+	userID := models.UserID{
 		Issuer:  identity.Issuer,
 		Subject: identity.Subject,
 	}
@@ -265,7 +267,7 @@ func (handlers *Handlers) GoogleCallback(responseWriter http.ResponseWriter, req
 			return
 		}
 	case "signup":
-		var account *accountrepository.Account
+		var account *models.Account
 		account, err = handlers.AccountCommandHandler.CreateAccount(ctx, accountrepository.CreateAccountInput{
 			UserID: userID,
 			Email:  identity.Email,
@@ -358,11 +360,17 @@ func (handlers *Handlers) GetTokenUsingAuthorizationCode(responseWriter http.Res
 		tokenError(responseWriter, "invalid_grant")
 		return
 	}
-	http.SetCookie(responseWriter, handlers.createRefreshTokenCookie(createSubject(accountID, authorizationRequest.UserID)))
+	subject := createSubject(accountID, authorizationRequest.UserID)
+	accessToken, err := handlers.createAccessToken(ctx, subject)
+	if err != nil {
+		httpx.Error(responseWriter, err)
+		return
+	}
+	http.SetCookie(responseWriter, handlers.createRefreshTokenCookie(subject))
 	responseWriter.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(responseWriter).Encode(AccessTokenOutput{
 		TokenType:   "Bearer",
-		AccessToken: handlers.createAccessToken(createSubject(accountID, authorizationRequest.UserID)),
+		AccessToken: accessToken,
 		ExpiresIn:   int(handlers.AccessTokenDuration.Seconds()),
 	})
 }

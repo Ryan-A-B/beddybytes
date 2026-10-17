@@ -53,6 +53,11 @@ const Navbar: React.FunctionComponent = () => {
                                 Parent Station
                             </NavLink>
                         </li>
+                        <li className="nav-item">
+                            <NavLink to="/account" onClick={onNavLinkClick}>
+                                Account
+                            </NavLink>
+                        </li>
                     </ul>
                 </div>
             </div>

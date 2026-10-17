@@ -7,19 +7,14 @@ import (
 	"sync"
 
 	"github.com/Ryan-A-B/beddybytes/golang/internal/eventlog"
+	"github.com/Ryan-A-B/beddybytes/golang/internal/events"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/fatal"
+	"github.com/Ryan-A-B/beddybytes/golang/internal/models"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/subscription"
 	uuid "github.com/satori/go.uuid"
 )
 
 const IssuerBeddybytes = "beddybytes"
-
-const (
-	EventTypeAccountCreatedV1     eventlog.EventType = "account.created"
-	EventTypeAccountCreatedV2     eventlog.EventType = "account.created.v2"
-	EventTypeAccountPasswordReset eventlog.EventType = "account.password_reset"
-	EventTypeUserPasswordReset    eventlog.EventType = "user.password_reset"
-)
 
 var ErrUserAlreadyExists = errors.New("user already exists")
 var ErrEmailRequired = errors.New("email is required")
@@ -28,55 +23,11 @@ var ErrSubjectRequired = errors.New("subject is required")
 var ErrUserNotFound = errors.New("user not found")
 var ErrPasswordTooShort = errors.New("password needs to be at least 20 characters long")
 
-type UserV1 struct {
-	ID           string `json:"id"`
-	Email        string `json:"email"`
-	PasswordSalt []byte `json:"password_salt"`
-	PasswordHash []byte `json:"password_hash"`
-}
-
-type AccountCreatedV1Detail struct {
-	AccountID string `json:"id"`
-	User      UserV1 `json:"user"`
-}
-
-type UserID struct {
-	Issuer  string
-	Subject string
-}
-
-type User struct {
-	ID             UserID          `json:"id"`
-	Email          string          `json:"email"`           // can be empty if issuer is not beddybytes
-	HashedPassword *HashedPassword `json:"hashed_password"` // only set when issuer is beddybytes
-}
-
-type Account struct {
-	ID    string  `json:"id"`
-	Users []*User `json:"users"`
-}
-
-type AccountCreatedV2Detail struct {
-	AccountID string `json:"account_id"`
-	User      User   `json:"user"`
-}
-
-type AccountPasswordResetDetail struct {
-	Email        string `json:"email"`
-	PasswordSalt []byte `json:"password_salt"`
-	PasswordHash []byte `json:"password_hash"`
-}
-
-type UserPasswordResetDetail struct {
-	Email          string         `json:"email"`
-	HashedPassword HashedPassword `json:"hashed_password"`
-}
-
 type CommandHandler struct {
 	eventLog eventlog.EventLog
 	cursor   int64
 	mutex    sync.Mutex
-	users    map[UserID]struct{}
+	users    map[models.UserID]struct{}
 }
 
 type NewCommandHandlerInput struct {
@@ -86,13 +37,13 @@ type NewCommandHandlerInput struct {
 func NewCommandHandler(input NewCommandHandlerInput) (handler *CommandHandler) {
 	handler = &CommandHandler{
 		eventLog: input.EventLog,
-		users:    make(map[UserID]struct{}),
+		users:    make(map[models.UserID]struct{}),
 	}
 	return
 }
 
 type CreateAccountInput struct {
-	UserID   UserID
+	UserID   models.UserID
 	Email    string
 	Password string
 }
@@ -119,7 +70,7 @@ func (input *CreateAccountInput) validate() (err error) {
 	return nil
 }
 
-func (handler *CommandHandler) CreateAccount(ctx context.Context, input CreateAccountInput) (account *Account, err error) {
+func (handler *CommandHandler) CreateAccount(ctx context.Context, input CreateAccountInput) (account *models.Account, err error) {
 	err = input.validate()
 	if err != nil {
 		return
@@ -134,33 +85,35 @@ func (handler *CommandHandler) CreateAccount(ctx context.Context, input CreateAc
 		err = ErrUserAlreadyExists
 		return
 	}
-	user := User{
-		ID: UserID{
+	user := models.User{
+		ID: models.UserID{
 			Issuer:  input.UserID.Issuer,
 			Subject: input.UserID.Subject,
 		},
 		Email: input.Email,
 	}
 	if input.UserID.Issuer == IssuerBeddybytes {
-		hashedPassword := NewHashedPassword(input.Password)
+		hashedPassword := models.New(input.Password)
 		user.HashedPassword = &hashedPassword
 	}
-	detail := AccountCreatedV2Detail{
+	detail := events.AccountCreatedV2Detail{
 		AccountID: uuid.NewV4().String(),
 		User:      user,
 	}
 	data, err := json.Marshal(detail)
 	fatal.OnError(err)
-	_, err = handler.eventLog.Append(ctx, eventlog.AppendInput{
-		Type: EventTypeAccountCreatedV2,
+	var event *eventlog.Event
+	event, err = handler.eventLog.Append(ctx, eventlog.AppendInput{
+		Type: events.TypeAccountCreatedV2,
 		Data: data,
 	})
 	if err != nil {
 		return
 	}
-	account = &Account{
-		ID:    detail.AccountID,
-		Users: []*User{&user},
+	account = &models.Account{
+		ID:      detail.AccountID,
+		License: models.NewTrialLicense(event.UnixTimestamp),
+		Users:   []*models.User{&user},
 	}
 	return
 }
@@ -193,7 +146,7 @@ func (handler *CommandHandler) ResetPassword(ctx context.Context, input ResetPas
 	if err != nil {
 		return
 	}
-	userID := UserID{
+	userID := models.UserID{
 		Issuer:  IssuerBeddybytes,
 		Subject: input.Email,
 	}
@@ -201,15 +154,15 @@ func (handler *CommandHandler) ResetPassword(ctx context.Context, input ResetPas
 		err = ErrUserNotFound
 		return
 	}
-	hashedPassword := NewHashedPassword(input.Password)
-	detail := UserPasswordResetDetail{
+	hashedPassword := models.New(input.Password)
+	detail := events.UserPasswordResetDetail{
 		Email:          input.Email,
 		HashedPassword: hashedPassword,
 	}
 	data, err := json.Marshal(detail)
 	fatal.OnError(err)
 	_, err = handler.eventLog.Append(ctx, eventlog.AppendInput{
-		Type: EventTypeUserPasswordReset,
+		Type: events.TypeUserPasswordReset,
 		Data: data,
 	})
 	if err != nil {
@@ -229,18 +182,18 @@ func (handler *CommandHandler) catchup(ctx context.Context) (err error) {
 
 func (handler *CommandHandler) apply(ctx context.Context, event *eventlog.Event) {
 	switch event.Type {
-	case EventTypeAccountCreatedV1:
+	case events.TypeAccountCreatedV1:
 		handler.applyAccountCreatedV1(ctx, event)
-	case EventTypeAccountCreatedV2:
+	case events.TypeAccountCreatedV2:
 		handler.applyAccountCreatedV2(ctx, event)
 	}
 }
 
 func (handler *CommandHandler) applyAccountCreatedV1(ctx context.Context, event *eventlog.Event) {
-	var detail AccountCreatedV1Detail
+	var detail events.AccountCreatedV1Detail
 	err := json.Unmarshal(event.Data, &detail)
 	fatal.OnError(err)
-	userID := UserID{
+	userID := models.UserID{
 		Issuer:  IssuerBeddybytes,
 		Subject: detail.User.Email,
 	}
@@ -248,7 +201,7 @@ func (handler *CommandHandler) applyAccountCreatedV1(ctx context.Context, event 
 }
 
 func (handler *CommandHandler) applyAccountCreatedV2(ctx context.Context, event *eventlog.Event) {
-	var detail AccountCreatedV2Detail
+	var detail events.AccountCreatedV2Detail
 	err := json.Unmarshal(event.Data, &detail)
 	fatal.OnError(err)
 	handler.users[detail.User.ID] = struct{}{}

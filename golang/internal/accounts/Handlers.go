@@ -1,6 +1,7 @@
 package accounts
 
 import (
+	"context"
 	"crypto/rsa"
 	"encoding/json"
 	"errors"
@@ -23,6 +24,7 @@ import (
 	"github.com/Ryan-A-B/beddybytes/golang/internal/httpx"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/logx"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/mailer"
+	"github.com/Ryan-A-B/beddybytes/golang/internal/models"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/resetpassword"
 )
 
@@ -208,10 +210,10 @@ func (handlers *Handlers) CreateAccount(responseWriter http.ResponseWriter, requ
 	if err != nil {
 		return
 	}
-	userID := accountrepository.UserID{
+	userID := models.UserID{
 		Issuer:  accountrepository.IssuerBeddybytes,
 		Subject: input.Email}
-	var account *accountrepository.Account
+	var account *models.Account
 	account, err = handlers.AccountCommandHandler.CreateAccount(ctx, accountrepository.CreateAccountInput{
 		UserID:   userID,
 		Email:    input.Email,
@@ -225,7 +227,7 @@ func (handlers *Handlers) CreateAccount(responseWriter http.ResponseWriter, requ
 		return
 	}
 	responseWriter.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(responseWriter).Encode(GetAccountOutput{ID: account.ID})
+	json.NewEncoder(responseWriter).Encode(newGetAccountOutput(account.ID, account.License))
 }
 
 type AccessTokenOutput struct {
@@ -297,7 +299,7 @@ func (handlers *Handlers) GetTokenUsingPasswordGrant(responseWriter http.Respons
 		}
 		return
 	}
-	userID := accountrepository.UserID{
+	userID := models.UserID{
 		Issuer:  accountrepository.IssuerBeddybytes,
 		Subject: email,
 	}
@@ -307,9 +309,13 @@ func (handlers *Handlers) GetTokenUsingPasswordGrant(responseWriter http.Respons
 		return
 	}
 	subject := createSubject(accountID, userID)
+	accessToken, err := handlers.createAccessToken(ctx, subject)
+	if err != nil {
+		return
+	}
 	output := AccessTokenOutput{
 		TokenType:   "Bearer",
-		AccessToken: handlers.createAccessToken(subject),
+		AccessToken: accessToken,
 		ExpiresIn:   int(handlers.AccessTokenDuration.Seconds()),
 	}
 	http.SetCookie(responseWriter, handlers.createRefreshTokenCookie(subject))
@@ -347,9 +353,16 @@ func (handlers *Handlers) GetTokenUsingRefreshTokenGrant(responseWriter http.Res
 		err = merry.New("refresh token has already been used").WithUserMessage("unauthorized").WithHTTPCode(http.StatusUnauthorized)
 		return
 	}
+	accessToken, err := handlers.createAccessToken(request.Context(), claims.Subject)
+	if err != nil {
+		if errors.Is(err, accountrepository.ErrAccountNotFound) {
+			err = merry.WithHTTPCode(err, http.StatusUnauthorized).WithUserMessage("unauthorized")
+		}
+		return
+	}
 	output := AccessTokenOutput{
 		TokenType:   "Bearer",
-		AccessToken: handlers.createAccessToken(claims.Subject),
+		AccessToken: accessToken,
 		ExpiresIn:   int(handlers.AccessTokenDuration.Seconds()),
 	}
 	http.SetCookie(responseWriter, handlers.createRefreshTokenCookie(claims.Subject))
@@ -381,10 +394,14 @@ func (handlers *Handlers) Logout(responseWriter http.ResponseWriter, request *ht
 }
 
 type GetAccountOutput struct {
-	ID string `json:"id"`
+	ID      string         `json:"id"`
+	License models.License `json:"license"`
 }
 
-// TODO this is only returning the accountID from the JWT. We don't need a call to the server for this.
+func newGetAccountOutput(accountID string, license models.License) GetAccountOutput {
+	return GetAccountOutput{ID: accountID, License: license}
+}
+
 func (handlers *Handlers) GetAccount(responseWriter http.ResponseWriter, request *http.Request) {
 	var err error
 	defer func() {
@@ -395,9 +412,16 @@ func (handlers *Handlers) GetAccount(responseWriter http.ResponseWriter, request
 		}
 	}()
 	ctx := request.Context()
-	json.NewEncoder(responseWriter).Encode(GetAccountOutput{
-		ID: contextx.GetAccountID(ctx),
-	})
+	accountID := contextx.GetAccountID(ctx)
+	license, err := handlers.AccountQueryHandler.GetLicenseForAccount(ctx, accountID)
+	if err != nil {
+		if errors.Is(err, accountrepository.ErrAccountNotFound) {
+			err = merry.WithHTTPCode(err, http.StatusNotFound).WithUserMessage("account not found")
+		}
+		return
+	}
+	responseWriter.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(responseWriter).Encode(newGetAccountOutput(accountID, *license))
 }
 
 func (handlers *Handlers) createAnonymousAccessToken(remoteAddress string, scope string) (accessToken string) {
@@ -422,22 +446,30 @@ func (handlers *Handlers) createAnonymousAccessToken(remoteAddress string, scope
 	return
 }
 
-func (handlers *Handlers) createAccessToken(subject internal.URN) (accessToken string) {
+var scopeByAccountStatus = map[bool]string{
+	false: "account",
+	true:  "account monitor",
+}
+
+func (handlers *Handlers) createAccessToken(ctx context.Context, subject internal.URN) (string, error) {
+	active, err := handlers.AccountQueryHandler.HasActiveAccount(ctx, subject.AccountID)
+	if err != nil {
+		return "", err
+	}
+	scope := scopeByAccountStatus[active]
 	expiry := time.Now().Add(handlers.AccessTokenDuration)
 	claims := internal.Claims{
 		Issuer:   "beddybytes",
 		Audience: "beddybytes",
 		Subject:  subject,
 		Expiry:   expiry.Unix(),
-		Scope:    "account monitor",
+		Scope:    scope,
 		TokenUse: internal.TokenUseAccess,
 	}
-	accessToken, err := jwt.NewWithClaims(handlers.SigningMethod, &claims).SignedString(handlers.Key)
-	fatal.OnError(err)
-	return
+	return jwt.NewWithClaims(handlers.SigningMethod, &claims).SignedString(handlers.Key)
 }
 
-func createSubject(accountID string, userID accountrepository.UserID) internal.URN {
+func createSubject(accountID string, userID models.UserID) internal.URN {
 	return internal.URN{
 		Service:      "iam",
 		Region:       "",

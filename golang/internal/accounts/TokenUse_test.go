@@ -10,12 +10,13 @@ import (
 
 	"github.com/Ryan-A-B/beddybytes/golang/internal"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/accountrepository"
+	"github.com/Ryan-A-B/beddybytes/golang/internal/models"
 	"github.com/dgrijalva/jwt-go"
 )
 
 func TestPasswordGrantScopesSurviveRefresh(t *testing.T) {
 	handlers, router, _, _ := googleTestHandlers(t)
-	createTestAccount(t, handlers, accountrepository.CreateAccountInput{UserID: accountrepository.UserID{Issuer: accountrepository.IssuerBeddybytes, Subject: "user@example.com"}, Email: "user@example.com", Password: "long-enough-password"})
+	createTestAccount(t, handlers, accountrepository.CreateAccountInput{UserID: models.UserID{Issuer: accountrepository.IssuerBeddybytes, Subject: "user@example.com"}, Email: "user@example.com", Password: "long-enough-password"})
 	request := httptest.NewRequest("POST", "/token", strings.NewReader("grant_type=password&username=user%40example.com&password=long-enough-password"))
 	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	response := httptest.NewRecorder()
@@ -67,7 +68,7 @@ func TestRefreshTokenTypeAndLegacyMigration(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			handlers, router, _, _ := googleTestHandlers(t)
-			userID := accountrepository.UserID{Issuer: accountrepository.IssuerBeddybytes, Subject: "user@example.com"}
+			userID := models.UserID{Issuer: accountrepository.IssuerBeddybytes, Subject: "user@example.com"}
 			accountID := createTestAccount(t, handlers, accountrepository.CreateAccountInput{UserID: userID, Email: "user@example.com", Password: "long-enough-password"})
 			claims := jwt.MapClaims{"iss": "beddybytes", "aud": "beddybytes", "exp": time.Now().Add(time.Hour).Unix(), "jti": "unique-refresh", "sub": (&internal.URN{Service: "iam", AccountID: accountID, ResourceType: "user", ResourceID: userID.Issuer + "/" + userID.Subject}).String(), "scp": tc.scope}
 			if tc.use != "" {
@@ -120,7 +121,7 @@ func TestRefreshTokenTypeAndLegacyMigration(t *testing.T) {
 
 func TestPasswordGrantErrors(t *testing.T) {
 	handlers, router, _, _ := googleTestHandlers(t)
-	createTestAccount(t, handlers, accountrepository.CreateAccountInput{UserID: accountrepository.UserID{Issuer: accountrepository.IssuerBeddybytes, Subject: "user@example.com"}, Email: "user@example.com", Password: "correct-long-password"})
+	createTestAccount(t, handlers, accountrepository.CreateAccountInput{UserID: models.UserID{Issuer: accountrepository.IssuerBeddybytes, Subject: "user@example.com"}, Email: "user@example.com", Password: "correct-long-password"})
 	for _, tc := range []struct {
 		name, form string
 		status     int
@@ -145,22 +146,13 @@ func TestPasswordGrantErrors(t *testing.T) {
 	}
 }
 
-func TestGetAccountReturnsJWTAccountIDWithoutRepositoryLookup(t *testing.T) {
+func TestGetAccountReturnsNotFoundForUnknownAccount(t *testing.T) {
 	handlers, router, _, _ := googleTestHandlers(t)
-	handlers.AccountQueryHandler = nil
-	const accountID = "jwt-account"
 	request := httptest.NewRequest("GET", "/accounts/current", nil)
-	request.Header.Set("Authorization", "Bearer "+handlers.createAccessToken(createSubject(accountID, accountrepository.UserID{Issuer: accountrepository.IssuerBeddybytes, Subject: "user@example.com"})))
+	request.Header.Set("Authorization", "Bearer "+testAccessToken(t, handlers, createSubject("missing-account", models.UserID{Issuer: accountrepository.IssuerBeddybytes, Subject: "user@example.com"})))
 	response := httptest.NewRecorder()
 	router.ServeHTTP(response, request)
-	if response.Code != http.StatusOK {
+	if response.Code != http.StatusNotFound {
 		t.Fatalf("account response: %d %s", response.Code, response.Body.String())
-	}
-	var output map[string]string
-	if err := json.Unmarshal(response.Body.Bytes(), &output); err != nil {
-		t.Fatal(err)
-	}
-	if len(output) != 1 || output["id"] != accountID {
-		t.Fatalf("expected JWT account ID only, got %v", output)
 	}
 }
