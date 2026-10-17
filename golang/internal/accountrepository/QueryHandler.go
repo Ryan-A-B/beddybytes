@@ -15,7 +15,7 @@ import (
 
 var ErrAccountNotFound = errors.New("account not found")
 var ErrPasswordRequired = errors.New("password required")
-var ErrInvalidPassword = errors.New("invalid password")
+var ErrInvalidPassword = models.ErrInvalidPassword
 
 type QueryHandler struct {
 	eventLog               eventlog.EventLog
@@ -129,12 +129,12 @@ func (handler *QueryHandler) apply(ctx context.Context, event *eventlog.Event) {
 		handler.applyAccountPasswordReset(ctx, event)
 	case events.TypeUserPasswordReset:
 		handler.applyUserPasswordReset(ctx, event)
-	case events.TypePaymentStarted:
-		handler.applyPaymentStarted(ctx, event)
-	case events.TypePaymentSucceeded:
-		handler.applyPaymentSucceeded(ctx, event)
-	case events.TypePaymentCancelled:
-		handler.applyPaymentCancelled(ctx, event)
+	case events.TypePerpetualLicenseGranted:
+		handler.applyPerpetualLicenseGranted(ctx, event)
+	case events.TypeProvisionalLicenseGranted:
+		handler.applyProvisionalLicenseGranted(ctx, event)
+	case events.TypeProvisionalLicenseRevoked:
+		handler.applyProvisionalLicenseRevoked(ctx, event)
 	}
 }
 
@@ -189,14 +189,28 @@ func (handler *QueryHandler) applyUserPasswordReset(ctx context.Context, event *
 	handler.hashedPasswordForEmail[detail.Email] = detail.HashedPassword
 }
 
-func (handler *QueryHandler) applyPaymentStarted(ctx context.Context, event *eventlog.Event) {
-
+func (handler *QueryHandler) applyPerpetualLicenseGranted(ctx context.Context, event *eventlog.Event) {
+	handler.licenseForAccount[event.AccountID] = models.License{
+		Type:             models.LicenseTypePerpetual,
+		StartUnixSeconds: event.UnixTimestamp,
+	}
 }
 
-func (handler *QueryHandler) applyPaymentSucceeded(ctx context.Context, event *eventlog.Event) {
-
+func (handler *QueryHandler) applyProvisionalLicenseGranted(ctx context.Context, event *eventlog.Event) {
+	license := handler.licenseForAccount[event.AccountID]
+	handler.licenseForAccount[event.AccountID] = models.License{
+		Type:             models.LicenseTypeProvisional,
+		StartUnixSeconds: event.UnixTimestamp,
+		ProvisionalLicense: &models.ProvisionalLicense{
+			TrialStartUnixSeconds: license.StartUnixSeconds,
+		},
+	}
 }
 
-func (handler *QueryHandler) applyPaymentCancelled(ctx context.Context, event *eventlog.Event) {
-
+func (handler *QueryHandler) applyProvisionalLicenseRevoked(ctx context.Context, event *eventlog.Event) {
+	license := handler.licenseForAccount[event.AccountID]
+	handler.licenseForAccount[event.AccountID] = models.License{
+		Type:             models.LicenseTypeTrial,
+		StartUnixSeconds: license.ProvisionalLicense.TrialStartUnixSeconds,
+	}
 }

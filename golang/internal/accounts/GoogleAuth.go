@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/Ryan-A-B/beddybytes/golang/internal/accountrepository"
+	"github.com/Ryan-A-B/beddybytes/golang/internal/models"
 )
 
 const browserClientID = "beddybytes-browser"
@@ -33,7 +34,7 @@ type googleTransaction struct {
 }
 
 type authorizationRequest struct {
-	UserID    accountrepository.UserID
+	UserID    models.UserID
 	AccountID string
 	Challenge string
 	Expires   time.Time
@@ -252,7 +253,7 @@ func (handlers *Handlers) GoogleCallback(responseWriter http.ResponseWriter, req
 		handlers.redirectAuthorizationFailure(responseWriter, request, AuthorizationErrorTemporarilyUnavailable, transaction.FrontendState)
 		return
 	}
-	userID := accountrepository.UserID{
+	userID := models.UserID{
 		Issuer:  identity.Issuer,
 		Subject: identity.Subject,
 	}
@@ -265,7 +266,7 @@ func (handlers *Handlers) GoogleCallback(responseWriter http.ResponseWriter, req
 			return
 		}
 	case "signup":
-		var account *accountrepository.Account
+		var account *models.Account
 		account, err = handlers.AccountCommandHandler.CreateAccount(ctx, accountrepository.CreateAccountInput{
 			UserID: userID,
 			Email:  identity.Email,

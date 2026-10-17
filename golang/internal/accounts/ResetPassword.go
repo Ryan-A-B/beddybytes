@@ -9,6 +9,7 @@ import (
 	"github.com/Ryan-A-B/beddybytes/golang/internal/accountrepository"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/httpx"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/mailer"
+	"github.com/Ryan-A-B/beddybytes/golang/internal/models"
 	"github.com/ansel1/merry"
 )
 
@@ -75,7 +76,7 @@ func (handlers *Handlers) RequestPasswordReset(responseWriter http.ResponseWrite
 		return
 	}
 	ctx := request.Context()
-	userID := accountrepository.UserID{
+	userID := models.UserID{
 		Issuer:  accountrepository.IssuerBeddybytes,
 		Subject: input.Email,
 	}

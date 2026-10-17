@@ -23,6 +23,7 @@ import (
 	"github.com/Ryan-A-B/beddybytes/golang/internal/httpx"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/logx"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/mailer"
+	"github.com/Ryan-A-B/beddybytes/golang/internal/models"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/resetpassword"
 )
 
@@ -208,10 +209,10 @@ func (handlers *Handlers) CreateAccount(responseWriter http.ResponseWriter, requ
 	if err != nil {
 		return
 	}
-	userID := accountrepository.UserID{
+	userID := models.UserID{
 		Issuer:  accountrepository.IssuerBeddybytes,
 		Subject: input.Email}
-	var account *accountrepository.Account
+	var account *models.Account
 	account, err = handlers.AccountCommandHandler.CreateAccount(ctx, accountrepository.CreateAccountInput{
 		UserID:   userID,
 		Email:    input.Email,
@@ -225,7 +226,7 @@ func (handlers *Handlers) CreateAccount(responseWriter http.ResponseWriter, requ
 		return
 	}
 	responseWriter.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(responseWriter).Encode(GetAccountOutput{ID: account.ID})
+	json.NewEncoder(responseWriter).Encode(GetAccountOutput{ID: account.ID, License: account.License})
 }
 
 type AccessTokenOutput struct {
@@ -297,7 +298,7 @@ func (handlers *Handlers) GetTokenUsingPasswordGrant(responseWriter http.Respons
 		}
 		return
 	}
-	userID := accountrepository.UserID{
+	userID := models.UserID{
 		Issuer:  accountrepository.IssuerBeddybytes,
 		Subject: email,
 	}
@@ -381,10 +382,10 @@ func (handlers *Handlers) Logout(responseWriter http.ResponseWriter, request *ht
 }
 
 type GetAccountOutput struct {
-	ID string `json:"id"`
+	ID      string         `json:"id"`
+	License models.License `json:"license"`
 }
 
-// TODO this is only returning the accountID from the JWT. We don't need a call to the server for this.
 func (handlers *Handlers) GetAccount(responseWriter http.ResponseWriter, request *http.Request) {
 	var err error
 	defer func() {
@@ -395,8 +396,18 @@ func (handlers *Handlers) GetAccount(responseWriter http.ResponseWriter, request
 		}
 	}()
 	ctx := request.Context()
+	accountID := contextx.GetAccountID(ctx)
+	license, err := handlers.AccountQueryHandler.GetLicenseForAccount(ctx, accountID)
+	if err != nil {
+		if errors.Is(err, accountrepository.ErrAccountNotFound) {
+			err = merry.WithHTTPCode(err, http.StatusNotFound).WithUserMessage("account not found")
+		}
+		return
+	}
+	responseWriter.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(responseWriter).Encode(GetAccountOutput{
-		ID: contextx.GetAccountID(ctx),
+		ID:      accountID,
+		License: *license,
 	})
 }
 
@@ -437,7 +448,7 @@ func (handlers *Handlers) createAccessToken(subject internal.URN) (accessToken s
 	return
 }
 
-func createSubject(accountID string, userID accountrepository.UserID) internal.URN {
+func createSubject(accountID string, userID models.UserID) internal.URN {
 	return internal.URN{
 		Service:      "iam",
 		Region:       "",
