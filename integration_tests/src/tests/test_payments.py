@@ -58,7 +58,7 @@ class TestPayments(PaymentBrowserTestCase):
         self.assertIn("cs_test_", self.driver.current_url, "Refusing to submit outside sandbox Checkout")
         return re.search(r"cs_test_[A-Za-z0-9]+", self.driver.current_url).group(0)
 
-    def pay_with_sandbox_card(self, email, card_number="4242424242424242"):
+    def submit_sandbox_card(self, email, card_number="4242424242424242"):
         email_input = self.wait.until(expected_conditions.element_to_be_clickable((By.NAME, "email")))
         email_input.clear()
         email_input.send_keys(email)
@@ -78,6 +78,9 @@ class TestPayments(PaymentBrowserTestCase):
         self.wait.until(expected_conditions.element_to_be_clickable(
             (By.CSS_SELECTOR, "button[type='submit']")
         )).click()
+
+    def pay_with_sandbox_card(self, email, card_number="4242424242424242"):
+        self.submit_sandbox_card(email, card_number)
         checkout_wait = WebDriverWait(
             self.driver, timeout=float(os.getenv("PAYMENT_CHECKOUT_TIMEOUT_SECONDS", "60"))
         )
@@ -159,3 +162,27 @@ class TestPayments(PaymentBrowserTestCase):
         )))
         self.assertEqual(self.read_account(email, password), before)
         self.assertEqual(self.start_checkout(), original_session)
+
+    def test_e07_declined_card_remains_trial_and_can_retry(self):
+        email, password = self.create_trial_account()
+        self.open_account()
+        before = self.read_account(email, password)
+        original_session = self.start_checkout()
+        # Stripe's documented generic decline card; this must stay in sandbox.
+        self.submit_sandbox_card(email, "4000000000000002")
+        self.wait.until(lambda driver: "Your card was declined" in driver.find_element(By.TAG_NAME, "body").text)
+        self.assertEqual(urlsplit(self.driver.current_url).hostname, "checkout.stripe.com")
+        self.assertEqual(self.read_account(email, password), before)
+        self.wait.until(expected_conditions.element_to_be_clickable((
+            By.CSS_SELECTOR, 'a[aria-label="Back to BeddyBytes"] svg'
+        ))).click()
+        self.wait.until(lambda driver: urlsplit(driver.current_url).path == "/payment/callback")
+        self.assertEqual(parse_qs(urlsplit(self.driver.current_url).query).get("error"), ["payment_cancelled"])
+        self.driver.find_element(By.LINK_TEXT, "Go to account").click()
+        self.wait.until(expected_conditions.text_to_be_present_in_element((
+            By.CSS_SELECTOR, 'section[aria-labelledby="license-heading"] h3'
+        ), "Trial"))
+        self.assert_displayed_license_dates(before["license"])
+        self.assertEqual(self.start_checkout(), original_session)
+        self.pay_with_sandbox_card(email)
+        self.assert_success_and_perpetual(email, password)

@@ -72,7 +72,7 @@ before expanding coverage.
 - [x] **E06b — Close Checkout tab and reopen.** (`TestPayments.test_e06b_close_checkout_tab_and_reopen`) Close the Stripe tab. The original Account tab remains
   open with unchanged trial dates and usable Refresh and purchase controls.
   Refresh and reopen checkout; the original unexpired session is reused.
-- [ ] **E07 — Card decline remains unpaid.** Submit a sandbox decline card.
+- [ ] **FAILING E07 — Card decline remains unpaid.** (`TestPayments.test_e07_declined_card_remains_trial_and_can_retry`) Submit a sandbox decline card.
   Verify Stripe's inline decline message; do not assume a decline redirects to
   our callback. Return to Account through cancellation/navigation and verify
   the account remains Trial with its original dates. Correct the payment with
@@ -209,7 +209,7 @@ target before navigating to sandbox Checkout. Chrome's performance log misses
 the new tab's initial POST because logging attaches after navigation. The
 frontend unit test separately verifies native form submission with a fresh token.
 The amount/currency assertion remains skipped until an independent expected
-total is supplied. E07–E24 have not been added or run.
+total is supplied. E08–E24 have not been added or run.
 
 Account frontend tests pass (6 tests), and TypeScript checking passes.
 
@@ -236,3 +236,25 @@ not a pass. The expected total must be supplied independently of the page under
 test; a value has been requested from the human.
 
 The human's change to `config/local.sops.env` remains untouched.
+
+## E07 run — 17 October 2026
+
+Implemented `TestPayments.test_e07_declined_card_remains_trial_and_can_retry`
+and extracted card submission from the helper that waits for a successful
+return. The case submits Stripe's documented generic decline card, expects an
+inline decline, verifies the original trial, cancels and reopens the same
+session, then retries with the successful card.
+
+**ERROR — 21.948s:** timed out waiting for the exact substring
+`Your card was declined`. The screenshot instead shows:
+
+> Your credit card was declined. Try paying with a debit card instead.
+
+This is a test assertion mismatch. Stripe displayed a decline, but the test
+stopped before checking the account license, cancellation or successful retry.
+Those parts remain unverified. Retained the failing test and stopped without
+adding E08 or changing application behavior. Next step: match the displayed
+decline appropriately, then rerun E07 before continuing.
+
+Evidence: [E07 decline screenshot](artifacts/payments/test_e07_declined_card_remains_trial_and_can_retry.png).
+Card fixture reference: [Stripe sandbox test cards](https://docs.stripe.com/testing).
