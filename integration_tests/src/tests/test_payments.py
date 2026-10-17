@@ -1,4 +1,3 @@
-import json
 import os
 import re
 from urllib.parse import parse_qs, urlsplit
@@ -17,24 +16,14 @@ class TestPayments(PaymentBrowserTestCase):
     def test_e04_start_hosted_checkout(self):
         self.create_trial_account()
         self.open_account()
-        checkout_button = self.driver.find_element(
-            By.XPATH, "//main//button[normalize-space(.)='Buy lifetime access']"
-        )
-        checkout_button.click()
-        self.wait.until(
-            lambda driver: urlsplit(driver.current_url).hostname == "checkout.stripe.com",
-            "Checkout did not navigate to Stripe",
-        )
+        # Check the actual form before submitting: Chrome's performance log
+        # attaches to the new tab after its initial navigation, missing the POST.
+        checkout_form = self.driver.find_element(By.CSS_SELECTOR, "main form")
+        self.assertEqual(checkout_form.get_attribute("method"), "post")
+        self.assertEqual(urlsplit(checkout_form.get_attribute("action")).path, "/payment/start")
+        self.assertEqual(checkout_form.get_attribute("target"), "_blank")
+        self.start_checkout()
         self.assertNotIn("access_token", self.driver.current_url)
-
-        requests = []
-        for entry in self.driver.get_log("performance"):
-            message = json.loads(entry["message"])["message"]
-            if message["method"] == "Network.requestWillBeSent":
-                request = message["params"]["request"]
-                if urlsplit(request["url"]).path == "/payment/start":
-                    requests.append((request["method"], message["params"].get("type")))
-        self.assertIn(("POST", "Document"), requests, "Checkout must start with a navigation POST")
         self.wait.until(expected_conditions.visibility_of_element_located(
             (By.CSS_SELECTOR, "form")
         ))
@@ -48,10 +37,24 @@ class TestPayments(PaymentBrowserTestCase):
         self.assertIn("cs_test_", self.driver.current_url, "Checkout must use a sandbox session")
 
     def start_checkout(self):
+        account_window = self.driver.current_window_handle
+        previous_windows = self.driver.window_handles
         self.driver.find_element(
             By.XPATH, "//main//button[normalize-space(.)='Buy lifetime access']"
         ).click()
+        self.wait.until(expected_conditions.new_window_is_opened(previous_windows))
+        checkout_window = next(window for window in self.driver.window_handles if window not in previous_windows)
+        self.driver.switch_to.window(account_window)
+        self.assertEqual(urlsplit(self.driver.current_url).path, "/account")
+        self.assertTrue(self.driver.find_element(
+            By.XPATH, "//main//button[normalize-space(.)='Buy lifetime access']"
+        ).is_enabled())
+        self.assertTrue(self.driver.find_element(
+            By.XPATH, "//main//button[normalize-space(.)='Refresh']"
+        ).is_enabled())
+        self.driver.switch_to.window(checkout_window)
         self.wait.until(lambda driver: urlsplit(driver.current_url).hostname == "checkout.stripe.com")
+        self.assertTrue(self.driver.execute_script("return window.opener === null;"))
         self.assertIn("cs_test_", self.driver.current_url, "Refusing to submit outside sandbox Checkout")
         return re.search(r"cs_test_[A-Za-z0-9]+", self.driver.current_url).group(0)
 
@@ -117,8 +120,9 @@ class TestPayments(PaymentBrowserTestCase):
         self.open_account()
         before = self.read_account(email, password)
         original_session = self.start_checkout()
+        self.wait.until(expected_conditions.element_to_be_clickable((By.NAME, "email")))
         self.wait.until(expected_conditions.element_to_be_clickable(
-            (By.CSS_SELECTOR, 'a[href*="/payment/stripe/cancel"]')
+            (By.CSS_SELECTOR, 'a[aria-label="Back to BeddyBytes"] svg')
         )).click()
         self.wait.until(lambda driver: urlsplit(driver.current_url).path == "/payment/callback")
         self.assertEqual(parse_qs(urlsplit(self.driver.current_url).query).get("error"), ["payment_cancelled"])
@@ -133,3 +137,25 @@ class TestPayments(PaymentBrowserTestCase):
         self.assertEqual(self.start_checkout(), original_session)
         self.pay_with_sandbox_card(email)
         self.assert_success_and_perpetual(email, password)
+
+    def test_e06b_close_checkout_tab_and_reopen(self):
+        email, password = self.create_trial_account()
+        self.open_account()
+        account_window = self.driver.current_window_handle
+        before = self.read_account(email, password)
+        original_session = self.start_checkout()
+        self.driver.close()
+        self.driver.switch_to.window(account_window)
+        self.assertEqual(urlsplit(self.driver.current_url).path, "/account")
+        self.assertEqual(self.driver.find_element(
+            By.CSS_SELECTOR, 'section[aria-labelledby="license-heading"] h3'
+        ).text, "Trial")
+        self.assert_displayed_license_dates(before["license"])
+        self.driver.find_element(
+            By.XPATH, "//main//button[normalize-space(.)='Refresh']"
+        ).click()
+        self.wait.until(expected_conditions.element_to_be_clickable((
+            By.XPATH, "//main//button[normalize-space(.)='Buy lifetime access']"
+        )))
+        self.assertEqual(self.read_account(email, password), before)
+        self.assertEqual(self.start_checkout(), original_session)

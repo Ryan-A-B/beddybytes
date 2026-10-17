@@ -53,7 +53,7 @@ before expanding coverage.
   close the browser, sign in from a fresh session and open Account. License
   type, original start and original end must be unchanged.
 - [ ] **SKIPPED E04 — Start hosted Checkout.** (`TestPayments.test_e04_start_hosted_checkout`; requires `PAYMENT_EXPECTED_CHECKOUT_TOTAL`) Click Buy lifetime access and verify the
-  browser navigates to Stripe-hosted sandbox Checkout for BeddyBytes lifetime
+  browser opens a new tab for Stripe-hosted sandbox Checkout for BeddyBytes lifetime
   access with the configured amount/currency. It must be a browser navigation
   through `POST /payment/start`, not a fetch-only redirect. The access token
   must not appear in the destination URL.
@@ -63,12 +63,15 @@ before expanding coverage.
   Go to account link. Follow that link and verify Perpetual, its start time,
   no Ends row and no checkout button. Check `/accounts/current` confirms the
   same license. Allow for the asynchronous webhook/callback delivery order.
-- [ ] **FAILING E06 — Cancel Checkout and retry.** (`TestPayments.test_e06_cancel_checkout_and_reuse_session`) Leave an open Checkout using its
+- [x] **E06 — Cancel Checkout and retry.** (`TestPayments.test_e06_cancel_checkout_and_reuse_session`) Leave an open Checkout using its
   cancellation/back-to-app control. Verify `/payment/callback` carries
   `error=payment_cancelled`, displays one Payment Failed heading and explains
   cancellation. Go to Account: the trial dates are unchanged and checkout is
   still available. Retry while the session remains open and unexpired; the
   existing Checkout Session is reused and can be completed successfully.
+- [x] **E06b — Close Checkout tab and reopen.** (`TestPayments.test_e06b_close_checkout_tab_and_reopen`) Close the Stripe tab. The original Account tab remains
+  open with unchanged trial dates and usable Refresh and purchase controls.
+  Refresh and reopen checkout; the original unexpired session is reused.
 - [ ] **E07 — Card decline remains unpaid.** Submit a sandbox decline card.
   Verify Stripe's inline decline message; do not assume a decline redirects to
   our callback. Return to Account through cancellation/navigation and verify
@@ -185,34 +188,30 @@ passed or weaken assertions to get through it. See Stripe's
 
 ## Current status
 
-17 October 2026: the human fixed the local development-server WebSocket problem.
-E01 now passes. Continued one new case at a time and stopped at E06.
+17 October 2026: checkout now opens in a new tab with `noopener`. The original
+Account tab stays available, including Refresh and reopening checkout. Stripe's
+top-left back arrow cancels Checkout. Its wrapping link has zero size, so the
+Selenium test clicks the visible arrow inside the accessible Back to BeddyBytes
+link after the checkout form loads.
 
 | Case | Test method | Result |
 | --- | --- | --- |
-| E01 | `TestAccountLicense.test_e01_signup_shows_trial_license` | PASS — 4.919s |
-| E02 | `TestAccountLicense.test_e02_account_requires_login` | PASS — 5.297s |
-| E03 | `TestAccountLicense.test_e03_trial_survives_new_browser_session` | PASS — 8.492s |
-| E04 | `TestPayments.test_e04_start_hosted_checkout` | SKIPPED — sandbox navigation and POST assertions passed; expected total not supplied |
-| E05 | `TestPayments.test_e05_successful_purchase_and_browser_return` | PASS — 12.340s; actual sandbox card payment, proxy return and perpetual license verified |
-| E06 | `TestPayments.test_e06_cancel_checkout_and_reuse_session` | ERROR — 4.273s; Stripe cancellation link could not be clicked |
+| E01 | `TestAccountLicense.test_e01_signup_shows_trial_license` | Prior PASS — 4.919s |
+| E02 | `TestAccountLicense.test_e02_account_requires_login` | Prior PASS — 5.297s |
+| E03 | `TestAccountLicense.test_e03_trial_survives_new_browser_session` | Prior PASS — 8.492s |
+| E04 | `TestPayments.test_e04_start_hosted_checkout` | SKIPPED — 4.686s; new-tab form and sandbox navigation assertions passed; expected total not supplied |
+| E05 | `TestPayments.test_e05_successful_purchase_and_browser_return` | Prior PASS — 12.340s; purchase and return also exercised by E06 after the new-tab change |
+| E06 | `TestPayments.test_e06_cancel_checkout_and_reuse_session` | PASS — 14.580s; actual back-arrow cancellation, unchanged trial, session reuse and successful sandbox purchase |
+| E06b | `TestPayments.test_e06b_close_checkout_tab_and_reopen` | PASS — closing Stripe preserves Account, Refresh and session reuse |
 
-E06 found the Stripe cancel anchor by its configured `/payment/stripe/cancel`
-href, but Chrome reported:
+E04 now checks the live form's POST method, payment start action and new-tab
+target before navigating to sandbox Checkout. Chrome's performance log misses
+the new tab's initial POST because logging attaches after navigation. The
+frontend unit test separately verifies native form submission with a fresh token.
+The amount/currency assertion remains skipped until an independent expected
+total is supplied. E07–E24 have not been added or run.
 
-> ElementNotInteractableException: element not interactable: element has zero size
-
-The test stopped before reaching our cancel callback. This is a Selenium
-interaction failure, not proof that cancellation or session reuse is broken.
-The screenshot shows Checkout still open. No application fix or further test
-execution was attempted after this error. Shared browser helpers were extracted
-while adding these cases; previously passing tests were not rerun after the
-stop condition.
-
-Evidence:
-[Checkout cancellation failure](artifacts/payments/test_e06_cancel_checkout_and_reuse_session.png).
-The earlier E01 screenshot records the resolved development-server issue and
-is not evidence of the current app state. E07–E24 have not been added or run.
+Account frontend tests pass (6 tests), and TypeScript checking passes.
 
 Shared browser setup is in `src/payment_test_utils.py`. Failed tests save
 screenshots under `artifacts/payments/` (ignored generated files); override
