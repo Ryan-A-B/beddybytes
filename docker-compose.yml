@@ -57,7 +57,7 @@ services:
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:?GOOGLE_CLIENT_SECRET must be set}
       - API_ORIGIN=https://api.local.beddybytes.com
       - FRONTEND_AUTH_REDIRECT=https://app.beddybytes.local/auth/callback
-      - FRONTEND_PAYMENT_CALLBACK_URL=https://app.beddybytes.local/payment/callback
+      - FRONTEND_PAYMENT_CALLBACK_URL=https://app.beddybytes.local/payments/callback
       - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY:-}
       - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET:-}
       - STRIPE_PERPETUAL_PRICE_ID=${STRIPE_PERPETUAL_PRICE_ID:-}
@@ -94,7 +94,7 @@ services:
     command:
       - listen
       - --events=checkout.session.completed,checkout.session.expired,checkout.session.async_payment_succeeded,checkout.session.async_payment_failed
-      - --forward-to=http://api:9000/payment/stripe/webhook
+      - --forward-to=http://api:9000/payments/stripe/webhook
     volumes:
       - stripe_cli_config:/root/.config/stripe
     labels:

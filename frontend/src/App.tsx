@@ -36,7 +36,7 @@ const App: React.FunctionComponent = () => {
         <div className="position-relative">
           <Routes>
             <Route path="/auth/callback" element={<AuthCallback />} />
-            <Route path="/payment/callback" element={<PaymentCallback />} />
+            <Route path="/payments/callback" element={<PaymentCallback />} />
             <Route path="/request-password-reset" element={<RequestPasswordReset />} />
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="*" element={

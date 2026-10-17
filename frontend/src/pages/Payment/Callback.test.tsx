@@ -4,7 +4,7 @@ import { MemoryRouter } from 'react-router-dom';
 import PaymentCallback from './Callback';
 
 test('shows a single success heading and an account link without requiring login', () => {
-    render(<MemoryRouter initialEntries={['/payment/callback']}><PaymentCallback /></MemoryRouter>);
+    render(<MemoryRouter initialEntries={['/payments/callback']}><PaymentCallback /></MemoryRouter>);
     expect(screen.getByRole('heading', { name: 'Payment Successful' })).toBeInTheDocument();
     expect(screen.getAllByRole('heading')).toHaveLength(1);
     expect(screen.getByText('Thank you for your purchase.')).toBeInTheDocument();
@@ -20,7 +20,7 @@ test.each([
     ['unknown', 'We could not complete your payment.'],
     ['', 'We could not complete your payment.'],
 ])('shows a single failure heading for error=%s', (error, message) => {
-    render(<MemoryRouter initialEntries={[`/payment/callback?error=${error}`]}><PaymentCallback /></MemoryRouter>);
+    render(<MemoryRouter initialEntries={[`/payments/callback?error=${error}`]}><PaymentCallback /></MemoryRouter>);
     expect(screen.getByRole('heading', { name: 'Payment Failed' })).toBeInTheDocument();
     expect(screen.getAllByRole('heading')).toHaveLength(1);
     expect(screen.getByText(message, { exact: false })).toBeInTheDocument();

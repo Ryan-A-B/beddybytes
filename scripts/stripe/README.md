@@ -1,7 +1,7 @@
 # Local Stripe webhook listener
 
 The `stripe-cli` Compose service forwards sandbox Checkout events to
-`http://api:9000/payment/stripe/webhook` over the internal Docker network.
+`http://api:9000/payments/stripe/webhook` over the internal Docker network.
 It needs no published port, public webhook endpoint or TLS bypass. Browser
 success/cancel redirects still use `https://api.local.beddybytes.com`.
 

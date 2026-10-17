@@ -80,7 +80,7 @@ const Account: React.FC = () => {
                         </dl>
                         <p className="text-body-secondary small">Times shown in your local time zone.</p>
                         {account.license.type === 'Provisional' && <p>Your payment is processing.</p>}
-                        {account.license.type === 'Trial' && <form action={`https://${settings.API.host}/payment/start`} method="post" target="_blank" rel="noopener" onSubmit={startCheckout}>
+                        {account.license.type === 'Trial' && <form action={`https://${settings.API.host}/payments/start`} method="post" target="_blank" rel="noopener" onSubmit={startCheckout}>
                             <input ref={tokenInput} type="hidden" name="access_token" />
                             <button type="submit" className="btn btn-primary w-100" disabled={checkoutPending || loading}>
                                 {checkoutPending ? 'Opening checkout…' : 'Buy lifetime access'}

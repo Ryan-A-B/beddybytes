@@ -23,10 +23,10 @@ timeouts must not be converted wholesale into skips.
 - Selenium Hub: `SELENIUM_HUB_URL`, default `http://localhost:4444`.
 - Browser app: `https://app.beddybytes.local`.
 - Account API: `API_BASE_URL`, default `https://api.beddybytes.local`.
-- Browser payment returns: `https://api.local.beddybytes.com/payment/stripe/...`
-  through the browser-accessible proxy, then the app's `/payment/callback`.
+- Browser payment returns: `https://api.local.beddybytes.com/payments/stripe/...`
+  through the browser-accessible proxy, then the app's `/payments/callback`.
 - Stripe webhook delivery: the running CLI listener forwards to
-  `http://api:9000/payment/stripe/webhook`. It does not use the public proxy.
+  `http://api:9000/payments/stripe/webhook`. It does not use the public proxy.
 - Use the configured sandbox, its lifetime price, restricted API key and the
   CLI listener's signing secret. Never run the purchase cases against live mode.
 - Use a fresh, uniquely named test account for each independent purchase case.
@@ -62,16 +62,16 @@ timeouts must not be converted wholesale into skips.
 - [ ] **SKIPPED E04 — Start hosted Checkout.** (`TestPayments.test_e04_start_hosted_checkout`; requires `PAYMENT_EXPECTED_CHECKOUT_TOTAL`) Click Buy lifetime access and verify the
   browser opens a new tab for Stripe-hosted sandbox Checkout for BeddyBytes lifetime
   access with the configured amount/currency. It must be a browser navigation
-  through `POST /payment/start`, not a fetch-only redirect. The access token
+  through `POST /payments/start`, not a fetch-only redirect. The access token
   must not appear in the destination URL.
 - [x] **E05 — Successful purchase and browser return.** (`TestPayments.test_e05_successful_purchase_and_browser_return`) Complete Checkout with
-  a successful sandbox card. Follow the proxy return to `/payment/callback`;
+  a successful sandbox card. Follow the proxy return to `/payments/callback`;
   verify a single Payment Successful page heading, purchase confirmation and
   Go to account link. Follow that link and verify Perpetual, its start time,
   no Ends row and no checkout button. Check `/accounts/current` confirms the
   same license. Allow for the asynchronous webhook/callback delivery order.
 - [x] **E06 — Cancel Checkout and retry.** (`TestPayments.test_e06_cancel_checkout_and_reuse_session`) Leave an open Checkout using its
-  cancellation/back-to-app control. Verify `/payment/callback` carries
+  cancellation/back-to-app control. Verify `/payments/callback` carries
   `error=payment_cancelled`, displays one Payment Failed heading and explains
   cancellation. Go to Account: the trial dates are unchanged and checkout is
   still available. Retry while the session remains open and unexpired; the
@@ -102,7 +102,7 @@ timeouts must not be converted wholesale into skips.
   second charge or changed perpetual start time. Reloading the frontend callback
   alone must only redisplay the result, not initiate payment or alter the license.
 - [x] **E11 — Callback display does not grant access.** (`TestPayments.test_e11_callback_display_does_not_grant_license`) Open
-  `/payment/callback` directly for a trial account, without making a payment.
+  `/payments/callback` directly for a trial account, without making a payment.
   The result page may show Payment Successful, but Go to account still shows
   the original Trial and the API license is unchanged. Query parameters and
   result text are not evidence of a purchase.
@@ -114,7 +114,7 @@ timeouts must not be converted wholesale into skips.
   These are presentation tests, not proof that the corresponding Stripe outcome
   was produced.
 - [x] **E13 — Missing session on the backend return.** (`TestPayments.test_e13_backend_return_without_session`) Visit
-  `/payment/stripe/success` without a session ID. It redirects to the frontend
+  `/payments/stripe/success` without a session ID. It redirects to the frontend
   callback with `error=invalid_request` and leaves the license unchanged.
 - [x] **E14 — No success from a bad session.** (`TestPayments.test_e14_backend_return_with_invalid_session`) Visit the backend success route
   with an invalid/nonexistent Checkout Session ID. It shows the friendly
@@ -277,7 +277,7 @@ Do not assert Stripe's error copy: we do not control its wording or locale.
 ## E08 run — 17 October 2026
 
 **ERROR — 66.438s:** the test configured Chrome's `Network.setBlockedURLs` for
-`*/payment/stripe/success*` in the Checkout tab, submitted a sandbox payment,
+`*/payments/stripe/success*` in the Checkout tab, submitted a sandbox payment,
 and waited for a corresponding blocked network request. No blocked return was
 observed. The screenshot shows our **Payment Successful** page, so the intended
 browser-return isolation did not take effect. This is a test setup failure,

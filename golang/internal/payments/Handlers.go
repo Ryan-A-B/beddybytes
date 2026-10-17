@@ -30,13 +30,13 @@ type Handlers struct {
 }
 
 func (handlers *Handlers) AddRoutes(router *mux.Router) {
-	start := router.PathPrefix("/payment/start").Subrouter()
+	start := router.PathPrefix("/payments/start").Subrouter()
 	start.Use(internal.NewAuthorizationMiddleware(handlers.Key).Middleware)
 	start.HandleFunc("", handlers.Start).Methods(http.MethodPost)
 
-	router.HandleFunc("/payment/stripe/success", handlers.Success).Methods(http.MethodGet)
-	router.HandleFunc("/payment/stripe/cancel", handlers.Cancel).Methods(http.MethodGet)
-	router.HandleFunc("/payment/stripe/webhook", handlers.Webhook).Methods(http.MethodPost)
+	router.HandleFunc("/payments/stripe/success", handlers.Success).Methods(http.MethodGet)
+	router.HandleFunc("/payments/stripe/cancel", handlers.Cancel).Methods(http.MethodGet)
+	router.HandleFunc("/payments/stripe/webhook", handlers.Webhook).Methods(http.MethodPost)
 }
 
 func (handlers *Handlers) Start(responseWriter http.ResponseWriter, request *http.Request) {

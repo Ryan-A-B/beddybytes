@@ -38,7 +38,7 @@ func (stub *commandStub) RecordCheckoutSessionEvent(ctx context.Context, input p
 var testKey = []byte("payments-http-test-key")
 
 func paymentRouter(commands Commands) http.Handler {
-	handlers := &Handlers{Commands: commands, Key: testKey, FrontendURL: "https://app.example/payment/callback?keep=value"}
+	handlers := &Handlers{Commands: commands, Key: testKey, FrontendURL: "https://app.example/payments/callback?keep=value"}
 	router := mux.NewRouter()
 	handlers.AddRoutes(router)
 	return router
@@ -71,7 +71,7 @@ func TestStartUsesAuthenticatedAccountAndRedirects(t *testing.T) {
 			if auth == "form" {
 				form.Set("access_token", accountToken(t))
 			}
-			request := httptest.NewRequest(http.MethodPost, "/payment/start", strings.NewReader(form.Encode()))
+			request := httptest.NewRequest(http.MethodPost, "/payments/start", strings.NewReader(form.Encode()))
 			request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 			if auth == "header" {
 				request.Header.Set("Authorization", "Bearer "+accountToken(t))
@@ -90,7 +90,7 @@ func TestStartUsesAuthenticatedAccountAndRedirects(t *testing.T) {
 
 func TestStartRejectsUnauthenticatedRequests(t *testing.T) {
 	for _, authorization := range []string{"", "Bearer invalid"} {
-		request := httptest.NewRequest(http.MethodPost, "/payment/start", nil)
+		request := httptest.NewRequest(http.MethodPost, "/payments/start", nil)
 		request.Header.Set("Authorization", authorization)
 		response := httptest.NewRecorder()
 		paymentRouter(&commandStub{}).ServeHTTP(response, request)
@@ -113,7 +113,7 @@ func TestStartErrorsDoNotRedirect(t *testing.T) {
 			router := paymentRouter(&commandStub{start: func(context.Context, paymentrepository.StartCheckoutSessionInput) (*paymentrepository.StartCheckoutSessionOutput, error) {
 				return nil, test.err
 			}})
-			request := httptest.NewRequest(http.MethodPost, "/payment/start", nil)
+			request := httptest.NewRequest(http.MethodPost, "/payments/start", nil)
 			request.Header.Set("Authorization", "Bearer "+accountToken(t))
 			response := httptest.NewRecorder()
 			router.ServeHTTP(response, request)
@@ -137,8 +137,8 @@ func TestSuccessSyncsSessionBeforeReturningToFrontend(t *testing.T) {
 		return &paymentrepository.SyncCheckoutSessionOutput{Paid: true}, nil
 	}})
 	response := httptest.NewRecorder()
-	router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/payment/stripe/success?session_id=cs_test&return_url=https://attacker.example", nil))
-	if response.Code != http.StatusSeeOther || response.Header().Get("Location") != "https://app.example/payment/callback?keep=value" || calls != 1 {
+	router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/payments/stripe/success?session_id=cs_test&return_url=https://attacker.example", nil))
+	if response.Code != http.StatusSeeOther || response.Header().Get("Location") != "https://app.example/payments/callback?keep=value" || calls != 1 {
 		t.Fatalf("status=%d location=%q syncs=%d", response.Code, response.Header().Get("Location"), calls)
 	}
 }
@@ -149,8 +149,8 @@ func TestSuccessErrorsRedirectToCallback(t *testing.T) {
 		errorCode   string
 		want, calls int
 	}{
-		{name: "missing session", path: "/payment/stripe/success", want: http.StatusSeeOther, errorCode: "invalid_request"},
-		{name: "sync failure", path: "/payment/stripe/success?session_id=cs_test", want: http.StatusSeeOther, calls: 1, errorCode: "temporarily_unavailable"},
+		{name: "missing session", path: "/payments/stripe/success", want: http.StatusSeeOther, errorCode: "invalid_request"},
+		{name: "sync failure", path: "/payments/stripe/success?session_id=cs_test", want: http.StatusSeeOther, calls: 1, errorCode: "temporarily_unavailable"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			var calls int
@@ -160,7 +160,7 @@ func TestSuccessErrorsRedirectToCallback(t *testing.T) {
 			}})
 			response := httptest.NewRecorder()
 			router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, test.path, nil))
-			if response.Code != test.want || calls != test.calls || response.Header().Get("Location") != "https://app.example/payment/callback?error="+test.errorCode+"&keep=value" {
+			if response.Code != test.want || calls != test.calls || response.Header().Get("Location") != "https://app.example/payments/callback?error="+test.errorCode+"&keep=value" {
 				t.Fatalf("status=%d calls=%d location=%q", response.Code, calls, response.Header().Get("Location"))
 			}
 		})
@@ -169,8 +169,8 @@ func TestSuccessErrorsRedirectToCallback(t *testing.T) {
 
 func TestCancelOnlyRedirectsToConfiguredFrontend(t *testing.T) {
 	response := httptest.NewRecorder()
-	paymentRouter(&commandStub{}).ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/payment/stripe/cancel?return_url=https://attacker.example", nil))
-	if response.Code != http.StatusSeeOther || response.Header().Get("Location") != "https://app.example/payment/callback?error=payment_cancelled&keep=value" {
+	paymentRouter(&commandStub{}).ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/payments/stripe/cancel?return_url=https://attacker.example", nil))
+	if response.Code != http.StatusSeeOther || response.Header().Get("Location") != "https://app.example/payments/callback?error=payment_cancelled&keep=value" {
 		t.Fatalf("status=%d location=%q", response.Code, response.Header().Get("Location"))
 	}
 }
@@ -179,7 +179,7 @@ func TestWebhookForwardsRawBodyAndSignature(t *testing.T) {
 	const payload = "{\n  \"id\": \"evt_test\"\n}\n"
 	for _, commandError := range []error{nil, errors.New("persistence failed")} {
 		var calls int
-		request := httptest.NewRequest(http.MethodPost, "/payment/stripe/webhook", strings.NewReader(payload))
+		request := httptest.NewRequest(http.MethodPost, "/payments/stripe/webhook", strings.NewReader(payload))
 		type contextKey struct{}
 		request = request.WithContext(context.WithValue(request.Context(), contextKey{}, "request marker"))
 		request.Header.Set("Stripe-Signature", "raw-signature")
@@ -214,7 +214,7 @@ func TestWebhookRejectsMissingSignatureAndOversizedBody(t *testing.T) {
 		{name: "oversized", payload: strings.Repeat("x", 1024*1024+1), signature: "test", want: http.StatusRequestEntityTooLarge},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			request := httptest.NewRequest(http.MethodPost, "/payment/stripe/webhook", strings.NewReader(test.payload))
+			request := httptest.NewRequest(http.MethodPost, "/payments/stripe/webhook", strings.NewReader(test.payload))
 			request.Header.Set("Stripe-Signature", test.signature)
 			response := httptest.NewRecorder()
 			paymentRouter(&commandStub{}).ServeHTTP(response, request)
@@ -227,10 +227,10 @@ func TestWebhookRejectsMissingSignatureAndOversizedBody(t *testing.T) {
 
 func TestPaymentRoutesRejectWrongMethods(t *testing.T) {
 	for _, test := range []struct{ method, path string }{
-		{http.MethodGet, "/payment/start"},
-		{http.MethodPost, "/payment/stripe/success"},
-		{http.MethodPost, "/payment/stripe/cancel"},
-		{http.MethodGet, "/payment/stripe/webhook"},
+		{http.MethodGet, "/payments/start"},
+		{http.MethodPost, "/payments/stripe/success"},
+		{http.MethodPost, "/payments/stripe/cancel"},
+		{http.MethodGet, "/payments/stripe/webhook"},
 	} {
 		response := httptest.NewRecorder()
 		paymentRouter(&commandStub{}).ServeHTTP(response, httptest.NewRequest(test.method, test.path, nil))
@@ -255,8 +255,8 @@ func TestUnpaidCheckoutReturnsErrorToCallback(t *testing.T) {
 				return &test.output, nil
 			}})
 			response := httptest.NewRecorder()
-			router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/payment/stripe/success?session_id=cs_test", nil))
-			if response.Code != http.StatusSeeOther || response.Header().Get("Location") != "https://app.example/payment/callback?error="+test.errorCode+"&keep=value" {
+			router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/payments/stripe/success?session_id=cs_test", nil))
+			if response.Code != http.StatusSeeOther || response.Header().Get("Location") != "https://app.example/payments/callback?error="+test.errorCode+"&keep=value" {
 				t.Fatalf("status=%d location=%q", response.Code, response.Header().Get("Location"))
 			}
 		})

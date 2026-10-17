@@ -80,7 +80,7 @@ test('opens checkout with a fresh token in a new tab and keeps the account contr
         expect(form).toHaveAttribute('method', 'post');
         expect(form).toHaveAttribute('target', '_blank');
         expect(form).toHaveAttribute('rel', 'noopener');
-        expect(form).toHaveAttribute('action', `https://${settings.API.host}/payment/start`);
+        expect(form).toHaveAttribute('action', `https://${settings.API.host}/payments/start`);
         expect(form.querySelector('input[name="access_token"]')).toHaveValue('checkout-token');
         expect(await screen.findByRole('button', { name: 'Buy lifetime access' })).toBeEnabled();
         expect(screen.getByRole('button', { name: 'Refresh' })).toBeEnabled();

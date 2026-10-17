@@ -7,17 +7,17 @@ fulfillment and durable events stay in the payment repository.
 
 | Route | Behavior |
 | --- | --- |
-| `POST /payment/start` | Authenticate, start or reuse Checkout for that account, then redirect to its URL with 303. |
-| `GET /payment/stripe/success?session_id=...` | Sync and fulfill the session, then redirect to the frontend callback with its outcome. |
-| `GET /payment/stripe/cancel` | Redirect to the frontend callback with `error=payment_cancelled`. No repository mutation. |
-| `POST /payment/stripe/webhook` | Pass the raw body and `Stripe-Signature` to `RecordCheckoutSessionEvent`; acknowledge only after the command succeeds. |
+| `POST /payments/start` | Authenticate, start or reuse Checkout for that account, then redirect to its URL with 303. |
+| `GET /payments/stripe/success?session_id=...` | Sync and fulfill the session, then redirect to the frontend callback with its outcome. |
+| `GET /payments/stripe/cancel` | Redirect to the frontend callback with `error=payment_cancelled`. No repository mutation. |
+| `POST /payments/stripe/webhook` | Pass the raw body and `Stripe-Signature` to `RecordCheckoutSessionEvent`; acknowledge only after the command succeeds. |
 
 Start accepts the existing authorization middleware's Bearer header or browser
 form `access_token`. The account ID comes from the verified token. The account
 page submits an ordinary browser form POST to navigate to Checkout. An ineligible
 account receives 403. Other start command failures receive 500.
 
-Set `FrontendURL` to the app's `/payment/callback` route. A completed, paid
+Set `FrontendURL` to the app's `/payments/callback` route. A completed, paid
 session returns without an `error` parameter. Other returns use these codes:
 
 - `payment_cancelled`: the browser left Checkout.
@@ -44,8 +44,8 @@ retryable.
 
 Configure the Stripe repository's callback URLs as:
 
-- Success: `https://api.example.com/payment/stripe/success?session_id={CHECKOUT_SESSION_ID}`
-- Cancel: `https://api.example.com/payment/stripe/cancel`
+- Success: `https://api.example.com/payments/stripe/success?session_id={CHECKOUT_SESSION_ID}`
+- Cancel: `https://api.example.com/payments/stripe/cancel`
 
 Register the handlers with an existing command handler and a fixed frontend URL:
 
@@ -53,7 +53,7 @@ Register the handlers with an existing command handler and a fixed frontend URL:
 paymentHandlers := &payments.Handlers{
     Commands:    paymentCommandHandler,
     Key:         key,
-    FrontendURL: "https://app.example.com/payment/callback",
+    FrontendURL: "https://app.example.com/payments/callback",
 }
 paymentHandlers.AddRoutes(router.NewRoute().Subrouter())
 ```
@@ -61,9 +61,9 @@ paymentHandlers.AddRoutes(router.NewRoute().Subrouter())
 Backend startup registers payment services when `STRIPE_SECRET_KEY` is set.
 Also configure `STRIPE_WEBHOOK_SECRET`, `STRIPE_PERPETUAL_PRICE_ID`, `API_ORIGIN`
 and `FRONTEND_PAYMENT_CALLBACK_URL`. Success/cancel URLs are derived from
-API_ORIGIN. Without a Stripe key, `/payment/` routes return 503 and the rest of
+API_ORIGIN. Without a Stripe key, `/payments/` routes return 503 and the rest of
 the app remains available. Local Compose passes these variables through and
-sets the callback to `https://app.beddybytes.local/payment/callback`.
+sets the callback to `https://app.beddybytes.local/payments/callback`.
 
 Tests use fake repositories/commands; no live Stripe requests run.
 

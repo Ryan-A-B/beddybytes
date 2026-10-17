@@ -17,7 +17,7 @@ import (
 func addPaymentRoutes(router *mux.Router, eventLog eventlog.EventLog, key interface{}) {
 	secretKey := os.Getenv("STRIPE_SECRET_KEY")
 	if secretKey == "" {
-		router.PathPrefix("/payment/").HandlerFunc(func(responseWriter http.ResponseWriter, request *http.Request) {
+		router.PathPrefix("/payments/").HandlerFunc(func(responseWriter http.ResponseWriter, request *http.Request) {
 			http.Error(responseWriter, "payments are temporarily unavailable", http.StatusServiceUnavailable)
 		})
 		return
@@ -27,8 +27,8 @@ func addPaymentRoutes(router *mux.Router, eventLog eventlog.EventLog, key interf
 		EventLog: eventLog, Client: stripe.NewClient(secretKey),
 		WebhookSecret: internal.EnvStringOrFatal("STRIPE_WEBHOOK_SECRET"),
 		PriceID:       internal.EnvStringOrFatal("STRIPE_PERPETUAL_PRICE_ID"),
-		SuccessURL:    apiOrigin + "/payment/stripe/success?session_id={CHECKOUT_SESSION_ID}",
-		CancelURL:     apiOrigin + "/payment/stripe/cancel",
+		SuccessURL:    apiOrigin + "/payments/stripe/success?session_id={CHECKOUT_SESSION_ID}",
+		CancelURL:     apiOrigin + "/payments/stripe/cancel",
 	})
 	handlers := payments.Handlers{
 		Commands: commandHandler, Key: key, FrontendURL: internal.EnvStringOrFatal("FRONTEND_PAYMENT_CALLBACK_URL"),

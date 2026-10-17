@@ -25,7 +25,7 @@ class TestPayments(PaymentBrowserTestCase):
         # attaches to the new tab after its initial navigation, missing the POST.
         checkout_form = self.driver.find_element(By.CSS_SELECTOR, "main form")
         self.assertEqual(checkout_form.get_attribute("method"), "post")
-        self.assertEqual(urlsplit(checkout_form.get_attribute("action")).path, "/payment/start")
+        self.assertEqual(urlsplit(checkout_form.get_attribute("action")).path, "/payments/start")
         self.assertEqual(checkout_form.get_attribute("target"), "_blank")
         self.start_checkout()
         self.assertNotIn("access_token", self.driver.current_url)
@@ -94,7 +94,7 @@ class TestPayments(PaymentBrowserTestCase):
                 self.driver, timeout=float(os.getenv("PAYMENT_CHECKOUT_TIMEOUT_SECONDS", "60"))
             )
             checkout_wait.until(
-                lambda driver: urlsplit(driver.current_url).path == "/payment/callback",
+                lambda driver: urlsplit(driver.current_url).path == "/payments/callback",
                 "Paid Checkout did not reach the payment callback",
             )
 
@@ -104,7 +104,7 @@ class TestPayments(PaymentBrowserTestCase):
             self.wait.until(expected_conditions.element_to_be_clickable((
                 By.CSS_SELECTOR, 'a[aria-label="Back to BeddyBytes"] svg'
             ))).click()
-            self.wait.until(lambda driver: urlsplit(driver.current_url).path == "/payment/callback")
+            self.wait.until(lambda driver: urlsplit(driver.current_url).path == "/payments/callback")
 
     def assert_success_and_perpetual(self, email, password):
         heading = self.wait.until(expected_conditions.visibility_of_element_located(
@@ -217,7 +217,7 @@ class TestPayments(PaymentBrowserTestCase):
         self.driver.execute("executeCdpCommand", {"cmd": "Network.enable", "params": {}})
         self.driver.execute("executeCdpCommand", {
             "cmd": "Network.setBlockedURLs",
-            "params": {"urls": ["*/payment/stripe/success*"]},
+            "params": {"urls": ["*/payments/stripe/success*"]},
         })
         self.driver.get_log("performance")
         self.submit_sandbox_card(email)
@@ -228,7 +228,7 @@ class TestPayments(PaymentBrowserTestCase):
                 message = json.loads(entry["message"])["message"]
                 parameters = message.get("params", {})
                 if message["method"] == "Network.requestWillBeSent":
-                    if urlsplit(parameters["request"]["url"]).path == "/payment/stripe/success":
+                    if urlsplit(parameters["request"]["url"]).path == "/payments/stripe/success":
                         blocked_return_requests.add(parameters["requestId"])
                 elif message["method"] == "Network.loadingFailed":
                     if parameters["requestId"] in blocked_return_requests and parameters.get("blockedReason"):
@@ -306,7 +306,7 @@ class TestPayments(PaymentBrowserTestCase):
         self.assert_success_and_perpetual(email, password)
         paid_account = self.read_account(email, password)
         return_base_url = os.getenv("PAYMENT_RETURN_BASE_URL", "https://api.local.beddybytes.com")
-        return_url = f"{return_base_url}/payment/stripe/success?session_id={session_id}"
+        return_url = f"{return_base_url}/payments/stripe/success?session_id={session_id}"
         # Revisit the backend URL twice: refreshing its redirect destination
         # alone would only exercise the frontend result page.
         for attempt in range(2):
@@ -314,7 +314,7 @@ class TestPayments(PaymentBrowserTestCase):
             self.wait.until(expected_conditions.text_to_be_present_in_element((
                 By.CSS_SELECTOR, "main h1"
             ), "Payment Successful"))
-            self.assertEqual(urlsplit(self.driver.current_url).path, "/payment/callback")
+            self.assertEqual(urlsplit(self.driver.current_url).path, "/payments/callback")
             self.assertNotIn("error", parse_qs(urlsplit(self.driver.current_url).query))
             self.assertEqual(self.read_account(email, password), paid_account)
         self.driver.refresh()
@@ -328,7 +328,7 @@ class TestPayments(PaymentBrowserTestCase):
         email, password = self.create_trial_account()
         self.open_account()
         before = self.read_account(email, password)
-        self.driver.get(f"{app_base_url}/payment/callback")
+        self.driver.get(f"{app_base_url}/payments/callback")
         self.wait.until(expected_conditions.text_to_be_present_in_element((
             By.CSS_SELECTOR, "main h1"
         ), "Payment Successful"))
@@ -353,7 +353,7 @@ class TestPayments(PaymentBrowserTestCase):
         }
         for error_code, expected_message in messages.items():
             with self.subTest(error=error_code):
-                self.driver.get(f"{app_base_url}/payment/callback?error={error_code}")
+                self.driver.get(f"{app_base_url}/payments/callback?error={error_code}")
                 self.wait.until(expected_conditions.text_to_be_present_in_element((
                     By.CSS_SELECTOR, "main h1"
                 ), "Payment Failed"))
@@ -370,8 +370,8 @@ class TestPayments(PaymentBrowserTestCase):
         email, password = self.create_trial_account()
         before = self.read_account(email, password)
         return_base_url = os.getenv("PAYMENT_RETURN_BASE_URL", "https://api.local.beddybytes.com")
-        self.driver.get(f"{return_base_url}/payment/stripe/success")
-        self.wait.until(lambda driver: urlsplit(driver.current_url).path == "/payment/callback")
+        self.driver.get(f"{return_base_url}/payments/stripe/success")
+        self.wait.until(lambda driver: urlsplit(driver.current_url).path == "/payments/callback")
         self.assertEqual(parse_qs(urlsplit(self.driver.current_url).query).get("error"), ["invalid_request"])
         self.wait.until(expected_conditions.text_to_be_present_in_element((
             By.CSS_SELECTOR, "main h1"
@@ -387,8 +387,8 @@ class TestPayments(PaymentBrowserTestCase):
         email, password = self.create_trial_account()
         before = self.read_account(email, password)
         return_base_url = os.getenv("PAYMENT_RETURN_BASE_URL", "https://api.local.beddybytes.com")
-        self.driver.get(f"{return_base_url}/payment/stripe/success?session_id=cs_test_nonexistent_selenium_session")
-        self.wait.until(lambda driver: urlsplit(driver.current_url).path == "/payment/callback")
+        self.driver.get(f"{return_base_url}/payments/stripe/success?session_id=cs_test_nonexistent_selenium_session")
+        self.wait.until(lambda driver: urlsplit(driver.current_url).path == "/payments/callback")
         self.assertEqual(parse_qs(urlsplit(self.driver.current_url).query).get("error"), ["temporarily_unavailable"])
         self.wait.until(expected_conditions.text_to_be_present_in_element((
             By.CSS_SELECTOR, "main h1"
@@ -423,7 +423,7 @@ class TestPayments(PaymentBrowserTestCase):
         self.driver.close()
         self.driver.switch_to.window(self.driver.window_handles[0])
         for query, heading in (("", "Payment Successful"), ("?error=payment_cancelled", "Payment Failed")):
-            self.driver.get(f"{app_base_url}/payment/callback{query}")
+            self.driver.get(f"{app_base_url}/payments/callback{query}")
             self.wait.until(expected_conditions.text_to_be_present_in_element((
                 By.CSS_SELECTOR, "main h1"
             ), heading))
@@ -564,7 +564,7 @@ class TestPayments(PaymentBrowserTestCase):
             self.respond_to_sandbox_authentication(approve=True)
         with self.stripe_interaction("Stripe authentication did not complete the expected browser return"):
             WebDriverWait(self.driver, float(os.getenv("PAYMENT_CHECKOUT_TIMEOUT_SECONDS", "60"))).until(
-                lambda driver: urlsplit(driver.current_url).path == "/payment/callback"
+                lambda driver: urlsplit(driver.current_url).path == "/payments/callback"
             )
         self.assert_success_and_perpetual(email, password)
 

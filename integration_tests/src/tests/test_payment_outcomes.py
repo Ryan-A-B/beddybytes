@@ -25,8 +25,8 @@ class TestPaymentOutcomes(unittest.TestCase):
 
     def test_our_callback_and_api_timeouts_still_fail(self):
         for url in (
-            "https://app.beddybytes.local/payment/callback",
-            "https://api.local.beddybytes.com/payment/stripe/success",
+            "https://app.beddybytes.local/payments/callback",
+            "https://api.local.beddybytes.com/payments/stripe/success",
             "https://stripe.com.example.org/test",
         ):
             with self.subTest(url=url):
