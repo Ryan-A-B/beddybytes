@@ -77,43 +77,43 @@ before expanding coverage.
   our callback. Return to Account through cancellation/navigation and verify
   the account remains Trial with its original dates. Correct the payment with
   a successful card and verify eventual Perpetual.
-- [ ] **FAILING E08 — Refresh after webhook-only payment.** (`TestPayments.test_e08_webhook_fulfills_without_browser_return`) Before paying, keep Account
+- [ ] **SKIPPED E08 — Refresh after webhook-only payment.** (`TestPayments.test_e08_webhook_fulfills_without_browser_return`) Before paying, keep Account
   open in a second tab. In the Checkout tab block only the browser's success
   return request, while allowing Stripe to accept the payment. Observe the
   license becoming Perpetual through the API while no success callback was
   reached. The already-open Account tab retains its trial display until Refresh
   is clicked; Refresh then displays Perpetual. This proves real CLI webhook
   fulfillment independently of the browser success handler.
-- [ ] **E09 — Paid account survives a fresh session.** After a confirmed
+- [x] **E09 — Paid account survives a fresh session.** (`TestPayments.test_e09_perpetual_survives_new_browser_session`) After a confirmed
   purchase, sign in from a new browser session and open Account. Perpetual and
   its original grant time remain, with no Ends row or purchase button.
 
 ## Callback behavior and navigation
 
-- [ ] **E10 — Return URL is reloadable.** Reload a successful backend return URL
+- [x] **E10 — Return URL is reloadable.** (`TestPayments.test_e10_payment_return_is_reloadable`) Reload a successful backend return URL
   containing its session ID. It still reaches Payment Successful, with no
   second charge or changed perpetual start time. Reloading the frontend callback
   alone must only redisplay the result, not initiate payment or alter the license.
-- [ ] **E11 — Callback display does not grant access.** Open
+- [x] **E11 — Callback display does not grant access.** (`TestPayments.test_e11_callback_display_does_not_grant_license`) Open
   `/payment/callback` directly for a trial account, without making a payment.
   The result page may show Payment Successful, but Go to account still shows
   the original Trial and the API license is unchanged. Query parameters and
   result text are not evidence of a purchase.
-- [ ] **E12 — Callback error messages.** Visit the callback with
+- [x] **E12 — Callback error messages.** (`TestPayments.test_e12_callback_error_messages`) Visit the callback with
   `payment_failed`, `payment_cancelled`, `payment_pending`,
   `temporarily_unavailable`, `invalid_request` and an unknown error code.
   Each shows one Payment Failed heading, the appropriate friendly message and
   an Account link. No success confirmation or raw backend error is shown.
   These are presentation tests, not proof that the corresponding Stripe outcome
   was produced.
-- [ ] **E13 — Missing session on the backend return.** Visit
+- [x] **E13 — Missing session on the backend return.** (`TestPayments.test_e13_backend_return_without_session`) Visit
   `/payment/stripe/success` without a session ID. It redirects to the frontend
   callback with `error=invalid_request` and leaves the license unchanged.
-- [ ] **E14 — No success from a bad session.** Visit the backend success route
+- [x] **E14 — No success from a bad session.** (`TestPayments.test_e14_backend_return_with_invalid_session`) Visit the backend success route
   with an invalid/nonexistent Checkout Session ID. It shows the friendly
   unavailable result through the callback, rather than Payment Successful, and
   does not alter the account.
-- [ ] **E15 — Mobile account and callback pages.** At a phone-sized viewport,
+- [x] **E15 — Mobile account and callback pages.** (`TestPayments.test_e15_mobile_account_and_callback`) At a phone-sized viewport,
   open the navbar menu and navigate to Account. License dates, Refresh, checkout
   and callback Account link are visible and usable without horizontal scrolling.
 
@@ -138,12 +138,12 @@ or QA test data using the event model; do not add a production fixture endpoint.
   controlled processing payment or event fixture. Resolve to paid and verify
   Refresh displays Perpetual. In a separate case revoke provisional access and
   verify Refresh restores the original Trial start/end and purchase button.
-- [ ] **E20 — Account fetch failure and retry.** Requires browser-only request
+- [x] **E20 — Account fetch failure and retry.** (`TestPayments.test_e20_account_fetch_failure_and_retry`) Requires browser-only request
   blocking or a scoped API outage. Open Account with `/accounts/current`
   unavailable, verify a friendly error, restore connectivity and click Refresh.
   The current license appears without another login. Other users' requests
   must not be disrupted by browser-only interception.
-- [ ] **E21 — No automatic refresh.** Instrument account requests for one
+- [x] **E21 — No automatic refresh.** (`TestPayments.test_e21_account_refreshes_only_on_request`) Instrument account requests for one
   browser. After initial page load settles, change the backend license and
   trigger tab focus/visibility changes. No new account fetch occurs and the
   display does not change until Refresh is clicked. Account for React Strict
@@ -158,7 +158,7 @@ or QA test data using the event model; do not add a production fixture endpoint.
   retention of the same event log. After a confirmed purchase, restart the API
   and use Refresh or a new browser session. Perpetual and its grant time survive.
   Recreating a container with an empty event log is not this test.
-- [ ] **E24 — Additional card authentication.** Requires a sandbox 3DS flow
+- [ ] **FAILING E24 — Additional card authentication.** (`TestPayments.test_e24_additional_card_authentication`) Requires a sandbox 3DS flow
   that can be completed by the test browser. Successful authentication reaches
   Payment Successful and Perpetual. Failed/abandoned authentication must not
   falsely confirm payment; accept Stripe's inline flow or its cancellation
@@ -209,7 +209,7 @@ target before navigating to sandbox Checkout. Chrome's performance log misses
 the new tab's initial POST because logging attaches after navigation. The
 frontend unit test separately verifies native form submission with a fresh token.
 The amount/currency assertion remains skipped until an independent expected
-total is supplied. E08 is implemented but fails its browser-interception setup (see below). E09–E24 have not been added or run.
+total is supplied. E08 is implemented but fails its browser-interception setup (see below). Subsequent results are recorded below.
 
 Account frontend tests pass (6 tests), and TypeScript checking passes.
 
@@ -283,3 +283,54 @@ blocked, then rerun E08. Do not count a successful payment callback as evidence
 of webhook-only fulfillment.
 
 Evidence: [E08 failed interception screenshot](artifacts/payments/test_e08_webhook_fulfills_without_browser_return.png).
+
+E08 is explicitly skipped at Ryan’s request. The unittest skip decorator prevents
+its interception setup from running in the suite. Webhook-only fulfillment
+remains unverified; this is not a passing case.
+
+## Continued after skipping E08 — 17 October 2026
+
+E08 is disabled with `unittest.skip` at Ryan's request. No changes to application
+behavior were needed for the following tests. Each new case was run separately.
+
+| Case | Result | Evidence |
+| --- | --- | --- |
+| E08 | SKIPPED | Explicit unittest skip verified alongside E09 |
+| E09 | PASS — 13.839s including skipped E08 | Actual purchase, fresh browser/login, same account and perpetual grant timestamp, no checkout or end date |
+| E10 | PASS — 13.295s | Actual purchase, revisit backend success return twice, refresh frontend callback, unchanged account/grant |
+| E11 | PASS — 2.258s | Direct success-page navigation leaves account Trial, original dates and purchase control unchanged |
+| E12 | PASS — 1.710s | All five known callback errors and an unknown code display the appropriate friendly failure and account link |
+| E13 | PASS — 2.963s | Missing backend session redirects with invalid_request and leaves Trial unchanged |
+| E14 | PASS — 3.108s | Nonexistent session redirects with temporarily_unavailable and leaves Trial unchanged |
+| E15 | PASS — 4.419s | 390×844 window: navbar, account dates/controls, new checkout tab, success/failure callbacks and account links; no horizontal overflow |
+| E20 | PASS — 2.174s | Block only this browser's account requests, show load error, unblock and Refresh successfully without login |
+| E21 | PASS — 12.305s | Count actual account fetches, complete a purchase in another tab, verify focus/visibility events leave original Trial and request count unchanged, then Refresh fetches Perpetual |
+
+E16–E19 remain unimplemented: no isolated expired V2, legacy V1 or provisional
+payment/event fixtures are available. E22–E23 remain unimplemented: this agent
+environment has no Docker CLI/socket for pausing the listener or restarting the
+API. These are outstanding prerequisites, not passing tests. E20's blocking
+works on the original app tab; it does not resolve E08's new-tab interception.
+
+E10 checks grant idempotency and result navigation; it does not independently
+query Stripe's charge ledger. E21 checks real tab return plus dispatched focus
+and visibility events; it does not simulate time passing through a long polling
+interval.
+
+### E24 — stopped at authentication interaction
+
+**ERROR — 25.290s.** Submitted Stripe's documented 3DS-required sandbox card
+`4000000000003220`, found the test authentication failure control inside the
+challenge iframe and called click. The test then timed out waiting for a visible
+error alert. The screenshot still shows the 3D Secure test challenge with its
+Fail/Complete controls, over a processing Checkout page.
+
+This is an unresolved hosted-authentication interaction/outcome failure. It does
+not establish an application defect or a license grant after failed authentication.
+The original-account assertion and successful-authentication retry were not
+reached. No exact Stripe error wording is asserted. Retained the failing test
+and stopped; the next step is to investigate why the challenge did not resolve
+and whether the test must observe a different outcome.
+
+Evidence: [E24 authentication screenshot](artifacts/payments/test_e24_additional_card_authentication.png).
+Fixture: [Stripe 3D Secure test cards](https://docs.stripe.com/testing#regulatory-cards).
