@@ -1,0 +1,36 @@
+{
+  "expired_trial": {
+    "id": "replace-with-seeded-account-id",
+    "email": "expired-trial@integrationtests.com",
+    "password": "replace-with-local-fixture-password",
+    "creation_event_type": "account.created.v2",
+    "license": {
+      "type": "Trial",
+      "start_unix_seconds": 1700000000,
+      "end_unix_seconds": 1700604800
+    }
+  },
+  "legacy_v1": {
+    "id": "replace-with-seeded-account-id",
+    "email": "legacy@integrationtests.com",
+    "password": "replace-with-local-fixture-password",
+    "creation_event_type": "account.created",
+    "created_unix_seconds": 1700000000,
+    "license": {
+      "type": "Perpetual",
+      "start_unix_seconds": 1700000000
+    }
+  },
+  "provisional": {
+    "id": "replace-with-seeded-account-id",
+    "email": "provisional@integrationtests.com",
+    "password": "replace-with-local-fixture-password",
+    "license": {
+      "type": "Provisional",
+      "start_unix_seconds": 1700001000,
+      "provisional_license": {
+        "trial_start_unix_seconds": 1700000000
+      }
+    }
+  }
+}

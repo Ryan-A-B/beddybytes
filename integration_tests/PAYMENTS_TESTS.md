@@ -129,15 +129,15 @@ timeouts must not be converted wholesale into skips.
 These remain unverified until the stated setup exists. Seed only isolated local
 or QA test data using the event model; do not add a production fixture endpoint.
 
-- [ ] **E16 — Expired trial display and checkout.** Requires a V2 account whose
+- [ ] **SKIPPED E16 — Expired trial display and checkout.** (`TestPayments.test_e16_expired_trial_can_purchase`) Requires a V2 account whose
   persisted trial start is more than seven days ago. Verify the original start
   and backend end are displayed, and checkout remains available. Complete a
   sandbox purchase and verify Perpetual. Do not wait a week or alter only the
   browser clock to simulate backend expiry.
-- [ ] **E17 — Legacy account display.** Requires a seeded V1 account. Sign in
+- [ ] **SKIPPED E17 — Legacy account display.** (`TestPayments.test_e17_legacy_account_shows_perpetual`) Requires a seeded V1 account. Sign in
   and verify Perpetual, the creation time as its license start, no Ends row and
   no purchase button. No Stripe call should be needed.
-- [ ] **E18 — Provisional display.** Requires a reproducible processing payment
+- [ ] **SKIPPED E18 — Provisional display.** (`TestPayments.test_e18_provisional_license_display`) Requires a reproducible processing payment
   or a seeded provisional-license grant. Verify Provisional, its grant start,
   the processing message, no Ends row and no purchase button. A seeded case
   verifies display/replay only; do not call it a Stripe end-to-end payment test.
@@ -165,7 +165,7 @@ or QA test data using the event model; do not add a production fixture endpoint.
   retention of the same event log. After a confirmed purchase, restart the API
   and use Refresh or a new browser session. Perpetual and its grant time survive.
   Recreating a container with an empty event log is not this test.
-- [ ] **INCONCLUSIVE E24 — Additional card authentication.** (`TestPayments.test_e24_additional_card_authentication`) Requires a sandbox 3DS flow
+- [ ] **INCONCLUSIVE E24 — Additional card authentication.** (`TestPayments.test_e24a_failed_card_authentication_keeps_trial`, `TestPayments.test_e24b_successful_card_authentication_grants_perpetual`) Requires a sandbox 3DS flow
   that can be completed by the test browser. Successful authentication reaches
   Payment Successful and Perpetual. Failed/abandoned authentication must not
   falsely confirm payment; accept Stripe's inline flow or its cancellation
@@ -384,3 +384,63 @@ cleanup requested. This rerun is **INCONCLUSIVE (browser infrastructure)**;
 E06, E07 and E24 are not newly verified by this run. Their earlier results
 remain historical evidence, not fresh passes for this change. No application
 behavior was changed.
+
+## Next outstanding cases — 17 October 2026
+
+Split E24 into independent authentication-failure and authentication-success
+cases. An inconclusive failure challenge no longer prevents the approval case
+from being attempted.
+
+| Case | Latest result |
+| --- | --- |
+| E16 | SKIPPED — expired-trial account fixture not configured |
+| E17 | SKIPPED — legacy V1 account fixture not configured |
+| E18 | SKIPPED — provisional account fixture not configured |
+| E24a | INCONCLUSIVE — 27.041s; failure challenge did not resolve; backend Trial verified unchanged |
+| E24b | INCONCLUSIVE — 71.468s; clicked the approval control but Stripe remained on its challenge page instead of returning |
+
+The new E16–E18 test bodies are implemented but **unverified** until real seeded
+accounts are supplied. Only their missing-prerequisite skips have been run.
+E16 verifies the persisted expired trial and its backend dates before attempting
+a real sandbox purchase. E17 verifies the V1 fixture's perpetual start equals its
+creation time, no expiry/purchase UI and no browser Stripe request. This last
+check does not inspect server-to-Stripe traffic. E18 verifies provisional type,
+grant start, processing message, no expiry/purchase UI and usable Refresh.
+
+### Account fixture contract
+
+`fixtures/accounts.example.json` documents the required values. Copy it to
+`fixtures/accounts.local.json` (ignored) and populate it with **isolated accounts
+already seeded through the backend event model**, including their expected
+account IDs and license output. Set `PAYMENT_ACCOUNT_FIXTURES` to its absolute
+path. This file is an expectation/credential manifest, not a seeder. Do not
+commit local credentials. Missing files with a configured path, malformed data,
+failed login or a mismatch with the seeded expectations fail rather than being
+silently accepted. A missing fixture entry is an explicit inconclusive skip.
+
+Use an expendable expired-trial account: E16 upgrades it, so re-seed a fresh
+fixture before rerunning. V1 provenance must come from the seed event log;
+perpetual display by itself does not prove an account originated as V1.
+Provisional fixtures must not have an active payment resolving concurrently.
+Do not simulate backend expiry with the browser clock or fabricate API responses
+and count those as end-to-end passes.
+
+Run from `integration_tests/src` with the fixture manifest configured:
+
+```sh
+PAYMENT_ACCOUNT_FIXTURES=/absolute/path/to/accounts.local.json \
+SELENIUM_HUB_URL=http://selenium_hub:4444 \
+python -m unittest -v tests.test_payments.TestPayments.test_e16_expired_trial_can_purchase
+```
+
+E19 still needs a controlled provisional transition through real events. E22
+needs a pausable webhook listener; E23 needs API restart control plus a retained
+event log. Neither Docker CLI nor its socket is available here, and the current
+API event log lives inside its container. These three cases remain unimplemented
+rather than adding empty tests or claiming mocked transitions as integration
+coverage. E04 still needs the independent expected total; E08 remains skipped.
+
+Evidence: [E24b unresolved approval](artifacts/payments/test_e24b_successful_card_authentication_grants_perpetual.png).
+
+Outcome-classification checks rerun: **5 passed**. Fixture cases: **3 skipped**.
+No application failures were found in this continuation.

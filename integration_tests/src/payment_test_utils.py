@@ -1,6 +1,7 @@
 import copy
 from contextlib import contextmanager
 import datetime
+import json
 import os
 from pathlib import Path
 import unittest
@@ -85,6 +86,30 @@ class PaymentBrowserTestCase(unittest.TestCase):
             ))
             directory.mkdir(parents=True, exist_ok=True)
             self.driver.save_screenshot(str(directory / f"{self._testMethodName}.png"))
+
+    def load_account_fixture(self, name):
+        fixture_path = os.getenv("PAYMENT_ACCOUNT_FIXTURES")
+        if not fixture_path:
+            self.skipTest("INCONCLUSIVE: PAYMENT_ACCOUNT_FIXTURES is not configured")
+        with Path(fixture_path).open() as fixture_file:
+            fixtures = json.load(fixture_file)
+        if name not in fixtures:
+            self.skipTest(f"INCONCLUSIVE: {name} account fixture is not supplied")
+        return fixtures[name]
+
+    def login_fixture_account(self, fixture):
+        self.driver.get(f"{app_base_url}/account")
+        login_form = self.wait.until(expected_conditions.visibility_of_element_located((By.ID, "form-login")))
+        login_form.find_element(By.ID, "input-login-email").send_keys(fixture["email"])
+        login_form.find_element(By.ID, "input-login-password").send_keys(fixture["password"])
+        login_form.find_element(By.ID, "submit-button-login").click()
+        self.wait.until(expected_conditions.visibility_of_element_located((
+            By.CSS_SELECTOR, 'section[aria-labelledby="license-heading"] h3'
+        )))
+        account = self.read_account(fixture["email"], fixture["password"])
+        self.assertEqual(account["id"], fixture["id"], "Fixture account identity differs")
+        self.assertEqual(account["license"], fixture["license"], "Fixture license differs from the seeded expectation")
+        return account
 
     def create_trial_account(self):
         email = f"license-{generate_random_string(12)}@integrationtests.com"

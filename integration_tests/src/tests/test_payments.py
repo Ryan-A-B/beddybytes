@@ -1,6 +1,7 @@
 import json
 import os
 import re
+import time
 import unittest
 from urllib.parse import parse_qs, urlsplit
 
@@ -532,13 +533,12 @@ class TestPayments(PaymentBrowserTestCase):
         control.click()
         self.driver.switch_to.default_content()
 
-    def test_e24_additional_card_authentication(self):
+    def test_e24a_failed_card_authentication_keeps_trial(self):
         email, password = self.create_trial_account()
         self.open_account()
         before = self.read_account(email, password)
         self.start_checkout()
-        # Stripe's 3DS-required sandbox card. Decline authentication first,
-        # verify no license grant, then retry and approve authentication.
+        # Stripe's 3DS-required sandbox card; failure must not grant a license.
         self.submit_sandbox_card(email, "4000000000003220")
         unchanged_account = lambda: self.assertEqual(self.read_account(email, password), before)
         with self.stripe_interaction(
@@ -550,7 +550,14 @@ class TestPayments(PaymentBrowserTestCase):
             )))
         self.assertEqual(urlsplit(self.driver.current_url).hostname, "checkout.stripe.com")
         unchanged_account()
+
+    def test_e24b_successful_card_authentication_grants_perpetual(self):
+        email, password = self.create_trial_account()
+        self.open_account()
+        before = self.read_account(email, password)
+        self.start_checkout()
         self.submit_sandbox_card(email, "4000000000003220")
+        unchanged_account = lambda: self.assertEqual(self.read_account(email, password), before)
         with self.stripe_interaction(
             "Stripe authentication approval control was unavailable", before_skip=unchanged_account,
         ):
@@ -560,3 +567,56 @@ class TestPayments(PaymentBrowserTestCase):
                 lambda driver: urlsplit(driver.current_url).path == "/payment/callback"
             )
         self.assert_success_and_perpetual(email, password)
+
+    @unittest.skipUnless(os.getenv("PAYMENT_ACCOUNT_FIXTURES"), "INCONCLUSIVE: expired-trial fixture is not configured")
+    def test_e16_expired_trial_can_purchase(self):
+        fixture = self.load_account_fixture("expired_trial")
+        self.assertEqual(fixture["creation_event_type"], "account.created.v2")
+        self.assertEqual(fixture["license"]["type"], "Trial")
+        self.assertLess(fixture["license"]["end_unix_seconds"], time.time())
+        self.assertEqual(fixture["license"]["end_unix_seconds"] - fixture["license"]["start_unix_seconds"], 604800)
+        account = self.login_fixture_account(fixture)
+        self.assert_displayed_license_dates(account["license"])
+        self.start_checkout()
+        self.pay_with_sandbox_card(fixture["email"])
+        self.assert_success_and_perpetual(fixture["email"], fixture["password"])
+
+    @unittest.skipUnless(os.getenv("PAYMENT_ACCOUNT_FIXTURES"), "INCONCLUSIVE: legacy V1 fixture is not configured")
+    def test_e17_legacy_account_shows_perpetual(self):
+        fixture = self.load_account_fixture("legacy_v1")
+        self.assertEqual(fixture["creation_event_type"], "account.created")
+        self.assertEqual(fixture["license"]["type"], "Perpetual")
+        self.assertEqual(fixture["license"]["start_unix_seconds"], fixture["created_unix_seconds"])
+        account = self.login_fixture_account(fixture)
+        self.assertEqual(self.driver.find_element(
+            By.CSS_SELECTOR, 'section[aria-labelledby="license-heading"] h3'
+        ).text, "Perpetual")
+        self.assert_single_license_start(account["license"])
+        self.assertFalse(self.driver.find_elements(By.XPATH, "//main//button[normalize-space(.)='Buy lifetime access']"))
+        # Observe this browser's network only; a legacy display needs no Stripe request.
+        for entry in self.driver.get_log("performance"):
+            message = json.loads(entry["message"])["message"]
+            if message["method"] == "Network.requestWillBeSent":
+                hostname = urlsplit(message["params"]["request"]["url"]).hostname or ""
+                self.assertFalse(hostname == "stripe.com" or hostname.endswith(".stripe.com"))
+
+    def assert_single_license_start(self, license_info):
+        times = self.driver.find_elements(By.CSS_SELECTOR, "main time")
+        self.assertEqual(len(times), 1)
+        self.assertEqual(times[0].get_attribute("datetime"), self.driver.execute_script(
+            "return new Date(arguments[0] * 1000).toISOString();", license_info["start_unix_seconds"]
+        ))
+        self.assertFalse(self.driver.find_elements(By.XPATH, "//main//dt[normalize-space(.)='Ends']"))
+
+    @unittest.skipUnless(os.getenv("PAYMENT_ACCOUNT_FIXTURES"), "INCONCLUSIVE: provisional fixture is not configured")
+    def test_e18_provisional_license_display(self):
+        fixture = self.load_account_fixture("provisional")
+        self.assertEqual(fixture["license"]["type"], "Provisional")
+        account = self.login_fixture_account(fixture)
+        self.assertEqual(self.driver.find_element(
+            By.CSS_SELECTOR, 'section[aria-labelledby="license-heading"] h3'
+        ).text, "Provisional")
+        self.assert_single_license_start(account["license"])
+        self.assertIn("Your payment is processing.", self.driver.find_element(By.TAG_NAME, "main").text)
+        self.assertFalse(self.driver.find_elements(By.XPATH, "//main//button[normalize-space(.)='Buy lifetime access']"))
+        self.assertTrue(self.driver.find_element(By.XPATH, "//main//button[normalize-space(.)='Refresh']").is_enabled())
