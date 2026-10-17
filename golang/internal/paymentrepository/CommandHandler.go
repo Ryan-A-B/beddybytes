@@ -426,10 +426,8 @@ func (handler *CommandHandler) applyAccountCreatedV2(ctx context.Context, event 
 	var detail events.AccountCreatedV2Detail
 	err := json.Unmarshal(event.Data, &detail)
 	fatal.OnError(err)
-	handler.eligibleAccounts[detail.AccountID] = &models.License{
-		Type:             models.LicenseTypeTrial,
-		StartUnixSeconds: event.UnixTimestamp,
-	}
+	license := models.NewTrialLicense(event.UnixTimestamp)
+	handler.eligibleAccounts[detail.AccountID] = &license
 }
 
 func (handler *CommandHandler) applyPerpetualLicenseGranted(ctx context.Context, event *eventlog.Event) {
@@ -455,10 +453,8 @@ func (handler *CommandHandler) applyProvisionalLicenseRevoked(ctx context.Contex
 	if !eligible || license.Type != models.LicenseTypeProvisional {
 		return
 	}
-	handler.eligibleAccounts[event.AccountID] = &models.License{
-		Type:             models.LicenseTypeTrial,
-		StartUnixSeconds: license.ProvisionalLicense.TrialStartUnixSeconds,
-	}
+	trialLicense := models.NewTrialLicense(license.ProvisionalLicense.TrialStartUnixSeconds)
+	handler.eligibleAccounts[event.AccountID] = &trialLicense
 }
 
 func (handler *CommandHandler) applyStripeCheckoutSessionStarted(ctx context.Context, event *eventlog.Event) {

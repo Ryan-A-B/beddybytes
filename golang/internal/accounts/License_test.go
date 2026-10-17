@@ -36,7 +36,7 @@ func TestGetAccountReturnsCurrentLicense(t *testing.T) {
 		{eventType: events.TypePerpetualLicenseGranted, want: models.LicenseTypePerpetual},
 	} {
 		t.Run(string(step.want)+string(step.eventType), func(t *testing.T) {
-			want := models.License{Type: models.LicenseTypeTrial, StartUnixSeconds: trialStart}
+			want := models.NewTrialLicense(trialStart)
 			if step.eventType != "" {
 				event, err := log.Append(context.Background(), eventlog.AppendInput{Type: step.eventType, AccountID: accountID})
 				if err != nil {
@@ -45,6 +45,7 @@ func TestGetAccountReturnsCurrentLicense(t *testing.T) {
 				want.Type = step.want
 				if step.want != models.LicenseTypeTrial {
 					want.StartUnixSeconds = event.UnixTimestamp
+					want.EndUnixSeconds = nil
 				}
 				if step.want == models.LicenseTypeProvisional {
 					want.ProvisionalLicense = &models.ProvisionalLicense{TrialStartUnixSeconds: trialStart}
@@ -72,15 +73,8 @@ func TestGetAccountReturnsCurrentLicense(t *testing.T) {
 			if err := json.Unmarshal(response.Body.Bytes(), &output); err != nil {
 				t.Fatal(err)
 			}
-			if output.ID != accountID || !reflect.DeepEqual(output.License.License, want) {
+			if output.ID != accountID || !reflect.DeepEqual(output.License, want) {
 				t.Fatalf("output=%+v, want id=%s license=%+v", output, accountID, want)
-			}
-			wantEnd := int64(0)
-			if step.want == models.LicenseTypeTrial {
-				wantEnd = trialStart + 7*24*60*60
-			}
-			if output.License.EndUnixSeconds != wantEnd {
-				t.Errorf("end=%d, want %d", output.License.EndUnixSeconds, wantEnd)
 			}
 			var licenseJSON map[string]json.RawMessage
 			if err := json.Unmarshal(response.Body.Bytes(), &struct {

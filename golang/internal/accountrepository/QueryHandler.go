@@ -81,7 +81,7 @@ func (handler *QueryHandler) HasActiveAccount(ctx context.Context, accountID str
 }
 
 func hasActiveLicense(license models.License, now time.Time) bool {
-	return license.Type != models.LicenseTypeTrial || now.Before(time.Unix(license.StartUnixSeconds, 0).Add(models.TrialDuration))
+	return license.EndUnixSeconds == nil || now.Unix() < *license.EndUnixSeconds
 }
 
 type CheckCredentialsInput struct {
@@ -176,10 +176,7 @@ func (handler *QueryHandler) applyAccountCreatedV2(ctx context.Context, event *e
 	err := json.Unmarshal(event.Data, &detail)
 	fatal.OnError(err)
 	handler.accountIDForUser[detail.User.ID] = detail.AccountID
-	handler.licenseForAccount[detail.AccountID] = models.License{
-		Type:             models.LicenseTypeTrial,
-		StartUnixSeconds: event.UnixTimestamp,
-	}
+	handler.licenseForAccount[detail.AccountID] = models.NewTrialLicense(event.UnixTimestamp)
 	if detail.User.ID.Issuer == IssuerBeddybytes {
 		email := detail.User.ID.Subject
 		handler.hashedPasswordForEmail[email] = *detail.User.HashedPassword
@@ -223,8 +220,5 @@ func (handler *QueryHandler) applyProvisionalLicenseGranted(ctx context.Context,
 
 func (handler *QueryHandler) applyProvisionalLicenseRevoked(ctx context.Context, event *eventlog.Event) {
 	license := handler.licenseForAccount[event.AccountID]
-	handler.licenseForAccount[event.AccountID] = models.License{
-		Type:             models.LicenseTypeTrial,
-		StartUnixSeconds: license.ProvisionalLicense.TrialStartUnixSeconds,
-	}
+	handler.licenseForAccount[event.AccountID] = models.NewTrialLicense(license.ProvisionalLicense.TrialStartUnixSeconds)
 }

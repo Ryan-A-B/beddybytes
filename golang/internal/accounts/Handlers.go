@@ -394,22 +394,12 @@ func (handlers *Handlers) Logout(responseWriter http.ResponseWriter, request *ht
 }
 
 type GetAccountOutput struct {
-	ID      string               `json:"id"`
-	License AccountLicenseOutput `json:"license"`
-}
-
-// AccountLicenseOutput adds a backend-calculated end time for trial display.
-type AccountLicenseOutput struct {
-	models.License
-	EndUnixSeconds int64 `json:"end_unix_seconds,omitempty"`
+	ID      string         `json:"id"`
+	License models.License `json:"license"`
 }
 
 func newGetAccountOutput(accountID string, license models.License) GetAccountOutput {
-	output := GetAccountOutput{ID: accountID, License: AccountLicenseOutput{License: license}}
-	if license.Type == models.LicenseTypeTrial {
-		output.License.EndUnixSeconds = license.StartUnixSeconds + int64(models.TrialDuration/time.Second)
-	}
-	return output
+	return GetAccountOutput{ID: accountID, License: license}
 }
 
 func (handlers *Handlers) GetAccount(responseWriter http.ResponseWriter, request *http.Request) {

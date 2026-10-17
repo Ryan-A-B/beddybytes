@@ -111,12 +111,9 @@ func (handler *CommandHandler) CreateAccount(ctx context.Context, input CreateAc
 		return
 	}
 	account = &models.Account{
-		ID: detail.AccountID,
-		License: models.License{
-			Type:             models.LicenseTypeTrial,
-			StartUnixSeconds: event.UnixTimestamp,
-		},
-		Users: []*models.User{&user},
+		ID:      detail.AccountID,
+		License: models.NewTrialLicense(event.UnixTimestamp),
+		Users:   []*models.User{&user},
 	}
 	return
 }
