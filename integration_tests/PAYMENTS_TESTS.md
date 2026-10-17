@@ -8,8 +8,15 @@ or execute the tests.
 
 Use the existing Python unittest/Selenium suite under `integration_tests/src/tests/`.
 Suggested modules: `test_account_license.py` and `test_payments.py`. Work through
-the core cases first, one test at a time; retain a failing test and investigate
-before expanding coverage.
+the core cases first, one test at a time. Stop on failures in application
+behavior. When a Stripe interaction or test prerequisite cannot establish the
+scenario, record it as inconclusive rather than an application failure.
+
+Unittest has no separate inconclusive result: use a runtime skip prefixed with
+`INCONCLUSIVE:` and preserve a screenshot. Such a result is not a pass. Scope
+this handling to the hosted interaction, and retain assertions for our account,
+license and callback behavior. Ordinary assertion failures and backend return
+timeouts must not be converted wholesale into skips.
 
 ## Environment and test data
 
@@ -158,7 +165,7 @@ or QA test data using the event model; do not add a production fixture endpoint.
   retention of the same event log. After a confirmed purchase, restart the API
   and use Refresh or a new browser session. Perpetual and its grant time survive.
   Recreating a container with an empty event log is not this test.
-- [ ] **FAILING E24 — Additional card authentication.** (`TestPayments.test_e24_additional_card_authentication`) Requires a sandbox 3DS flow
+- [ ] **INCONCLUSIVE E24 — Additional card authentication.** (`TestPayments.test_e24_additional_card_authentication`) Requires a sandbox 3DS flow
   that can be completed by the test browser. Successful authentication reaches
   Payment Successful and Perpetual. Failed/abandoned authentication must not
   falsely confirm payment; accept Stripe's inline flow or its cancellation
@@ -334,3 +341,18 @@ and whether the test must observe a different outcome.
 
 Evidence: [E24 authentication screenshot](artifacts/payments/test_e24_additional_card_authentication.png).
 Fixture: [Stripe 3D Secure test cards](https://docs.stripe.com/testing#regulatory-cards).
+
+### Outcome classification clarification
+
+Ryan clarified that an unestablished Stripe UI outcome is **inconclusive**, not
+an application failure. E24 now reports `INCONCLUSIVE:` through a unittest skip
+when the hosted challenge control/outcome times out. It first checks that the
+original account is unchanged and the browser remains on Stripe. An incorrect
+license or a failure after reaching our callback still fails normally.
+Screenshots are retained for inconclusive runtime skips as well as failures.
+E08 remains explicitly skipped at Ryan's request; its prior interception attempt
+was inconclusive about webhook-only fulfillment.
+
+Verification: E24 rerun **INCONCLUSIVE — 28.499s**, reported as one unittest
+skip. The backend account remained identical to the original Trial. The
+challenge screenshot was saved; successful authentication remains unverified.

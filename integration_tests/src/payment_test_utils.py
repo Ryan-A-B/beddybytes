@@ -50,7 +50,12 @@ class PaymentBrowserTestCase(unittest.TestCase):
 
     def tearDown(self):
         result = self._outcome.result
-        if any(test is self for test, _ in result.errors + result.failures):
+        failed = any(test is self for test, _ in result.errors + result.failures)
+        inconclusive = any(
+            test is self and reason.startswith("INCONCLUSIVE:")
+            for test, reason in result.skipped
+        )
+        if failed or inconclusive:
             directory = Path(os.getenv(
                 "PAYMENT_TEST_ARTIFACTS",
                 str(Path(__file__).resolve().parents[1] / "artifacts" / "payments"),
