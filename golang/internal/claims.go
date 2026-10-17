@@ -23,6 +23,16 @@ type Claims struct {
 	TokenUse string `json:"token_use,omitempty"`
 }
 
+// HasScope matches a complete scope name in the token's scope list.
+func (claims *Claims) HasScope(requiredScope string) bool {
+	for _, scope := range strings.Fields(claims.Scope) {
+		if scope == requiredScope {
+			return true
+		}
+	}
+	return false
+}
+
 // EffectiveTokenUse supports tokens issued before token_use was introduced.
 // An explicit token_use always takes precedence over the legacy scope.
 func (claims *Claims) EffectiveTokenUse() string {

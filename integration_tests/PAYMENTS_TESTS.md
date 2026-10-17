@@ -479,3 +479,22 @@ Ryan confirmed the expected sandbox total is **USD 35.00**. E04 now defaults to
 **PASS — 5.172s** against the running stack: navigation POST form, separate
 sandbox Checkout tab, BeddyBytes branding and the confirmed amount/currency all
 verified. No payment was submitted in this test.
+
+## Monitor enforcement implementation — 17 October 2026
+
+HTTP monitoring routes now require the exact `monitor` scope: all registered
+methods under `/clients`, `/sessions`, `/events`, and
+`/baby_station_list_snapshot`. Valid account-only tokens receive 403 with
+`insufficient_scope`; invalid/missing tokens and refresh tokens receive 401.
+The IoT Authorizer also requires `monitor` before issuing a policy.
+
+Race-enabled Go tests passed for middleware, all eight monitoring route/method
+combinations, account/payment handlers, and the IoT Authorizer. Tests reject
+missing scopes and deceptive scope names and accept reordered scopes. Existing
+account-only account and checkout tests still pass. All 122 existing frontend
+authorization/offline/session tests pass; frontend implementation is unchanged.
+
+This does not mark the live expiry/RTC-continuation scenario as verified. It
+still needs a controlled expired-account transition and authenticated broker.
+Local anonymous Mosquitto does not exercise IoT Authorizer enforcement, and
+existing monitor-bearing JWTs/cached MQTT policies retain their existing timing.

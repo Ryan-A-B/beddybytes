@@ -104,6 +104,9 @@ func authorize(request events.IoTCoreCustomAuthorizerRequest, config AuthorizerC
 	if beddybytesAccountID == "" {
 		return CustomAuthorizerResponse{}, fmt.Errorf("missing BeddyBytes account ID: %w", errUnauthorized)
 	}
+	if !claims.HasScope("monitor") {
+		return CustomAuthorizerResponse{}, fmt.Errorf("monitor scope required: %w", errUnauthorized)
+	}
 	return CustomAuthorizerResponse{
 		IsAuthenticated:          true,
 		PrincipalID:              principalIDForClaims(claims),
