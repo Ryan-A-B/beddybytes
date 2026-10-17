@@ -1,3 +1,4 @@
+import json
 import os
 import re
 from urllib.parse import parse_qs, urlsplit
@@ -170,7 +171,13 @@ class TestPayments(PaymentBrowserTestCase):
         original_session = self.start_checkout()
         # Stripe's documented generic decline card; this must stay in sandbox.
         self.submit_sandbox_card(email, "4000000000000002")
-        self.wait.until(lambda driver: "Your card was declined" in driver.find_element(By.TAG_NAME, "body").text)
+        # Observe the accessible validation state, not Stripe's error wording.
+        self.wait.until(expected_conditions.visibility_of_element_located((
+            By.CSS_SELECTOR, 'input[name="cardNumber"][aria-invalid="true"]'
+        )))
+        self.wait.until(expected_conditions.visibility_of_element_located((
+            By.CSS_SELECTOR, '[role="alert"]'
+        )))
         self.assertEqual(urlsplit(self.driver.current_url).hostname, "checkout.stripe.com")
         self.assertEqual(self.read_account(email, password), before)
         self.wait.until(expected_conditions.element_to_be_clickable((
@@ -186,3 +193,60 @@ class TestPayments(PaymentBrowserTestCase):
         self.assertEqual(self.start_checkout(), original_session)
         self.pay_with_sandbox_card(email)
         self.assert_success_and_perpetual(email, password)
+
+    def test_e08_webhook_fulfills_without_browser_return(self):
+        email, password = self.create_trial_account()
+        self.open_account()
+        account_window = self.driver.current_window_handle
+        before = self.read_account(email, password)
+        self.start_checkout()
+        self.driver.execute("executeCdpCommand", {"cmd": "Network.enable", "params": {}})
+        self.driver.execute("executeCdpCommand", {
+            "cmd": "Network.setBlockedURLs",
+            "params": {"urls": ["*/payment/stripe/success*"]},
+        })
+        self.driver.get_log("performance")
+        self.submit_sandbox_card(email)
+        blocked_return_requests = set()
+
+        def success_return_was_blocked(driver):
+            for entry in driver.get_log("performance"):
+                message = json.loads(entry["message"])["message"]
+                parameters = message.get("params", {})
+                if message["method"] == "Network.requestWillBeSent":
+                    if urlsplit(parameters["request"]["url"]).path == "/payment/stripe/success":
+                        blocked_return_requests.add(parameters["requestId"])
+                elif message["method"] == "Network.loadingFailed":
+                    if parameters["requestId"] in blocked_return_requests and parameters.get("blockedReason"):
+                        return True
+            return False
+
+        webhook_wait = WebDriverWait(
+            self.driver, timeout=float(os.getenv("PAYMENT_CHECKOUT_TIMEOUT_SECONDS", "60"))
+        )
+        webhook_wait.until(success_return_was_blocked, "Browser success return was not observed being blocked")
+        webhook_wait.until(
+            lambda driver: self.read_account(email, password)["license"]["type"] == "Perpetual",
+            "Webhook did not fulfill payment while the browser success return was blocked",
+        )
+        self.driver.switch_to.window(account_window)
+        self.assertEqual(urlsplit(self.driver.current_url).path, "/account")
+        self.assertEqual(self.driver.find_element(
+            By.CSS_SELECTOR, 'section[aria-labelledby="license-heading"] h3'
+        ).text, "Trial")
+        self.assert_displayed_license_dates(before["license"])
+        self.driver.find_element(
+            By.XPATH, "//main//button[normalize-space(.)='Refresh']"
+        ).click()
+        self.wait.until(expected_conditions.text_to_be_present_in_element((
+            By.CSS_SELECTOR, 'section[aria-labelledby="license-heading"] h3'
+        ), "Perpetual"))
+        self.assertFalse(self.driver.find_elements(
+            By.XPATH, "//main//button[normalize-space(.)='Buy lifetime access']"
+        ))
+        self.assertEqual(len(self.driver.find_elements(By.CSS_SELECTOR, "main time")), 1)
+        account = self.read_account(email, password)
+        expected_started = self.driver.execute_script(
+            "return new Date(arguments[0] * 1000).toISOString();", account["license"]["start_unix_seconds"]
+        )
+        self.assertEqual(self.driver.find_element(By.CSS_SELECTOR, "main time").get_attribute("datetime"), expected_started)

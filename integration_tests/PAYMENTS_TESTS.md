@@ -72,12 +72,12 @@ before expanding coverage.
 - [x] **E06b — Close Checkout tab and reopen.** (`TestPayments.test_e06b_close_checkout_tab_and_reopen`) Close the Stripe tab. The original Account tab remains
   open with unchanged trial dates and usable Refresh and purchase controls.
   Refresh and reopen checkout; the original unexpired session is reused.
-- [ ] **FAILING E07 — Card decline remains unpaid.** (`TestPayments.test_e07_declined_card_remains_trial_and_can_retry`) Submit a sandbox decline card.
-  Verify Stripe's inline decline message; do not assume a decline redirects to
+- [x] **E07 — Card decline remains unpaid.** (`TestPayments.test_e07_declined_card_remains_trial_and_can_retry`) Submit a sandbox decline card.
+  Verify Stripe's accessible card-validation error (without matching Stripe wording); do not assume a decline redirects to
   our callback. Return to Account through cancellation/navigation and verify
   the account remains Trial with its original dates. Correct the payment with
   a successful card and verify eventual Perpetual.
-- [ ] **E08 — Refresh after webhook-only payment.** Before paying, keep Account
+- [ ] **FAILING E08 — Refresh after webhook-only payment.** (`TestPayments.test_e08_webhook_fulfills_without_browser_return`) Before paying, keep Account
   open in a second tab. In the Checkout tab block only the browser's success
   return request, while allowing Stripe to accept the payment. Observe the
   license becoming Perpetual through the API while no success callback was
@@ -209,7 +209,7 @@ target before navigating to sandbox Checkout. Chrome's performance log misses
 the new tab's initial POST because logging attaches after navigation. The
 frontend unit test separately verifies native form submission with a fresh token.
 The amount/currency assertion remains skipped until an independent expected
-total is supplied. E08–E24 have not been added or run.
+total is supplied. E08 is implemented but fails its browser-interception setup (see below). E09–E24 have not been added or run.
 
 Account frontend tests pass (6 tests), and TypeScript checking passes.
 
@@ -258,3 +258,28 @@ decline appropriately, then rerun E07 before continuing.
 
 Evidence: [E07 decline screenshot](artifacts/payments/test_e07_declined_card_remains_trial_and_can_retry.png).
 Card fixture reference: [Stripe sandbox test cards](https://docs.stripe.com/testing).
+
+### E07 follow-up
+
+**PASS — 19.807s.** Replaced the Stripe wording assertion with visible
+`aria-invalid="true"` on the card number and a visible `role="alert"`.
+The original trial remains unchanged after decline and cancellation; reopening
+reuses the same session, and a successful card retry grants Perpetual.
+Do not assert Stripe's error copy: we do not control its wording or locale.
+
+## E08 run — 17 October 2026
+
+**ERROR — 66.438s:** the test configured Chrome's `Network.setBlockedURLs` for
+`*/payment/stripe/success*` in the Checkout tab, submitted a sandbox payment,
+and waited for a corresponding blocked network request. No blocked return was
+observed. The screenshot shows our **Payment Successful** page, so the intended
+browser-return isolation did not take effect. This is a test setup failure,
+not evidence that webhook fulfillment is broken. The API fulfillment and
+manual-refresh assertions were not reached.
+
+Stopped and retained the failing case. Next step: correct interception for the
+new Checkout tab in this Remote Chrome setup, verify the return is actually
+blocked, then rerun E08. Do not count a successful payment callback as evidence
+of webhook-only fulfillment.
+
+Evidence: [E08 failed interception screenshot](artifacts/payments/test_e08_webhook_fulfills_without_browser_return.png).
