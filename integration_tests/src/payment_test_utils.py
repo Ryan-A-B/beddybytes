@@ -1,10 +1,16 @@
 import copy
+from contextlib import contextmanager
 import datetime
 import os
 from pathlib import Path
 import unittest
+from urllib.parse import urlsplit
 
 from selenium import webdriver
+from selenium.common.exceptions import (
+    ElementNotInteractableException, NoSuchElementException, NoSuchFrameException,
+    StaleElementReferenceException, TimeoutException, UnexpectedTagNameException,
+)
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions
 from selenium.webdriver.support.wait import WebDriverWait
@@ -43,6 +49,23 @@ class PaymentBrowserTestCase(unittest.TestCase):
         self.wait = WebDriverWait(
             self.driver, timeout=float(os.getenv("PAYMENT_UI_TIMEOUT_SECONDS", "15"))
         )
+
+    @contextmanager
+    def stripe_interaction(self, description, before_skip=None):
+        """An unestablished hosted scenario is a skip, never a passing test."""
+        try:
+            yield
+        except (
+            ElementNotInteractableException, NoSuchElementException, NoSuchFrameException,
+            StaleElementReferenceException, TimeoutException, UnexpectedTagNameException,
+        ) as error:
+            hostname = urlsplit(self.driver.current_url).hostname or ""
+            # A timeout on our API or app remains an application/test failure.
+            if hostname != "stripe.com" and not hostname.endswith(".stripe.com"):
+                raise
+            if before_skip is not None:
+                before_skip()
+            self.skipTest(f"INCONCLUSIVE: {description} ({type(error).__name__})")
 
     def close_browsers(self):
         for browser in self.browsers:

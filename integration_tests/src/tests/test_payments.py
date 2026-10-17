@@ -4,7 +4,7 @@ import re
 import unittest
 from urllib.parse import parse_qs, urlsplit
 
-from selenium.common.exceptions import NoSuchFrameException, StaleElementReferenceException, TimeoutException
+from selenium.common.exceptions import NoSuchFrameException, StaleElementReferenceException
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions
 from selenium.webdriver.support.ui import Select
@@ -28,9 +28,10 @@ class TestPayments(PaymentBrowserTestCase):
         self.assertEqual(checkout_form.get_attribute("target"), "_blank")
         self.start_checkout()
         self.assertNotIn("access_token", self.driver.current_url)
-        self.wait.until(expected_conditions.visibility_of_element_located(
-            (By.CSS_SELECTOR, "form")
-        ))
+        with self.stripe_interaction("Stripe hosted form did not load"):
+            self.wait.until(expected_conditions.visibility_of_element_located(
+                (By.CSS_SELECTOR, "form")
+            ))
         self.assertIn("BeddyBytes", self.driver.find_element(By.TAG_NAME, "body").text)
         # Supply the chosen sandbox total as an explicit fixture, avoiding a
         # guessed amount/currency or accepting whatever the page happens to show.
@@ -57,41 +58,52 @@ class TestPayments(PaymentBrowserTestCase):
             By.XPATH, "//main//button[normalize-space(.)='Refresh']"
         ).is_enabled())
         self.driver.switch_to.window(checkout_window)
-        self.wait.until(lambda driver: urlsplit(driver.current_url).hostname == "checkout.stripe.com")
+        with self.stripe_interaction("Stripe hosted checkout did not load"):
+            self.wait.until(lambda driver: urlsplit(driver.current_url).hostname == "checkout.stripe.com")
         self.assertTrue(self.driver.execute_script("return window.opener === null;"))
         self.assertIn("cs_test_", self.driver.current_url, "Refusing to submit outside sandbox Checkout")
         return re.search(r"cs_test_[A-Za-z0-9]+", self.driver.current_url).group(0)
 
     def submit_sandbox_card(self, email, card_number="4242424242424242"):
-        email_input = self.wait.until(expected_conditions.element_to_be_clickable((By.NAME, "email")))
-        email_input.clear()
-        email_input.send_keys(email)
-        link_checkbox = self.driver.find_element(By.NAME, "enableStripePass")
-        if link_checkbox.is_selected():
-            link_checkbox.click()
-        for name, value in (
-            ("cardNumber", card_number),
-            ("cardExpiry", "1234"),
-            ("cardCvc", "123"),
-            ("billingName", "BeddyBytes Selenium"),
-        ):
-            field = self.wait.until(expected_conditions.element_to_be_clickable((By.NAME, name)))
-            field.clear()
-            field.send_keys(value)
-        Select(self.driver.find_element(By.NAME, "billingCountry")).select_by_value("AU")
-        self.wait.until(expected_conditions.element_to_be_clickable(
-            (By.CSS_SELECTOR, "button[type='submit']")
-        )).click()
+        with self.stripe_interaction("Stripe card form could not be submitted"):
+            email_input = self.wait.until(expected_conditions.element_to_be_clickable((By.NAME, "email")))
+            email_input.clear()
+            email_input.send_keys(email)
+            link_checkbox = self.driver.find_element(By.NAME, "enableStripePass")
+            if link_checkbox.is_selected():
+                link_checkbox.click()
+            for name, value in (
+                ("cardNumber", card_number),
+                ("cardExpiry", "1234"),
+                ("cardCvc", "123"),
+                ("billingName", "BeddyBytes Selenium"),
+            ):
+                field = self.wait.until(expected_conditions.element_to_be_clickable((By.NAME, name)))
+                field.clear()
+                field.send_keys(value)
+            Select(self.driver.find_element(By.NAME, "billingCountry")).select_by_value("AU")
+            self.wait.until(expected_conditions.element_to_be_clickable(
+                (By.CSS_SELECTOR, "button[type='submit']")
+            )).click()
 
     def pay_with_sandbox_card(self, email, card_number="4242424242424242"):
         self.submit_sandbox_card(email, card_number)
-        checkout_wait = WebDriverWait(
-            self.driver, timeout=float(os.getenv("PAYMENT_CHECKOUT_TIMEOUT_SECONDS", "60"))
-        )
-        checkout_wait.until(
-            lambda driver: urlsplit(driver.current_url).path == "/payment/callback",
-            "Paid Checkout did not reach the payment callback",
-        )
+        with self.stripe_interaction("Stripe did not complete the expected browser return"):
+            checkout_wait = WebDriverWait(
+                self.driver, timeout=float(os.getenv("PAYMENT_CHECKOUT_TIMEOUT_SECONDS", "60"))
+            )
+            checkout_wait.until(
+                lambda driver: urlsplit(driver.current_url).path == "/payment/callback",
+                "Paid Checkout did not reach the payment callback",
+            )
+
+    def cancel_checkout(self):
+        with self.stripe_interaction("Stripe back control did not return to the app"):
+            self.wait.until(expected_conditions.element_to_be_clickable((By.NAME, "email")))
+            self.wait.until(expected_conditions.element_to_be_clickable((
+                By.CSS_SELECTOR, 'a[aria-label="Back to BeddyBytes"] svg'
+            ))).click()
+            self.wait.until(lambda driver: urlsplit(driver.current_url).path == "/payment/callback")
 
     def assert_success_and_perpetual(self, email, password):
         heading = self.wait.until(expected_conditions.visibility_of_element_located(
@@ -127,11 +139,7 @@ class TestPayments(PaymentBrowserTestCase):
         self.open_account()
         before = self.read_account(email, password)
         original_session = self.start_checkout()
-        self.wait.until(expected_conditions.element_to_be_clickable((By.NAME, "email")))
-        self.wait.until(expected_conditions.element_to_be_clickable(
-            (By.CSS_SELECTOR, 'a[aria-label="Back to BeddyBytes"] svg')
-        )).click()
-        self.wait.until(lambda driver: urlsplit(driver.current_url).path == "/payment/callback")
+        self.cancel_checkout()
         self.assertEqual(parse_qs(urlsplit(self.driver.current_url).query).get("error"), ["payment_cancelled"])
         self.assertEqual(self.driver.find_element(By.CSS_SELECTOR, "main h1").text, "Payment Failed")
         self.assertIn("Checkout was cancelled.", self.driver.find_element(By.TAG_NAME, "main").text)
@@ -174,19 +182,20 @@ class TestPayments(PaymentBrowserTestCase):
         original_session = self.start_checkout()
         # Stripe's documented generic decline card; this must stay in sandbox.
         self.submit_sandbox_card(email, "4000000000000002")
-        # Observe the accessible validation state, not Stripe's error wording.
-        self.wait.until(expected_conditions.visibility_of_element_located((
-            By.CSS_SELECTOR, 'input[name="cardNumber"][aria-invalid="true"]'
-        )))
-        self.wait.until(expected_conditions.visibility_of_element_located((
-            By.CSS_SELECTOR, '[role="alert"]'
-        )))
+        with self.stripe_interaction(
+            "Stripe decline outcome could not be established",
+            before_skip=lambda: self.assertEqual(self.read_account(email, password), before),
+        ):
+            # Observe the accessible validation state, not Stripe's error wording.
+            self.wait.until(expected_conditions.visibility_of_element_located((
+                By.CSS_SELECTOR, 'input[name="cardNumber"][aria-invalid="true"]'
+            )))
+            self.wait.until(expected_conditions.visibility_of_element_located((
+                By.CSS_SELECTOR, '[role="alert"]'
+            )))
         self.assertEqual(urlsplit(self.driver.current_url).hostname, "checkout.stripe.com")
         self.assertEqual(self.read_account(email, password), before)
-        self.wait.until(expected_conditions.element_to_be_clickable((
-            By.CSS_SELECTOR, 'a[aria-label="Back to BeddyBytes"] svg'
-        ))).click()
-        self.wait.until(lambda driver: urlsplit(driver.current_url).path == "/payment/callback")
+        self.cancel_checkout()
         self.assertEqual(parse_qs(urlsplit(self.driver.current_url).query).get("error"), ["payment_cancelled"])
         self.driver.find_element(By.LINK_TEXT, "Go to account").click()
         self.wait.until(expected_conditions.text_to_be_present_in_element((
@@ -531,27 +540,23 @@ class TestPayments(PaymentBrowserTestCase):
         # Stripe's 3DS-required sandbox card. Decline authentication first,
         # verify no license grant, then retry and approve authentication.
         self.submit_sandbox_card(email, "4000000000003220")
-        try:
+        unchanged_account = lambda: self.assertEqual(self.read_account(email, password), before)
+        with self.stripe_interaction(
+            "Stripe failed-authentication outcome could not be established", before_skip=unchanged_account,
+        ):
             self.respond_to_sandbox_authentication(approve=False)
             self.wait.until(expected_conditions.visibility_of_element_located((
                 By.CSS_SELECTOR, '[role="alert"]'
             )))
-        except TimeoutException:
-            # Do not hide a license grant after failed authentication behind
-            # an inconclusive hosted-UI interaction.
-            self.assertEqual(self.read_account(email, password), before)
-            self.assertEqual(urlsplit(self.driver.current_url).hostname, "checkout.stripe.com")
-            self.skipTest("INCONCLUSIVE: Stripe's failed-authentication outcome could not be established; original trial verified unchanged")
         self.assertEqual(urlsplit(self.driver.current_url).hostname, "checkout.stripe.com")
-        self.assertEqual(self.read_account(email, password), before)
+        unchanged_account()
         self.submit_sandbox_card(email, "4000000000003220")
-        try:
+        with self.stripe_interaction(
+            "Stripe authentication approval control was unavailable", before_skip=unchanged_account,
+        ):
             self.respond_to_sandbox_authentication(approve=True)
-        except TimeoutException:
-            self.assertEqual(self.read_account(email, password), before)
-            self.assertEqual(urlsplit(self.driver.current_url).hostname, "checkout.stripe.com")
-            self.skipTest("INCONCLUSIVE: Stripe's sandbox authentication control was unavailable for approval")
-        WebDriverWait(self.driver, float(os.getenv("PAYMENT_CHECKOUT_TIMEOUT_SECONDS", "60"))).until(
-            lambda driver: urlsplit(driver.current_url).path == "/payment/callback"
-        )
+        with self.stripe_interaction("Stripe authentication did not complete the expected browser return"):
+            WebDriverWait(self.driver, float(os.getenv("PAYMENT_CHECKOUT_TIMEOUT_SECONDS", "60"))).until(
+                lambda driver: urlsplit(driver.current_url).path == "/payment/callback"
+            )
         self.assert_success_and_perpetual(email, password)

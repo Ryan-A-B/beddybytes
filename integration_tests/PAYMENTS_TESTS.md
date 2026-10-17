@@ -356,3 +356,31 @@ was inconclusive about webhook-only fulfillment.
 Verification: E24 rerun **INCONCLUSIVE — 28.499s**, reported as one unittest
 skip. The backend account remained identical to the original Trial. The
 challenge screenshot was saved; successful authentication remains unverified.
+
+### Shared handling for all hosted interactions
+
+All implemented payment scenarios use the shared `stripe_interaction` context
+for hosted form loading, card entry/submission, decline detection, cancellation,
+authentication, and waiting for Stripe to return. Missing/changed controls,
+non-interactable elements and hosted timeouts produce `INCONCLUSIVE:` skips
+with screenshots while the browser remains on Stripe. Tests do not continue to
+a passing result after an unestablished Stripe step.
+
+The handler does not swallow assertion failures or errors on our app/API.
+License, session reuse, configured product/price, sandbox mode, callback results
+and app navigation assertions remain checks of our integration. Negative
+payment outcomes also check the original account before an inconclusive skip.
+E08 remains explicitly skipped; no webhook-isolation claim is made.
+
+`tests.test_payment_outcomes` verifies the classification without a browser:
+hosted interaction errors skip, app/API timeouts and license assertion failures
+propagate, and account checks run before skipping.
+
+Verification of shared handling: all **5 outcome-classification tests pass**.
+The live successful-purchase case E05 passed. During E06, the remote browser
+stopped responding; a separate browser-URL request also timed out while Grid
+itself remained healthy. The verification process was stopped and session
+cleanup requested. This rerun is **INCONCLUSIVE (browser infrastructure)**;
+E06, E07 and E24 are not newly verified by this run. Their earlier results
+remain historical evidence, not fresh passes for this change. No application
+behavior was changed.
