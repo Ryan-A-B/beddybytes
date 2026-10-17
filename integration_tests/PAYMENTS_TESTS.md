@@ -40,7 +40,7 @@ before expanding coverage.
 
 ## Core browser flows — implement first
 
-- [ ] **E01 — Signup to trial account page.** Create an account through the UI,
+- [ ] **FAILING E01 — Signup to trial account page.** (`TestAccountLicense.test_e01_signup_shows_trial_license`) Create an account through the UI,
   use the Account navbar link, and verify the Account heading, Trial license,
   Started and Ends values, Refresh button and Buy lifetime access button. Match
   both timestamps to `/accounts/current`; assert the backend end is start plus
@@ -185,7 +185,39 @@ passed or weaken assertions to get through it. See Stripe's
 
 ## Current status
 
-17 October 2026: checklist created after local Stripe setup was reported running.
-No new Selenium tests have been implemented or run for this checklist. All cases
-are pending; seeded-license and service-control requirements are called out above.
-The existing Selenium account-management suite remains unchanged.
+17 October 2026: implemented and attempted E01 against the running local stack.
+Stopped at the first failure. No later checklist cases have been added or run.
+No checklist case has passed yet.
+
+Test: `tests.test_account_license.TestAccountLicense.test_e01_signup_shows_trial_license`
+in `src/tests/test_account_license.py`.
+
+The test connected to Selenium Grid (Chrome 115 / Grid 4.11), opened the app,
+and timed out waiting for the Create Account tab. The failure screenshot shows
+the webpack development-server overlay:
+
+> Failed to construct 'WebSocket': An insecure WebSocket connection may not be initiated from a page loaded over HTTPS.
+
+The overlay references the development-server client with `protocol=ws` while
+the app is loaded at `https://app.beddybytes.local`. Signup and license assertions
+were not reached. This is a local app startup failure, not evidence of a payment
+or license failure. No production/configuration fix was made.
+
+Evidence: [failure screenshot](artifacts/payments/test_e01_signup_shows_trial_license.png)
+(ignored generated artifact). Future failed tests save screenshots in the same
+directory; override it with `PAYMENT_TEST_ARTIFACTS`.
+
+Run the retained test from `integration_tests/src` with the installed test
+requirements and access to the running Hub:
+
+```sh
+SELENIUM_HUB_URL=http://selenium_hub:4444 \
+  python -m unittest -v tests.test_account_license.TestAccountLicense.test_e01_signup_shows_trial_license
+```
+
+Use `http://localhost:4444` when running on the Docker host. The UI wait defaults
+to 15 seconds and can be changed with `PAYMENT_UI_TIMEOUT_SECONDS`. The browser
+time zone is fixed to UTC. Test accounts are unique and created through the UI;
+API observation uses their credentials without logging the resulting tokens.
+
+The human's change to `config/local.sops.env` is untouched.
