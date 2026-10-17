@@ -149,7 +149,7 @@ func TestPasswordGrantErrors(t *testing.T) {
 func TestGetAccountReturnsNotFoundForUnknownAccount(t *testing.T) {
 	handlers, router, _, _ := googleTestHandlers(t)
 	request := httptest.NewRequest("GET", "/accounts/current", nil)
-	request.Header.Set("Authorization", "Bearer "+handlers.createAccessToken(createSubject("missing-account", models.UserID{Issuer: accountrepository.IssuerBeddybytes, Subject: "user@example.com"})))
+	request.Header.Set("Authorization", "Bearer "+testAccessToken(t, handlers, createSubject("missing-account", models.UserID{Issuer: accountrepository.IssuerBeddybytes, Subject: "user@example.com"})))
 	response := httptest.NewRecorder()
 	router.ServeHTTP(response, request)
 	if response.Code != http.StatusNotFound {

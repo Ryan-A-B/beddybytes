@@ -564,7 +564,7 @@ func TestGoogleCallbackDerivedFromAPIOrigin(t *testing.T) {
 	}
 }
 
-func TestGoogleTokensAlwaysGrantAccountMonitor(t *testing.T) {
+func TestGoogleActiveTrialTokensGrantAccountMonitor(t *testing.T) {
 	for _, scope := range []string{"account", "monitor", "account monitor"} {
 		t.Run(scope, func(t *testing.T) {
 			handlers, router, _, _ := googleTestHandlers(t)

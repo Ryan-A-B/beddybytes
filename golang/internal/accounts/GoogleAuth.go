@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/Ryan-A-B/beddybytes/golang/internal/accountrepository"
+	"github.com/Ryan-A-B/beddybytes/golang/internal/httpx"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/models"
 )
 
@@ -359,11 +360,17 @@ func (handlers *Handlers) GetTokenUsingAuthorizationCode(responseWriter http.Res
 		tokenError(responseWriter, "invalid_grant")
 		return
 	}
-	http.SetCookie(responseWriter, handlers.createRefreshTokenCookie(createSubject(accountID, authorizationRequest.UserID)))
+	subject := createSubject(accountID, authorizationRequest.UserID)
+	accessToken, err := handlers.createAccessToken(ctx, subject)
+	if err != nil {
+		httpx.Error(responseWriter, err)
+		return
+	}
+	http.SetCookie(responseWriter, handlers.createRefreshTokenCookie(subject))
 	responseWriter.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(responseWriter).Encode(AccessTokenOutput{
 		TokenType:   "Bearer",
-		AccessToken: handlers.createAccessToken(createSubject(accountID, authorizationRequest.UserID)),
+		AccessToken: accessToken,
 		ExpiresIn:   int(handlers.AccessTokenDuration.Seconds()),
 	})
 }

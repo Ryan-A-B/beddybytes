@@ -109,7 +109,7 @@ func TestGetAccountStillRequiresMatchingAccountAuthorization(t *testing.T) {
 		want                      int
 	}{
 		{name: "unauthenticated", path: "/accounts/current", want: http.StatusUnauthorized},
-		{name: "different account", path: "/accounts/other-account", authorization: "Bearer " + handlers.createAccessToken(createSubject("account-1", models.UserID{Issuer: GoogleIssuer, Subject: "user-1"})), want: http.StatusForbidden},
+		{name: "different account", path: "/accounts/other-account", authorization: "Bearer " + testAccessToken(t, handlers, createSubject("account-1", models.UserID{Issuer: GoogleIssuer, Subject: "user-1"})), want: http.StatusForbidden},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			request := httptest.NewRequest(http.MethodGet, test.path, nil)

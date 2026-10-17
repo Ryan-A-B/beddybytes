@@ -1,5 +1,9 @@
 package models
 
+import "time"
+
+const TrialDuration = 7 * 24 * time.Hour
+
 type LicenseType string
 
 const (

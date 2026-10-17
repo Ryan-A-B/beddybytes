@@ -1,6 +1,7 @@
 package accounts
 
 import (
+	"context"
 	"crypto/rsa"
 	"encoding/json"
 	"errors"
@@ -308,9 +309,13 @@ func (handlers *Handlers) GetTokenUsingPasswordGrant(responseWriter http.Respons
 		return
 	}
 	subject := createSubject(accountID, userID)
+	accessToken, err := handlers.createAccessToken(ctx, subject)
+	if err != nil {
+		return
+	}
 	output := AccessTokenOutput{
 		TokenType:   "Bearer",
-		AccessToken: handlers.createAccessToken(subject),
+		AccessToken: accessToken,
 		ExpiresIn:   int(handlers.AccessTokenDuration.Seconds()),
 	}
 	http.SetCookie(responseWriter, handlers.createRefreshTokenCookie(subject))
@@ -348,9 +353,16 @@ func (handlers *Handlers) GetTokenUsingRefreshTokenGrant(responseWriter http.Res
 		err = merry.New("refresh token has already been used").WithUserMessage("unauthorized").WithHTTPCode(http.StatusUnauthorized)
 		return
 	}
+	accessToken, err := handlers.createAccessToken(request.Context(), claims.Subject)
+	if err != nil {
+		if errors.Is(err, accountrepository.ErrAccountNotFound) {
+			err = merry.WithHTTPCode(err, http.StatusUnauthorized).WithUserMessage("unauthorized")
+		}
+		return
+	}
 	output := AccessTokenOutput{
 		TokenType:   "Bearer",
-		AccessToken: handlers.createAccessToken(claims.Subject),
+		AccessToken: accessToken,
 		ExpiresIn:   int(handlers.AccessTokenDuration.Seconds()),
 	}
 	http.SetCookie(responseWriter, handlers.createRefreshTokenCookie(claims.Subject))
@@ -395,7 +407,7 @@ type AccountLicenseOutput struct {
 func newGetAccountOutput(accountID string, license models.License) GetAccountOutput {
 	output := GetAccountOutput{ID: accountID, License: AccountLicenseOutput{License: license}}
 	if license.Type == models.LicenseTypeTrial {
-		output.License.EndUnixSeconds = license.StartUnixSeconds + int64((7*24*time.Hour)/time.Second)
+		output.License.EndUnixSeconds = license.StartUnixSeconds + int64(models.TrialDuration/time.Second)
 	}
 	return output
 }
@@ -444,19 +456,25 @@ func (handlers *Handlers) createAnonymousAccessToken(remoteAddress string, scope
 	return
 }
 
-func (handlers *Handlers) createAccessToken(subject internal.URN) (accessToken string) {
+func (handlers *Handlers) createAccessToken(ctx context.Context, subject internal.URN) (string, error) {
+	active, err := handlers.AccountQueryHandler.HasActiveAccount(ctx, subject.AccountID)
+	if err != nil {
+		return "", err
+	}
+	scope := "account"
+	if active {
+		scope += " monitor"
+	}
 	expiry := time.Now().Add(handlers.AccessTokenDuration)
 	claims := internal.Claims{
 		Issuer:   "beddybytes",
 		Audience: "beddybytes",
 		Subject:  subject,
 		Expiry:   expiry.Unix(),
-		Scope:    "account monitor",
+		Scope:    scope,
 		TokenUse: internal.TokenUseAccess,
 	}
-	accessToken, err := jwt.NewWithClaims(handlers.SigningMethod, &claims).SignedString(handlers.Key)
-	fatal.OnError(err)
-	return
+	return jwt.NewWithClaims(handlers.SigningMethod, &claims).SignedString(handlers.Key)
 }
 
 func createSubject(accountID string, userID models.UserID) internal.URN {

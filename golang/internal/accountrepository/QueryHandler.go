@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"sync"
+	"time"
 
 	"github.com/Ryan-A-B/beddybytes/golang/internal/eventlog"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/events"
@@ -68,6 +69,19 @@ func (handler *QueryHandler) GetLicenseForAccount(ctx context.Context, accountID
 		return nil, ErrAccountNotFound
 	}
 	return &license, nil
+}
+
+// HasActiveAccount reports whether the account's current license permits monitoring.
+func (handler *QueryHandler) HasActiveAccount(ctx context.Context, accountID string) (bool, error) {
+	license, err := handler.GetLicenseForAccount(ctx, accountID)
+	if err != nil {
+		return false, err
+	}
+	return hasActiveLicense(*license, time.Now()), nil
+}
+
+func hasActiveLicense(license models.License, now time.Time) bool {
+	return license.Type != models.LicenseTypeTrial || now.Before(time.Unix(license.StartUnixSeconds, 0).Add(models.TrialDuration))
 }
 
 type CheckCredentialsInput struct {

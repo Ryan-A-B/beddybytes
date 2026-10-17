@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/Ryan-A-B/beddybytes/golang/internal/eventlog"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/events"
@@ -66,6 +67,11 @@ func TestQueryLicenseReplay(t *testing.T) {
 				if !reflect.DeepEqual(*license, test.want) {
 					t.Fatalf("query %d: license=%+v, want %+v", query, *license, test.want)
 				}
+				active, err := handler.HasActiveAccount(context.Background(), "account-1")
+				wantActive := test.want.Type != models.LicenseTypeTrial
+				if err != nil || active != wantActive {
+					t.Fatalf("query %d: active=%v err=%v, want %v", query, active, err, wantActive)
+				}
 			}
 			other, err := handler.GetLicenseForAccount(context.Background(), "account-2")
 			if err != nil || other.Type != models.LicenseTypeTrial || other.StartUnixSeconds != trialStart {
@@ -81,6 +87,9 @@ func TestQueryLicenseCatchesUpNewEvents(t *testing.T) {
 	handler := NewQueryHandler(NewQueryHandlerInput{EventLog: log})
 	if _, err := handler.GetLicenseForAccount(ctx, "account-1"); !errors.Is(err, ErrAccountNotFound) {
 		t.Fatalf("unknown account error=%v", err)
+	}
+	if active, err := handler.HasActiveAccount(ctx, "account-1"); active || !errors.Is(err, ErrAccountNotFound) {
+		t.Fatalf("unknown account active=%v error=%v", active, err)
 	}
 	if _, err := log.Append(ctx, eventlog.AppendInput{Type: events.TypeAccountCreatedV2, Data: json.RawMessage(`{"account_id":"account-1","user":{"id":{"Issuer":"google","Subject":"user-1"}}}`)}); err != nil {
 		t.Fatal(err)
@@ -103,5 +112,32 @@ func TestQueryLicenseCatchesUpNewEvents(t *testing.T) {
 		if err != nil || license.Type != step.want {
 			t.Fatalf("license=%+v err=%v, want %s", license, err, step.want)
 		}
+		if active, err := handler.HasActiveAccount(ctx, "account-1"); err != nil || !active {
+			t.Fatalf("current account active=%v error=%v", active, err)
+		}
+	}
+}
+
+func TestHasActiveLicenseTrialExpiryBoundary(t *testing.T) {
+	const start int64 = 1700000000
+	const end = start + 604800
+	for _, test := range []struct {
+		name        string
+		licenseType models.LicenseType
+		now         int64
+		want        bool
+	}{
+		{"trial before expiry", models.LicenseTypeTrial, end - 1, true},
+		{"trial at expiry", models.LicenseTypeTrial, end, false},
+		{"trial after expiry", models.LicenseTypeTrial, end + 1, false},
+		{"perpetual", models.LicenseTypePerpetual, end + 100000, true},
+		{"provisional", models.LicenseTypeProvisional, end + 100000, true},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			license := models.License{Type: test.licenseType, StartUnixSeconds: start}
+			if got := hasActiveLicense(license, time.Unix(test.now, 0)); got != test.want {
+				t.Fatalf("active=%v, want %v", got, test.want)
+			}
+		})
 	}
 }
