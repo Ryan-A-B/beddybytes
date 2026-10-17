@@ -34,11 +34,9 @@ class TestPayments(PaymentBrowserTestCase):
                 (By.CSS_SELECTOR, "form")
             ))
         self.assertIn("BeddyBytes", self.driver.find_element(By.TAG_NAME, "body").text)
-        # Supply the chosen sandbox total as an explicit fixture, avoiding a
-        # guessed amount/currency or accepting whatever the page happens to show.
-        expected_total = os.getenv("PAYMENT_EXPECTED_CHECKOUT_TOTAL")
-        if not expected_total:
-            self.skipTest("Set PAYMENT_EXPECTED_CHECKOUT_TOTAL to verify the configured sandbox amount/currency")
+        # Ryan confirmed the sandbox lifetime total is USD 35.00.
+        # Other environments can supply their independently configured total.
+        expected_total = os.getenv("PAYMENT_EXPECTED_CHECKOUT_TOTAL", "US$35.00")
         self.assertIn(expected_total, self.driver.find_element(By.TAG_NAME, "body").text)
         self.assertIn("cs_test_", self.driver.current_url, "Checkout must use a sandbox session")
 

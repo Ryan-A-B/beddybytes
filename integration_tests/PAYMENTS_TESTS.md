@@ -59,7 +59,7 @@ timeouts must not be converted wholesale into skips.
 - [x] **E03 — Trial survives a new browser session.** (`TestAccountLicense.test_e03_trial_survives_new_browser_session`) Create a trial account,
   close the browser, sign in from a fresh session and open Account. License
   type, original start and original end must be unchanged.
-- [ ] **SKIPPED E04 — Start hosted Checkout.** (`TestPayments.test_e04_start_hosted_checkout`; requires `PAYMENT_EXPECTED_CHECKOUT_TOTAL`) Click Buy lifetime access and verify the
+- [x] **E04 — Start hosted Checkout.** (`TestPayments.test_e04_start_hosted_checkout`; expected USD 35.00) Click Buy lifetime access and verify the
   browser opens a new tab for Stripe-hosted sandbox Checkout for BeddyBytes lifetime
   access with the configured amount/currency. It must be a browser navigation
   through `POST /payments/start`, not a fetch-only redirect. The access token
@@ -237,10 +237,10 @@ Use `http://localhost:4444` when running on the Docker host. Configure waits wit
 `PAYMENT_UI_TIMEOUT_SECONDS` (default 15) and
 `PAYMENT_CHECKOUT_TIMEOUT_SECONDS` (default 60).
 
-E04 also requires `PAYMENT_EXPECTED_CHECKOUT_TOTAL`, containing the exact visible
-sandbox total including its currency marker. Its missing value produces a skip,
-not a pass. The expected total must be supplied independently of the page under
-test; a value has been requested from the human.
+E04 defaults to the sandbox total confirmed by Ryan: **USD 35.00**, displayed
+as `US$35.00`. `PAYMENT_EXPECTED_CHECKOUT_TOTAL` can override the expectation for
+another independently configured environment. Earlier missing-total skips below
+are historical results from before that confirmation.
 
 The human's change to `config/local.sops.env` remains untouched.
 
@@ -471,3 +471,11 @@ verifies routing/signature rejection only, not delivery by the Stripe listener.
 
 No code changes were needed for this verification. Local and QA encrypted
 configuration changes were left untouched.
+
+### E04 total confirmed and verified — 17 October 2026
+
+Ryan confirmed the expected sandbox total is **USD 35.00**. E04 now defaults to
+`US$35.00`, retaining the environment override for other configured totals.
+**PASS — 5.172s** against the running stack: navigation POST form, separate
+sandbox Checkout tab, BeddyBytes branding and the confirmed amount/currency all
+verified. No payment was submitted in this test.
