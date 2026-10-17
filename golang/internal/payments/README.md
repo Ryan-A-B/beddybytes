@@ -66,3 +66,8 @@ the app remains available. Local Compose passes these variables through and
 sets the callback to `https://app.beddybytes.local/payment/callback`.
 
 Tests use fake repositories/commands; no live Stripe requests run.
+
+Local sandbox webhooks can use the persistent `stripe-cli` Compose service.
+See [local listener setup](../../../scripts/stripe/README.md). The public proxy
+`https://api.local.beddybytes.com` supports browser redirects; webhook delivery
+uses the CLI's internal Docker connection instead.

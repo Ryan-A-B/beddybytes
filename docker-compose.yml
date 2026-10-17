@@ -55,7 +55,7 @@ services:
       - COOKIE_DOMAIN=.beddybytes.local
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:?GOOGLE_CLIENT_ID must be set}
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:?GOOGLE_CLIENT_SECRET must be set}
-      - API_ORIGIN=https://api.beddybytes.local
+      - API_ORIGIN=https://api.local.beddybytes.com
       - FRONTEND_AUTH_REDIRECT=https://app.beddybytes.local/auth/callback
       - FRONTEND_PAYMENT_CALLBACK_URL=https://app.beddybytes.local/payment/callback
       - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY:-}
@@ -83,6 +83,22 @@ services:
       watch:
         - action: rebuild
           path: ./golang
+  stripe-cli:
+    image: stripe/stripe-cli:v1.54.0
+    hostname: beddybytes-stripe-cli
+    profiles:
+      - payments
+    restart: unless-stopped
+    depends_on:
+      - api
+    command:
+      - listen
+      - --events=checkout.session.completed,checkout.session.expired,checkout.session.async_payment_succeeded,checkout.session.async_payment_failed
+      - --forward-to=http://api:9000/payment/stripe/webhook
+    volumes:
+      - stripe_cli_config:/root/.config/stripe
+    labels:
+      - "traefik.enable=false"
   mosquitto:
     image: eclipse-mosquitto:2
     restart: always
@@ -170,6 +186,7 @@ services:
 volumes:
   # TODO influx_storage + set up script
   grafana_storage:
+  stripe_cli_config:
 
 include:
   - selenium.docker-compose.yml

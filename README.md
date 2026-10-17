@@ -78,6 +78,13 @@ After cloning, an authorized developer installs the matching age identity at `~/
 
 The script uses `sops exec-env` to pass decrypted values to Docker Compose without writing a plaintext `.env` file. Set `BEDDYBYTES_SOPS_ENV_FILE` to use a different encrypted environment file.
 
+**Local Stripe Webhooks**
+
+Use the optional `stripe-cli` service for sandbox webhooks. It forwards directly
+to the API over the Docker network and persists its login in a named volume.
+See [local Stripe setup](scripts/stripe/README.md) for first-time login, the
+`payments` Compose profile and configuring the listener's signing secret.
+
 **Marketing Build and Deployment with SOPS**
 
 The marketing build and deployment scripts read `config/marketing.sops.env` through `sops exec-env`. The file carries the TinyAnalytics build values and the AWS deployment destination. Create it with:
