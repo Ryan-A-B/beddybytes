@@ -72,8 +72,24 @@ func TestGetAccountReturnsCurrentLicense(t *testing.T) {
 			if err := json.Unmarshal(response.Body.Bytes(), &output); err != nil {
 				t.Fatal(err)
 			}
-			if output.ID != accountID || !reflect.DeepEqual(output.License, want) {
+			if output.ID != accountID || !reflect.DeepEqual(output.License.License, want) {
 				t.Fatalf("output=%+v, want id=%s license=%+v", output, accountID, want)
+			}
+			wantEnd := int64(0)
+			if step.want == models.LicenseTypeTrial {
+				wantEnd = trialStart + 7*24*60*60
+			}
+			if output.License.EndUnixSeconds != wantEnd {
+				t.Errorf("end=%d, want %d", output.License.EndUnixSeconds, wantEnd)
+			}
+			var licenseJSON map[string]json.RawMessage
+			if err := json.Unmarshal(response.Body.Bytes(), &struct {
+				License *map[string]json.RawMessage `json:"license"`
+			}{License: &licenseJSON}); err != nil {
+				t.Fatal(err)
+			}
+			if _, hasEnd := licenseJSON["end_unix_seconds"]; hasEnd != (step.want == models.LicenseTypeTrial) {
+				t.Error("end time must only be serialized for trials")
 			}
 			var raw map[string]json.RawMessage
 			if err := json.Unmarshal(response.Body.Bytes(), &raw); err != nil {

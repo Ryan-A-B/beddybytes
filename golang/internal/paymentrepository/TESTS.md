@@ -43,6 +43,9 @@ checkout session repository; do not call Stripe.
 - [x] An expired session emits no license change; it cannot transition from completed and must not revoke access associated with another checkout. (`TestFulfillCheckoutPaymentIntentStates`, expired-session subtests)
 - [x] Nil sessions and unexpected session/payment statuses return an error without appending license events. (`TestFulfillCheckoutRejectsInvalidSessionWithoutEvents`)
 
+- [x] Sync reports paid, processing and unsuccessful outcomes for the browser callback after fulfillment succeeds. (`TestSyncReturnsPaymentOutcome`)
+- [x] A concurrent sync reports processing rather than claiming payment success or retrieving twice. (`TestConcurrentSyncDoesNotReportPaymentSuccess`)
+
 ## Restart recovery
 
 Use a fresh command handler with the same durable event log. Never copy maps or
@@ -89,17 +92,12 @@ under Creating checkout instead.
 
 ## Current status
 
-16 October 2026: completed the remaining checklist cases, adding and running one
-test at a time. No new breaking case was found. Coverage now includes independent
-syncs, retrieval retries, restart recovery after an unpersisted Stripe creation
-and after open/provisional syncs, repeated webhooks, concurrent paid fulfillment,
-older results after perpetual grants, catch-up during retrieval, invalid and
-unrelated webhooks, and retry/replay after license persistence failures.
+17 October 2026: added explicit sync outcomes for the browser payment callback.
+`SyncCheckoutSessionWithResult` reports paid or processing after fulfillment;
+existing reconciliation callers retain the error-only SyncCheckoutSession API.
+Concurrent retrieval remains shared through the existing in-flight marker and
+reports processing to the callback. Webhooks still fulfill delivered sessions
+directly without calling sync.
 
-Verified all payment repository, checkout adapter and future tests with -race.
-The accepted overlapping-processing-payment reproducer remains skipped; all
-other checklist items have passing coverage. No production code changed. The
-human's uncommitted handler edit remains unchanged.
-
-Webhook handling continues to fulfill the verified delivered session directly;
-it does not call SyncCheckoutSession or enter sync coordination.
+All payment repository, checkout adapter and HTTP tests pass with -race. The
+accepted overlapping-processing-payment reproducer remains skipped.

@@ -21,14 +21,14 @@ var _ Commands = (*paymentrepository.CommandHandler)(nil)
 
 type commandStub struct {
 	start  func(context.Context, paymentrepository.StartCheckoutSessionInput) (*paymentrepository.StartCheckoutSessionOutput, error)
-	sync   func(context.Context, paymentrepository.SyncCheckoutSessionInput) error
+	sync   func(context.Context, paymentrepository.SyncCheckoutSessionInput) (*paymentrepository.SyncCheckoutSessionOutput, error)
 	record func(context.Context, paymentrepository.RecordCheckoutSessionEventInput) error
 }
 
 func (stub *commandStub) StartCheckoutSession(ctx context.Context, input paymentrepository.StartCheckoutSessionInput) (*paymentrepository.StartCheckoutSessionOutput, error) {
 	return stub.start(ctx, input)
 }
-func (stub *commandStub) SyncCheckoutSession(ctx context.Context, input paymentrepository.SyncCheckoutSessionInput) error {
+func (stub *commandStub) SyncCheckoutSessionWithResult(ctx context.Context, input paymentrepository.SyncCheckoutSessionInput) (*paymentrepository.SyncCheckoutSessionOutput, error) {
 	return stub.sync(ctx, input)
 }
 func (stub *commandStub) RecordCheckoutSessionEvent(ctx context.Context, input paymentrepository.RecordCheckoutSessionEventInput) error {
@@ -38,7 +38,7 @@ func (stub *commandStub) RecordCheckoutSessionEvent(ctx context.Context, input p
 var testKey = []byte("payments-http-test-key")
 
 func paymentRouter(commands Commands) http.Handler {
-	handlers := &Handlers{Commands: commands, Key: testKey, FrontendURL: "https://app.example/payment/result?keep=value"}
+	handlers := &Handlers{Commands: commands, Key: testKey, FrontendURL: "https://app.example/payment/callback?keep=value"}
 	router := mux.NewRouter()
 	handlers.AddRoutes(router)
 	return router
@@ -129,37 +129,38 @@ func TestStartErrorsDoNotRedirect(t *testing.T) {
 
 func TestSuccessSyncsSessionBeforeReturningToFrontend(t *testing.T) {
 	var calls int
-	router := paymentRouter(&commandStub{sync: func(_ context.Context, input paymentrepository.SyncCheckoutSessionInput) error {
+	router := paymentRouter(&commandStub{sync: func(_ context.Context, input paymentrepository.SyncCheckoutSessionInput) (*paymentrepository.SyncCheckoutSessionOutput, error) {
 		calls++
 		if input.CheckoutSessionID != "cs_test" {
 			t.Errorf("session ID=%q", input.CheckoutSessionID)
 		}
-		return nil
+		return &paymentrepository.SyncCheckoutSessionOutput{Paid: true}, nil
 	}})
 	response := httptest.NewRecorder()
 	router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/payment/stripe/success?session_id=cs_test&return_url=https://attacker.example", nil))
-	if response.Code != http.StatusSeeOther || response.Header().Get("Location") != "https://app.example/payment/result?keep=value&payment_status=pending" || calls != 1 {
+	if response.Code != http.StatusSeeOther || response.Header().Get("Location") != "https://app.example/payment/callback?keep=value" || calls != 1 {
 		t.Fatalf("status=%d location=%q syncs=%d", response.Code, response.Header().Get("Location"), calls)
 	}
 }
 
-func TestSuccessErrorsDoNotRedirect(t *testing.T) {
+func TestSuccessErrorsRedirectToCallback(t *testing.T) {
 	for _, test := range []struct {
 		name, path  string
+		errorCode   string
 		want, calls int
 	}{
-		{name: "missing session", path: "/payment/stripe/success", want: http.StatusBadRequest},
-		{name: "sync failure", path: "/payment/stripe/success?session_id=cs_test", want: http.StatusInternalServerError, calls: 1},
+		{name: "missing session", path: "/payment/stripe/success", want: http.StatusSeeOther, errorCode: "invalid_request"},
+		{name: "sync failure", path: "/payment/stripe/success?session_id=cs_test", want: http.StatusSeeOther, calls: 1, errorCode: "temporarily_unavailable"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			var calls int
-			router := paymentRouter(&commandStub{sync: func(context.Context, paymentrepository.SyncCheckoutSessionInput) error {
+			router := paymentRouter(&commandStub{sync: func(context.Context, paymentrepository.SyncCheckoutSessionInput) (*paymentrepository.SyncCheckoutSessionOutput, error) {
 				calls++
-				return errors.New("sync failed")
+				return nil, errors.New("sync failed")
 			}})
 			response := httptest.NewRecorder()
 			router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, test.path, nil))
-			if response.Code != test.want || calls != test.calls || response.Header().Get("Location") != "" {
+			if response.Code != test.want || calls != test.calls || response.Header().Get("Location") != "https://app.example/payment/callback?error="+test.errorCode+"&keep=value" {
 				t.Fatalf("status=%d calls=%d location=%q", response.Code, calls, response.Header().Get("Location"))
 			}
 		})
@@ -169,7 +170,7 @@ func TestSuccessErrorsDoNotRedirect(t *testing.T) {
 func TestCancelOnlyRedirectsToConfiguredFrontend(t *testing.T) {
 	response := httptest.NewRecorder()
 	paymentRouter(&commandStub{}).ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/payment/stripe/cancel?return_url=https://attacker.example", nil))
-	if response.Code != http.StatusSeeOther || response.Header().Get("Location") != "https://app.example/payment/result?keep=value&payment_status=cancelled" {
+	if response.Code != http.StatusSeeOther || response.Header().Get("Location") != "https://app.example/payment/callback?error=payment_cancelled&keep=value" {
 		t.Fatalf("status=%d location=%q", response.Code, response.Header().Get("Location"))
 	}
 }
@@ -237,5 +238,27 @@ func TestPaymentRoutesRejectWrongMethods(t *testing.T) {
 		if response.Code != http.StatusMethodNotAllowed && response.Code != http.StatusNotFound {
 			t.Errorf("%s %s: status=%d", test.method, test.path, response.Code)
 		}
+	}
+}
+
+func TestUnpaidCheckoutReturnsErrorToCallback(t *testing.T) {
+	for _, test := range []struct {
+		name      string
+		output    paymentrepository.SyncCheckoutSessionOutput
+		errorCode string
+	}{
+		{name: "processing", output: paymentrepository.SyncCheckoutSessionOutput{Processing: true}, errorCode: "payment_pending"},
+		{name: "unpaid", errorCode: "payment_failed"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			router := paymentRouter(&commandStub{sync: func(context.Context, paymentrepository.SyncCheckoutSessionInput) (*paymentrepository.SyncCheckoutSessionOutput, error) {
+				return &test.output, nil
+			}})
+			response := httptest.NewRecorder()
+			router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/payment/stripe/success?session_id=cs_test", nil))
+			if response.Code != http.StatusSeeOther || response.Header().Get("Location") != "https://app.example/payment/callback?error="+test.errorCode+"&keep=value" {
+				t.Fatalf("status=%d location=%q", response.Code, response.Header().Get("Location"))
+			}
+		})
 	}
 }

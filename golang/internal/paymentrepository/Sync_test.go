@@ -273,3 +273,78 @@ func TestLicensePersistenceFailureConvergesOnRetry(t *testing.T) {
 		})
 	}
 }
+
+func TestSyncReturnsPaymentOutcome(t *testing.T) {
+	for _, test := range []struct {
+		name          string
+		status        stripe.CheckoutSessionStatus
+		paymentStatus stripe.CheckoutSessionPaymentStatus
+		intentStatus  stripe.PaymentIntentStatus
+		want          SyncCheckoutSessionOutput
+	}{
+		{name: "paid", status: stripe.CheckoutSessionStatusComplete, paymentStatus: stripe.CheckoutSessionPaymentStatusPaid, want: SyncCheckoutSessionOutput{Paid: true}},
+		{name: "processing", status: stripe.CheckoutSessionStatusComplete, paymentStatus: stripe.CheckoutSessionPaymentStatusUnpaid, intentStatus: stripe.PaymentIntentStatusProcessing, want: SyncCheckoutSessionOutput{Processing: true}},
+		{name: "failed", status: stripe.CheckoutSessionStatusComplete, paymentStatus: stripe.CheckoutSessionPaymentStatusUnpaid, intentStatus: stripe.PaymentIntentStatusRequiresPaymentMethod},
+		{name: "open", status: stripe.CheckoutSessionStatusOpen},
+		{name: "expired", status: stripe.CheckoutSessionStatusExpired},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			handler := NewCommandHandler(NewCommandHandlerInput{EventLog: newRestartTestLog(t), CheckoutSessionRepository: &checkoutSessionRepositoryStub{
+				retrieve: func(_ context.Context, id string) (*stripe.CheckoutSession, error) {
+					return &stripe.CheckoutSession{ID: id, ClientReferenceID: "account-1", Status: test.status, PaymentStatus: test.paymentStatus, PaymentIntent: &stripe.PaymentIntent{ID: "pi_outcome", Status: test.intentStatus}}, nil
+				},
+			}})
+			output, err := handler.SyncCheckoutSessionWithResult(context.Background(), SyncCheckoutSessionInput{CheckoutSessionID: "cs_outcome"})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if *output != test.want {
+				t.Fatalf("outcome=%+v, want %+v", *output, test.want)
+			}
+		})
+	}
+}
+
+func TestConcurrentSyncDoesNotReportPaymentSuccess(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	entered := make(chan struct{})
+	release := make(chan struct{})
+	var retrieves int
+	handler := NewCommandHandler(NewCommandHandlerInput{EventLog: newRestartTestLog(t), CheckoutSessionRepository: &checkoutSessionRepositoryStub{
+		retrieve: func(ctx context.Context, id string) (*stripe.CheckoutSession, error) {
+			retrieves++
+			close(entered)
+			select {
+			case <-release:
+				return &stripe.CheckoutSession{ID: id, ClientReferenceID: "account-1", Status: stripe.CheckoutSessionStatusComplete, PaymentStatus: stripe.CheckoutSessionPaymentStatusPaid}, nil
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			}
+		},
+	}})
+	input := SyncCheckoutSessionInput{CheckoutSessionID: "cs_concurrent"}
+	finished := make(chan error, 1)
+	go func() { finished <- handler.SyncCheckoutSession(ctx, input) }()
+	select {
+	case <-entered:
+	case <-ctx.Done():
+		t.Fatal("Retrieve did not start")
+	}
+	output, err := handler.SyncCheckoutSessionWithResult(ctx, input)
+	if err != nil || output.Paid || !output.Processing {
+		t.Fatalf("concurrent outcome=%+v err=%v", output, err)
+	}
+	close(release)
+	select {
+	case err := <-finished:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-ctx.Done():
+		t.Fatal("sync did not finish")
+	}
+	if retrieves != 1 {
+		t.Fatalf("Retrieve calls=%d, want 1", retrieves)
+	}
+}

@@ -19,6 +19,8 @@ import './App.scss';
 import RequestPasswordReset from './pages/Login/RequestPasswordReset';
 import ResetPassword from './pages/Login/ResetPassword';
 import AuthCallback from './pages/Login/AuthCallback';
+import Account from './pages/Account';
+import PaymentCallback from './pages/Payment/Callback';
 
 export const services: Services = {
   logging_service,
@@ -34,6 +36,7 @@ const App: React.FunctionComponent = () => {
         <div className="position-relative">
           <Routes>
             <Route path="/auth/callback" element={<AuthCallback />} />
+            <Route path="/payment/callback" element={<PaymentCallback />} />
             <Route path="/request-password-reset" element={<RequestPasswordReset />} />
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="*" element={
@@ -43,6 +46,7 @@ const App: React.FunctionComponent = () => {
                     <Route path="/" element={<Instructions />} />
                     <Route path="/baby" element={<BabyStation />} />
                     <Route path="/parent" element={<ParentStation />} />
+                    <Route path="/account" element={<Account />} />
                   </Routes>
                 </div>
               </Login>

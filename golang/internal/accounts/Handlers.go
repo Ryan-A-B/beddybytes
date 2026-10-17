@@ -226,7 +226,7 @@ func (handlers *Handlers) CreateAccount(responseWriter http.ResponseWriter, requ
 		return
 	}
 	responseWriter.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(responseWriter).Encode(GetAccountOutput{ID: account.ID, License: account.License})
+	json.NewEncoder(responseWriter).Encode(newGetAccountOutput(account.ID, account.License))
 }
 
 type AccessTokenOutput struct {
@@ -382,8 +382,22 @@ func (handlers *Handlers) Logout(responseWriter http.ResponseWriter, request *ht
 }
 
 type GetAccountOutput struct {
-	ID      string         `json:"id"`
-	License models.License `json:"license"`
+	ID      string               `json:"id"`
+	License AccountLicenseOutput `json:"license"`
+}
+
+// AccountLicenseOutput adds a backend-calculated end time for trial display.
+type AccountLicenseOutput struct {
+	models.License
+	EndUnixSeconds int64 `json:"end_unix_seconds,omitempty"`
+}
+
+func newGetAccountOutput(accountID string, license models.License) GetAccountOutput {
+	output := GetAccountOutput{ID: accountID, License: AccountLicenseOutput{License: license}}
+	if license.Type == models.LicenseTypeTrial {
+		output.License.EndUnixSeconds = license.StartUnixSeconds + int64((7*24*time.Hour)/time.Second)
+	}
+	return output
 }
 
 func (handlers *Handlers) GetAccount(responseWriter http.ResponseWriter, request *http.Request) {
@@ -405,10 +419,7 @@ func (handlers *Handlers) GetAccount(responseWriter http.ResponseWriter, request
 		return
 	}
 	responseWriter.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(responseWriter).Encode(GetAccountOutput{
-		ID:      accountID,
-		License: *license,
-	})
+	json.NewEncoder(responseWriter).Encode(newGetAccountOutput(accountID, *license))
 }
 
 func (handlers *Handlers) createAnonymousAccessToken(remoteAddress string, scope string) (accessToken string) {

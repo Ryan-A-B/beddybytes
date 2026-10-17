@@ -81,6 +81,7 @@ func TestHandlers(t *testing.T) {
 					So(created.ID, ShouldEqual, accountID)
 					So(created.License.Type, ShouldEqual, models.LicenseTypeTrial)
 					So(created.License.StartUnixSeconds, ShouldBeGreaterThan, 0)
+					So(created.License.EndUnixSeconds, ShouldEqual, created.License.StartUnixSeconds+7*24*60*60)
 
 					Convey("Email already in use", func() {
 						Convey("GetAnonymousAccessToken", func() {

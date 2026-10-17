@@ -237,13 +237,25 @@ type SyncCheckoutSessionInput struct {
 	CheckoutSessionID string
 }
 
-func (handler *CommandHandler) SyncCheckoutSession(ctx context.Context, input SyncCheckoutSessionInput) (err error) {
+// SyncCheckoutSessionOutput describes the retrieved payment outcome. A concurrent
+// sync is reported as processing until its result is known.
+type SyncCheckoutSessionOutput struct {
+	Paid       bool
+	Processing bool
+}
+
+func (handler *CommandHandler) SyncCheckoutSession(ctx context.Context, input SyncCheckoutSessionInput) error {
+	_, err := handler.SyncCheckoutSessionWithResult(ctx, input)
+	return err
+}
+
+func (handler *CommandHandler) SyncCheckoutSessionWithResult(ctx context.Context, input SyncCheckoutSessionInput) (*SyncCheckoutSessionOutput, error) {
 	preflightOutput, err := handler.syncCheckoutSessionPreflight(ctx, input)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if preflightOutput.syncInProgress {
-		return
+		return &SyncCheckoutSessionOutput{Processing: true}, nil
 	}
 	defer func() {
 		handler.mutex.Lock()
@@ -252,13 +264,14 @@ func (handler *CommandHandler) SyncCheckoutSession(ctx context.Context, input Sy
 	}()
 	session, err := handler.checkoutSessionRepository.Retrieve(ctx, input.CheckoutSessionID)
 	if err != nil {
-		return
+		return nil, err
 	}
-	err = handler.fulfillCheckout(ctx, session)
-	if err != nil {
-		return
+	if err := handler.fulfillCheckout(ctx, session); err != nil {
+		return nil, err
 	}
-	return
+	output := &SyncCheckoutSessionOutput{Paid: session.Status == stripe.CheckoutSessionStatusComplete && session.PaymentStatus == stripe.CheckoutSessionPaymentStatusPaid}
+	output.Processing = session.Status == stripe.CheckoutSessionStatusComplete && session.PaymentStatus == stripe.CheckoutSessionPaymentStatusUnpaid && session.PaymentIntent.Status == stripe.PaymentIntentStatusProcessing
+	return output, nil
 }
 
 type syncCheckoutSessionPreflightOutput struct {

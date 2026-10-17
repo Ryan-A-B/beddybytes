@@ -19,7 +19,7 @@ import (
 // verification, fulfillment and event persistence belong to the repository.
 type Commands interface {
 	StartCheckoutSession(context.Context, paymentrepository.StartCheckoutSessionInput) (*paymentrepository.StartCheckoutSessionOutput, error)
-	SyncCheckoutSession(context.Context, paymentrepository.SyncCheckoutSessionInput) error
+	SyncCheckoutSessionWithResult(context.Context, paymentrepository.SyncCheckoutSessionInput) (*paymentrepository.SyncCheckoutSessionOutput, error)
 	RecordCheckoutSessionEvent(context.Context, paymentrepository.RecordCheckoutSessionEventInput) error
 }
 
@@ -64,23 +64,28 @@ func (handlers *Handlers) Success(responseWriter http.ResponseWriter, request *h
 	responseWriter.Header().Set("Cache-Control", "no-store")
 	sessionID := request.URL.Query().Get("session_id")
 	if sessionID == "" {
-		http.Error(responseWriter, "session ID is required", http.StatusBadRequest)
+		handlers.redirect(responseWriter, request, "invalid_request")
 		return
 	}
-	if err := handlers.Commands.SyncCheckoutSession(request.Context(), paymentrepository.SyncCheckoutSessionInput{CheckoutSessionID: sessionID}); err != nil {
+	output, err := handlers.Commands.SyncCheckoutSessionWithResult(request.Context(), paymentrepository.SyncCheckoutSessionInput{CheckoutSessionID: sessionID})
+	if err != nil {
 		logx.Warnln(err)
-		http.Error(responseWriter, "could not sync checkout", http.StatusInternalServerError)
+		handlers.redirect(responseWriter, request, "temporarily_unavailable")
 		return
 	}
-	// Sync does not return payment status. The frontend must read the account
-	// license rather than treating a browser return as proof of payment.
-	handlers.redirect(responseWriter, request, "pending")
+	if output.Paid {
+		handlers.redirect(responseWriter, request, "")
+	} else if output.Processing {
+		handlers.redirect(responseWriter, request, "payment_pending")
+	} else {
+		handlers.redirect(responseWriter, request, "payment_failed")
+	}
 }
 
 func (handlers *Handlers) Cancel(responseWriter http.ResponseWriter, request *http.Request) {
 	// Leaving Checkout is browser navigation, not a failed or expired payment.
 	// There is no repository cancellation command; leave the session reusable.
-	handlers.redirect(responseWriter, request, "cancelled")
+	handlers.redirect(responseWriter, request, "payment_cancelled")
 }
 
 func (handlers *Handlers) Webhook(responseWriter http.ResponseWriter, request *http.Request) {
@@ -109,7 +114,7 @@ func (handlers *Handlers) Webhook(responseWriter http.ResponseWriter, request *h
 	responseWriter.WriteHeader(http.StatusOK)
 }
 
-func (handlers *Handlers) redirect(responseWriter http.ResponseWriter, request *http.Request, status string) {
+func (handlers *Handlers) redirect(responseWriter http.ResponseWriter, request *http.Request, errorCode string) {
 	responseWriter.Header().Set("Cache-Control", "no-store")
 	frontendURL, err := url.Parse(handlers.FrontendURL)
 	if err != nil || (frontendURL.Scheme != "https" && frontendURL.Scheme != "http") || frontendURL.Host == "" {
@@ -117,7 +122,11 @@ func (handlers *Handlers) redirect(responseWriter http.ResponseWriter, request *
 		return
 	}
 	query := frontendURL.Query()
-	query.Set("payment_status", status)
+	query.Del("payment_status")
+	query.Del("error")
+	if errorCode != "" {
+		query.Set("error", errorCode)
+	}
 	frontendURL.RawQuery = query.Encode()
 	http.Redirect(responseWriter, request, frontendURL.String(), http.StatusSeeOther)
 }
