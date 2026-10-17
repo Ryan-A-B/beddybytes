@@ -40,30 +40,30 @@ before expanding coverage.
 
 ## Core browser flows — implement first
 
-- [ ] **FAILING E01 — Signup to trial account page.** (`TestAccountLicense.test_e01_signup_shows_trial_license`) Create an account through the UI,
+- [x] **E01 — Signup to trial account page.** (`TestAccountLicense.test_e01_signup_shows_trial_license`) Create an account through the UI,
   use the Account navbar link, and verify the Account heading, Trial license,
   Started and Ends values, Refresh button and Buy lifetime access button. Match
   both timestamps to `/accounts/current`; assert the backend end is start plus
   exactly 604800 seconds. No cards surround the content.
-- [ ] **E02 — Account requires login.** In a fresh browser, open `/account` and
+- [x] **E02 — Account requires login.** (`TestAccountLicense.test_e02_account_requires_login`) In a fresh browser, open `/account` and
   verify the existing login UI appears. Sign in to a known trial account and
   verify that account's license page loads. The account must come from the
   authenticated identity.
-- [ ] **E03 — Trial survives a new browser session.** Create a trial account,
+- [x] **E03 — Trial survives a new browser session.** (`TestAccountLicense.test_e03_trial_survives_new_browser_session`) Create a trial account,
   close the browser, sign in from a fresh session and open Account. License
   type, original start and original end must be unchanged.
-- [ ] **E04 — Start hosted Checkout.** Click Buy lifetime access and verify the
+- [ ] **SKIPPED E04 — Start hosted Checkout.** (`TestPayments.test_e04_start_hosted_checkout`; requires `PAYMENT_EXPECTED_CHECKOUT_TOTAL`) Click Buy lifetime access and verify the
   browser navigates to Stripe-hosted sandbox Checkout for BeddyBytes lifetime
   access with the configured amount/currency. It must be a browser navigation
   through `POST /payment/start`, not a fetch-only redirect. The access token
   must not appear in the destination URL.
-- [ ] **E05 — Successful purchase and browser return.** Complete Checkout with
+- [x] **E05 — Successful purchase and browser return.** (`TestPayments.test_e05_successful_purchase_and_browser_return`) Complete Checkout with
   a successful sandbox card. Follow the proxy return to `/payment/callback`;
   verify a single Payment Successful page heading, purchase confirmation and
   Go to account link. Follow that link and verify Perpetual, its start time,
   no Ends row and no checkout button. Check `/accounts/current` confirms the
   same license. Allow for the asynchronous webhook/callback delivery order.
-- [ ] **E06 — Cancel Checkout and retry.** Leave an open Checkout using its
+- [ ] **FAILING E06 — Cancel Checkout and retry.** (`TestPayments.test_e06_cancel_checkout_and_reuse_session`) Leave an open Checkout using its
   cancellation/back-to-app control. Verify `/payment/callback` carries
   `error=payment_cancelled`, displays one Payment Failed heading and explains
   cancellation. Go to Account: the trial dates are unchanged and checkout is
@@ -185,39 +185,55 @@ passed or weaken assertions to get through it. See Stripe's
 
 ## Current status
 
-17 October 2026: implemented and attempted E01 against the running local stack.
-Stopped at the first failure. No later checklist cases have been added or run.
-No checklist case has passed yet.
+17 October 2026: the human fixed the local development-server WebSocket problem.
+E01 now passes. Continued one new case at a time and stopped at E06.
 
-Test: `tests.test_account_license.TestAccountLicense.test_e01_signup_shows_trial_license`
-in `src/tests/test_account_license.py`.
+| Case | Test method | Result |
+| --- | --- | --- |
+| E01 | `TestAccountLicense.test_e01_signup_shows_trial_license` | PASS — 4.919s |
+| E02 | `TestAccountLicense.test_e02_account_requires_login` | PASS — 5.297s |
+| E03 | `TestAccountLicense.test_e03_trial_survives_new_browser_session` | PASS — 8.492s |
+| E04 | `TestPayments.test_e04_start_hosted_checkout` | SKIPPED — sandbox navigation and POST assertions passed; expected total not supplied |
+| E05 | `TestPayments.test_e05_successful_purchase_and_browser_return` | PASS — 12.340s; actual sandbox card payment, proxy return and perpetual license verified |
+| E06 | `TestPayments.test_e06_cancel_checkout_and_reuse_session` | ERROR — 4.273s; Stripe cancellation link could not be clicked |
 
-The test connected to Selenium Grid (Chrome 115 / Grid 4.11), opened the app,
-and timed out waiting for the Create Account tab. The failure screenshot shows
-the webpack development-server overlay:
+E06 found the Stripe cancel anchor by its configured `/payment/stripe/cancel`
+href, but Chrome reported:
 
-> Failed to construct 'WebSocket': An insecure WebSocket connection may not be initiated from a page loaded over HTTPS.
+> ElementNotInteractableException: element not interactable: element has zero size
 
-The overlay references the development-server client with `protocol=ws` while
-the app is loaded at `https://app.beddybytes.local`. Signup and license assertions
-were not reached. This is a local app startup failure, not evidence of a payment
-or license failure. No production/configuration fix was made.
+The test stopped before reaching our cancel callback. This is a Selenium
+interaction failure, not proof that cancellation or session reuse is broken.
+The screenshot shows Checkout still open. No application fix or further test
+execution was attempted after this error. Shared browser helpers were extracted
+while adding these cases; previously passing tests were not rerun after the
+stop condition.
 
-Evidence: [failure screenshot](artifacts/payments/test_e01_signup_shows_trial_license.png)
-(ignored generated artifact). Future failed tests save screenshots in the same
-directory; override it with `PAYMENT_TEST_ARTIFACTS`.
+Evidence:
+[Checkout cancellation failure](artifacts/payments/test_e06_cancel_checkout_and_reuse_session.png).
+The earlier E01 screenshot records the resolved development-server issue and
+is not evidence of the current app state. E07–E24 have not been added or run.
 
-Run the retained test from `integration_tests/src` with the installed test
-requirements and access to the running Hub:
+Shared browser setup is in `src/payment_test_utils.py`. Failed tests save
+screenshots under `artifacts/payments/` (ignored generated files); override
+with `PAYMENT_TEST_ARTIFACTS`. Tests fix the browser time zone to UTC, use unique
+accounts and never log observer access tokens. Existing account-management
+Selenium tests are unchanged.
+
+Run one case from `integration_tests/src` with the installed requirements:
 
 ```sh
 SELENIUM_HUB_URL=http://selenium_hub:4444 \
-  python -m unittest -v tests.test_account_license.TestAccountLicense.test_e01_signup_shows_trial_license
+  python -m unittest -v tests.test_payments.TestPayments.test_e06_cancel_checkout_and_reuse_session
 ```
 
-Use `http://localhost:4444` when running on the Docker host. The UI wait defaults
-to 15 seconds and can be changed with `PAYMENT_UI_TIMEOUT_SECONDS`. The browser
-time zone is fixed to UTC. Test accounts are unique and created through the UI;
-API observation uses their credentials without logging the resulting tokens.
+Use `http://localhost:4444` when running on the Docker host. Configure waits with
+`PAYMENT_UI_TIMEOUT_SECONDS` (default 15) and
+`PAYMENT_CHECKOUT_TIMEOUT_SECONDS` (default 60).
 
-The human's change to `config/local.sops.env` is untouched.
+E04 also requires `PAYMENT_EXPECTED_CHECKOUT_TOTAL`, containing the exact visible
+sandbox total including its currency marker. Its missing value produces a skip,
+not a pass. The expected total must be supplied independently of the page under
+test; a value has been requested from the human.
+
+The human's change to `config/local.sops.env` remains untouched.
