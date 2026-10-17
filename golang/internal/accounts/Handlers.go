@@ -446,15 +446,17 @@ func (handlers *Handlers) createAnonymousAccessToken(remoteAddress string, scope
 	return
 }
 
+var scopeByAccountStatus = map[bool]string{
+	false: "account",
+	true:  "account monitor",
+}
+
 func (handlers *Handlers) createAccessToken(ctx context.Context, subject internal.URN) (string, error) {
 	active, err := handlers.AccountQueryHandler.HasActiveAccount(ctx, subject.AccountID)
 	if err != nil {
 		return "", err
 	}
-	scope := "account"
-	if active {
-		scope += " monitor"
-	}
+	scope := scopeByAccountStatus[active]
 	expiry := time.Now().Add(handlers.AccessTokenDuration)
 	claims := internal.Claims{
 		Issuer:   "beddybytes",
