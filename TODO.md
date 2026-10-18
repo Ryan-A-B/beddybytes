@@ -18,6 +18,11 @@
 - integration tests for API prod release
 
 ## Next
+### Follow-ups after trial accounts and Stripe payments
+- Send a welcome email when someone signs up to BeddyBytes.
+- Recover payments after server downtime by reconciling outstanding Stripe Checkout Sessions on restart, catching up on missed webhooks.
+- Add the ability to add users to an existing account.
+
 ### Bugs
 - mock square for testing
 - responive slightly broken on phone (S7)
