@@ -76,7 +76,7 @@ timeouts must not be converted wholesale into skips.
   cancellation. Go to Account: the trial dates are unchanged and checkout is
   still available. Retry while the session remains open and unexpired; the
   existing Checkout Session is reused and can be completed successfully.
-- [x] **E06b — Close Checkout tab and reopen.** (`TestPayments.test_e06b_close_checkout_tab_and_reopen`) Close the Stripe tab. The original Account tab remains
+- [ ] **E06b — OUTDATED: Close Checkout tab and reopen.** (`TestPayments.test_e06b_close_checkout_tab_and_reopen`) This test fails with same-tab checkout and needs adaptation. Its former new-tab scenario: close the Stripe tab. The original Account tab remains
   open with unchanged trial dates and usable Refresh and purchase controls.
   Refresh and reopen checkout; the original unexpired session is reused.
 - [x] **E07 — Card decline remains unpaid.** (`TestPayments.test_e07_declined_card_remains_trial_and_can_retry`) Submit a sandbox decline card.
@@ -505,3 +505,47 @@ E04 and the shared checkout helper assert same-tab navigation; E15 uses the same
 tab for callback checks. E21 explicitly opens a separate account tab to retain
 coverage of manual refresh on an older view. Historical new-tab results above
 describe the previous behavior.
+
+## Full suite rerun — 18 October 2026, c0bf944
+
+All 62 distinct integration cases were attempted. Across the initial run,
+continuation and isolated E06 retry: **52 passed, 1 errored, 9 skipped**.
+No application or test code was changed during this run.
+
+- Frontend: all 221 tests in 19 suites passed; TypeScript validation passed.
+- Backend: standard full Go suite passed, 22 packages with tests. With race
+  detection, 21 packages passed and the existing `eventlog.TestFollow` race
+  failed. That test uses bare FileEventLog concurrently; production uses its
+  thread-safe decorator.
+- E04 and E05 passed: same-tab Checkout, USD 35 total, successful purchase and
+  browser return, perpetual license display and API response.
+- E06 initially stalled in Selenium and then stalled taking its error screenshot.
+  The runner was interrupted, remaining tests were run with a bounded driver
+  timeout, and isolated E06 passed on retry in 16.041 seconds.
+  Cleanup of the original stalled browser also timed out through WebDriver and
+  Grid CDP; its session may require a Selenium node restart.
+- E06b errored when it closed the only browser tab and tried to switch back to
+  its old handle (`InvalidSessionIdException`, test_payments.py:149). Screenshot
+  cleanup also errored on the closed session. These are two error records for
+  one failing case, not two failing cases. Its tab assumptions need updating.
+- Declined-card retry, purchase persistence, repeated returns, callback errors,
+  mobile layout, manual refresh, recording, audio/video monitoring, multiple
+  parent stations, session reconnection and baby-station switching passed.
+- Nine skips: missing password-reset link; E08 deferred by request; missing E16,
+  E17 and E18 fixtures; E24a and E24b Stripe authentication outcomes not
+  established; two restart tests requiring unavailable Docker CLI access.
+
+Commands: frontend `CI=true npm test -- --watchAll=false --runInBand` and
+`tsc --noEmit --incremental false`; backend `go test -count=1 -timeout=120s ./...`
+and the same command with `-race`; integration `python -m unittest discover -s . -v`
+with `SELENIUM_HUB_URL=http://selenium_hub:4444` and the isolated Python environment.
+The continuation used `RemoteConnection.set_timeout(45)`; isolated E06 used 30.
+Go and frontend tool caches were isolated under `/tmp`.
+
+Raw logs: `/tmp/beddybytes-final-frontend-tests.log`,
+`/tmp/beddybytes-final-frontend-types.log`,
+`/tmp/beddybytes-final-backend-standard-tests.log`,
+`/tmp/beddybytes-final-backend-tests.log`,
+`/tmp/beddybytes-final-selenium-tests.log`,
+`/tmp/beddybytes-final-selenium-remaining-tests.log`, and
+`/tmp/beddybytes-final-selenium-cancel-retry.log`.
