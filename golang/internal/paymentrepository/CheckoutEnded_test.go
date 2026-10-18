@@ -157,6 +157,43 @@ func TestOldCheckoutEndDoesNotRemoveNewSessionInfo(t *testing.T) {
 	}
 }
 
+func TestRevokeNonProvisionalLicenseLeavesCheckoutForCallerToEnd(t *testing.T) {
+	ctx := context.Background()
+	log := newRestartTestLog(t)
+	data, _ := json.Marshal(events.StripeCheckoutSessionStartedDetail{SessionID: "cs_pending", SessionExpiresAt: time.Now().Add(time.Hour).Unix()})
+	if _, err := log.Append(ctx, eventlog.AppendInput{Type: events.TypeStripeCheckoutSessionStarted, AccountID: "account-1", Data: data}); err != nil {
+		t.Fatal(err)
+	}
+	var appendedTypes []eventlog.EventType
+	handler := NewCommandHandler(NewCommandHandlerInput{EventLog: &interceptedPaymentEventLog{EventLog: log, append: func(ctx context.Context, input eventlog.AppendInput) (*eventlog.Event, error) {
+		appendedTypes = append(appendedTypes, input.Type)
+		return log.Append(ctx, input)
+	}}})
+	if err := handler.revokeProvisionalLicense(ctx, "account-1", "cs_pending"); !errors.Is(err, ErrLicenseNotProvisional) {
+		t.Fatalf("revoke error=%v, want ErrLicenseNotProvisional", err)
+	}
+	if len(appendedTypes) != 0 || handler.sessionInfoByAccount["account-1"] == nil {
+		t.Fatal("revoke changed checkout without a provisional license")
+	}
+	if err := handler.endCheckoutSession(ctx, "account-1", "cs_older"); err != nil {
+		t.Fatal(err)
+	}
+	if len(appendedTypes) != 0 {
+		t.Fatal("ending an older checkout appended an event for the current attempt")
+	}
+	for attempt := 0; attempt < 2; attempt++ {
+		if err := handler.endCheckoutSession(ctx, "account-1", "cs_pending"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if len(appendedTypes) != 1 || appendedTypes[0] != events.TypeStripeCheckoutSessionEnded {
+		t.Fatalf("appended events=%v, want one checkout-ended event", appendedTypes)
+	}
+	if handler.sessionInfoByAccount["account-1"] != nil {
+		t.Fatal("ended checkout still pending after catch-up")
+	}
+}
+
 func TestCheckoutEndedPersistenceFailureCanRetry(t *testing.T) {
 	ctx := context.Background()
 	log := newRestartTestLog(t)

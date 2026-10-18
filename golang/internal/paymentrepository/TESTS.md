@@ -36,6 +36,7 @@ checkout session repository; do not call Stripe.
 - [x] Perpetual grant/provisional revocation/checkout-ended replay removes matching session info, allowing a fresh checkout after failure even before the old expiry; provisional grant retains its reference. (`TestCompletedCheckoutSessionInfoLifecycle`, same/fresh handlers)
 - [x] Older terminal events do not remove a newer checkout's session info. (`TestOldCheckoutEndDoesNotRemoveNewSessionInfo`)
 - [x] Checkout-ended persistence failure propagates, preserves pending info, and can be retried durably. (`TestCheckoutEndedPersistenceFailureCanRetry`)
+- [x] Revoking a non-provisional license returns an error without appending events; ending checkout separately ignores older or already-ended sessions. (`TestRevokeNonProvisionalLicenseLeavesCheckoutForCallerToEnd`)
 
 ## Syncing checkout
 

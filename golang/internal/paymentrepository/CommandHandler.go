@@ -25,6 +25,7 @@ var ErrUnexpectedCheckoutSessionStatus = errors.New("unexpected checkout session
 var ErrUnexpectedCheckoutSessionPaymentStatus = errors.New("unexpected checkout session payment status")
 var ErrCheckoutSessionNotFound = errors.New("checkout session not found")
 var ErrPaymentIntentNotExpanded = errors.New("expanded payment intent is required for unpaid checkout")
+var ErrLicenseNotProvisional = errors.New("license is not provisional")
 
 type CommandHandler struct {
 	mutex                     sync.Mutex
@@ -289,7 +290,11 @@ func (handler *CommandHandler) fulfillCheckout(ctx context.Context, session *str
 	if session.PaymentIntent.Status == stripe.PaymentIntentStatusProcessing {
 		return handler.grantProvisionalLicense(ctx, accountID, session.ID)
 	}
-	return handler.revokeProvisionalLicense(ctx, accountID, session.ID)
+	err := handler.revokeProvisionalLicense(ctx, accountID, session.ID)
+	if errors.Is(err, ErrLicenseNotProvisional) {
+		return handler.endCheckoutSession(ctx, accountID, session.ID)
+	}
+	return err
 }
 
 func (handler *CommandHandler) grantPerpetualLicense(ctx context.Context, accountID string, sessionID string) (err error) {
@@ -346,23 +351,33 @@ func (handler *CommandHandler) revokeProvisionalLicense(ctx context.Context, acc
 		return
 	}
 	if license.Type != models.LicenseTypeProvisional {
-		// Only an outstanding checkout needs closing. Repeated observations
-		// of an ended session must not emit events or discard a newer attempt.
-		sessionInfo, pending := handler.sessionInfoByAccount[accountID]
-		if !pending || sessionInfo.CheckoutSessionID != sessionID {
-			return nil
-		}
-		_, err = handler.eventLog.Append(ctx, eventlog.AppendInput{
-			Type:      events.TypeStripeCheckoutSessionEnded,
-			AccountID: accountID,
-			Data:      fatal.UnlessMarshalJSON(events.StripeCheckoutSessionEndedDetail{SessionID: sessionID}),
-		})
-		return
+		return ErrLicenseNotProvisional
 	}
 	_, err = handler.eventLog.Append(ctx, eventlog.AppendInput{
 		Type:      events.TypeProvisionalLicenseRevoked,
 		AccountID: accountID,
 		Data:      fatal.UnlessMarshalJSON(events.LicenseEventDetail{SessionID: sessionID}),
+	})
+	return
+}
+
+func (handler *CommandHandler) endCheckoutSession(ctx context.Context, accountID string, sessionID string) (err error) {
+	handler.mutex.Lock()
+	defer handler.mutex.Unlock()
+	err = handler.catchup(ctx)
+	if err != nil {
+		return
+	}
+	// An ended checkout has no pending info. Match the ID so an older
+	// checkout cannot close a newer attempt.
+	sessionInfo, pending := handler.sessionInfoByAccount[accountID]
+	if !pending || sessionInfo.CheckoutSessionID != sessionID {
+		return nil
+	}
+	_, err = handler.eventLog.Append(ctx, eventlog.AppendInput{
+		Type:      events.TypeStripeCheckoutSessionEnded,
+		AccountID: accountID,
+		Data:      fatal.UnlessMarshalJSON(events.StripeCheckoutSessionEndedDetail{SessionID: sessionID}),
 	})
 	return
 }
