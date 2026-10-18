@@ -140,7 +140,7 @@ func TestRestartStartsNewSyncWhenOldSyncIsInFlight(t *testing.T) {
 			return &stripe.CheckoutSession{ID: id, ClientReferenceID: "account-1", Status: stripe.CheckoutSessionStatusOpen}, nil
 		},
 	}
-	old := NewCommandHandler(NewCommandHandlerInput{EventLog: log, CheckoutSessionRepository: repository})
+	old := NewCommandHandler(NewCommandHandlerInput{Context: oldCtx, EventLog: log, CheckoutSessionRepository: repository})
 	oldDone := make(chan error, 1)
 	go func() {
 		oldDone <- old.SyncCheckoutSession(oldCtx, SyncCheckoutSessionInput{CheckoutSessionID: "cs_test_1"})

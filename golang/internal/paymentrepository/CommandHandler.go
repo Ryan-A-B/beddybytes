@@ -37,7 +37,8 @@ type CommandHandler struct {
 	sessionInfoByAccount map[string]*CheckoutSessionInfo
 
 	startCheckoutSessionFutureForAccount map[string]*future.Future[*StartCheckoutSessionOutput]
-	syncInProgress                       map[string]struct{}
+	syncInProgress                       map[string]*checkoutSessionSync
+	syncContext                          context.Context
 }
 
 type CheckoutSessionInfo struct {
@@ -52,11 +53,16 @@ func (info *CheckoutSessionInfo) HasExpired() bool {
 }
 
 type NewCommandHandlerInput struct {
+	// Context controls shared sync lifetime. Request cancellation only cancels the caller's wait.
+	Context                   context.Context
 	EventLog                  eventlog.EventLog
 	CheckoutSessionRepository checkoutsessions.Repository
 }
 
 func NewCommandHandler(input NewCommandHandlerInput) *CommandHandler {
+	if input.Context == nil {
+		input.Context = context.Background()
+	}
 	return &CommandHandler{
 		eventLog:                  input.EventLog,
 		checkoutSessionRepository: input.CheckoutSessionRepository,
@@ -65,7 +71,8 @@ func NewCommandHandler(input NewCommandHandlerInput) *CommandHandler {
 		sessionInfoByAccount: make(map[string]*CheckoutSessionInfo),
 
 		startCheckoutSessionFutureForAccount: make(map[string]*future.Future[*StartCheckoutSessionOutput]),
-		syncInProgress:                       make(map[string]struct{}),
+		syncInProgress:                       make(map[string]*checkoutSessionSync),
+		syncContext:                          input.Context,
 	}
 }
 
@@ -170,38 +177,34 @@ type RecordCheckoutSessionEventInput struct {
 	Signature string
 }
 
-func (handler *CommandHandler) RecordCheckoutSessionEvent(ctx context.Context, input RecordCheckoutSessionEventInput) (err error) {
-	event, err := handler.checkoutSessionRepository.ConstructEvent(input.Payload, input.Signature)
+func (handler *CommandHandler) RecordCheckoutSessionEvent(ctx context.Context, input RecordCheckoutSessionEventInput) error {
+	notification, err := handler.checkoutSessionRepository.ParseNotification(input.Payload, input.Signature)
 	if err != nil {
-		return
+		return err
 	}
-	if !contains(checkoutSessionEventTypes, event.Type) {
-		return
+	if notification == nil {
+		return nil
 	}
-	var session *stripe.CheckoutSession
-	if err = json.Unmarshal(event.Data.Raw, &session); err != nil {
-		return
-	}
-	return handler.fulfillCheckout(ctx, session)
-}
-
-var checkoutSessionEventTypes = []stripe.EventType{
-	stripe.EventTypeCheckoutSessionCompleted,
-	stripe.EventTypeCheckoutSessionExpired,
-	stripe.EventTypeCheckoutSessionAsyncPaymentFailed,
-	stripe.EventTypeCheckoutSessionAsyncPaymentSucceeded,
+	return handler.SyncCheckoutSession(ctx, SyncCheckoutSessionInput{CheckoutSessionID: notification.CheckoutSessionID})
 }
 
 type SyncCheckoutSessionInput struct {
 	CheckoutSessionID string
 }
 
-// SyncCheckoutSessionOutput describes the retrieved payment outcome. A concurrent
-// sync is reported as processing until its result is known.
+// SyncCheckoutSessionOutput describes the retrieved and durably fulfilled outcome.
 type SyncCheckoutSessionOutput struct {
 	Paid       bool
 	Processing bool
 }
+
+// pending groups callers that need a retrieval after the current pass. The runner
+// detaches it before retrieving; any subsequent request creates the next batch.
+type checkoutSessionSync struct {
+	pending *future.Promise[*SyncCheckoutSessionOutput]
+}
+
+const checkoutSessionSyncTimeout = 30 * time.Second
 
 func (handler *CommandHandler) SyncCheckoutSession(ctx context.Context, input SyncCheckoutSessionInput) error {
 	_, err := handler.SyncCheckoutSessionWithResult(ctx, input)
@@ -209,20 +212,84 @@ func (handler *CommandHandler) SyncCheckoutSession(ctx context.Context, input Sy
 }
 
 func (handler *CommandHandler) SyncCheckoutSessionWithResult(ctx context.Context, input SyncCheckoutSessionInput) (*SyncCheckoutSessionOutput, error) {
-	preflightOutput, err := handler.syncCheckoutSessionPreflight(ctx, input)
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	if input.CheckoutSessionID == "" {
+		return nil, errors.New("Checkout Session ID is required")
+	}
+	result := handler.requestCheckoutSessionSync(input)
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	case <-result.Ready():
+		return result.Result()
+	}
+}
+
+// requestCheckoutSessionSync registers work atomically with runner cleanup.
+func (handler *CommandHandler) requestCheckoutSessionSync(input SyncCheckoutSessionInput) *future.Future[*SyncCheckoutSessionOutput] {
+	handler.mutex.Lock()
+	state, running := handler.syncInProgress[input.CheckoutSessionID]
+	if !running {
+		state = &checkoutSessionSync{}
+		handler.syncInProgress[input.CheckoutSessionID] = state
+	}
+	if state.pending == nil {
+		state.pending = future.NewPromise[*SyncCheckoutSessionOutput]()
+	}
+	result := state.pending.Future()
+	if !running {
+		go handler.runCheckoutSessionSync(input, state)
+	}
+	handler.mutex.Unlock()
+	return result
+}
+
+func (handler *CommandHandler) runCheckoutSessionSync(input SyncCheckoutSessionInput, state *checkoutSessionSync) {
+	for {
+		handler.mutex.Lock()
+		promise := state.pending
+		state.pending = nil
+		handler.mutex.Unlock()
+
+		// Each pass has its own deadline. A browser going away cannot cancel work
+		// needed by a webhook, and a new request never interrupts fulfillment.
+		ctx, cancel := context.WithTimeout(handler.syncContext, checkoutSessionSyncTimeout)
+		output, err := handler.syncCheckoutSession(ctx, input)
+		cancel()
+
+		handler.mutex.Lock()
+		finished := state.pending == nil
+		if finished {
+			delete(handler.syncInProgress, input.CheckoutSessionID)
+		}
+		promise.Resolve(output, err)
+		handler.mutex.Unlock()
+		if finished {
+			return
+		}
+	}
+}
+
+func (handler *CommandHandler) syncCheckoutSession(ctx context.Context, input SyncCheckoutSessionInput) (*SyncCheckoutSessionOutput, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	handler.mutex.Lock()
+	err := handler.catchup(ctx)
+	handler.mutex.Unlock()
 	if err != nil {
 		return nil, err
 	}
-	if preflightOutput.syncInProgress {
-		return &SyncCheckoutSessionOutput{Processing: true}, nil
+	if err := ctx.Err(); err != nil {
+		return nil, err
 	}
-	defer func() {
-		handler.mutex.Lock()
-		defer handler.mutex.Unlock()
-		delete(handler.syncInProgress, input.CheckoutSessionID)
-	}()
 	session, err := handler.checkoutSessionRepository.Retrieve(ctx, input.CheckoutSessionID)
 	if err != nil {
+		return nil, err
+	}
+	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
 	if err := handler.fulfillCheckout(ctx, session); err != nil {
@@ -231,25 +298,6 @@ func (handler *CommandHandler) SyncCheckoutSessionWithResult(ctx context.Context
 	output := &SyncCheckoutSessionOutput{Paid: session.Status == stripe.CheckoutSessionStatusComplete && session.PaymentStatus == stripe.CheckoutSessionPaymentStatusPaid}
 	output.Processing = session.Status == stripe.CheckoutSessionStatusComplete && session.PaymentStatus == stripe.CheckoutSessionPaymentStatusUnpaid && session.PaymentIntent.Status == stripe.PaymentIntentStatusProcessing
 	return output, nil
-}
-
-type syncCheckoutSessionPreflightOutput struct {
-	syncInProgress bool
-}
-
-func (handler *CommandHandler) syncCheckoutSessionPreflight(ctx context.Context, input SyncCheckoutSessionInput) (output syncCheckoutSessionPreflightOutput, err error) {
-	handler.mutex.Lock()
-	defer handler.mutex.Unlock()
-	err = handler.catchup(ctx)
-	if err != nil {
-		return
-	}
-	if _, exists := handler.syncInProgress[input.CheckoutSessionID]; exists {
-		output.syncInProgress = true
-		return
-	}
-	handler.syncInProgress[input.CheckoutSessionID] = struct{}{}
-	return
 }
 
 func validateSession(session *stripe.CheckoutSession) error {
@@ -460,15 +508,6 @@ func (handler *CommandHandler) applyStripeCheckoutSessionStarted(ctx context.Con
 		CheckoutURL:       detail.CheckoutURL,
 		SessionExpiresAt:  detail.SessionExpiresAt,
 	}
-}
-
-func contains[T comparable](slice []T, item T) bool {
-	for _, v := range slice {
-		if v == item {
-			return true
-		}
-	}
-	return false
 }
 
 func (handler *CommandHandler) removeSessionInfo(accountID string, sessionID string) {

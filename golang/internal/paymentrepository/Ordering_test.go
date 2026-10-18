@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"sync/atomic"
 	"testing"
 	"time"
 
@@ -14,126 +13,6 @@ import (
 	"github.com/Ryan-A-B/beddybytes/golang/internal/events"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/models"
 )
-
-func TestPaidWebhookDuringOlderUnpaidSyncGrantsPerpetualLicense(t *testing.T) {
-	testPaidWebhookDuringSync(t, stripe.CheckoutSessionStatusComplete, stripe.CheckoutSessionPaymentStatusUnpaid)
-}
-
-func TestConcurrentPaidWebhookAndSyncGrantOnce(t *testing.T) {
-	testPaidWebhookDuringSync(t, stripe.CheckoutSessionStatusComplete, stripe.CheckoutSessionPaymentStatusPaid)
-}
-
-func testPaidWebhookDuringSync(t *testing.T, oldStatus stripe.CheckoutSessionStatus, oldPaymentStatus stripe.CheckoutSessionPaymentStatus) {
-	t.Helper()
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	log := newRestartTestLog(t)
-	data, err := json.Marshal(events.StripeCheckoutSessionStartedDetail{
-		SessionID: "cs_ordering", CheckoutURL: "https://checkout.stripe.com/ordering",
-		SessionExpiresAt: time.Now().Add(time.Hour).Unix(),
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := log.Append(ctx, eventlog.AppendInput{
-		Type: events.TypeStripeCheckoutSessionStarted, AccountID: "account-1", Data: data,
-	}); err != nil {
-		t.Fatal(err)
-	}
-	oldRetrieveEntered := make(chan struct{})
-	releaseOldRetrieve := make(chan struct{})
-	webhookFulfillment := make(chan struct{})
-	var retrieves, reads atomic.Int32
-	handler := NewCommandHandler(NewCommandHandlerInput{
-		EventLog: &observedPaymentEventLog{EventLog: log, onRead: func() {
-			if reads.Add(1) == 2 {
-				close(webhookFulfillment)
-			}
-		}},
-		CheckoutSessionRepository: &checkoutSessionRepositoryStub{
-			retrieve: func(ctx context.Context, id string) (*stripe.CheckoutSession, error) {
-				session := &stripe.CheckoutSession{
-					ID: id, ClientReferenceID: "account-1", Status: stripe.CheckoutSessionStatusComplete,
-					PaymentStatus: stripe.CheckoutSessionPaymentStatusPaid,
-				}
-				if retrieves.Add(1) == 1 {
-					// Hold the sync snapshot while a paid webhook is fulfilled.
-					session.Status = oldStatus
-					session.PaymentStatus = oldPaymentStatus
-					session.PaymentIntent = &stripe.PaymentIntent{ID: "pi_ordering", Status: stripe.PaymentIntentStatusProcessing}
-					close(oldRetrieveEntered)
-					select {
-					case <-releaseOldRetrieve:
-					case <-ctx.Done():
-						return nil, ctx.Err()
-					}
-				}
-				return session, nil
-			},
-			constructEvent: func([]byte, string) (stripe.Event, error) {
-				return stripe.Event{
-					Type: stripe.EventTypeCheckoutSessionAsyncPaymentSucceeded,
-					Data: &stripe.EventData{Raw: json.RawMessage(`{"id":"cs_ordering","client_reference_id":"account-1","status":"complete","payment_status":"paid"}`)},
-				}, nil
-			},
-		},
-	})
-	results := make(chan error, 2)
-	go func() {
-		results <- handler.SyncCheckoutSession(ctx, SyncCheckoutSessionInput{CheckoutSessionID: "cs_ordering"})
-	}()
-	select {
-	case <-oldRetrieveEntered:
-	case <-ctx.Done():
-		t.Fatal("initial sync did not enter Retrieve")
-	}
-	go func() {
-		results <- handler.RecordCheckoutSessionEvent(ctx, RecordCheckoutSessionEventInput{})
-	}()
-	select {
-	case <-webhookFulfillment:
-	case <-ctx.Done():
-		t.Fatal("paid webhook did not reach fulfillment")
-	}
-	// Webhook fulfillment holds the handler lock: the older retrieval cannot
-	// apply its snapshot until the paid grant has been persisted.
-	close(releaseOldRetrieve)
-	for i := 0; i < 2; i++ {
-		select {
-		case err := <-results:
-			if err != nil {
-				t.Fatal(err)
-			}
-		case <-ctx.Done():
-			t.Fatal("sync or webhook did not finish")
-		}
-	}
-	if err := handler.catchup(ctx); err != nil {
-		t.Fatal(err)
-	}
-	if license, eligible := handler.eligibleAccounts["account-1"]; eligible {
-		t.Fatalf("paid webhook was acknowledged but account is still eligible with license %+v (Retrieve calls=%d)", license, retrieves.Load())
-	}
-	if retrieves.Load() != 1 {
-		t.Errorf("Retrieve calls=%d, want 1", retrieves.Load())
-	}
-	iterator := log.GetEventIterator(ctx, eventlog.GetEventIteratorInput{})
-	var grants int
-	for iterator.Next(ctx) {
-		switch event := iterator.Event(); event.Type {
-		case events.TypePerpetualLicenseGranted:
-			grants++
-		case events.TypeProvisionalLicenseGranted, events.TypeProvisionalLicenseRevoked:
-			t.Errorf("older sync emitted %s after paid webhook", event.Type)
-		}
-	}
-	if err := iterator.Err(); err != nil {
-		t.Fatal(err)
-	}
-	if grants != 1 {
-		t.Fatalf("perpetual grants=%d, want 1", grants)
-	}
-}
 
 func TestOlderFailedAttemptDoesNotRevokeNewerProcessingCheckout(t *testing.T) {
 	t.Skip("accepted for manual resolution; see KNOWN_LIMITATIONS.md: overlapping processing payments")
@@ -208,8 +87,4 @@ func TestOlderFailedAttemptDoesNotRevokeNewerProcessingCheckout(t *testing.T) {
 	if err := iterator.Err(); err != nil {
 		t.Fatal(err)
 	}
-}
-
-func TestPaidWebhookDuringOlderExpiredSyncKeepsPerpetualLicense(t *testing.T) {
-	testPaidWebhookDuringSync(t, stripe.CheckoutSessionStatusExpired, stripe.CheckoutSessionPaymentStatusUnpaid)
 }

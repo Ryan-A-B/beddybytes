@@ -22,7 +22,7 @@ session returns without an `error` parameter. Other returns use these codes:
 
 - `payment_cancelled`: the browser left Checkout.
 - `payment_failed`: the retrieved checkout is not paid or processing.
-- `payment_pending`: payment is processing, or another sync is in flight.
+- `payment_pending`: the retrieved payment is processing.
 - `temporarily_unavailable`: retrieval, validation or persistence failed.
 - `invalid_request`: the callback has no session ID.
 
@@ -33,8 +33,17 @@ page fetches on entry and when Refresh is clicked. Licenses are display data;
 
 `SyncCheckoutSessionWithResult` reports paid/processing only after fulfillment
 succeeds. Existing callers that only need reconciliation can continue using
-`SyncCheckoutSession`. Webhooks fulfill their delivered session directly and
-never enter sync coordination. Browser cancellation leaves checkout reusable.
+`SyncCheckoutSession`. Verified thin webhooks and browser success both request
+the same per-session sync. One retrieval and durable fulfillment runs at a time. Requests during a
+pass queue a fresh pass; requests within that group share its result. Each caller
+waits for a retrieval started after its request. A webhook is acknowledged only
+after its covering pass succeeds. Retrieval/persistence failures reach callers and
+leave subsequent requests retryable.
+
+Each shared pass has a 30-second timeout and the handler's lifetime context.
+Cancelling a browser/webhook request cancels only that caller's wait, without
+interrupting shared work. Different Checkout Sessions can sync concurrently.
+Browser cancellation leaves checkout reusable.
 
 Webhook bodies are limited to 1 MiB. Missing signatures and unreadable bodies
 receive 400; oversized bodies receive 413. Command errors receive 500, including
@@ -64,7 +73,17 @@ Missing required configuration is fatal. Success/cancel URLs are derived from
 `API_ORIGIN`. Local Compose passes these variables through and
 sets the callback to `https://app.beddybytes.local/payments/callback`.
 
-Tests use fake repositories/commands; no live Stripe requests run.
+Configure the Stripe destination as **Thin**, subscribing to
+`v1.checkout.session.completed`, `v1.checkout.session.expired`,
+`v1.checkout.session.async_payment_succeeded` and
+`v1.checkout.session.async_payment_failed`. The SDK verifies the raw notification
+and extracts its related Checkout Session ID; state comes from a fresh retrieval
+with `payment_intent` expanded. Snapshot payloads are rejected. Reconfigure the
+destination/listener and its signing secret together with this backend change.
+
+Tests include signed thin payloads through HTTP, the real Stripe adapter and a
+local event log, using an in-memory Stripe HTTP transport. No live Stripe requests
+run.
 
 Local sandbox webhooks can use the persistent `stripe-cli` Compose service.
 See [local listener setup](../../../scripts/stripe/README.md). The public proxy

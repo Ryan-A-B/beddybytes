@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"strings"
 
 	"github.com/gorilla/mux"
@@ -12,10 +13,11 @@ import (
 	"github.com/Ryan-A-B/beddybytes/golang/internal/payments"
 )
 
-func addPaymentRoutes(router *mux.Router, eventLog eventlog.EventLog, key interface{}) {
+func addPaymentRoutes(ctx context.Context, router *mux.Router, eventLog eventlog.EventLog, key interface{}) {
 	apiOrigin := strings.TrimRight(internal.EnvStringOrFatal("API_ORIGIN"), "/")
 	secretKey := internal.EnvStringOrFatal("STRIPE_SECRET_KEY")
 	commandHandler := paymentrepository.NewStripeCommandHandler(paymentrepository.NewStripeCommandHandlerInput{
+		Context:       ctx,
 		EventLog:      eventLog,
 		Client:        stripe.NewClient(secretKey),
 		WebhookSecret: internal.EnvStringOrFatal("STRIPE_WEBHOOK_SECRET"),

@@ -40,7 +40,7 @@ checkout session repository; do not call Stripe.
 
 ## Syncing checkout
 
-- [x] Only one retrieval is in flight for the same session; an open result emits no license event. (`TestSyncCheckoutSessionOnlyOneRetrieveInFlight`)
+- [x] One retrieve-and-fulfill pass runs per session; arrivals during each pass coalesce into a fresh follow-up pass. (`TestSyncQueueCoalescesAndRetrievesAgainForRequestsDuringEveryPass`)
 - [x] Different sessions can sync concurrently. (`TestDifferentSessionsCanSyncConcurrently`)
 - [x] Retrieval failure clears the in-flight marker so retry works. (`TestRetrieveFailureAllowsSyncRetry`)
 - [x] Completed/unpaid grants or retains provisional access only when the expanded PaymentIntent is processing; other statuses revoke it and preserve the original trial. (`TestFulfillCheckoutPaymentIntentStates`)
@@ -51,7 +51,9 @@ checkout session repository; do not call Stripe.
 - [x] Nil sessions and unexpected session/payment statuses return an error without appending license events. (`TestFulfillCheckoutRejectsInvalidSessionWithoutEvents`)
 
 - [x] Sync reports paid, processing and unsuccessful outcomes for the browser callback after fulfillment succeeds. (`TestSyncReturnsPaymentOutcome`)
-- [x] A concurrent sync reports processing rather than claiming payment success or retrieving twice. (`TestConcurrentSyncDoesNotReportPaymentSuccess`)
+- [x] Each concurrent caller waits for a fresh retrieval covering its request; outcomes reflect that pass rather than a fabricated Processing result. (`TestSyncQueueCoalescesAndRetrievesAgainForRequestsDuringEveryPass`)
+- [x] Retrieval/persistence failure reaches the current batch and does not discard queued work. (`TestSyncQueueRunsPendingPassAfterRetrievalOrPersistenceFailure`)
+- [x] Browser cancellation does not cancel shared retrieval; webhooks wait for fresh fulfillment. Shared passes have bounded deadlines and service cancellation resolves queued work. (`TestWebhookWaitsForFreshDurableSyncAndBrowserCancellationDoesNotStopIt`, `TestSyncQueueServiceCancellationStopsRunningAndQueuedPasses`)
 
 ## Restart recovery
 
@@ -72,15 +74,10 @@ a durable lock or a guarantee against duplicate Stripe sessions after a crash.
 - [ ] ACCEPTED LIMITATION: Failure of an older payment may revoke provisional access while a newer checkout is processing. Manually resolve if it occurs. (`TestOlderFailedAttemptDoesNotRevokeNewerProcessingCheckout`, skipped; see [known limitation](KNOWN_LIMITATIONS.md#overlapping-processing-payments))
 
 - [x] Polling retrieves a failed PaymentIntent and revokes provisional access without receiving a failure webhook. (`TestSyncFailedPaymentIntentRevokesProvisionalLicense`)
-- [x] A verified webhook fulfills its delivered session directly without Retrieve or entering sync coordination. (`TestWebhookFulfillsDeliveredSessionWithoutRetrieve`)
-
-- [x] Repeated delivery of the same webhook produces no duplicate license change. (`TestRepeatedWebhookDoesNotDuplicateLicenseChanges`)
-- [x] Concurrent webhook and sync results produce one effective transition. (`TestConcurrentPaidWebhookAndSyncGrantOnce`)
-- [x] Paid webhook arrives while sync holds an older unpaid result: account becomes perpetual and the older result cannot downgrade it. (`TestPaidWebhookDuringOlderUnpaidSyncGrantsPerpetualLicense`)
-- [x] Paid webhook arrives while sync holds an older expired result: account remains perpetual. (`TestPaidWebhookDuringOlderExpiredSyncKeepsPerpetualLicense`)
-- [x] Sync confirms payment before an older unpaid or expired webhook arrives: account remains perpetual. (`TestOlderWebhooksAfterPaidSyncKeepPerpetualLicense`)
+- [x] A verified thin notification triggers retrieval with PaymentIntent expansion; repeated/stale completion notifications use current state and do not resurrect failed provisional access. (`TestWebhookSyncsCurrentStateAndIgnoresStaleNotificationState`)
+- [x] Webhook-only completion grants the license after persistence. A signed HTTP notification passes through the SDK parser, real Stripe adapter and durable event log; append failure returns HTTP 500 without granting access. (`payments/TestSignedThinWebhookRetrievesAndAcknowledgesOnlyAfterDurableFulfillment`)
+- [x] Browser sync and webhook notifications share the same ordered queue; no webhook acknowledges an older in-flight retrieval. (`TestWebhookWaitsForFreshDurableSyncAndBrowserCancellationDoesNotStopIt`)
 - [x] Account or license events appended during retrieval are caught up before applying its result. (`TestSyncCatchesUpEventsArrivingDuringRetrieve`)
-- [x] Failure or expiry of an older attempt cannot revoke entitlement from a newer successful attempt. (`TestOlderAttemptFailureOrExpiryKeepsNewerPaidLicense`)
 
 The earlier webhook-before-checkout-started case is removed: this flow only
 releases the Checkout URL after the started event is persisted, so the customer
@@ -91,23 +88,24 @@ under Creating checkout instead.
 
 - [x] The concrete StripeRepository satisfies the Repository interface accepted by the command handler. (`internal/checkoutsessions/Stripe_test.go`, interface assertion)
 
-- [x] Invalid webhook signature or malformed JSON changes nothing. (`TestInvalidWebhookDoesNotChangeState`)
-- [x] A verified webhook whose Checkout Session data is JSON null returns an error without panicking or appending events. (`TestRecordCheckoutSessionEventRejectsNullCheckoutPayload`)
-- [x] Unrelated webhook types are ignored. (`TestUnrelatedWebhookIsIgnored`)
+- [x] Signed real thin payloads for all four Checkout event types parse. Tampering, invalid signatures, malformed JSON, snapshot payloads and invalid related objects are rejected. Unrelated events and destination pings are ignored. (`internal/checkoutsessions/TestParseNotificationVerifiesThinCheckoutEvents`, `TestParseNotificationRejectsMalformedOrSnapshotAndIgnoresUnrelated`)
+- [x] Parse/retrieval failure does not grant a license; unrelated notifications do not retrieve. (`TestWebhookParsingAndRetrievalFailuresRemainRetryable`)
 - [x] Fulfillment errors propagate to the HTTP caller so Stripe can retry. (`TestRecordCheckoutSessionEventReturnsFulfillmentError`)
 - [x] Persistence failure leaves a retryable operation; replay and retry converge on the correct state. (`TestLicensePersistenceFailureConvergesOnRetry`, same/fresh handler, perpetual grant, provisional grant and revocation)
 
 ## Current status
 
-17 October 2026: added explicit sync outcomes for the browser payment callback.
-`SyncCheckoutSessionWithResult` reports paid or processing after fulfillment;
-existing reconciliation callers retain the error-only SyncCheckoutSession API.
-Concurrent retrieval remains shared through the existing in-flight marker and
-reports processing to the callback. Webhooks still fulfill delivered sessions
-directly without calling sync.
+18 October 2026: success callbacks and verified thin notifications both sync current
+Stripe state. Same-session requests are serialized and arrivals during a pass
+schedule a fresh pass. Covered waiters share the new pass's durable result.
+Caller cancellation does not interrupt shared work; each pass has a 30-second
+deadline and the handler lifetime context. No SDK upgrade was needed.
 
-All payment repository, checkout adapter and HTTP tests pass with -race. The
-accepted overlapping-processing-payment reproducer remains skipped.
+The local CLI forwards the four `v1.checkout.session.*` thin notifications from
+`@self`. QA destinations must use Thin with the corresponding signing secret.
+These tests use signed fixtures and in-memory Stripe transport, not live delivery.
+The accepted overlapping-payment reproducer remains skipped. Live QA notification
+delivery and E06b are separate verification/work items.
 
 ## Full checkout-result future — 18 October 2026
 

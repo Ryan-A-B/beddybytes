@@ -336,7 +336,7 @@ func main() {
 	router.Use(internal.LoggingMiddleware)
 	handlers.AddRoutes(router.NewRoute().Subrouter())
 	accountHandlers.AddRoutes(router.NewRoute().Subrouter())
-	addPaymentRoutes(router.NewRoute().Subrouter(), eventLog, key)
+	addPaymentRoutes(ctx, router.NewRoute().Subrouter(), eventLog, key)
 	addr := internal.EnvStringOrFatal("SERVER_ADDR")
 	server := http.Server{
 		Addr:    addr,

@@ -15,6 +15,7 @@ import (
 	"github.com/Ryan-A-B/beddybytes/golang/internal/eventlog"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/events"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/models"
+	"github.com/Ryan-A-B/beddybytes/golang/internal/paymentrepository/internal/checkoutsessions"
 )
 
 func TestV2AccountCreationReplaySetsTrialLicense(t *testing.T) {
@@ -241,80 +242,6 @@ func TestSyncCheckoutSessionPaidSessionGrantsPerpetualLicense(t *testing.T) {
 	}
 	if grants != 1 {
 		t.Fatalf("expected exactly one perpetual license grant, got %d", grants)
-	}
-}
-
-func TestSyncCheckoutSessionOnlyOneRetrieveInFlight(t *testing.T) {
-	// Hold the first retrieval open while a second sync targets the same
-	// session. Channel handshakes establish the ordering without sleeps.
-	entered := make(chan struct{})
-	release := make(chan struct{})
-	var releaseOnce sync.Once
-	t.Cleanup(func() { releaseOnce.Do(func() { close(release) }) })
-	var retrieves atomic.Int32
-	repository := &checkoutSessionRepositoryStub{
-		retrieve: func(ctx context.Context, id string) (*stripe.CheckoutSession, error) {
-			if retrieves.Add(1) == 1 {
-				close(entered)
-			}
-			select {
-			case <-release:
-				return &stripe.CheckoutSession{ID: id, Status: stripe.CheckoutSessionStatusOpen}, nil
-			case <-ctx.Done():
-				return nil, ctx.Err()
-			}
-		},
-	}
-	log := &emptyPaymentEventLog{}
-	handler := NewCommandHandler(NewCommandHandlerInput{
-		EventLog: log, CheckoutSessionRepository: repository,
-	})
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	startSync := func() <-chan error {
-		done := make(chan error, 1)
-		go func() {
-			defer func() {
-				if recovered := recover(); recovered != nil {
-					done <- fmt.Errorf("SyncCheckoutSession panicked: %v", recovered)
-				}
-			}()
-			done <- handler.SyncCheckoutSession(ctx, SyncCheckoutSessionInput{CheckoutSessionID: "cs_test_1"})
-		}()
-		return done
-	}
-	first := startSync()
-	select {
-	case <-entered:
-	case err := <-first:
-		t.Fatalf("first sync must reach Retrieve before completing; got %v", err)
-	case <-ctx.Done():
-		t.Fatal("first sync did not reach Retrieve")
-	}
-
-	second := startSync()
-	select {
-	case err := <-second:
-		if err != nil {
-			t.Fatalf("overlapping sync: %v", err)
-		}
-	case <-ctx.Done():
-		t.Fatal("overlapping sync should return while the first retrieval is blocked")
-	}
-	if got := retrieves.Load(); got != 1 {
-		t.Fatalf("expected one retrieval in flight, got %d", got)
-	}
-	releaseOnce.Do(func() { close(release) })
-	select {
-	case err := <-first:
-		if err != nil {
-			t.Fatalf("first sync: %v", err)
-		}
-	case <-ctx.Done():
-		t.Fatal("first sync did not finish after retrieval was released")
-	}
-	if got := log.appends.Load(); got != 0 {
-		t.Fatalf("an open session should not emit license events; got %d appends", got)
 	}
 }
 
@@ -708,36 +635,6 @@ func TestSyncFailedPaymentIntentRevokesProvisionalLicense(t *testing.T) {
 	}
 }
 
-func TestRecordCheckoutSessionEventRejectsNullCheckoutPayload(t *testing.T) {
-	log := &emptyPaymentEventLog{}
-	handler := NewCommandHandler(NewCommandHandlerInput{
-		EventLog: log,
-		CheckoutSessionRepository: &checkoutSessionRepositoryStub{
-			constructEvent: func([]byte, string) (stripe.Event, error) {
-				// JSON null is syntactically valid, but is not a Checkout
-				// Session. Signature verification does not validate this shape.
-				return stripe.Event{
-					Type: stripe.EventTypeCheckoutSessionCompleted,
-					Data: &stripe.EventData{Raw: json.RawMessage("null")},
-				}, nil
-			},
-		},
-	})
-	defer func() {
-		if recovered := recover(); recovered != nil {
-			t.Errorf("malformed checkout payload should return an error, not panic: %v", recovered)
-		}
-		if appends := log.appends.Load(); appends != 0 {
-			t.Errorf("malformed checkout payload attempted %d event appends", appends)
-		}
-	}()
-	if err := handler.RecordCheckoutSessionEvent(context.Background(), RecordCheckoutSessionEventInput{
-		Payload: []byte("verified by fake repository"), Signature: "test-signature",
-	}); err == nil {
-		t.Error("null Checkout Session payload was accepted without an error")
-	}
-}
-
 func TestRecordCheckoutSessionEventReturnsFulfillmentError(t *testing.T) {
 	ctx := context.Background()
 	log := eventlog.NewFileEventLog(&eventlog.NewFileEventLogInput{FolderPath: t.TempDir()})
@@ -754,13 +651,6 @@ func TestRecordCheckoutSessionEventReturnsFulfillmentError(t *testing.T) {
 	}
 	appendError := errors.New("license grant persistence failed")
 	failingLog := &appendFailingPaymentEventLog{EventLog: log, err: appendError}
-	data, err := json.Marshal(&stripe.CheckoutSession{
-		ID: "cs_test_1", ClientReferenceID: "account-1",
-		Status: stripe.CheckoutSessionStatusComplete, PaymentStatus: stripe.CheckoutSessionPaymentStatusPaid,
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
 	handler := NewCommandHandler(NewCommandHandlerInput{
 		EventLog: failingLog,
 		CheckoutSessionRepository: &checkoutSessionRepositoryStub{
@@ -770,17 +660,14 @@ func TestRecordCheckoutSessionEventReturnsFulfillmentError(t *testing.T) {
 					Status: stripe.CheckoutSessionStatusComplete, PaymentStatus: stripe.CheckoutSessionPaymentStatusPaid,
 				}, nil
 			},
-			constructEvent: func([]byte, string) (stripe.Event, error) {
-				return stripe.Event{
-					Type: stripe.EventTypeCheckoutSessionCompleted,
-					Data: &stripe.EventData{Raw: data},
-				}, nil
+			parseNotification: func([]byte, string) (*checkoutsessions.Notification, error) {
+				return &checkoutsessions.Notification{CheckoutSessionID: "cs_test_1"}, nil
 			},
 		},
 	})
 	// A valid paid webhook reaches fulfillment, but its license event cannot
 	// be saved. Return that error so the HTTP layer can request a Stripe retry.
-	err = handler.RecordCheckoutSessionEvent(ctx, RecordCheckoutSessionEventInput{
+	err := handler.RecordCheckoutSessionEvent(ctx, RecordCheckoutSessionEventInput{
 		Payload: []byte("verified by the fake repository"), Signature: "test-signature",
 	})
 	if failingLog.appends != 1 {
@@ -803,9 +690,9 @@ func (log *appendFailingPaymentEventLog) Append(context.Context, eventlog.Append
 }
 
 type checkoutSessionRepositoryStub struct {
-	create         func(context.Context, string) (*stripe.CheckoutSession, error)
-	retrieve       func(context.Context, string) (*stripe.CheckoutSession, error)
-	constructEvent func([]byte, string) (stripe.Event, error)
+	create            func(context.Context, string) (*stripe.CheckoutSession, error)
+	retrieve          func(context.Context, string) (*stripe.CheckoutSession, error)
+	parseNotification func([]byte, string) (*checkoutsessions.Notification, error)
 }
 
 func (stub *checkoutSessionRepositoryStub) Create(ctx context.Context, accountID string) (*stripe.CheckoutSession, error) {
@@ -819,11 +706,11 @@ func (stub *checkoutSessionRepositoryStub) Retrieve(ctx context.Context, id stri
 	return stub.retrieve(ctx, id)
 }
 
-func (stub *checkoutSessionRepositoryStub) ConstructEvent(payload []byte, signature string) (stripe.Event, error) {
-	if stub.constructEvent != nil {
-		return stub.constructEvent(payload, signature)
+func (stub *checkoutSessionRepositoryStub) ParseNotification(payload []byte, signature string) (*checkoutsessions.Notification, error) {
+	if stub.parseNotification != nil {
+		return stub.parseNotification(payload, signature)
 	}
-	return stripe.Event{}, fmt.Errorf("unexpected ConstructEvent call")
+	return nil, fmt.Errorf("unexpected ParseNotification call")
 }
 
 type emptyPaymentEventLog struct{ appends atomic.Int32 }

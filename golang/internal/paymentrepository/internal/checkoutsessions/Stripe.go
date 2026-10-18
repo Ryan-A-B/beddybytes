@@ -2,6 +2,7 @@ package checkoutsessions
 
 import (
 	"context"
+	"errors"
 
 	"github.com/stripe/stripe-go/v87"
 )
@@ -53,6 +54,28 @@ func (repository *StripeRepository) Retrieve(ctx context.Context, sessionID stri
 	return repository.client.V1CheckoutSessions.Retrieve(ctx, sessionID, params)
 }
 
-func (repository *StripeRepository) ConstructEvent(payload []byte, signature string) (event stripe.Event, err error) {
-	return stripe.ConstructEvent(payload, signature, repository.webhookSecret)
+// ParseNotification verifies the unchanged body before interpreting a thin event.
+// We use only its related object ID; all payment state is retrieved from Stripe.
+func (repository *StripeRepository) ParseNotification(payload []byte, signature string) (*Notification, error) {
+	notification, err := repository.client.ParseEventNotification(payload, signature, repository.webhookSecret)
+	if err != nil {
+		return nil, err
+	}
+	var relatedObject stripe.V2CoreEventRelatedObject
+	switch notification := notification.(type) {
+	case *stripe.V1CheckoutSessionCompletedEventNotification:
+		relatedObject = notification.RelatedObject
+	case *stripe.V1CheckoutSessionExpiredEventNotification:
+		relatedObject = notification.RelatedObject
+	case *stripe.V1CheckoutSessionAsyncPaymentSucceededEventNotification:
+		relatedObject = notification.RelatedObject
+	case *stripe.V1CheckoutSessionAsyncPaymentFailedEventNotification:
+		relatedObject = notification.RelatedObject
+	default:
+		return nil, nil
+	}
+	if relatedObject.ID == "" || relatedObject.Type != "checkout.session" {
+		return nil, errors.New("Checkout Session notification requires a related checkout.session ID")
+	}
+	return &Notification{CheckoutSessionID: relatedObject.ID}, nil
 }

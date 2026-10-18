@@ -93,7 +93,8 @@ services:
       - api
     command:
       - listen
-      - --events=checkout.session.completed,checkout.session.expired,checkout.session.async_payment_succeeded,checkout.session.async_payment_failed
+      - --events-from=@self
+      - --events=v1.checkout.session.completed,v1.checkout.session.expired,v1.checkout.session.async_payment_succeeded,v1.checkout.session.async_payment_failed
       - --forward-to=http://api:9000/payments/stripe/webhook
     volumes:
       - stripe_cli_config:/root/.config/stripe

@@ -2,7 +2,6 @@ package paymentrepository
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"testing"
 
@@ -133,42 +132,5 @@ func TestFulfillCheckoutRejectsInvalidSessionWithoutEvents(t *testing.T) {
 				t.Errorf("invalid session attempted %d event appends", got)
 			}
 		})
-	}
-}
-
-func TestWebhookFulfillsDeliveredSessionWithoutRetrieve(t *testing.T) {
-	ctx := context.Background()
-	log := newRestartTestLog(t)
-	var retrieves int
-	handler := NewCommandHandler(NewCommandHandlerInput{
-		EventLog: log,
-		CheckoutSessionRepository: &checkoutSessionRepositoryStub{
-			constructEvent: func([]byte, string) (stripe.Event, error) {
-				return stripe.Event{
-					Type: stripe.EventTypeCheckoutSessionCompleted,
-					Data: &stripe.EventData{Raw: json.RawMessage(`{"id":"cs_test_1","client_reference_id":"account-1","status":"complete","payment_status":"unpaid","payment_intent":{"id":"pi_test_1","status":"processing"}}`)},
-				}, nil
-			},
-			retrieve: func(_ context.Context, id string) (*stripe.CheckoutSession, error) {
-				retrieves++
-				if id != "cs_test_1" {
-					t.Errorf("retrieved %q, want webhook session cs_test_1", id)
-				}
-				return &stripe.CheckoutSession{
-					ID: id, ClientReferenceID: "account-1", Status: stripe.CheckoutSessionStatusComplete,
-					PaymentStatus: stripe.CheckoutSessionPaymentStatusPaid,
-				}, nil
-			},
-		},
-	})
-	if err := handler.RecordCheckoutSessionEvent(ctx, RecordCheckoutSessionEventInput{Payload: []byte("verified by fake repository")}); err != nil {
-		t.Fatal(err)
-	}
-	if err := handler.catchup(ctx); err != nil {
-		t.Fatal(err)
-	}
-	license := handler.eligibleAccounts["account-1"]
-	if retrieves != 0 || license == nil || license.Type != models.LicenseTypeProvisional {
-		t.Fatalf("expected provisional access from delivered processing session without Retrieve; retrieves=%d license=%+v", retrieves, license)
 	}
 }

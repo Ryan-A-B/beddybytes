@@ -1,6 +1,6 @@
 # Local Stripe webhook listener
 
-The `stripe-cli` Compose service forwards sandbox Checkout events to
+The `stripe-cli` Compose service forwards thin sandbox Checkout notifications to
 `http://api:9000/payments/stripe/webhook` over the internal Docker network.
 It needs no published port, public webhook endpoint or TLS bypass. Browser
 success/cancel redirects still use `https://api.local.beddybytes.com`.
@@ -75,12 +75,23 @@ secret. The listener secret remains stable across listener restarts. If you
 change the CLI account/sandbox, check the printed secret again and update the
 API configuration to match.
 
-Only these snapshot events are forwarded:
+Only these thin notifications from your own Stripe account are forwarded
+(`--events-from=@self`):
 
-- `checkout.session.completed`
-- `checkout.session.expired`
-- `checkout.session.async_payment_succeeded`
-- `checkout.session.async_payment_failed`
+- `v1.checkout.session.completed`
+- `v1.checkout.session.expired`
+- `v1.checkout.session.async_payment_succeeded`
+- `v1.checkout.session.async_payment_failed`
+
+For a QA webhook destination, choose **Thin** and subscribe to the same four
+`v1.checkout.session.*` notifications at `/payments/stripe/webhook`. Set
+`STRIPE_WEBHOOK_SECRET` to that destination's signing secret. Snapshot destinations
+are no longer accepted by this handler. The backend retrieves the current Checkout
+Session with its PaymentIntent expanded before applying a license change.
+
+After updating from the snapshot listener, recreate `stripe-cli` and check its
+printed signing secret before recreating the API. This change does not update a
+Dashboard destination automatically.
 
 Complete a sandbox checkout through the app to test account-bound fulfillment.
 Standalone `stripe trigger` fixtures don't contain one of our actual account
