@@ -1,13 +1,13 @@
 export type License = {
-    type: 'Trial';
+    type: 'trial';
     start_unix_seconds: number;
     end_unix_seconds: number;
 } | {
-    type: 'Provisional';
+    type: 'provisional';
     start_unix_seconds: number;
     provisional_license: { trial_start_unix_seconds: number };
 } | {
-    type: 'Perpetual';
+    type: 'perpetual';
     start_unix_seconds: number;
 };
 

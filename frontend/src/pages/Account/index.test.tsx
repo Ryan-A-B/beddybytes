@@ -12,7 +12,7 @@ jest.mock('../../services/AuthorizationService/get_access_token_asap');
 const trial: AccountDetails = {
     id: 'account-1',
     // Deliberately not seven days apart: the UI must display the server's end.
-    license: { type: 'Trial', start_unix_seconds: 1700000000, end_unix_seconds: 1701000000 },
+    license: { type: 'trial', start_unix_seconds: 1700000000, end_unix_seconds: 1701000000 },
 };
 const getCurrentAccount = jest.fn();
 
@@ -34,21 +34,21 @@ test('shows trial start and backend end, including checkout for an expired trial
     expect(getCurrentAccount).toHaveBeenCalledWith('current-access-token');
 });
 
-test.each<License>([
-    { type: 'Perpetual', start_unix_seconds: 1700000000 },
-    { type: 'Provisional', start_unix_seconds: 1700000000, provisional_license: { trial_start_unix_seconds: 1699000000 } },
-])('shows $type start without an end or checkout button', async license => {
+test.each<[License, string]>([
+    [{ type: 'perpetual', start_unix_seconds: 1700000000 }, 'Perpetual'],
+    [{ type: 'provisional', start_unix_seconds: 1700000000, provisional_license: { trial_start_unix_seconds: 1699000000 } }, 'Provisional'],
+])('shows %s start without an end or checkout button', async (license, label) => {
     getCurrentAccount.mockResolvedValue({ id: 'account-1', license });
     const { container } = render(<Account />);
-    await screen.findByRole('heading', { name: license.type });
+    await screen.findByRole('heading', { name: label });
     expect(container.querySelectorAll('time')).toHaveLength(1);
     expect(screen.queryByText('Ends')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Buy lifetime access' })).not.toBeInTheDocument();
-    if (license.type === 'Provisional') expect(screen.getByText('Your payment is processing.')).toBeInTheDocument();
+    if (license.type === 'provisional') expect(screen.getByText('Your payment is processing.')).toBeInTheDocument();
 });
 
 test('refreshes on request and does not refresh on focus', async () => {
-    getCurrentAccount.mockResolvedValueOnce(trial).mockResolvedValueOnce({ id: 'account-1', license: { type: 'Perpetual', start_unix_seconds: 1702000000 } });
+    getCurrentAccount.mockResolvedValueOnce(trial).mockResolvedValueOnce({ id: 'account-1', license: { type: 'perpetual', start_unix_seconds: 1702000000 } });
     render(<Account />);
     await screen.findByRole('heading', { name: 'Trial' });
     fireEvent(window, new Event('focus'));

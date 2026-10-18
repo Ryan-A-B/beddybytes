@@ -7,7 +7,7 @@ import { Account } from "./Account";
 
 const default_account: Account = {
     id: 'test_id',
-    license: { type: 'Trial', start_unix_seconds: 1700000000, end_unix_seconds: 1700604800 },
+    license: { type: 'trial', start_unix_seconds: 1700000000, end_unix_seconds: 1700604800 },
 };
 
 const default_token_output: TokenOutput = {

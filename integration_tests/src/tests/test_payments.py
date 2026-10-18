@@ -107,7 +107,7 @@ class TestPayments(PaymentBrowserTestCase):
         self.assertNotIn("Ends", [element.text for element in self.driver.find_elements(By.CSS_SELECTOR, "main dt")])
         self.assertFalse(self.driver.find_elements(By.XPATH, "//main//button[normalize-space(.)='Buy lifetime access']"))
         account = self.read_account(email, password)
-        self.assertEqual(account["license"]["type"], "Perpetual")
+        self.assertEqual(account["license"]["type"], "perpetual")
         expected_started = self.driver.execute_script(
             "return new Date(arguments[0] * 1000).toISOString();", account["license"]["start_unix_seconds"]
         )
@@ -225,7 +225,7 @@ class TestPayments(PaymentBrowserTestCase):
         )
         webhook_wait.until(success_return_was_blocked, "Browser success return was not observed being blocked")
         webhook_wait.until(
-            lambda driver: self.read_account(email, password)["license"]["type"] == "Perpetual",
+            lambda driver: self.read_account(email, password)["license"]["type"] == "perpetual",
             "Webhook did not fulfill payment while the browser success return was blocked",
         )
         self.driver.switch_to.window(account_window)
@@ -561,7 +561,7 @@ class TestPayments(PaymentBrowserTestCase):
     def test_e16_expired_trial_can_purchase(self):
         fixture = self.load_account_fixture("expired_trial")
         self.assertEqual(fixture["creation_event_type"], "account.created.v2")
-        self.assertEqual(fixture["license"]["type"], "Trial")
+        self.assertEqual(fixture["license"]["type"], "trial")
         self.assertLess(fixture["license"]["end_unix_seconds"], time.time())
         self.assertEqual(fixture["license"]["end_unix_seconds"] - fixture["license"]["start_unix_seconds"], 604800)
         account = self.login_fixture_account(fixture)
@@ -574,7 +574,7 @@ class TestPayments(PaymentBrowserTestCase):
     def test_e17_legacy_account_shows_perpetual(self):
         fixture = self.load_account_fixture("legacy_v1")
         self.assertEqual(fixture["creation_event_type"], "account.created")
-        self.assertEqual(fixture["license"]["type"], "Perpetual")
+        self.assertEqual(fixture["license"]["type"], "perpetual")
         self.assertEqual(fixture["license"]["start_unix_seconds"], fixture["created_unix_seconds"])
         account = self.login_fixture_account(fixture)
         self.assertEqual(self.driver.find_element(
@@ -600,7 +600,7 @@ class TestPayments(PaymentBrowserTestCase):
     @unittest.skipUnless(os.getenv("PAYMENT_ACCOUNT_FIXTURES"), "INCONCLUSIVE: provisional fixture is not configured")
     def test_e18_provisional_license_display(self):
         fixture = self.load_account_fixture("provisional")
-        self.assertEqual(fixture["license"]["type"], "Provisional")
+        self.assertEqual(fixture["license"]["type"], "provisional")
         account = self.login_fixture_account(fixture)
         self.assertEqual(self.driver.find_element(
             By.CSS_SELECTOR, 'section[aria-labelledby="license-heading"] h3'

@@ -6,6 +6,8 @@ import { Account as AccountDetails } from '../../services/AuthorizationService/A
 import get_access_token_asap from '../../services/AuthorizationService/get_access_token_asap';
 import settings from '../../settings';
 
+const licenseLabels = { trial: 'Trial', provisional: 'Provisional', perpetual: 'Perpetual' };
+
 const LicenseTime: React.FC<{ seconds: number }> = ({ seconds }) => {
     const date = new Date(seconds * 1000);
     return <time dateTime={date.toISOString()}>{date.toLocaleString(undefined, { dateStyle: 'long', timeStyle: 'short' })}</time>;
@@ -69,18 +71,18 @@ const Account: React.FC = () => {
                     {loading && <p role="status">Loading account…</p>}
                     {error && <div role="alert" className="alert alert-danger">{error}</div>}
                     {account && <>
-                        <h3 className="h4 mb-3">{account.license.type}</h3>
+                        <h3 className="h4 mb-3">{licenseLabels[account.license.type]}</h3>
                         <dl className="row mb-3">
                             <dt className="col-3 fw-normal">Started</dt>
                             <dd className="col-9"><LicenseTime seconds={account.license.start_unix_seconds} /></dd>
-                            {account.license.type === 'Trial' && <>
+                            {account.license.type === 'trial' && <>
                                 <dt className="col-3 fw-normal">Ends</dt>
                                 <dd className="col-9"><LicenseTime seconds={account.license.end_unix_seconds} /></dd>
                             </>}
                         </dl>
                         <p className="text-body-secondary small">Times shown in your local time zone.</p>
-                        {account.license.type === 'Provisional' && <p>Your payment is processing.</p>}
-                        {account.license.type === 'Trial' && <form action={`https://${settings.API.host}/payments/start`} method="post" onSubmit={startCheckout}>
+                        {account.license.type === 'provisional' && <p>Your payment is processing.</p>}
+                        {account.license.type === 'trial' && <form action={`https://${settings.API.host}/payments/start`} method="post" onSubmit={startCheckout}>
                             <input ref={tokenInput} type="hidden" name="access_token" />
                             <button type="submit" className="btn btn-primary w-100" disabled={checkoutPending || loading}>
                                 {checkoutPending ? 'Opening checkout…' : 'Buy lifetime access'}

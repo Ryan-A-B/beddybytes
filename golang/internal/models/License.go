@@ -8,11 +8,11 @@ type LicenseType string
 
 const (
 	// All new accounts start with a trial license
-	LicenseTypeTrial LicenseType = "Trial"
+	LicenseTypeTrial LicenseType = "trial"
 	// Provisional license is granted temporarily while payment is processing
-	LicenseTypeProvisional LicenseType = "Provisional"
+	LicenseTypeProvisional LicenseType = "provisional"
 	// Perpetual license is granted after successful payment
-	LicenseTypePerpetual LicenseType = "Perpetual"
+	LicenseTypePerpetual LicenseType = "perpetual"
 )
 
 type License struct {

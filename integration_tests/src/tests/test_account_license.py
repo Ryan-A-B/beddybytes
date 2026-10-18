@@ -13,7 +13,7 @@ class TestAccountLicense(PaymentBrowserTestCase):
         self.assertEqual(license_heading.text, "Trial")
         account = self.read_account(email, password)
         license_info = account["license"]
-        self.assertEqual(license_info["type"], "Trial")
+        self.assertEqual(license_info["type"], "trial")
         self.assertEqual(
             license_info["end_unix_seconds"] - license_info["start_unix_seconds"],
             604800,
