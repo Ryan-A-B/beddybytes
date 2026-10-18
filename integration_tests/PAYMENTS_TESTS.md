@@ -60,7 +60,7 @@ timeouts must not be converted wholesale into skips.
   close the browser, sign in from a fresh session and open Account. License
   type, original start and original end must be unchanged.
 - [x] **E04 — Start hosted Checkout.** (`TestPayments.test_e04_start_hosted_checkout`; expected USD 35.00) Click Buy lifetime access and verify the
-  browser opens a new tab for Stripe-hosted sandbox Checkout for BeddyBytes lifetime
+  browser navigates in the same tab to Stripe-hosted sandbox Checkout for BeddyBytes lifetime
   access with the configured amount/currency. It must be a browser navigation
   through `POST /payments/start`, not a fetch-only redirect. The access token
   must not appear in the destination URL.
@@ -498,3 +498,10 @@ This does not mark the live expiry/RTC-continuation scenario as verified. It
 still needs a controlled expired-account transition and authenticated broker.
 Local anonymous Mosquitto does not exercise IoT Authorizer enforcement, and
 existing monitor-bearing JWTs/cached MQTT policies retain their existing timing.
+
+18 October 2026: checkout now navigates in the same tab. Returning from Stripe
+reloads the app and obtains a fresh access token with the current license scopes.
+E04 and the shared checkout helper assert same-tab navigation; E15 uses the same
+tab for callback checks. E21 explicitly opens a separate account tab to retain
+coverage of manual refresh on an older view. Historical new-tab results above
+describe the previous behavior.

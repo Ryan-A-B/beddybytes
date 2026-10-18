@@ -21,12 +21,11 @@ class TestPayments(PaymentBrowserTestCase):
     def test_e04_start_hosted_checkout(self):
         self.create_trial_account()
         self.open_account()
-        # Check the actual form before submitting: Chrome's performance log
-        # attaches to the new tab after its initial navigation, missing the POST.
+        # Check that checkout uses a same-tab form POST.
         checkout_form = self.driver.find_element(By.CSS_SELECTOR, "main form")
         self.assertEqual(checkout_form.get_attribute("method"), "post")
         self.assertEqual(urlsplit(checkout_form.get_attribute("action")).path, "/payments/start")
-        self.assertEqual(checkout_form.get_attribute("target"), "_blank")
+        self.assertFalse(checkout_form.get_attribute("target"))
         self.start_checkout()
         self.assertNotIn("access_token", self.driver.current_url)
         with self.stripe_interaction("Stripe hosted form did not load"):
@@ -42,24 +41,12 @@ class TestPayments(PaymentBrowserTestCase):
 
     def start_checkout(self):
         account_window = self.driver.current_window_handle
-        previous_windows = self.driver.window_handles
         self.driver.find_element(
             By.XPATH, "//main//button[normalize-space(.)='Buy lifetime access']"
         ).click()
-        self.wait.until(expected_conditions.new_window_is_opened(previous_windows))
-        checkout_window = next(window for window in self.driver.window_handles if window not in previous_windows)
-        self.driver.switch_to.window(account_window)
-        self.assertEqual(urlsplit(self.driver.current_url).path, "/account")
-        self.assertTrue(self.driver.find_element(
-            By.XPATH, "//main//button[normalize-space(.)='Buy lifetime access']"
-        ).is_enabled())
-        self.assertTrue(self.driver.find_element(
-            By.XPATH, "//main//button[normalize-space(.)='Refresh']"
-        ).is_enabled())
-        self.driver.switch_to.window(checkout_window)
         with self.stripe_interaction("Stripe hosted checkout did not load"):
             self.wait.until(lambda driver: urlsplit(driver.current_url).hostname == "checkout.stripe.com")
-        self.assertTrue(self.driver.execute_script("return window.opener === null;"))
+        self.assertEqual(self.driver.current_window_handle, account_window)
         self.assertIn("cs_test_", self.driver.current_url, "Refusing to submit outside sandbox Checkout")
         return re.search(r"cs_test_[A-Za-z0-9]+", self.driver.current_url).group(0)
 
@@ -418,8 +405,6 @@ class TestPayments(PaymentBrowserTestCase):
             By.XPATH, "//main//button[normalize-space(.)='Buy lifetime access']"
         )))
         self.start_checkout()
-        self.driver.close()
-        self.driver.switch_to.window(self.driver.window_handles[0])
         for query, heading in (("", "Payment Successful"), ("?error=payment_cancelled", "Payment Failed")):
             self.driver.get(f"{app_base_url}/payments/callback{query}")
             self.wait.until(expected_conditions.text_to_be_present_in_element((
@@ -481,6 +466,12 @@ class TestPayments(PaymentBrowserTestCase):
         original_count = self.driver.execute_script("return window.accountRequests.count;")
         self.assertGreater(original_count, 0)
         before = self.read_account(email, password)
+        # Keep a separate account tab to verify manual refresh of an older view.
+        self.driver.switch_to.new_window("tab")
+        self.driver.get(f"{app_base_url}/account")
+        self.wait.until(expected_conditions.element_to_be_clickable((
+            By.XPATH, "//main//button[normalize-space(.)='Buy lifetime access']"
+        )))
         self.start_checkout()
         self.pay_with_sandbox_card(email)
         self.assert_success_and_perpetual(email, password)

@@ -68,7 +68,7 @@ test('shows load errors and allows a manual retry', async () => {
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
 });
 
-test('opens checkout with a fresh token in a new tab and keeps the account controls usable', async () => {
+test('submits checkout with the current token in the same tab', async () => {
     const submit = jest.spyOn(HTMLFormElement.prototype, 'submit').mockImplementation(() => {});
     try {
         const { container } = render(<Account />);
@@ -78,8 +78,7 @@ test('opens checkout with a fresh token in a new tab and keeps the account contr
         await waitFor(() => expect(submit).toHaveBeenCalledTimes(1));
         const form = container.querySelector('form')!;
         expect(form).toHaveAttribute('method', 'post');
-        expect(form).toHaveAttribute('target', '_blank');
-        expect(form).toHaveAttribute('rel', 'noopener');
+        expect(form).not.toHaveAttribute('target');
         expect(form).toHaveAttribute('action', `https://${settings.API.host}/payments/start`);
         expect(form.querySelector('input[name="access_token"]')).toHaveValue('checkout-token');
         expect(await screen.findByRole('button', { name: 'Buy lifetime access' })).toBeEnabled();
