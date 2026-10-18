@@ -58,11 +58,10 @@ paymentHandlers := &payments.Handlers{
 paymentHandlers.AddRoutes(router.NewRoute().Subrouter())
 ```
 
-Backend startup registers payment services when `STRIPE_SECRET_KEY` is set.
-Also configure `STRIPE_WEBHOOK_SECRET`, `STRIPE_PERPETUAL_PRICE_ID`, `API_ORIGIN`
-and `FRONTEND_PAYMENT_CALLBACK_URL`. Success/cancel URLs are derived from
-API_ORIGIN. Without a Stripe key, `/payments/` routes return 503 and the rest of
-the app remains available. Local Compose passes these variables through and
+Backend startup requires `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`,
+`STRIPE_PERPETUAL_PRICE_ID`, `API_ORIGIN` and `FRONTEND_PAYMENT_CALLBACK_URL`.
+Missing required configuration is fatal. Success/cancel URLs are derived from
+`API_ORIGIN`. Local Compose passes these variables through and
 sets the callback to `https://app.beddybytes.local/payments/callback`.
 
 Tests use fake repositories/commands; no live Stripe requests run.

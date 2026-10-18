@@ -8,17 +8,6 @@ import (
 	"github.com/gorilla/mux"
 )
 
-func TestPaymentRoutesUnavailableWithoutStripeConfiguration(t *testing.T) {
-	t.Setenv("STRIPE_SECRET_KEY", "")
-	router := mux.NewRouter()
-	addPaymentRoutes(router, nil, []byte("test-key"))
-	response := httptest.NewRecorder()
-	router.ServeHTTP(response, httptest.NewRequest(http.MethodPost, "/payments/start", nil))
-	if response.Code != http.StatusServiceUnavailable {
-		t.Fatalf("status=%d, want 503", response.Code)
-	}
-}
-
 func TestPaymentRoutesRegisterConfiguredCallbacks(t *testing.T) {
 	t.Setenv("STRIPE_SECRET_KEY", "sk_test_placeholder")
 	t.Setenv("STRIPE_WEBHOOK_SECRET", "whsec_placeholder")
