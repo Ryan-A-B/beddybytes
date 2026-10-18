@@ -35,8 +35,8 @@ type CommandHandler struct {
 	eligibleAccounts     map[string]*models.License
 	sessionInfoByAccount map[string]*CheckoutSessionInfo
 
-	sessionInfoFutureForAccount map[string]*future.Future[*CheckoutSessionInfo]
-	syncInProgress              map[string]struct{}
+	startCheckoutSessionFutureForAccount map[string]*future.Future[*StartCheckoutSessionOutput]
+	syncInProgress                       map[string]struct{}
 }
 
 type CheckoutSessionInfo struct {
@@ -63,8 +63,8 @@ func NewCommandHandler(input NewCommandHandlerInput) *CommandHandler {
 		eligibleAccounts:     make(map[string]*models.License),
 		sessionInfoByAccount: make(map[string]*CheckoutSessionInfo),
 
-		sessionInfoFutureForAccount: make(map[string]*future.Future[*CheckoutSessionInfo]),
-		syncInProgress:              make(map[string]struct{}),
+		startCheckoutSessionFutureForAccount: make(map[string]*future.Future[*StartCheckoutSessionOutput]),
+		syncInProgress:                       make(map[string]struct{}),
 	}
 }
 
@@ -84,58 +84,44 @@ type StartCheckoutSessionOutput struct {
 	CheckoutURL       string
 }
 
-// TODO this is over complicated because I put the Create in a future instead of the full result.
 func (handler *CommandHandler) StartCheckoutSession(ctx context.Context, input StartCheckoutSessionInput) (output *StartCheckoutSessionOutput, err error) {
-	err = input.validate()
-	if err != nil {
-		return
-	}
-	preflightOutput, err := handler.startCheckoutSessionPreflight(ctx, input)
-	if err != nil {
-		return
-	}
-	if preflightOutput.startCheckoutSessionOutput != nil {
-		output = preflightOutput.startCheckoutSessionOutput
-		return
-	}
-	var sessionInfo *CheckoutSessionInfo
-	if preflightOutput.futureAlreadyExisted {
+	handler.mutex.Lock()
+	if pending, exists := handler.startCheckoutSessionFutureForAccount[input.AccountID]; exists {
+		handler.mutex.Unlock()
 		select {
 		case <-ctx.Done():
 			return nil, ctx.Err()
-		case <-preflightOutput.sessionInfoFuture.Ready():
+		case <-pending.Ready():
+			return pending.Result()
 		}
-		sessionInfo, err = preflightOutput.sessionInfoFuture.Result()
-		if err != nil {
-			return
-		}
-		output = &StartCheckoutSessionOutput{
-			CheckoutSessionID: sessionInfo.CheckoutSessionID,
-			CheckoutURL:       sessionInfo.CheckoutURL,
-		}
-		return
 	}
+	promise := future.NewPromise[*StartCheckoutSessionOutput]()
+	handler.startCheckoutSessionFutureForAccount[input.AccountID] = promise.Future()
+	handler.mutex.Unlock()
 	defer func() {
-		if err != nil {
-			handler.mutex.Lock()
-			defer handler.mutex.Unlock()
-			delete(handler.sessionInfoFutureForAccount, input.AccountID)
-			preflightOutput.sessionInfoPromise.Resolve(nil, err)
-		}
+		handler.mutex.Lock()
+		defer handler.mutex.Unlock()
+		promise.Resolve(output, err)
+		delete(handler.startCheckoutSessionFutureForAccount, input.AccountID)
 	}()
-	// Stripe's default TTL is 24 hours
+	return handler.startCheckoutSession(ctx, input)
+}
+
+func (handler *CommandHandler) startCheckoutSession(ctx context.Context, input StartCheckoutSessionInput) (*StartCheckoutSessionOutput, error) {
+	if err := input.validate(); err != nil {
+		return nil, err
+	}
+	output, err := handler.startCheckoutSessionPreflight(ctx, input)
+	if err != nil || output != nil {
+		return output, err
+	}
+	// Stripe's default TTL is 24 hours.
 	session, err := handler.checkoutSessionRepository.Create(ctx, input.AccountID)
 	if err != nil {
-		return
-	}
-	sessionInfo = &CheckoutSessionInfo{
-		CheckoutSessionID: session.ID,
-		CheckoutURL:       session.URL,
-		SessionExpiresAt:  session.ExpiresAt,
+		return nil, err
 	}
 	handler.mutex.Lock()
 	defer handler.mutex.Unlock()
-	delete(handler.sessionInfoFutureForAccount, input.AccountID)
 	detail := events.StripeCheckoutSessionStartedDetail{
 		SessionID:        session.ID,
 		CheckoutURL:      session.URL,
@@ -149,61 +135,33 @@ func (handler *CommandHandler) StartCheckoutSession(ctx context.Context, input S
 		Data:      data,
 	})
 	if err != nil {
-		return
+		return nil, err
 	}
-	preflightOutput.sessionInfoPromise.Resolve(sessionInfo, nil)
-	output = &StartCheckoutSessionOutput{
+	return &StartCheckoutSessionOutput{
 		CheckoutSessionID: session.ID,
 		CheckoutURL:       session.URL,
-	}
-	return
+	}, nil
 }
 
-type startCheckoutSessionPreflightOutput struct {
-	startCheckoutSessionOutput *StartCheckoutSessionOutput
-	sessionInfoFuture          *future.Future[*CheckoutSessionInfo]
-	sessionInfoPromise         *future.Promise[*CheckoutSessionInfo]
-	futureAlreadyExisted       bool
-}
-
-func (handler *CommandHandler) startCheckoutSessionPreflight(ctx context.Context, input StartCheckoutSessionInput) (output startCheckoutSessionPreflightOutput, err error) {
+func (handler *CommandHandler) startCheckoutSessionPreflight(ctx context.Context, input StartCheckoutSessionInput) (*StartCheckoutSessionOutput, error) {
 	handler.mutex.Lock()
 	defer handler.mutex.Unlock()
-	err = handler.catchup(ctx)
-	if err != nil {
-		return
+	if err := handler.catchup(ctx); err != nil {
+		return nil, err
 	}
 	if _, exists := handler.eligibleAccounts[input.AccountID]; !exists {
-		return output, ErrAccountIneligible
+		return nil, ErrAccountIneligible
 	}
-
-	sessionInfo, ok := handler.sessionInfoByAccount[input.AccountID]
-	if ok {
+	if sessionInfo, exists := handler.sessionInfoByAccount[input.AccountID]; exists {
 		if !sessionInfo.HasExpired() {
-			output = startCheckoutSessionPreflightOutput{
-				startCheckoutSessionOutput: &StartCheckoutSessionOutput{
-					CheckoutSessionID: sessionInfo.CheckoutSessionID,
-					CheckoutURL:       sessionInfo.CheckoutURL,
-				},
-			}
-			return
+			return &StartCheckoutSessionOutput{
+				CheckoutSessionID: sessionInfo.CheckoutSessionID,
+				CheckoutURL:       sessionInfo.CheckoutURL,
+			}, nil
 		}
 		delete(handler.sessionInfoByAccount, input.AccountID)
 	}
-	sessionInfoFuture, futureAlreadyExisted := handler.sessionInfoFutureForAccount[input.AccountID]
-	var sessionInfoPromise *future.Promise[*CheckoutSessionInfo]
-	if !futureAlreadyExisted {
-		sessionInfoPromise = future.NewPromise[*CheckoutSessionInfo]()
-		sessionInfoFuture = sessionInfoPromise.Future()
-		handler.sessionInfoFutureForAccount[input.AccountID] = sessionInfoFuture
-	}
-	output = startCheckoutSessionPreflightOutput{
-		startCheckoutSessionOutput: nil,
-		sessionInfoFuture:          sessionInfoFuture,
-		sessionInfoPromise:         sessionInfoPromise,
-		futureAlreadyExisted:       futureAlreadyExisted,
-	}
-	return
+	return nil, nil
 }
 
 type RecordCheckoutSessionEventInput struct {

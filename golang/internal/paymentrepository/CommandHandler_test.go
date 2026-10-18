@@ -396,16 +396,14 @@ func TestStartCheckoutSessionConcurrentRequestsShareCreate(t *testing.T) {
 		t.Fatal(err)
 	}
 	createEntered := make(chan struct{})
-	secondPreflight := make(chan struct{})
+	waiterWaiting := make(chan struct{})
 	release := make(chan struct{})
 	var releaseOnce sync.Once
 	t.Cleanup(func() { releaseOnce.Do(func() { close(release) }) })
 	var reads, creates atomic.Int32
 	handler := NewCommandHandler(NewCommandHandlerInput{
 		EventLog: &observedPaymentEventLog{EventLog: log, onRead: func() {
-			if reads.Add(1) == 2 {
-				close(secondPreflight)
-			}
+			reads.Add(1)
 		}},
 		CheckoutSessionRepository: &checkoutSessionRepositoryStub{
 			create: func(ctx context.Context, accountID string) (*stripe.CheckoutSession, error) {
@@ -430,28 +428,35 @@ func TestStartCheckoutSessionConcurrentRequestsShareCreate(t *testing.T) {
 		err    error
 	}
 	results := make(chan result, 2)
-	start := func() {
-		output, err := handler.StartCheckoutSession(ctx, StartCheckoutSessionInput{AccountID: "account-1"})
+	start := func(callCtx context.Context) {
+		output, err := handler.StartCheckoutSession(callCtx, StartCheckoutSessionInput{AccountID: "account-1"})
 		results <- result{output, err}
 	}
-	go start()
+	go start(ctx)
 	select {
 	case <-createEntered:
 	case <-ctx.Done():
 		t.Fatal("first request did not reach Create")
 	}
-	go start()
+	go start(&checkoutWaitContext{Context: ctx, observed: waiterWaiting})
 	select {
-	case <-secondPreflight:
+	case <-waiterWaiting:
+		if reads.Load() != 1 {
+			t.Fatalf("waiting caller repeated preflight: reads=%d", reads.Load())
+		}
 	case <-ctx.Done():
-		t.Fatal("second request could not enter preflight while Create was in flight")
+		t.Fatal("second request did not join the future while Create was in flight")
 	}
-	// The second preflight holds the handler lock when it signals. It must
-	// either find the shared future or the first request's persisted session.
+	// The waiter has joined the complete operation, without another preflight.
 	releaseOnce.Do(func() { close(release) })
+	var sharedOutput *StartCheckoutSessionOutput
 	for request := 0; request < 2; request++ {
 		select {
 		case result := <-results:
+			if sharedOutput != nil && result.output != sharedOutput {
+				t.Fatal("callers did not receive the same completed future result")
+			}
+			sharedOutput = result.output
 			if result.err != nil {
 				t.Fatalf("checkout request failed: %v", result.err)
 			}
@@ -489,14 +494,12 @@ func TestStartCheckoutSessionWaitingCallerCanCancel(t *testing.T) {
 	defer cancelWaiter()
 	log := newRestartTestLog(t)
 	entered := make(chan struct{})
-	secondPreflight := make(chan struct{})
+	waiterWaiting := make(chan struct{})
 	release := make(chan struct{})
 	var reads, creates atomic.Int32
 	handler := NewCommandHandler(NewCommandHandlerInput{
 		EventLog: &observedPaymentEventLog{EventLog: log, onRead: func() {
-			if reads.Add(1) == 2 {
-				close(secondPreflight)
-			}
+			reads.Add(1)
 		}},
 		CheckoutSessionRepository: &checkoutSessionRepositoryStub{
 			create: func(ctx context.Context, _ string) (*stripe.CheckoutSession, error) {
@@ -527,13 +530,16 @@ func TestStartCheckoutSessionWaitingCallerCanCancel(t *testing.T) {
 	}
 	waiterDone := make(chan error, 1)
 	go func() {
-		_, err := handler.StartCheckoutSession(waiterCtx, StartCheckoutSessionInput{AccountID: "account-1"})
+		_, err := handler.StartCheckoutSession(&checkoutWaitContext{Context: waiterCtx, observed: waiterWaiting}, StartCheckoutSessionInput{AccountID: "account-1"})
 		waiterDone <- err
 	}()
 	select {
-	case <-secondPreflight:
+	case <-waiterWaiting:
+		if reads.Load() != 1 {
+			t.Fatalf("waiting caller repeated preflight: reads=%d", reads.Load())
+		}
 	case <-ctx.Done():
-		t.Fatal("waiter did not reach preflight")
+		t.Fatal("waiter did not join the future")
 	}
 	cancelWaiter()
 	var waiterErr error
@@ -543,7 +549,7 @@ func TestStartCheckoutSessionWaitingCallerCanCancel(t *testing.T) {
 		returnedBeforeCreateFinished = true
 	case <-time.After(time.Second):
 		// A timeout is only a deadlock guard. The ordering is established by
-		// preflight and Create barriers, not by timing goroutine scheduling.
+		// future-wait and Create barriers, not by timing goroutine scheduling.
 	}
 	// Finish and join both calls even on failure. Cancelling the waiter should
 	// not cancel the leader or prevent its valid checkout from being persisted.
@@ -832,3 +838,15 @@ func (*emptyPaymentEventLog) GetEventIterator(context.Context, eventlog.GetEvent
 }
 
 func (*emptyPaymentEventLog) Wait(ctx context.Context) <-chan struct{} { return ctx.Done() }
+
+// Signals when the follower enters its context/future select.
+type checkoutWaitContext struct {
+	context.Context
+	observed chan struct{}
+	once     sync.Once
+}
+
+func (ctx *checkoutWaitContext) Done() <-chan struct{} {
+	ctx.once.Do(func() { close(ctx.observed) })
+	return ctx.Context.Done()
+}

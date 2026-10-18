@@ -21,7 +21,7 @@ checkout session repository; do not call Stripe.
 - [x] Create receives the requested account ID; the started event uses that account and identifies the returned session. (`TestStartCheckoutSessionUsesSameAccountForCreateAndEvent`, using the fake repository)
 - [x] Stripe Create sends client_reference_id equal to its account ID argument. (`internal/checkoutsessions/Stripe_test.go`: `TestCreateSetsClientReferenceIDToAccountID`, using an in-memory HTTP transport)
 
-- [x] Concurrent starts for the same account share one create call and return the same session. (`TestStartCheckoutSessionConcurrentRequestsShareCreate`)
+- [x] Concurrent starts for the same account share the complete operation future, perform one preflight/create and return the same output object. (`TestStartCheckoutSessionConcurrentRequestsShareCreate`)
 - [x] Different accounts can create concurrently. (`TestDifferentAccountsCanCreateConcurrently`)
 - [x] An existing, unexpired session is reused. (`TestStartCheckoutSessionReusesOnlyUnexpiredSession`)
 - [x] An expired session permits a new create. (`TestStartCheckoutSessionReusesOnlyUnexpiredSession`)
@@ -101,3 +101,17 @@ directly without calling sync.
 
 All payment repository, checkout adapter and HTTP tests pass with -race. The
 accepted overlapping-processing-payment reproducer remains skipped.
+
+## Full checkout-result future — 18 October 2026
+
+`StartCheckoutSession` registers a future for `*StartCheckoutSessionOutput`
+before validation/preflight. The leader resolves it once with the complete
+operation's output/error and removes it on completion. Followers only select
+between their context cancellation and that future, then return its result.
+The old session-info future and special cached-result preflight output are gone.
+
+Updated concurrency barriers observe the follower entering its future wait,
+instead of expecting it to read the event log again. The shared-create test
+asserts one preflight and pointer-identical output. Create/append error sharing,
+retry, waiter cancellation, persistence-before-success and restart tests pass
+with race detection, along with the future package tests.

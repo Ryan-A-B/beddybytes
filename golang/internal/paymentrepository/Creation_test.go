@@ -194,14 +194,12 @@ func testSharedCheckoutFailure(t *testing.T, failAppend bool) {
 		}}
 	}
 	entered := make(chan struct{})
-	secondPreflight := make(chan struct{})
+	waiterWaiting := make(chan struct{})
 	release := make(chan struct{})
 	var creates, reads atomic.Int32
 	handler := NewCommandHandler(NewCommandHandlerInput{
 		EventLog: &observedPaymentEventLog{EventLog: operationLog, onRead: func() {
-			if reads.Add(1) == 2 {
-				close(secondPreflight)
-			}
+			reads.Add(1)
 		}},
 		CheckoutSessionRepository: &checkoutSessionRepositoryStub{
 			create: func(ctx context.Context, _ string) (*stripe.CheckoutSession, error) {
@@ -227,21 +225,24 @@ func testSharedCheckoutFailure(t *testing.T, failAppend bool) {
 		err    error
 	}
 	results := make(chan result, 2)
-	start := func() {
-		output, err := handler.StartCheckoutSession(ctx, StartCheckoutSessionInput{AccountID: "account-1"})
+	start := func(callCtx context.Context) {
+		output, err := handler.StartCheckoutSession(callCtx, StartCheckoutSessionInput{AccountID: "account-1"})
 		results <- result{output, err}
 	}
-	go start()
+	go start(ctx)
 	select {
 	case <-entered:
 	case <-ctx.Done():
 		t.Fatal("first caller did not enter Create")
 	}
-	go start()
+	go start(&checkoutWaitContext{Context: ctx, observed: waiterWaiting})
 	select {
-	case <-secondPreflight:
+	case <-waiterWaiting:
+		if reads.Load() != 1 {
+			t.Fatalf("waiting caller repeated preflight: reads=%d", reads.Load())
+		}
 	case <-ctx.Done():
-		t.Fatal("second caller did not reach preflight")
+		t.Fatal("second caller did not join the future")
 	}
 	close(release)
 	for i := 0; i < 2; i++ {
@@ -324,10 +325,12 @@ func TestCheckoutSuccessWaitsForStartedEventPersistence(t *testing.T) {
 	case <-ctx.Done():
 		t.Fatal("Create did not start")
 	}
-	// Join the same future before allowing Create to return.
-	waiter, err := handler.startCheckoutSessionPreflight(ctx, StartCheckoutSessionInput{AccountID: "account-1"})
-	if err != nil || !waiter.futureAlreadyExisted {
-		t.Fatalf("join shared future: output=%+v err=%v", waiter, err)
+	// Inspect the pending full result before allowing Create to return.
+	handler.mutex.Lock()
+	pending := handler.startCheckoutSessionFutureForAccount["account-1"]
+	handler.mutex.Unlock()
+	if pending == nil {
+		t.Fatal("checkout has no pending result future")
 	}
 	close(releaseCreate)
 	select {
@@ -336,7 +339,7 @@ func TestCheckoutSuccessWaitsForStartedEventPersistence(t *testing.T) {
 		t.Fatal("Append did not start")
 	}
 	select {
-	case <-waiter.sessionInfoFuture.Ready():
+	case <-pending.Ready():
 		t.Error("shared checkout resolved before persistence")
 	default:
 	}
@@ -354,7 +357,7 @@ func TestCheckoutSuccessWaitsForStartedEventPersistence(t *testing.T) {
 	case <-ctx.Done():
 		t.Fatal("checkout did not finish after persistence")
 	}
-	info, err := waiter.sessionInfoFuture.Result()
+	info, err := pending.Result()
 	if err != nil || info == nil || info.CheckoutSessionID != "cs_persist" {
 		t.Fatalf("shared result after persistence: info=%+v err=%v", info, err)
 	}
