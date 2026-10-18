@@ -93,7 +93,7 @@ func (handler *CommandHandler) CreateAccount(ctx context.Context, input CreateAc
 		Email: input.Email,
 	}
 	if input.UserID.Issuer == IssuerBeddybytes {
-		hashedPassword := models.New(input.Password)
+		hashedPassword := models.NewHashedPassword(input.Password)
 		user.HashedPassword = &hashedPassword
 	}
 	detail := events.AccountCreatedV2Detail{
@@ -154,7 +154,7 @@ func (handler *CommandHandler) ResetPassword(ctx context.Context, input ResetPas
 		err = ErrUserNotFound
 		return
 	}
-	hashedPassword := models.New(input.Password)
+	hashedPassword := models.NewHashedPassword(input.Password)
 	detail := events.UserPasswordResetDetail{
 		Email:          input.Email,
 		HashedPassword: hashedPassword,

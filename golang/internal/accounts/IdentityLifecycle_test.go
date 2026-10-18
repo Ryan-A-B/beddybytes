@@ -19,7 +19,7 @@ func TestLegacyAndGoogleCQRSReplayAndPasswordReset(t *testing.T) {
 	ctx := context.Background()
 	handlers, router, provider, log := googleTestHandlers(t)
 	password := "original-long-password"
-	hashed := models.New(password)
+	hashed := models.NewHashedPassword(password)
 	legacy := events.AccountCreatedV1Detail{AccountID: "legacy-account", User: events.UserV1{ID: "legacy-user", Email: "same@example.com", PasswordSalt: hashed.Salt, PasswordHash: hashed.Digest}}
 	data, err := json.Marshal(legacy)
 	if err != nil {

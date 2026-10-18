@@ -168,7 +168,7 @@ func TestAccessTokenRejectsUnknownAccount(t *testing.T) {
 
 func TestLegacyAccountRetainsMonitoringScope(t *testing.T) {
 	handlers, router, _, log := googleTestHandlers(t)
-	hashedPassword := models.New("long-enough-password-for-tests")
+	hashedPassword := models.NewHashedPassword("long-enough-password-for-tests")
 	detail := events.AccountCreatedV1Detail{AccountID: "legacy-account", User: events.UserV1{Email: "legacy@example.com", PasswordSalt: hashedPassword.Salt, PasswordHash: hashedPassword.Digest}}
 	data, err := json.Marshal(detail)
 	if err != nil {

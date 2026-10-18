@@ -17,7 +17,7 @@ type HashedPassword struct {
 	Digest []byte
 }
 
-func New(plaintext string) HashedPassword {
+func NewHashedPassword(plaintext string) HashedPassword {
 	salt := make([]byte, 32)
 	_, err := io.ReadFull(rand.Reader, salt)
 	fatal.OnError(err)

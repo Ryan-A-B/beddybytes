@@ -19,7 +19,7 @@ const PaymentCallback: React.FC = () => {
             <div className="row">
                 <div className="col-12 col-lg-6">
                     {failed
-                        ? <p>{failureMessages[error] ?? 'We could not complete your payment. Please check your account.'}</p>
+                        ? <p>{Object.hasOwn(failureMessages, error) ? failureMessages[error] : 'We could not complete your payment. Please check your account.'}</p>
                         : <><p>Thank you for your purchase.</p><p>Visit your account to view your license.</p></>}
                     <Link to="/account" className="btn btn-primary w-100">Go to account</Link>
                 </div>
