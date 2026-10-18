@@ -284,15 +284,15 @@ func (handler *CommandHandler) fulfillCheckout(ctx context.Context, session *str
 	}
 	accountID := session.ClientReferenceID
 	if session.PaymentStatus == stripe.CheckoutSessionPaymentStatusPaid {
-		return handler.grantPerpetualLicense(ctx, accountID)
+		return handler.grantPerpetualLicense(ctx, accountID, session.ID)
 	}
 	if session.PaymentIntent.Status == stripe.PaymentIntentStatusProcessing {
-		return handler.grantProvisionalLicense(ctx, accountID)
+		return handler.grantProvisionalLicense(ctx, accountID, session.ID)
 	}
-	return handler.revokeProvisionalLicense(ctx, accountID)
+	return handler.revokeProvisionalLicense(ctx, accountID, session.ID)
 }
 
-func (handler *CommandHandler) grantPerpetualLicense(ctx context.Context, accountID string) (err error) {
+func (handler *CommandHandler) grantPerpetualLicense(ctx context.Context, accountID string, sessionID string) (err error) {
 	handler.mutex.Lock()
 	defer handler.mutex.Unlock()
 	err = handler.catchup(ctx)
@@ -307,12 +307,12 @@ func (handler *CommandHandler) grantPerpetualLicense(ctx context.Context, accoun
 	_, err = handler.eventLog.Append(ctx, eventlog.AppendInput{
 		Type:      events.TypePerpetualLicenseGranted,
 		AccountID: accountID,
-		Data:      nil,
+		Data:      fatal.UnlessMarshalJSON(events.LicenseEventDetail{SessionID: sessionID}),
 	})
 	return
 }
 
-func (handler *CommandHandler) grantProvisionalLicense(ctx context.Context, accountID string) (err error) {
+func (handler *CommandHandler) grantProvisionalLicense(ctx context.Context, accountID string, sessionID string) (err error) {
 	handler.mutex.Lock()
 	defer handler.mutex.Unlock()
 	err = handler.catchup(ctx)
@@ -329,12 +329,12 @@ func (handler *CommandHandler) grantProvisionalLicense(ctx context.Context, acco
 	_, err = handler.eventLog.Append(ctx, eventlog.AppendInput{
 		Type:      events.TypeProvisionalLicenseGranted,
 		AccountID: accountID,
-		Data:      nil,
+		Data:      fatal.UnlessMarshalJSON(events.LicenseEventDetail{SessionID: sessionID}),
 	})
 	return
 }
 
-func (handler *CommandHandler) revokeProvisionalLicense(ctx context.Context, accountID string) (err error) {
+func (handler *CommandHandler) revokeProvisionalLicense(ctx context.Context, accountID string, sessionID string) (err error) {
 	handler.mutex.Lock()
 	defer handler.mutex.Unlock()
 	err = handler.catchup(ctx)
@@ -346,12 +346,23 @@ func (handler *CommandHandler) revokeProvisionalLicense(ctx context.Context, acc
 		return
 	}
 	if license.Type != models.LicenseTypeProvisional {
+		// Only an outstanding checkout needs closing. Repeated observations
+		// of an ended session must not emit events or discard a newer attempt.
+		sessionInfo, pending := handler.sessionInfoByAccount[accountID]
+		if !pending || sessionInfo.CheckoutSessionID != sessionID {
+			return nil
+		}
+		_, err = handler.eventLog.Append(ctx, eventlog.AppendInput{
+			Type:      events.TypeStripeCheckoutSessionEnded,
+			AccountID: accountID,
+			Data:      fatal.UnlessMarshalJSON(events.StripeCheckoutSessionEndedDetail{SessionID: sessionID}),
+		})
 		return
 	}
 	_, err = handler.eventLog.Append(ctx, eventlog.AppendInput{
 		Type:      events.TypeProvisionalLicenseRevoked,
 		AccountID: accountID,
-		Data:      nil,
+		Data:      fatal.UnlessMarshalJSON(events.LicenseEventDetail{SessionID: sessionID}),
 	})
 	return
 }
@@ -377,6 +388,10 @@ func (handler *CommandHandler) apply(ctx context.Context, event *eventlog.Event)
 		handler.applyProvisionalLicenseRevoked(ctx, event)
 	case events.TypeStripeCheckoutSessionStarted:
 		handler.applyStripeCheckoutSessionStarted(ctx, event)
+	case events.TypeStripeCheckoutSessionEnded:
+		var detail events.StripeCheckoutSessionEndedDetail
+		fatal.OnError(json.Unmarshal(event.Data, &detail))
+		handler.removeSessionInfo(event.AccountID, detail.SessionID)
 	}
 }
 
@@ -389,6 +404,9 @@ func (handler *CommandHandler) applyAccountCreatedV2(ctx context.Context, event 
 }
 
 func (handler *CommandHandler) applyPerpetualLicenseGranted(ctx context.Context, event *eventlog.Event) {
+	var detail events.LicenseEventDetail
+	fatal.OnError(json.Unmarshal(event.Data, &detail))
+	handler.removeSessionInfo(event.AccountID, detail.SessionID)
 	delete(handler.eligibleAccounts, event.AccountID)
 }
 
@@ -407,6 +425,9 @@ func (handler *CommandHandler) applyProvisionalLicenseGranted(ctx context.Contex
 }
 
 func (handler *CommandHandler) applyProvisionalLicenseRevoked(ctx context.Context, event *eventlog.Event) {
+	var detail events.LicenseEventDetail
+	fatal.OnError(json.Unmarshal(event.Data, &detail))
+	handler.removeSessionInfo(event.AccountID, detail.SessionID)
 	license, eligible := handler.eligibleAccounts[event.AccountID]
 	if !eligible || license.Type != models.LicenseTypeProvisional {
 		return
@@ -433,4 +454,10 @@ func contains[T comparable](slice []T, item T) bool {
 		}
 	}
 	return false
+}
+
+func (handler *CommandHandler) removeSessionInfo(accountID string, sessionID string) {
+	if sessionInfo, exists := handler.sessionInfoByAccount[accountID]; exists && sessionInfo.CheckoutSessionID == sessionID {
+		delete(handler.sessionInfoByAccount, accountID)
+	}
 }

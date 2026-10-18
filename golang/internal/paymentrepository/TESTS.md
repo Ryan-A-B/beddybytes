@@ -31,6 +31,12 @@ checkout session repository; do not call Stripe.
 - [x] No caller receives success before the started event is persisted. (`TestCheckoutSuccessWaitsForStartedEventPersistence`)
 - [x] Replaying the started event allows reuse without another create. (`TestRestartReusesPersistedCheckout`)
 
+- [x] Payment-driven license grants/revocation carry their checkout session ID. (`TestCompletedCheckoutSessionInfoLifecycle`)
+- [x] Completed unsuccessful checkout without provisional access emits a checkout-ended event and leaves the original trial unchanged. (`TestCompletedCheckoutSessionInfoLifecycle`)
+- [x] Perpetual grant/provisional revocation/checkout-ended replay removes matching session info, allowing a fresh checkout after failure even before the old expiry; provisional grant retains its reference. (`TestCompletedCheckoutSessionInfoLifecycle`, same/fresh handlers)
+- [x] Older terminal events do not remove a newer checkout's session info. (`TestOldCheckoutEndDoesNotRemoveNewSessionInfo`)
+- [x] Checkout-ended persistence failure propagates, preserves pending info, and can be retried durably. (`TestCheckoutEndedPersistenceFailureCanRetry`)
+
 ## Syncing checkout
 
 - [x] Only one retrieval is in flight for the same session; an open result emits no license event. (`TestSyncCheckoutSessionOnlyOneRetrieveInFlight`)
@@ -115,3 +121,13 @@ instead of expecting it to read the event log again. The shared-create test
 asserts one preflight and pointer-identical output. Create/append error sharing,
 retry, waiter cancellation, persistence-before-success and restart tests pass
 with race detection, along with the future package tests.
+
+## Checkout cleanup — 18 October 2026
+
+Added `stripe_checkout_session.ended` with `session_id` for an outstanding
+completed unsuccessful checkout when there is no provisional license to revoke.
+Perpetual grant and provisional revocation also carry `session_id`; replay clears
+only the matching session info. Provisional grant carries the ID but retains the
+reference. A repeated terminal observation with no matching pending session emits
+nothing. The new tests and existing payment/account/HTTP/backend tests pass with
+race detection. Startup reconciliation itself is not part of this change.

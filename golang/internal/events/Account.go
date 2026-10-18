@@ -37,3 +37,8 @@ type AccountPasswordResetDetail struct {
 	PasswordSalt []byte `json:"password_salt"`
 	PasswordHash []byte `json:"password_hash"`
 }
+
+// LicenseEventDetail identifies the checkout responsible for a payment-driven license change.
+type LicenseEventDetail struct {
+	SessionID string `json:"session_id"`
+}

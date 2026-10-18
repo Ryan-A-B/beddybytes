@@ -29,3 +29,8 @@ The reproducer is preserved as a skipped test:
 `TestOlderFailedAttemptDoesNotRevokeNewerProcessingCheckout` in
 `Ordering_test.go`. Re-enable it if automatic handling of overlapping attempts
 is implemented. This is an accepted limitation, not a passing test or a fix.
+
+Payment-driven license events now carry session IDs, and terminal-event replay
+clears only matching checkout info. Provisional entitlement is still projected
+per account; this cleanup does not resolve the overlapping-payment revocation
+limitation above.
