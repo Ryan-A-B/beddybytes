@@ -3,6 +3,7 @@ package paymentrepository
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -21,6 +22,34 @@ type syncRetrieveCall struct {
 type syncRetrieveResult struct {
 	session *stripe.CheckoutSession
 	err     error
+}
+
+func TestSyncQueueDoesNotRetainUnknownSessions(t *testing.T) {
+	handler := NewCommandHandler(NewCommandHandlerInput{
+		EventLog: &emptyPaymentEventLog{},
+		CheckoutSessionRepository: &checkoutSessionRepositoryStub{
+			retrieve: func(context.Context, string) (*stripe.CheckoutSession, error) {
+				return nil, errors.New("no such checkout session")
+			},
+		},
+	})
+
+	// The public success callback accepts arbitrary session IDs. Failed lookups
+	// must not accumulate a permanent queue for every distinct ID submitted.
+	for index := 0; index < 100; index++ {
+		err := handler.SyncCheckoutSession(context.Background(), SyncCheckoutSessionInput{
+			CheckoutSessionID: fmt.Sprintf("cs_unknown_%d", index),
+		})
+		if err == nil {
+			t.Fatal("sync of an unknown checkout session unexpectedly succeeded")
+		}
+	}
+
+	handler.mutex.Lock()
+	defer handler.mutex.Unlock()
+	if count := len(handler.coalescingSyncQueueByCheckoutSessionID); count != 0 {
+		t.Fatalf("retained %d sync queues after 100 unknown checkout sessions", count)
+	}
 }
 
 func newQueuedSyncTestHandler(t *testing.T, log eventlog.EventLog) (*CommandHandler, <-chan syncRetrieveCall) {
