@@ -18,6 +18,8 @@ func TestDifferentSessionsCanSyncConcurrently(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	log := newRestartTestLog(t)
+	recordCheckoutStarted(t, log, "account-1", "cs_one")
+	recordCheckoutStarted(t, log, "account-1", "cs_two")
 	entered := make(chan string, 2)
 	release := make(chan struct{})
 	handler := NewCommandHandler(NewCommandHandlerInput{
@@ -64,6 +66,7 @@ func TestDifferentSessionsCanSyncConcurrently(t *testing.T) {
 func TestRetrieveFailureAllowsSyncRetry(t *testing.T) {
 	ctx := context.Background()
 	log := newRestartTestLog(t)
+	recordCheckoutStarted(t, log, "account-1", "cs_retry")
 	retrieveError := errors.New("retrieve failed")
 	var retrieves int
 	handler := NewCommandHandler(NewCommandHandlerInput{
@@ -110,13 +113,17 @@ func TestSyncCatchesUpEventsArrivingDuringRetrieve(t *testing.T) {
 		wantProvisional bool
 		wantGrants      int
 	}{
-		{name: "account created", arrivals: []eventlog.AppendInput{{Type: events.TypeAccountCreatedV2, Data: []byte(`{"account_id":"account-late"}`)}}, paymentStatus: stripe.CheckoutSessionPaymentStatusPaid, wantGrants: 1},
-		{name: "perpetual granted", arrivals: []eventlog.AppendInput{{Type: events.TypeAccountCreatedV2, Data: []byte(`{"account_id":"account-late"}`)}, {Type: events.TypePerpetualLicenseGranted, AccountID: "account-late"}}, paymentStatus: stripe.CheckoutSessionPaymentStatusUnpaid, wantGrants: 1},
-		{name: "provisional granted", arrivals: []eventlog.AppendInput{{Type: events.TypeAccountCreatedV2, Data: []byte(`{"account_id":"account-late"}`)}, {Type: events.TypeProvisionalLicenseGranted, AccountID: "account-late"}}, paymentStatus: stripe.CheckoutSessionPaymentStatusUnpaid, wantEligible: true, wantProvisional: true},
+		{name: "paid", paymentStatus: stripe.CheckoutSessionPaymentStatusPaid, wantGrants: 1},
+		{name: "perpetual granted", arrivals: []eventlog.AppendInput{{Type: events.TypePerpetualLicenseGranted, AccountID: "account-late"}}, paymentStatus: stripe.CheckoutSessionPaymentStatusUnpaid, wantGrants: 1},
+		{name: "provisional granted", arrivals: []eventlog.AppendInput{{Type: events.TypeProvisionalLicenseGranted, AccountID: "account-late"}}, paymentStatus: stripe.CheckoutSessionPaymentStatusUnpaid, wantEligible: true, wantProvisional: true},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			ctx := context.Background()
 			log := newRestartTestLog(t)
+			if _, err := log.Append(ctx, eventlog.AppendInput{Type: events.TypeAccountCreatedV2, Data: []byte(`{"account_id":"account-late"}`)}); err != nil {
+				t.Fatal(err)
+			}
+			recordCheckoutStarted(t, log, "account-late", "cs_late")
 			handler := NewCommandHandler(NewCommandHandlerInput{EventLog: log, CheckoutSessionRepository: &checkoutSessionRepositoryStub{
 				retrieve: func(_ context.Context, id string) (*stripe.CheckoutSession, error) {
 					// The sync preflight has already caught up. Append while the external
@@ -191,6 +198,7 @@ func TestLicensePersistenceFailureConvergesOnRetry(t *testing.T) {
 				t.Run(transition.name, func(t *testing.T) {
 					ctx := context.Background()
 					log := newRestartTestLog(t)
+					recordCheckoutStarted(t, log, "account-1", "cs_persist")
 					if transition.provisional {
 						if _, err := log.Append(ctx, eventlog.AppendInput{Type: events.TypeProvisionalLicenseGranted, AccountID: "account-1"}); err != nil {
 							t.Fatal(err)
@@ -285,6 +293,7 @@ func TestSyncAppliesStripePaymentState(t *testing.T) {
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			log := newRestartTestLog(t)
+			recordCheckoutStarted(t, log, "account-1", "cs_outcome")
 			handler := NewCommandHandler(NewCommandHandlerInput{EventLog: log, CheckoutSessionRepository: &checkoutSessionRepositoryStub{retrieve: func(_ context.Context, id string) (*stripe.CheckoutSession, error) {
 				return &stripe.CheckoutSession{ID: id, ClientReferenceID: "account-1", Status: test.status, PaymentStatus: test.paymentStatus, PaymentIntent: &stripe.PaymentIntent{ID: "pi_outcome", Status: test.intentStatus}}, nil
 			}}})

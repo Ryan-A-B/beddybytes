@@ -61,6 +61,9 @@ func TestSignedThinWebhookRetrievesAndAcknowledgesOnlyAfterDurableFulfillment(t 
 			if _, err := rawLog.Append(lifetime, eventlog.AppendInput{Type: events.TypeAccountCreatedV2, Data: []byte(`{"account_id":"account-1"}`)}); err != nil {
 				t.Fatal(err)
 			}
+			if _, err := rawLog.Append(lifetime, eventlog.AppendInput{Type: events.TypeStripeCheckoutSessionStarted, AccountID: "account-1", Data: []byte(`{"session_id":"cs_fixture","checkout_url":"https://checkout.stripe.com/cs_fixture"}`)}); err != nil {
+				t.Fatal(err)
+			}
 			log := &webhookSyncLog{EventLog: rawLog, grantEntered: make(chan struct{}, 1), releaseGrant: make(chan struct{}), fail: failPersistence}
 			var retrieves atomic.Int32
 			backend := stripe.GetBackendWithConfig(stripe.APIBackend, &stripe.BackendConfig{MaxNetworkRetries: stripe.Int64(0), HTTPClient: &http.Client{Transport: webhookSyncTransport(func(request *http.Request) (*http.Response, error) {
@@ -141,6 +144,9 @@ func TestSuccessReturnAllowsUnpaidCheckoutToResolveLater(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			log := eventlog.NewFileEventLog(&eventlog.NewFileEventLogInput{FolderPath: t.TempDir()})
 			if _, err := log.Append(context.Background(), eventlog.AppendInput{Type: events.TypeAccountCreatedV2, Data: []byte(`{"account_id":"account-1"}`)}); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := log.Append(context.Background(), eventlog.AppendInput{Type: events.TypeStripeCheckoutSessionStarted, AccountID: "account-1", Data: []byte(`{"session_id":"cs_fixture","checkout_url":"https://checkout.stripe.com/cs_fixture"}`)}); err != nil {
 				t.Fatal(err)
 			}
 			sessionJSON := test.session

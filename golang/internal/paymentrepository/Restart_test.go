@@ -128,6 +128,7 @@ func TestRestartStartsNewSyncWhenOldSyncIsInFlight(t *testing.T) {
 	oldCtx, stopOld := context.WithCancel(ctx)
 	defer stopOld()
 	log := newRestartTestLog(t)
+	recordCheckoutStarted(t, log, "account-1", "cs_test_1")
 	entered := make(chan struct{})
 	var retrieves atomic.Int32
 	repository := &checkoutSessionRepositoryStub{
@@ -360,6 +361,7 @@ func TestRestartCreatesAgainAfterStartedEventAppendFailure(t *testing.T) {
 func TestRestartAfterOpenSyncRetrievesAgain(t *testing.T) {
 	ctx := context.Background()
 	log := newRestartTestLog(t)
+	recordCheckoutStarted(t, log, "account-1", "cs_open")
 	var retrieves int
 	repository := &checkoutSessionRepositoryStub{retrieve: func(_ context.Context, id string) (*stripe.CheckoutSession, error) {
 		retrieves++
@@ -376,7 +378,7 @@ func TestRestartAfterOpenSyncRetrievesAgain(t *testing.T) {
 	}
 	iterator := log.GetEventIterator(ctx, eventlog.GetEventIteratorInput{})
 	for iterator.Next(ctx) {
-		if event := iterator.Event(); event.Type != events.TypeAccountCreatedV2 {
+		if event := iterator.Event(); event.Type != events.TypeAccountCreatedV2 && event.Type != events.TypeStripeCheckoutSessionStarted {
 			t.Errorf("open sync emitted %s", event.Type)
 		}
 	}
@@ -388,6 +390,7 @@ func TestRestartAfterOpenSyncRetrievesAgain(t *testing.T) {
 func TestRestartAfterProvisionalSyncsPreservesTrialDates(t *testing.T) {
 	ctx := context.Background()
 	log := newRestartTestLog(t)
+	recordCheckoutStarted(t, log, "account-1", "cs_restart")
 	status := stripe.PaymentIntentStatusProcessing
 	var retrieves int
 	repository := &checkoutSessionRepositoryStub{retrieve: func(_ context.Context, id string) (*stripe.CheckoutSession, error) {

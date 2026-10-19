@@ -105,6 +105,7 @@ func queuedSession(status stripe.CheckoutSessionPaymentStatus, intent stripe.Pay
 
 func TestSyncQueueRetrievesAgainForRequestsDuringEveryPass(t *testing.T) {
 	log := newRestartTestLog(t)
+	recordCheckoutStarted(t, log, "account-1", "cs_queue")
 	handler, calls := newQueuedSyncTestHandler(t, log)
 	input := SyncCheckoutSessionInput{CheckoutSessionID: "cs_queue"}
 	first := requestSyncForTest(t, handler, input)
@@ -171,6 +172,7 @@ func TestSyncQueueRunsPendingPassAfterRetrievalOrPersistenceFailure(t *testing.T
 		}
 		t.Run(name, func(t *testing.T) {
 			log := newRestartTestLog(t)
+			recordCheckoutStarted(t, log, "account-1", "cs_queue")
 			failure := errors.New("temporary failure")
 			var attempts atomic.Int32
 			intercepted := &interceptedPaymentEventLog{EventLog: log, append: func(ctx context.Context, input eventlog.AppendInput) (*eventlog.Event, error) {
@@ -226,7 +228,9 @@ func waitForQueuedSync(t *testing.T, handler *CommandHandler) {
 }
 
 func TestWebhookWaitsForFreshDurableSync(t *testing.T) {
-	handler, calls := newQueuedSyncTestHandler(t, newRestartTestLog(t))
+	log := newRestartTestLog(t)
+	recordCheckoutStarted(t, log, "account-1", "cs_queue")
+	handler, calls := newQueuedSyncTestHandler(t, log)
 	browserDone := make(chan error, 1)
 	go func() {
 		browserDone <- handler.SyncCheckoutSession(context.Background(), SyncCheckoutSessionInput{CheckoutSessionID: "cs_queue"})
@@ -267,7 +271,9 @@ func TestConcurrentSyncRequestsAcrossIdleTransitionsAllComplete(t *testing.T) {
 	lifetime, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	var inFlight, retrieves atomic.Int32
-	handler := NewCommandHandler(NewCommandHandlerInput{EventLog: &emptyPaymentEventLog{}, CheckoutSessionRepository: &checkoutSessionRepositoryStub{retrieve: func(ctx context.Context, id string) (*stripe.CheckoutSession, error) {
+	log := newRestartTestLog(t)
+	recordCheckoutStarted(t, log, "account-1", "cs_queue")
+	handler := NewCommandHandler(NewCommandHandlerInput{EventLog: log, CheckoutSessionRepository: &checkoutSessionRepositoryStub{retrieve: func(ctx context.Context, id string) (*stripe.CheckoutSession, error) {
 		if current := inFlight.Add(1); current != 1 {
 			t.Errorf("same-session concurrent retrievals=%d", current)
 		}
@@ -315,7 +321,9 @@ func requestSyncForTest(t *testing.T, handler *CommandHandler, input SyncCheckou
 
 func TestSequentialSyncRequestsAlwaysRetrieveFreshState(t *testing.T) {
 	retrieves := 0
-	handler := NewCommandHandler(NewCommandHandlerInput{EventLog: &emptyPaymentEventLog{}, CheckoutSessionRepository: &checkoutSessionRepositoryStub{retrieve: func(_ context.Context, id string) (*stripe.CheckoutSession, error) {
+	log := newRestartTestLog(t)
+	recordCheckoutStarted(t, log, "account-1", "cs_queue")
+	handler := NewCommandHandler(NewCommandHandlerInput{EventLog: log, CheckoutSessionRepository: &checkoutSessionRepositoryStub{retrieve: func(_ context.Context, id string) (*stripe.CheckoutSession, error) {
 		retrieves++
 		return &stripe.CheckoutSession{ID: id, Status: stripe.CheckoutSessionStatusOpen}, nil
 	}}})

@@ -16,6 +16,7 @@ import (
 func TestWebhookSyncsCurrentStateAndIgnoresStaleNotificationState(t *testing.T) {
 	ctx := context.Background()
 	log := newRestartTestLog(t)
+	recordCheckoutStarted(t, log, "account-1", "cs_notification")
 	var retrieves int
 	intentStatus := stripe.PaymentIntentStatusProcessing
 	paymentStatus := stripe.CheckoutSessionPaymentStatusUnpaid
@@ -93,6 +94,7 @@ func TestWebhookParsingAndRetrievalFailuresRemainRetryable(t *testing.T) {
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			log := newRestartTestLog(t)
+			recordCheckoutStarted(t, log, "account-1", "cs_retry")
 			retrieves := 0
 			handler := NewCommandHandler(NewCommandHandlerInput{EventLog: log, CheckoutSessionRepository: &checkoutSessionRepositoryStub{
 				parseNotification: func([]byte, string) (*checkoutsessions.Notification, error) {
@@ -123,7 +125,7 @@ func TestWebhookParsingAndRetrievalFailuresRemainRetryable(t *testing.T) {
 			}
 			iterator := log.GetEventIterator(context.Background(), eventlog.GetEventIteratorInput{})
 			for iterator.Next(context.Background()) {
-				if iterator.Event().Type != events.TypeAccountCreatedV2 {
+				if iterator.Event().Type != events.TypeAccountCreatedV2 && iterator.Event().Type != events.TypeStripeCheckoutSessionStarted {
 					t.Errorf("unexpected event %s", iterator.Event().Type)
 				}
 			}
