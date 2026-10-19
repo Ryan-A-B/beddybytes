@@ -1,8 +1,12 @@
 package models
 
-import "time"
+import (
+	"time"
 
-const TrialDuration = 7 * 24 * time.Hour
+	"github.com/Ryan-A-B/beddybytes/golang/internal"
+)
+
+var TrialDuration = internal.EnvDuration("TRIAL_DURATION", 7*24*time.Hour)
 
 type LicenseType string
 
@@ -27,7 +31,9 @@ type ProvisionalLicense struct {
 }
 
 func NewTrialLicense(startUnixSeconds int64) License {
-	endUnixSeconds := startUnixSeconds + int64(TrialDuration/time.Second)
+	start := time.Unix(startUnixSeconds, 0)
+	end := start.Add(TrialDuration)
+	endUnixSeconds := end.Unix()
 	return License{
 		Type:             LicenseTypeTrial,
 		StartUnixSeconds: startUnixSeconds,
