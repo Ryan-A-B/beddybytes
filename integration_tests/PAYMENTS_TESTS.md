@@ -554,3 +554,63 @@ Raw logs: `/tmp/beddybytes-final-frontend-tests.log`,
 `/tmp/beddybytes-final-selenium-tests.log`,
 `/tmp/beddybytes-final-selenium-remaining-tests.log`, and
 `/tmp/beddybytes-final-selenium-cancel-retry.log`.
+
+## Full suite verification — 19 October 2026, after backend rebuild
+
+Tested branch at `480fb51` against the running local stack after Ryan rebuilt the
+backend. No application or test source was changed during verification. The
+existing QA encrypted configuration change was left untouched.
+
+| Check | Result |
+| --- | --- |
+| Frontend Jest | PASS: 221 tests, 19 suites; 4.195 seconds |
+| Frontend TypeScript | PASS |
+| Standard full Go suite | PASS: 22 packages with tests |
+| Full Selenium/integration discovery | 62 distinct cases: 52 passed, 9 skipped, 1 errored |
+
+E06 remains unresolved. The initial run reported an error, then stalled capturing
+its failure screenshot. That runner was interrupted; all 30 remaining cases ran
+in a continuation with 22 passes and 8 skips in 254.814 seconds. E06 was then
+retried alone with a 30-second WebDriver transport timeout and HTTP retries
+disabled. It errored again at `cancel_checkout()` → the click on Stripe's
+“Back to BeddyBytes” control (`test_payments.py:91`), before our cancellation
+assertions ran. The isolated case took 94.248 seconds. Screenshot capture and
+browser quit also timed out, producing three error records for that one case.
+Those are not three distinct failing tests. The stalled browser session may
+remain on the Grid; no shared Grid/node restart was performed.
+
+Updated E06b passed. Successful sandbox purchase/return, declined-card retry,
+license persistence, repeated returns, callback errors, mobile layout, manual
+account refresh, HTTP/MQTT signaling, recording, audio/video monitoring, multiple
+parents and baby-station switching passed. No application assertion failure was
+established by the E06 WebDriver timeout; it remains an unresolved test error.
+
+Nine skipped cases:
+
+- Password reset: no reset link supplied.
+- E08 webhook-only fulfillment: explicitly deferred at Ryan's request.
+- E16/E17/E18: expired-trial, legacy V1 and provisional fixtures not configured.
+- E24a/E24b: the required Stripe-hosted authentication outcomes were not established.
+- Backend/Mosquitto restart recovery: Docker CLI unavailable.
+
+The standard Go suite also retains its three explicit skips: SES/S3 tests need
+credentials, and overlapping processing payments remain an accepted limitation.
+No full race-enabled backend suite was run in this verification.
+
+Commands used isolated host caches and Python dependencies:
+
+- Frontend: `CI=true npm test -- --watchAll=false --runInBand`, with Jest cache
+  `/tmp/beddybytes-suite-jest`; `tsc --noEmit --incremental false`.
+- Backend: `go test -json -count=1 -timeout=120s ./...`, with Go module/build caches
+  under `/tmp/beddybytes-review-go-*` and local sockets enabled for OIDC tests.
+- Integration: full `unittest` discovery from `integration_tests/src`, using
+  `SELENIUM_HUB_URL=http://selenium_hub:4444` and pinned dependencies in
+  `/tmp/beddybytes-e06b-python`. Continuation/retry disabled WebDriver HTTP retries
+  and used a 30-second transport timeout. No test implementation was changed.
+
+Raw logs: `/tmp/beddybytes-suite-frontend.log`,
+`/tmp/beddybytes-suite-frontend-types.log`, `/tmp/beddybytes-suite-backend.json`,
+`/tmp/beddybytes-suite-selenium.log`,
+`/tmp/beddybytes-suite-selenium-remaining.log`,
+`/tmp/beddybytes-suite-selenium-remaining-results.jsonl`, and
+`/tmp/beddybytes-suite-selenium-e06-retry.log`.
