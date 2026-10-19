@@ -32,11 +32,11 @@ func TestQueryLicenseReplay(t *testing.T) {
 	}{
 		{name: "v1 perpetual", history: []eventlog.Event{{Type: events.TypeAccountCreatedV1, UnixTimestamp: trialStart, Data: json.RawMessage(`{"id":"account-1","user":{"email":"legacy@example.com"}}`)}}, want: models.License{Type: models.LicenseTypePerpetual, StartUnixSeconds: trialStart}},
 		{name: "v2 trial", history: []eventlog.Event{created}, want: models.NewTrialLicense(trialStart)},
-		{name: "provisional preserves trial start", history: []eventlog.Event{created, provisional}, want: models.License{Type: models.LicenseTypeProvisional, StartUnixSeconds: provisionalStart, ProvisionalLicense: &models.ProvisionalLicense{TrialStartUnixSeconds: trialStart}}},
+		{name: "provisional preserves trial start", history: []eventlog.Event{created, provisional}, want: models.License{Type: models.LicenseTypeProvisional, StartUnixSeconds: provisionalStart, ProvisionalDetail: &models.ProvisionalLicenseDetail{TrialStartUnixSeconds: trialStart}}},
 		{name: "revocation restores trial start", history: []eventlog.Event{created, provisional, revoked}, want: models.NewTrialLicense(trialStart)},
 		{name: "direct perpetual grant", history: []eventlog.Event{created, perpetual}, want: models.License{Type: models.LicenseTypePerpetual, StartUnixSeconds: perpetualStart}},
 		{name: "perpetual replaces provisional", history: []eventlog.Event{created, provisional, perpetual}, want: models.License{Type: models.LicenseTypePerpetual, StartUnixSeconds: perpetualStart}},
-		{name: "grant after revocation preserves original trial", history: []eventlog.Event{created, provisional, revoked, {Type: events.TypeProvisionalLicenseGranted, AccountID: "account-1", UnixTimestamp: perpetualStart}}, want: models.License{Type: models.LicenseTypeProvisional, StartUnixSeconds: perpetualStart, ProvisionalLicense: &models.ProvisionalLicense{TrialStartUnixSeconds: trialStart}}},
+		{name: "grant after revocation preserves original trial", history: []eventlog.Event{created, provisional, revoked, {Type: events.TypeProvisionalLicenseGranted, AccountID: "account-1", UnixTimestamp: perpetualStart}}, want: models.License{Type: models.LicenseTypeProvisional, StartUnixSeconds: perpetualStart, ProvisionalDetail: &models.ProvisionalLicenseDetail{TrialStartUnixSeconds: trialStart}}},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			// Distinct durable timestamps make resetting the trial during revocation
@@ -137,7 +137,7 @@ func TestHasActiveLicenseTrialExpiryBoundary(t *testing.T) {
 			license := models.NewTrialLicense(start)
 			license.Type = test.licenseType
 			if test.licenseType != models.LicenseTypeTrial {
-				license.EndUnixSeconds = nil
+				license.TrialDetail = nil
 			}
 			if got := hasActiveLicense(license, time.Unix(test.now, 0)); got != test.want {
 				t.Fatalf("active=%v, want %v", got, test.want)
@@ -149,11 +149,11 @@ func TestHasActiveLicenseTrialExpiryBoundary(t *testing.T) {
 func TestHasActiveLicenseUsesStoredEnd(t *testing.T) {
 	const start int64 = 1700000000
 	end := start + 60
-	license := models.License{Type: models.LicenseTypeTrial, StartUnixSeconds: start, EndUnixSeconds: &end}
+	license := models.License{Type: models.LicenseTypeTrial, StartUnixSeconds: start, TrialDetail: &models.TrialLicenseDetail{EndUnixSeconds: end}}
 	if hasActiveLicense(license, time.Unix(end, 0)) {
 		t.Fatal("license should expire at its stored end, without recomputing trial duration")
 	}
-	license.EndUnixSeconds = nil
+	license.TrialDetail = nil
 	if !hasActiveLicense(license, time.Unix(start+1000000, 0)) {
 		t.Fatal("license without an end should remain active")
 	}

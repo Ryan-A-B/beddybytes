@@ -29,7 +29,7 @@ codes, but successful sync does not produce them.
 The callback displays a single Payment Successful or Payment Failed heading and
 an account link. It does not change access, refresh tokens or poll. The account
 page fetches on entry and when Refresh is clicked. Licenses are display data;
-`/accounts/current` supplies trial `end_unix_seconds` as start plus seven days.
+`/accounts/current` supplies trial `trial_detail.end_unix_seconds` as start plus seven days.
 
 `SyncCheckoutSession` returns only an error. Verified thin webhooks and browser
 success both request the same per-session sync. `CoalescingSyncQueue` holds

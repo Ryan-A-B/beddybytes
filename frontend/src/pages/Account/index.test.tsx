@@ -12,7 +12,7 @@ jest.mock('../../services/AuthorizationService/get_access_token_asap');
 const trial: AccountDetails = {
     id: 'account-1',
     // Deliberately not seven days apart: the UI must display the server's end.
-    license: { type: 'trial', start_unix_seconds: 1700000000, end_unix_seconds: 1701000000 },
+    license: { type: 'trial', start_unix_seconds: 1700000000, trial_detail: { end_unix_seconds: 1701000000 } },
 };
 const getCurrentAccount = jest.fn();
 
@@ -36,7 +36,7 @@ test('shows trial start and backend end, including checkout for an expired trial
 
 test.each<[License, string]>([
     [{ type: 'perpetual', start_unix_seconds: 1700000000 }, 'Perpetual'],
-    [{ type: 'provisional', start_unix_seconds: 1700000000, provisional_license: { trial_start_unix_seconds: 1699000000 } }, 'Provisional'],
+    [{ type: 'provisional', start_unix_seconds: 1700000000, provisional_detail: { trial_start_unix_seconds: 1699000000 } }, 'Provisional'],
 ])('shows %s start without an end or checkout button', async (license, label) => {
     getCurrentAccount.mockResolvedValue({ id: 'account-1', license });
     const { container } = render(<Account />);

@@ -433,7 +433,7 @@ func (handler *CommandHandler) applyProvisionalLicenseGranted(ctx context.Contex
 	handler.eligibleAccounts[event.AccountID] = &models.License{
 		Type:             models.LicenseTypeProvisional,
 		StartUnixSeconds: event.UnixTimestamp,
-		ProvisionalLicense: &models.ProvisionalLicense{
+		ProvisionalDetail: &models.ProvisionalLicenseDetail{
 			TrialStartUnixSeconds: license.StartUnixSeconds,
 		},
 	}
@@ -447,7 +447,7 @@ func (handler *CommandHandler) applyProvisionalLicenseRevoked(ctx context.Contex
 	if !eligible || license.Type != models.LicenseTypeProvisional {
 		return
 	}
-	trialLicense := models.NewTrialLicense(license.ProvisionalLicense.TrialStartUnixSeconds)
+	trialLicense := models.NewTrialLicense(license.ProvisionalDetail.TrialStartUnixSeconds)
 	handler.eligibleAccounts[event.AccountID] = &trialLicense
 }
 

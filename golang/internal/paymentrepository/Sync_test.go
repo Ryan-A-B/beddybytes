@@ -254,7 +254,7 @@ func TestLicensePersistenceFailureConvergesOnRetry(t *testing.T) {
 					} else if license == nil || license.Type != transition.wantType {
 						t.Fatalf("license=%+v, want %s", license, transition.wantType)
 					}
-					if transition.wantType == models.LicenseTypeTrial && license.StartUnixSeconds != before.ProvisionalLicense.TrialStartUnixSeconds {
+					if transition.wantType == models.LicenseTypeTrial && license.StartUnixSeconds != before.ProvisionalDetail.TrialStartUnixSeconds {
 						t.Error("revocation lost trial start")
 					}
 					iterator := log.GetEventIterator(ctx, eventlog.GetEventIteratorInput{FromCursor: cursor})

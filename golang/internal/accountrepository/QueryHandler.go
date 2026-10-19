@@ -81,7 +81,7 @@ func (handler *QueryHandler) HasActiveAccount(ctx context.Context, accountID str
 }
 
 func hasActiveLicense(license models.License, now time.Time) bool {
-	return license.EndUnixSeconds == nil || now.Unix() < *license.EndUnixSeconds
+	return license.TrialDetail == nil || now.Unix() < license.TrialDetail.EndUnixSeconds
 }
 
 type CheckCredentialsInput struct {
@@ -212,7 +212,7 @@ func (handler *QueryHandler) applyProvisionalLicenseGranted(ctx context.Context,
 	handler.licenseForAccount[event.AccountID] = models.License{
 		Type:             models.LicenseTypeProvisional,
 		StartUnixSeconds: event.UnixTimestamp,
-		ProvisionalLicense: &models.ProvisionalLicense{
+		ProvisionalDetail: &models.ProvisionalLicenseDetail{
 			TrialStartUnixSeconds: license.StartUnixSeconds,
 		},
 	}
@@ -220,5 +220,5 @@ func (handler *QueryHandler) applyProvisionalLicenseGranted(ctx context.Context,
 
 func (handler *QueryHandler) applyProvisionalLicenseRevoked(ctx context.Context, event *eventlog.Event) {
 	license := handler.licenseForAccount[event.AccountID]
-	handler.licenseForAccount[event.AccountID] = models.NewTrialLicense(license.ProvisionalLicense.TrialStartUnixSeconds)
+	handler.licenseForAccount[event.AccountID] = models.NewTrialLicense(license.ProvisionalDetail.TrialStartUnixSeconds)
 }

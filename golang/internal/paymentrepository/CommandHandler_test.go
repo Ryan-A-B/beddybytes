@@ -51,7 +51,7 @@ func TestV2AccountCreationReplaySetsTrialLicense(t *testing.T) {
 			if license.Type != test.licenseType || license.StartUnixSeconds != created.UnixTimestamp {
 				t.Fatalf("license = %+v, want type %s starting at %d", license, test.licenseType, created.UnixTimestamp)
 			}
-			if license.ProvisionalLicense != nil {
+			if license.ProvisionalDetail != nil {
 				t.Fatal("initial license should not have provisional metadata")
 			}
 		})

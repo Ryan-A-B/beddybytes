@@ -45,10 +45,10 @@ func TestGetAccountReturnsCurrentLicense(t *testing.T) {
 				want.Type = step.want
 				if step.want != models.LicenseTypeTrial {
 					want.StartUnixSeconds = event.UnixTimestamp
-					want.EndUnixSeconds = nil
+					want.TrialDetail = nil
 				}
 				if step.want == models.LicenseTypeProvisional {
-					want.ProvisionalLicense = &models.ProvisionalLicense{TrialStartUnixSeconds: trialStart}
+					want.ProvisionalDetail = &models.ProvisionalLicenseDetail{TrialStartUnixSeconds: trialStart}
 				}
 			}
 			// An account-only token can display the license, including after expiry.
@@ -82,8 +82,8 @@ func TestGetAccountReturnsCurrentLicense(t *testing.T) {
 			}{License: &licenseJSON}); err != nil {
 				t.Fatal(err)
 			}
-			if _, hasEnd := licenseJSON["end_unix_seconds"]; hasEnd != (step.want == models.LicenseTypeTrial) {
-				t.Error("end time must only be serialized for trials")
+			if _, hasEnd := licenseJSON["trial_detail"]; hasEnd != (step.want == models.LicenseTypeTrial) {
+				t.Error("trial detail must only be serialized for trials")
 			}
 			var raw map[string]json.RawMessage
 			if err := json.Unmarshal(response.Body.Bytes(), &raw); err != nil {

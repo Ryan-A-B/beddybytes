@@ -15,7 +15,7 @@ class TestAccountLicense(PaymentBrowserTestCase):
         license_info = account["license"]
         self.assertEqual(license_info["type"], "trial")
         self.assertEqual(
-            license_info["end_unix_seconds"] - license_info["start_unix_seconds"],
+            license_info["trial_detail"]["end_unix_seconds"] - license_info["start_unix_seconds"],
             604800,
         )
         self.assert_displayed_license_dates(license_info)

@@ -1,13 +1,15 @@
 interface TrialLicense {
     type: 'trial';
     start_unix_seconds: number;
-    end_unix_seconds: number;
+    trial_detail: {
+        end_unix_seconds: number;
+    };
 }
 
 interface ProvisionalLicense {
     type: 'provisional';
     start_unix_seconds: number;
-    provisional_license: {
+    provisional_detail: {
         trial_start_unix_seconds: number;
     };
 }

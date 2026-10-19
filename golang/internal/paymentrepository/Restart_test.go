@@ -271,8 +271,8 @@ func TestRestartReplaysProvisionalGrantPreservingTrialStart(t *testing.T) {
 	if license.StartUnixSeconds != grant.UnixTimestamp {
 		t.Errorf("provisional start=%d, want grant time %d", license.StartUnixSeconds, grant.UnixTimestamp)
 	}
-	if license.ProvisionalLicense == nil || license.ProvisionalLicense.TrialStartUnixSeconds != trialStart {
-		t.Fatalf("original trial start was not preserved: %+v, want %d", license.ProvisionalLicense, trialStart)
+	if license.ProvisionalDetail == nil || license.ProvisionalDetail.TrialStartUnixSeconds != trialStart {
+		t.Fatalf("original trial start was not preserved: %+v, want %d", license.ProvisionalDetail, trialStart)
 	}
 }
 
@@ -294,7 +294,7 @@ func TestRestartReplaysProvisionalRevocationRestoringTrialStart(t *testing.T) {
 		t.Fatal(err)
 	}
 	license := restarted.eligibleAccounts["account-1"]
-	if license == nil || license.Type != models.LicenseTypeTrial || license.StartUnixSeconds != trialStart || license.ProvisionalLicense != nil {
+	if license == nil || license.Type != models.LicenseTypeTrial || license.StartUnixSeconds != trialStart || license.ProvisionalDetail != nil {
 		t.Fatalf("replayed revocation should restore trial starting at %d without provisional metadata, got %+v", trialStart, license)
 	}
 }
@@ -411,7 +411,7 @@ func TestRestartAfterProvisionalSyncsPreservesTrialDates(t *testing.T) {
 		t.Fatal(err)
 	}
 	license := restarted.eligibleAccounts["account-1"]
-	if license == nil || license.Type != models.LicenseTypeProvisional || license.ProvisionalLicense == nil || license.ProvisionalLicense.TrialStartUnixSeconds != trialStart {
+	if license == nil || license.Type != models.LicenseTypeProvisional || license.ProvisionalDetail == nil || license.ProvisionalDetail.TrialStartUnixSeconds != trialStart {
 		t.Fatalf("restarted provisional license lost original trial %d: %+v", trialStart, license)
 	}
 	if err := restarted.SyncCheckoutSession(ctx, input); err != nil {
@@ -426,7 +426,7 @@ func TestRestartAfterProvisionalSyncsPreservesTrialDates(t *testing.T) {
 		t.Fatal(err)
 	}
 	license = afterRevocation.eligibleAccounts["account-1"]
-	if license == nil || license.Type != models.LicenseTypeTrial || license.StartUnixSeconds != trialStart || license.ProvisionalLicense != nil {
+	if license == nil || license.Type != models.LicenseTypeTrial || license.StartUnixSeconds != trialStart || license.ProvisionalDetail != nil {
 		t.Fatalf("revocation did not restore original trial %d: %+v", trialStart, license)
 	}
 	if err := afterRevocation.SyncCheckoutSession(ctx, input); err != nil {

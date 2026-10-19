@@ -82,10 +82,10 @@ func TestFulfillCheckoutPaymentIntentStates(t *testing.T) {
 					t.Fatalf("license=%+v, want %s", license, test.wantType)
 				}
 				if test.wantType == models.LicenseTypeTrial {
-					if license.StartUnixSeconds != trialStart || license.ProvisionalLicense != nil {
+					if license.StartUnixSeconds != trialStart || license.ProvisionalDetail != nil {
 						t.Errorf("original trial was changed: %+v", license)
 					}
-				} else if license.ProvisionalLicense == nil || license.ProvisionalLicense.TrialStartUnixSeconds != trialStart {
+				} else if license.ProvisionalDetail == nil || license.ProvisionalDetail.TrialStartUnixSeconds != trialStart {
 					t.Errorf("provisional license lost original trial date: %+v", license)
 				}
 			}

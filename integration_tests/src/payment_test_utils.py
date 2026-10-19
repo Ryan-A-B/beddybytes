@@ -152,7 +152,7 @@ class PaymentBrowserTestCase(unittest.TestCase):
 
     def assert_displayed_license_dates(self, license_info):
         times = self.driver.find_elements(By.CSS_SELECTOR, "main time")
-        seconds = [license_info["start_unix_seconds"], license_info["end_unix_seconds"]]
+        seconds = [license_info["start_unix_seconds"], license_info["trial_detail"]["end_unix_seconds"]]
         self.assertEqual(len(times), 2)
         for element, timestamp in zip(times, seconds):
             expected_datetime = datetime.datetime.fromtimestamp(

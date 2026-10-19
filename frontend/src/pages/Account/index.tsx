@@ -77,7 +77,7 @@ const Account: React.FC = () => {
                             <dd className="col-9"><LicenseTime seconds={account.license.start_unix_seconds} /></dd>
                             {account.license.type === 'trial' && <>
                                 <dt className="col-3 fw-normal">Ends</dt>
-                                <dd className="col-9"><LicenseTime seconds={account.license.end_unix_seconds} /></dd>
+                                <dd className="col-9"><LicenseTime seconds={account.license.trial_detail.end_unix_seconds} /></dd>
                             </>}
                         </dl>
                         <p className="text-body-secondary small">Times shown in your local time zone.</p>

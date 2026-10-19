@@ -20,13 +20,17 @@ const (
 )
 
 type License struct {
-	Type               LicenseType         `json:"type"`
-	EndUnixSeconds     *int64              `json:"end_unix_seconds,omitempty"`
-	StartUnixSeconds   int64               `json:"start_unix_seconds"`
-	ProvisionalLicense *ProvisionalLicense `json:"provisional_license,omitempty"`
+	Type              LicenseType               `json:"type"`
+	StartUnixSeconds  int64                     `json:"start_unix_seconds"`
+	TrialDetail       *TrialLicenseDetail       `json:"trial_detail,omitempty"`
+	ProvisionalDetail *ProvisionalLicenseDetail `json:"provisional_detail,omitempty"`
 }
 
-type ProvisionalLicense struct {
+type TrialLicenseDetail struct {
+	EndUnixSeconds int64 `json:"end_unix_seconds"`
+}
+
+type ProvisionalLicenseDetail struct {
 	TrialStartUnixSeconds int64 `json:"trial_start_unix_seconds"`
 }
 
@@ -37,6 +41,8 @@ func NewTrialLicense(startUnixSeconds int64) License {
 	return License{
 		Type:             LicenseTypeTrial,
 		StartUnixSeconds: startUnixSeconds,
-		EndUnixSeconds:   &endUnixSeconds,
+		TrialDetail: &TrialLicenseDetail{
+			EndUnixSeconds: endUnixSeconds,
+		},
 	}
 }
