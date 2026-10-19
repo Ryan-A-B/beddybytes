@@ -142,11 +142,19 @@ class TestPayments(PaymentBrowserTestCase):
     def test_e06b_close_checkout_tab_and_reopen(self):
         email, password = self.create_trial_account()
         self.open_account()
-        account_window = self.driver.current_window_handle
         before = self.read_account(email, password)
         original_session = self.start_checkout()
-        self.driver.close()
-        self.driver.switch_to.window(account_window)
+        # Checkout occupies the original Account tab. Closing its only window
+        # ends WebDriver's session, so reopen with a fresh browser and sign in.
+        self.driver.quit()
+        self.browsers.remove(self.driver)
+        self.start_browser()
+        self.login_fixture_account({
+            "email": email,
+            "password": password,
+            "id": before["id"],
+            "license": before["license"],
+        })
         self.assertEqual(urlsplit(self.driver.current_url).path, "/account")
         self.assertEqual(self.driver.find_element(
             By.CSS_SELECTOR, 'section[aria-labelledby="license-heading"] h3'

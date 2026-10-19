@@ -76,9 +76,14 @@ timeouts must not be converted wholesale into skips.
   cancellation. Go to Account: the trial dates are unchanged and checkout is
   still available. Retry while the session remains open and unexpired; the
   existing Checkout Session is reused and can be completed successfully.
-- [ ] **E06b — OUTDATED: Close Checkout tab and reopen.** (`TestPayments.test_e06b_close_checkout_tab_and_reopen`) This test fails with same-tab checkout and needs adaptation. Its former new-tab scenario: close the Stripe tab. The original Account tab remains
-  open with unchanged trial dates and usable Refresh and purchase controls.
-  Refresh and reopen checkout; the original unexpired session is reused.
+- [x] **E06b — Close same-tab Checkout and reopen.** (`TestPayments.test_e06b_close_checkout_tab_and_reopen`)
+  Close the browser while Stripe occupies the original Account tab. Start a fresh
+  browser session and sign back in to the same account. Verify its identity,
+  Trial license and dates are unchanged; Refresh and purchase controls remain
+  usable. Reopen checkout and verify the original open, unexpired Checkout Session
+  is reused. Updated and verified against the running local stack on 19 October
+  2026: **PASS — 9.150 seconds**, fresh browser sign-in and identical sandbox
+  Checkout Session ID. No payment submitted.
 - [x] **E07 — Card decline remains unpaid.** (`TestPayments.test_e07_declined_card_remains_trial_and_can_retry`) Submit a sandbox decline card.
   Verify Stripe's accessible card-validation error (without matching Stripe wording); do not assume a decline redirects to
   our callback. Return to Account through cancellation/navigation and verify
