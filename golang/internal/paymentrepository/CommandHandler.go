@@ -35,6 +35,7 @@ type CommandHandler struct {
 
 	eligibleAccounts     map[string]*models.License
 	sessionInfoByAccount map[string]*CheckoutSessionInfo
+	sessionIDs           map[string]struct{}
 
 	startCheckoutSessionFutureForAccount   map[string]*syncx.Future[*StartCheckoutSessionOutput]
 	coalescingSyncQueueByCheckoutSessionID map[string]*CoalescingSyncQueue
@@ -63,6 +64,7 @@ func NewCommandHandler(input NewCommandHandlerInput) *CommandHandler {
 
 		eligibleAccounts:     make(map[string]*models.License),
 		sessionInfoByAccount: make(map[string]*CheckoutSessionInfo),
+		sessionIDs:           make(map[string]struct{}),
 
 		startCheckoutSessionFutureForAccount:   make(map[string]*syncx.Future[*StartCheckoutSessionOutput]),
 		coalescingSyncQueueByCheckoutSessionID: make(map[string]*CoalescingSyncQueue),
@@ -190,9 +192,17 @@ type SyncCheckoutSessionInput struct {
 	CheckoutSessionID string
 }
 
-func (handler *CommandHandler) SyncCheckoutSession(ctx context.Context, input SyncCheckoutSessionInput) error {
+func (handler *CommandHandler) SyncCheckoutSession(ctx context.Context, input SyncCheckoutSessionInput) (err error) {
 	var future *syncx.Future[struct{}]
 	syncx.WithLock(&handler.mutex, func() {
+		err = handler.catchup(ctx)
+		if err != nil {
+			return
+		}
+		if _, exists := handler.sessionIDs[input.CheckoutSessionID]; !exists {
+			err = ErrCheckoutSessionNotFound
+			return
+		}
 		coalescingSyncQueue, ok := handler.coalescingSyncQueueByCheckoutSessionID[input.CheckoutSessionID]
 		if !ok {
 			promise := syncx.NewPromise[struct{}]()
@@ -227,7 +237,10 @@ func (handler *CommandHandler) SyncCheckoutSession(ctx context.Context, input Sy
 		}
 		future = coalescingSyncQueue.next
 	})
-	_, err := future.Result()
+	if err != nil {
+		return err
+	}
+	_, err = future.Result()
 	return err
 }
 
@@ -442,6 +455,7 @@ func (handler *CommandHandler) applyStripeCheckoutSessionStarted(ctx context.Con
 	var detail events.StripeCheckoutSessionStartedDetail
 	err := json.Unmarshal(event.Data, &detail)
 	fatal.OnError(err)
+	handler.sessionIDs[detail.SessionID] = struct{}{}
 	handler.sessionInfoByAccount[event.AccountID] = &CheckoutSessionInfo{
 		CheckoutSessionID: detail.SessionID,
 		CheckoutURL:       detail.CheckoutURL,
@@ -450,6 +464,7 @@ func (handler *CommandHandler) applyStripeCheckoutSessionStarted(ctx context.Con
 }
 
 func (handler *CommandHandler) removeSessionInfo(accountID string, sessionID string) {
+	// sessionIDs should be removed after a grace period.
 	if sessionInfo, exists := handler.sessionInfoByAccount[accountID]; exists && sessionInfo.CheckoutSessionID == sessionID {
 		delete(handler.sessionInfoByAccount, accountID)
 	}
