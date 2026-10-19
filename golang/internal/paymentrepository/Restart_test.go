@@ -134,13 +134,13 @@ func TestRestartStartsNewSyncWhenOldSyncIsInFlight(t *testing.T) {
 		retrieve: func(ctx context.Context, id string) (*stripe.CheckoutSession, error) {
 			if retrieves.Add(1) == 1 {
 				close(entered)
-				<-ctx.Done()
-				return nil, ctx.Err()
+				<-oldCtx.Done()
+				return nil, oldCtx.Err()
 			}
 			return &stripe.CheckoutSession{ID: id, ClientReferenceID: "account-1", Status: stripe.CheckoutSessionStatusOpen}, nil
 		},
 	}
-	old := NewCommandHandler(NewCommandHandlerInput{Context: oldCtx, EventLog: log, CheckoutSessionRepository: repository})
+	old := NewCommandHandler(NewCommandHandlerInput{EventLog: log, CheckoutSessionRepository: repository})
 	oldDone := make(chan error, 1)
 	go func() {
 		oldDone <- old.SyncCheckoutSession(oldCtx, SyncCheckoutSessionInput{CheckoutSessionID: "cs_test_1"})
@@ -150,7 +150,7 @@ func TestRestartStartsNewSyncWhenOldSyncIsInFlight(t *testing.T) {
 	case <-ctx.Done():
 		t.Fatal("old handler never reached Retrieve")
 	}
-	// The old handler still has syncInProgress set, but the fresh handler
+	// The old handler still has a sync in progress, but the fresh handler
 	// shares only its durable log and must perform another retrieval.
 	restarted := NewCommandHandler(NewCommandHandlerInput{EventLog: log, CheckoutSessionRepository: repository})
 	newDone := make(chan error, 1)

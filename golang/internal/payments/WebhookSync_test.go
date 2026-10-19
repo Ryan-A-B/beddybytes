@@ -70,7 +70,7 @@ func TestSignedThinWebhookRetrievesAndAcknowledgesOnlyAfterDurableFulfillment(t 
 				}
 				return &http.Response{StatusCode: http.StatusOK, Header: http.Header{"Content-Type": []string{"application/json"}}, Request: request, Body: io.NopCloser(strings.NewReader(`{"id":"cs_fixture","client_reference_id":"account-1","status":"complete","payment_status":"paid","payment_intent":{"id":"pi_fixture","status":"succeeded"}}`))}, nil
 			})}})
-			commands := paymentrepository.NewStripeCommandHandler(paymentrepository.NewStripeCommandHandlerInput{Context: lifetime, EventLog: log, Client: stripe.NewClient("sk_test_fixture", stripe.WithBackends(&stripe.Backends{API: backend})), WebhookSecret: "whsec_fixture"})
+			commands := paymentrepository.NewStripeCommandHandler(paymentrepository.NewStripeCommandHandlerInput{EventLog: log, Client: stripe.NewClient("sk_test_fixture", stripe.WithBackends(&stripe.Backends{API: backend})), WebhookSecret: "whsec_fixture"})
 			router := paymentRouter(commands)
 			payload := []byte(`{"id":"evt_fixture","object":"v2.core.event","type":"v1.checkout.session.completed","related_object":{"id":"cs_fixture","type":"checkout.session","url":"/v1/checkout/sessions/cs_fixture"}}`)
 			signed := stripe.GenerateTestSignedPayload(&stripe.UnsignedPayload{Payload: payload, Secret: "whsec_fixture"})
@@ -124,6 +124,62 @@ func TestSignedThinWebhookRetrievesAndAcknowledgesOnlyAfterDurableFulfillment(t 
 			}
 			if retrieves.Load() != 1 {
 				t.Fatalf("retrieves=%d", retrieves.Load())
+			}
+		})
+	}
+}
+
+// Unpaid is a reconciled state, not a sync error. A later notification resolves it.
+func TestSuccessReturnAllowsUnpaidCheckoutToResolveLater(t *testing.T) {
+	for _, test := range []struct {
+		name, session string
+		license       models.LicenseType
+	}{
+		{"processing", `{"id":"cs_fixture","client_reference_id":"account-1","status":"complete","payment_status":"unpaid","payment_intent":{"id":"pi_fixture","status":"processing"}}`, models.LicenseTypeProvisional},
+		{"open", `{"id":"cs_fixture","client_reference_id":"account-1","status":"open","payment_status":"unpaid"}`, models.LicenseTypeTrial},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			log := eventlog.NewFileEventLog(&eventlog.NewFileEventLogInput{FolderPath: t.TempDir()})
+			if _, err := log.Append(context.Background(), eventlog.AppendInput{Type: events.TypeAccountCreatedV2, Data: []byte(`{"account_id":"account-1"}`)}); err != nil {
+				t.Fatal(err)
+			}
+			sessionJSON := test.session
+			var retrieves int
+			backend := stripe.GetBackendWithConfig(stripe.APIBackend, &stripe.BackendConfig{MaxNetworkRetries: stripe.Int64(0), HTTPClient: &http.Client{Transport: webhookSyncTransport(func(request *http.Request) (*http.Response, error) {
+				retrieves++
+				return &http.Response{StatusCode: http.StatusOK, Header: http.Header{"Content-Type": []string{"application/json"}}, Request: request, Body: io.NopCloser(strings.NewReader(sessionJSON))}, nil
+			})}})
+			commands := paymentrepository.NewStripeCommandHandler(paymentrepository.NewStripeCommandHandlerInput{EventLog: log, Client: stripe.NewClient("sk_test_fixture", stripe.WithBackends(&stripe.Backends{API: backend})), WebhookSecret: "whsec_fixture"})
+			router := paymentRouter(commands)
+			response := httptest.NewRecorder()
+			router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/payments/stripe/success?session_id=cs_fixture", nil))
+			if response.Code != http.StatusSeeOther || response.Header().Get("Location") != "https://app.example/payments/callback?keep=value" {
+				t.Fatalf("sync return status=%d location=%q", response.Code, response.Header().Get("Location"))
+			}
+			query := accountrepository.NewQueryHandler(accountrepository.NewQueryHandlerInput{EventLog: log})
+			license, err := query.GetLicenseForAccount(context.Background(), "account-1")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if license.Type != test.license {
+				t.Fatalf("unpaid license=%s want %s", license.Type, test.license)
+			}
+			sessionJSON = `{"id":"cs_fixture","client_reference_id":"account-1","status":"complete","payment_status":"paid","payment_intent":{"id":"pi_fixture","status":"succeeded"}}`
+			payload := []byte(`{"id":"evt_paid","object":"v2.core.event","type":"v1.checkout.session.async_payment_succeeded","related_object":{"id":"cs_fixture","type":"checkout.session","url":"/v1/checkout/sessions/cs_fixture"}}`)
+			signed := stripe.GenerateTestSignedPayload(&stripe.UnsignedPayload{Payload: payload, Secret: "whsec_fixture"})
+			request := httptest.NewRequest(http.MethodPost, "/payments/stripe/webhook", bytes.NewReader(payload))
+			request.Header.Set("Stripe-Signature", signed.Header)
+			paidResponse := httptest.NewRecorder()
+			router.ServeHTTP(paidResponse, request)
+			if paidResponse.Code != http.StatusOK {
+				t.Fatalf("paid notification status=%d body=%s", paidResponse.Code, paidResponse.Body)
+			}
+			license, err = query.GetLicenseForAccount(context.Background(), "account-1")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if license.Type != models.LicenseTypePerpetual || retrieves != 2 {
+				t.Fatalf("later notification license=%s retrieves=%d", license.Type, retrieves)
 			}
 		})
 	}

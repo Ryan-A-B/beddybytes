@@ -8,6 +8,7 @@ import (
 
 	"github.com/stripe/stripe-go/v87"
 
+	"github.com/Ryan-A-B/beddybytes/golang/internal/accountrepository"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/eventlog"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/events"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/models"
@@ -78,9 +79,6 @@ func TestRetrieveFailureAllowsSyncRetry(t *testing.T) {
 	input := SyncCheckoutSessionInput{CheckoutSessionID: "cs_retry"}
 	if err := handler.SyncCheckoutSession(ctx, input); !errors.Is(err, retrieveError) {
 		t.Fatalf("first sync error=%v, want %v", err, retrieveError)
-	}
-	if len(handler.syncInProgress) != 0 {
-		t.Fatal("failed Retrieve left sync in progress")
 	}
 	if err := handler.SyncCheckoutSession(ctx, input); err != nil {
 		t.Fatal(err)
@@ -222,9 +220,6 @@ func TestLicensePersistenceFailureConvergesOnRetry(t *testing.T) {
 					if err := handler.SyncCheckoutSession(ctx, input); !errors.Is(err, appendError) {
 						t.Fatalf("first sync error=%v, want %v", err, appendError)
 					}
-					if len(handler.syncInProgress) != 0 {
-						t.Fatal("append failure left sync in progress")
-					}
 					if err := handler.catchup(ctx); err != nil {
 						t.Fatal(err)
 					}
@@ -274,32 +269,35 @@ func TestLicensePersistenceFailureConvergesOnRetry(t *testing.T) {
 	}
 }
 
-func TestSyncReturnsPaymentOutcome(t *testing.T) {
+func TestSyncAppliesStripePaymentState(t *testing.T) {
 	for _, test := range []struct {
 		name          string
 		status        stripe.CheckoutSessionStatus
 		paymentStatus stripe.CheckoutSessionPaymentStatus
 		intentStatus  stripe.PaymentIntentStatus
-		want          SyncCheckoutSessionOutput
+		want          models.LicenseType
 	}{
-		{name: "paid", status: stripe.CheckoutSessionStatusComplete, paymentStatus: stripe.CheckoutSessionPaymentStatusPaid, want: SyncCheckoutSessionOutput{Paid: true}},
-		{name: "processing", status: stripe.CheckoutSessionStatusComplete, paymentStatus: stripe.CheckoutSessionPaymentStatusUnpaid, intentStatus: stripe.PaymentIntentStatusProcessing, want: SyncCheckoutSessionOutput{Processing: true}},
-		{name: "failed", status: stripe.CheckoutSessionStatusComplete, paymentStatus: stripe.CheckoutSessionPaymentStatusUnpaid, intentStatus: stripe.PaymentIntentStatusRequiresPaymentMethod},
-		{name: "open", status: stripe.CheckoutSessionStatusOpen},
-		{name: "expired", status: stripe.CheckoutSessionStatusExpired},
+		{name: "paid", status: stripe.CheckoutSessionStatusComplete, paymentStatus: stripe.CheckoutSessionPaymentStatusPaid, want: models.LicenseTypePerpetual},
+		{name: "processing", status: stripe.CheckoutSessionStatusComplete, paymentStatus: stripe.CheckoutSessionPaymentStatusUnpaid, intentStatus: stripe.PaymentIntentStatusProcessing, want: models.LicenseTypeProvisional},
+		{name: "failed", status: stripe.CheckoutSessionStatusComplete, paymentStatus: stripe.CheckoutSessionPaymentStatusUnpaid, intentStatus: stripe.PaymentIntentStatusRequiresPaymentMethod, want: models.LicenseTypeTrial},
+		{name: "open", status: stripe.CheckoutSessionStatusOpen, want: models.LicenseTypeTrial},
+		{name: "expired", status: stripe.CheckoutSessionStatusExpired, want: models.LicenseTypeTrial},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			handler := NewCommandHandler(NewCommandHandlerInput{EventLog: newRestartTestLog(t), CheckoutSessionRepository: &checkoutSessionRepositoryStub{
-				retrieve: func(_ context.Context, id string) (*stripe.CheckoutSession, error) {
-					return &stripe.CheckoutSession{ID: id, ClientReferenceID: "account-1", Status: test.status, PaymentStatus: test.paymentStatus, PaymentIntent: &stripe.PaymentIntent{ID: "pi_outcome", Status: test.intentStatus}}, nil
-				},
-			}})
-			output, err := handler.SyncCheckoutSessionWithResult(context.Background(), SyncCheckoutSessionInput{CheckoutSessionID: "cs_outcome"})
+			log := newRestartTestLog(t)
+			handler := NewCommandHandler(NewCommandHandlerInput{EventLog: log, CheckoutSessionRepository: &checkoutSessionRepositoryStub{retrieve: func(_ context.Context, id string) (*stripe.CheckoutSession, error) {
+				return &stripe.CheckoutSession{ID: id, ClientReferenceID: "account-1", Status: test.status, PaymentStatus: test.paymentStatus, PaymentIntent: &stripe.PaymentIntent{ID: "pi_outcome", Status: test.intentStatus}}, nil
+			}}})
+			if err := handler.SyncCheckoutSession(context.Background(), SyncCheckoutSessionInput{CheckoutSessionID: "cs_outcome"}); err != nil {
+				t.Fatal(err)
+			}
+			query := accountrepository.NewQueryHandler(accountrepository.NewQueryHandlerInput{EventLog: log})
+			license, err := query.GetLicenseForAccount(context.Background(), "account-1")
 			if err != nil {
 				t.Fatal(err)
 			}
-			if *output != test.want {
-				t.Fatalf("outcome=%+v, want %+v", *output, test.want)
+			if license.Type != test.want {
+				t.Fatalf("license=%s want %s", license.Type, test.want)
 			}
 		})
 	}

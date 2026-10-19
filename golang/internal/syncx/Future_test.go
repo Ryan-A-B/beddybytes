@@ -1,4 +1,4 @@
-package future
+package syncx
 
 import (
 	"errors"

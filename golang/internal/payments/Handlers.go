@@ -19,7 +19,7 @@ import (
 // verification, fulfillment and event persistence belong to the repository.
 type Commands interface {
 	StartCheckoutSession(context.Context, paymentrepository.StartCheckoutSessionInput) (*paymentrepository.StartCheckoutSessionOutput, error)
-	SyncCheckoutSessionWithResult(context.Context, paymentrepository.SyncCheckoutSessionInput) (*paymentrepository.SyncCheckoutSessionOutput, error)
+	SyncCheckoutSession(context.Context, paymentrepository.SyncCheckoutSessionInput) error
 	RecordCheckoutSessionEvent(context.Context, paymentrepository.RecordCheckoutSessionEventInput) error
 }
 
@@ -67,19 +67,13 @@ func (handlers *Handlers) Success(responseWriter http.ResponseWriter, request *h
 		handlers.redirect(responseWriter, request, "invalid_request")
 		return
 	}
-	output, err := handlers.Commands.SyncCheckoutSessionWithResult(request.Context(), paymentrepository.SyncCheckoutSessionInput{CheckoutSessionID: sessionID})
+	err := handlers.Commands.SyncCheckoutSession(request.Context(), paymentrepository.SyncCheckoutSessionInput{CheckoutSessionID: sessionID})
 	if err != nil {
 		logx.Warnln(err)
 		handlers.redirect(responseWriter, request, "temporarily_unavailable")
 		return
 	}
-	if output.Paid {
-		handlers.redirect(responseWriter, request, "")
-	} else if output.Processing {
-		handlers.redirect(responseWriter, request, "payment_pending")
-	} else {
-		handlers.redirect(responseWriter, request, "payment_failed")
-	}
+	handlers.redirect(responseWriter, request, "")
 }
 
 func (handlers *Handlers) Cancel(responseWriter http.ResponseWriter, request *http.Request) {

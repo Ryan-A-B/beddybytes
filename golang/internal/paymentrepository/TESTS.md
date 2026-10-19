@@ -1,5 +1,18 @@
 # Payment command handler test list
 
+## 19 October 2026 review status
+
+The error-only `SyncCheckoutSession` and `future` → `syncx` migration compile
+through backend constructors, HTTP stubs and tests. Payment-state assertions use
+projected licenses rather than the removed result type. Queue tests invoke the
+public command. Ryan fixed promotion of `next` to `current` and clearing `next`
+before retrieval, allowing requests during every pass to schedule another pass.
+
+Unpaid/processing sync is intentionally successful and may resolve through a later
+notification. Signed HTTP coverage verifies provisional/trial state followed by
+a paid notification granting perpetual access. Request cancellation and sync
+execution deadlines are explicitly outside scope; tests no longer require them.
+
 Maintain this list as tests are added and run. Checked items have passing tests;
 unchecked items are untested unless explicitly marked FAILING, POLICY PENDING,
 or ACCEPTED LIMITATION (a skipped reproducer, not a passing test).
@@ -40,9 +53,9 @@ checkout session repository; do not call Stripe.
 
 ## Syncing checkout
 
-- [x] One retrieve-and-fulfill pass runs per session; arrivals during each pass coalesce into a fresh follow-up pass. (`TestSyncQueueCoalescesAndRetrievesAgainForRequestsDuringEveryPass`)
+- [x] One retrieve-and-fulfill pass runs per session; arrivals during each pass coalesce into a fresh follow-up pass. (`TestSyncQueueRetrievesAgainForRequestsDuringEveryPass`)
 - [x] Different sessions can sync concurrently. (`TestDifferentSessionsCanSyncConcurrently`)
-- [x] Retrieval failure clears the in-flight marker so retry works. (`TestRetrieveFailureAllowsSyncRetry`)
+- [x] Retrieval failure does not poison subsequent sync requests. (`TestRetrieveFailureAllowsSyncRetry`)
 - [x] Completed/unpaid grants or retains provisional access only when the expanded PaymentIntent is processing; other statuses revoke it and preserve the original trial. (`TestFulfillCheckoutPaymentIntentStates`)
 - [x] Missing or unexpanded PaymentIntent returns an error without changing access. (`TestFulfillCheckoutPaymentIntentStates`)
 - [x] Stripe Retrieve requests payment_intent expansion. (`internal/checkoutsessions/Stripe_test.go`: `TestRetrieveExpandsPaymentIntent`)
@@ -50,10 +63,12 @@ checkout session repository; do not call Stripe.
 - [x] An expired session emits no license change; it cannot transition from completed and must not revoke access associated with another checkout. (`TestFulfillCheckoutPaymentIntentStates`, expired-session subtests)
 - [x] Nil sessions and unexpected session/payment statuses return an error without appending license events. (`TestFulfillCheckoutRejectsInvalidSessionWithoutEvents`)
 
-- [x] Sync reports paid, processing and unsuccessful outcomes for the browser callback after fulfillment succeeds. (`TestSyncReturnsPaymentOutcome`)
-- [x] Each concurrent caller waits for a fresh retrieval covering its request; outcomes reflect that pass rather than a fabricated Processing result. (`TestSyncQueueCoalescesAndRetrievesAgainForRequestsDuringEveryPass`)
+- [x] Error-only sync applies paid, processing, failed, open and expired Stripe states to projected licenses. (`TestSyncAppliesStripePaymentState`)
+- [x] Each concurrent caller waits for a fresh retrieval covering its request; outcomes reflect that pass rather than a fabricated Processing result. (`TestSyncQueueRetrievesAgainForRequestsDuringEveryPass`)
 - [x] Retrieval/persistence failure reaches the current batch and does not discard queued work. (`TestSyncQueueRunsPendingPassAfterRetrievalOrPersistenceFailure`)
-- [x] Browser cancellation does not cancel shared retrieval; webhooks wait for fresh fulfillment. Shared passes have bounded deadlines and service cancellation resolves queued work. (`TestWebhookWaitsForFreshDurableSyncAndBrowserCancellationDoesNotStopIt`, `TestSyncQueueServiceCancellationStopsRunningAndQueuedPasses`)
+- [x] A webhook arriving during an active browser sync waits for its fresh pass and fulfillment. (`TestWebhookWaitsForFreshDurableSync`)
+- [x] Unpaid browser sync succeeds, preserves provisional/trial access, and a later signed paid notification upgrades the license. (`payments/TestSuccessReturnAllowsUnpaidCheckoutToResolveLater`)
+- [x] Three sequential requests retrieve three times; concurrent bursts continue after completed passes with at most one retrieval at a time. (`TestSequentialSyncRequestsAlwaysRetrieveFreshState`, `TestConcurrentSyncRequestsAcrossIdleTransitionsAllComplete`)
 
 ## Restart recovery
 
@@ -76,7 +91,7 @@ a durable lock or a guarantee against duplicate Stripe sessions after a crash.
 - [x] Polling retrieves a failed PaymentIntent and revokes provisional access without receiving a failure webhook. (`TestSyncFailedPaymentIntentRevokesProvisionalLicense`)
 - [x] A verified thin notification triggers retrieval with PaymentIntent expansion; repeated/stale completion notifications use current state and do not resurrect failed provisional access. (`TestWebhookSyncsCurrentStateAndIgnoresStaleNotificationState`)
 - [x] Webhook-only completion grants the license after persistence. A signed HTTP notification passes through the SDK parser, real Stripe adapter and durable event log; append failure returns HTTP 500 without granting access. (`payments/TestSignedThinWebhookRetrievesAndAcknowledgesOnlyAfterDurableFulfillment`)
-- [x] Browser sync and webhook notifications share the same ordered queue; no webhook acknowledges an older in-flight retrieval. (`TestWebhookWaitsForFreshDurableSyncAndBrowserCancellationDoesNotStopIt`)
+- [x] Browser sync and webhook notifications share the same ordered queue; no webhook acknowledges an older in-flight retrieval. (`TestWebhookWaitsForFreshDurableSync`)
 - [x] Account or license events appended during retrieval are caught up before applying its result. (`TestSyncCatchesUpEventsArrivingDuringRetrieve`)
 
 The earlier webhook-before-checkout-started case is removed: this flow only
@@ -95,11 +110,12 @@ under Creating checkout instead.
 
 ## Current status
 
-18 October 2026: success callbacks and verified thin notifications both sync current
-Stripe state. Same-session requests are serialized and arrivals during a pass
-schedule a fresh pass. Covered waiters share the new pass's durable result.
-Caller cancellation does not interrupt shared work; each pass has a 30-second
-deadline and the handler lifetime context. No SDK upgrade was needed.
+19 October 2026: success callbacks and verified thin notifications both sync current
+Stripe state through per-session current/next futures. Promotion now clears next
+before each new retrieval, so follow-up requests never reuse a completed queued
+result. The command returns error only; unpaid is a valid state that later Stripe
+notifications can resolve. Future/promise utilities now live in `syncx`. Caller
+cancellation and shared execution deadlines are outside the accepted scope.
 
 The local CLI forwards the four `v1.checkout.session.*` thin notifications from
 `@self`. QA destinations must use Thin with the corresponding signing secret.

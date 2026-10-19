@@ -17,33 +17,33 @@ form `access_token`. The account ID comes from the verified token. The account
 page submits an ordinary browser form POST to navigate to Checkout. An ineligible
 account receives 403. Other start command failures receive 500.
 
-Set `FrontendURL` to the app's `/payments/callback` route. A completed, paid
-session returns without an `error` parameter. Other returns use these codes:
-
-- `payment_cancelled`: the browser left Checkout.
-- `payment_failed`: the retrieved checkout is not paid or processing.
-- `payment_pending`: the retrieved payment is processing.
-- `temporarily_unavailable`: retrieval, validation or persistence failed.
-- `invalid_request`: the callback has no session ID.
+Set `FrontendURL` to the app's `/payments/callback` route. After an error-free
+`SyncCheckoutSession`, the browser redirects without an `error` parameter. Unpaid
+or processing is a valid reconciled state, not a command error; later verified
+webhook notifications retrieve current Stripe state and resolve the license.
+Retrieval, validation and persistence failures use `temporarily_unavailable`, a
+missing session ID uses `invalid_request`, and browser cancellation uses
+`payment_cancelled`. The frontend still understands older pending/failed result
+codes, but successful sync does not produce them.
 
 The callback displays a single Payment Successful or Payment Failed heading and
 an account link. It does not change access, refresh tokens or poll. The account
 page fetches on entry and when Refresh is clicked. Licenses are display data;
 `/accounts/current` supplies trial `end_unix_seconds` as start plus seven days.
 
-`SyncCheckoutSessionWithResult` reports paid/processing only after fulfillment
-succeeds. Existing callers that only need reconciliation can continue using
-`SyncCheckoutSession`. Verified thin webhooks and browser success both request
-the same per-session sync. One retrieval and durable fulfillment runs at a time. Requests during a
-pass queue a fresh pass; requests within that group share its result. Each caller
-waits for a retrieval started after its request. A webhook is acknowledged only
-after its covering pass succeeds. Retrieval/persistence failures reach callers and
-leave subsequent requests retryable.
+`SyncCheckoutSession` returns only an error. Verified thin webhooks and browser
+success both request the same per-session sync. `CoalescingSyncQueue` holds
+current/next futures: a request during the current pass creates or shares the
+next future. Its runner waits for the current pass, promotes next to current,
+clears next under the command-handler mutex, then retrieves and fulfills. Requests
+during that new pass can schedule another pass. Callers share each queued pass's
+result, including persistence errors; an earlier failed pass does not prevent
+the next one running. Queue entries are retained between requests.
 
-Each shared pass has a 30-second timeout and the handler's lifetime context.
-Cancelling a browser/webhook request cancels only that caller's wait, without
-interrupting shared work. Different Checkout Sessions can sync concurrently.
-Browser cancellation leaves checkout reusable.
+Sync execution uses background contexts, and callers wait for their future.
+Caller cancellation, per-pass timeouts and service shutdown wiring are outside
+the current scope. Different Checkout Sessions can sync concurrently. Browser
+cancellation leaves checkout reusable.
 
 Webhook bodies are limited to 1 MiB. Missing signatures and unreadable bodies
 receive 400; oversized bodies receive 413. Command errors receive 500, including

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -16,7 +15,7 @@ func TestPaymentRoutesRegisterConfiguredCallbacks(t *testing.T) {
 	t.Setenv("API_ORIGIN", "https://api.example")
 	t.Setenv("FRONTEND_PAYMENT_CALLBACK_URL", "https://app.example/payments/callback")
 	router := mux.NewRouter()
-	addPaymentRoutes(context.Background(), router, nil, []byte("test-key"))
+	addPaymentRoutes(router, nil, []byte("test-key"))
 	for _, test := range []struct {
 		method, path string
 		want         int

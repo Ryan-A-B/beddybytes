@@ -9,8 +9,8 @@ import (
 
 	"github.com/Ryan-A-B/beddybytes/golang/internal/eventlog"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/events"
-	"github.com/Ryan-A-B/beddybytes/golang/internal/future"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/paymentrepository/internal/checkoutsessions"
+	"github.com/Ryan-A-B/beddybytes/golang/internal/syncx"
 	"github.com/stripe/stripe-go/v87"
 )
 
@@ -28,7 +28,7 @@ func newQueuedSyncTestHandler(t *testing.T, log eventlog.EventLog) (*CommandHand
 	lifetime, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 	calls := make(chan syncRetrieveCall, 10)
-	handler := NewCommandHandler(NewCommandHandlerInput{Context: lifetime, EventLog: log, CheckoutSessionRepository: &checkoutSessionRepositoryStub{
+	handler := NewCommandHandler(NewCommandHandlerInput{EventLog: log, CheckoutSessionRepository: &checkoutSessionRepositoryStub{
 		parseNotification: func([]byte, string) (*checkoutsessions.Notification, error) {
 			return &checkoutsessions.Notification{CheckoutSessionID: "cs_queue"}, nil
 		},
@@ -43,6 +43,8 @@ func newQueuedSyncTestHandler(t *testing.T, log eventlog.EventLog) (*CommandHand
 				return result.session, result.err
 			case <-ctx.Done():
 				return nil, ctx.Err()
+			case <-lifetime.Done():
+				return nil, lifetime.Err()
 			}
 		},
 	}})
@@ -58,31 +60,31 @@ func nextSyncRetrieve(t *testing.T, calls <-chan syncRetrieveCall) syncRetrieveC
 		return syncRetrieveCall{}
 	}
 }
-func awaitSyncResult(t *testing.T, result *future.Future[*SyncCheckoutSessionOutput]) (*SyncCheckoutSessionOutput, error) {
+func awaitSyncResult(t *testing.T, result *syncx.Future[struct{}]) (struct{}, error) {
 	t.Helper()
 	select {
 	case <-result.Ready():
 		return result.Result()
 	case <-time.After(5 * time.Second):
 		t.Fatal("sync did not finish")
-		return nil, nil
+		return struct{}{}, nil
 	}
 }
 func queuedSession(status stripe.CheckoutSessionPaymentStatus, intent stripe.PaymentIntentStatus) *stripe.CheckoutSession {
 	return &stripe.CheckoutSession{ID: "cs_queue", ClientReferenceID: "account-1", Status: stripe.CheckoutSessionStatusComplete, PaymentStatus: status, PaymentIntent: &stripe.PaymentIntent{Status: intent}}
 }
 
-func TestSyncQueueCoalescesAndRetrievesAgainForRequestsDuringEveryPass(t *testing.T) {
+func TestSyncQueueRetrievesAgainForRequestsDuringEveryPass(t *testing.T) {
 	log := newRestartTestLog(t)
 	handler, calls := newQueuedSyncTestHandler(t, log)
 	input := SyncCheckoutSessionInput{CheckoutSessionID: "cs_queue"}
-	first := handler.requestCheckoutSessionSync(input)
+	first := requestSyncForTest(t, handler, input)
 	firstCall := nextSyncRetrieve(t, calls)
-	second := handler.requestCheckoutSessionSync(input)
-	third := handler.requestCheckoutSessionSync(input)
+	second := requestSyncForTest(t, handler, input)
+	waitForQueuedSync(t, handler)
 	select {
 	case <-second.Ready():
-		t.Fatal("queued caller returned before a fresh retrieval")
+		t.Fatal("queued caller returned before fresh retrieval")
 	default:
 	}
 	select {
@@ -92,40 +94,27 @@ func TestSyncQueueCoalescesAndRetrievesAgainForRequestsDuringEveryPass(t *testin
 	}
 	firstCall.complete <- syncRetrieveResult{session: queuedSession(stripe.CheckoutSessionPaymentStatusUnpaid, stripe.PaymentIntentStatusProcessing)}
 	secondCall := nextSyncRetrieve(t, calls)
-	firstOutput, err := awaitSyncResult(t, first)
-	if err != nil || !firstOutput.Processing {
-		t.Fatalf("first output=%+v err=%v", firstOutput, err)
+	if _, err := awaitSyncResult(t, first); err != nil {
+		t.Fatal(err)
 	}
-	// A request during the second pass must cause a third pass.
-	fourth := handler.requestCheckoutSessionSync(input)
+	// Wait for enrollment during the second pass before releasing its retrieval.
+	third := requestSyncForTest(t, handler, input)
+	waitForQueuedSync(t, handler)
 	secondCall.complete <- syncRetrieveResult{session: queuedSession(stripe.CheckoutSessionPaymentStatusUnpaid, stripe.PaymentIntentStatusRequiresPaymentMethod)}
 	thirdCall := nextSyncRetrieve(t, calls)
-	secondOutput, err := awaitSyncResult(t, second)
-	if err != nil || secondOutput.Paid || secondOutput.Processing {
-		t.Fatalf("second output=%+v err=%v", secondOutput, err)
-	}
-	thirdOutput, err := awaitSyncResult(t, third)
-	if err != nil || thirdOutput != secondOutput {
-		t.Fatalf("batch did not share result: %+v %v", thirdOutput, err)
+	if _, err := awaitSyncResult(t, second); err != nil {
+		t.Fatal(err)
 	}
 	select {
-	case <-fourth.Ready():
-		t.Fatal("third-pass waiter returned before retrieval finished")
+	case <-third.Ready():
+		t.Fatal("third pass returned before retrieval finished")
 	default:
 	}
 	thirdCall.complete <- syncRetrieveResult{session: queuedSession(stripe.CheckoutSessionPaymentStatusPaid, stripe.PaymentIntentStatusSucceeded)}
-	fourthOutput, err := awaitSyncResult(t, fourth)
-	if err != nil || !fourthOutput.Paid {
-		t.Fatalf("last output=%+v err=%v", fourthOutput, err)
+	if _, err := awaitSyncResult(t, third); err != nil {
+		t.Fatal(err)
 	}
-	handler.mutex.Lock()
-	remaining := len(handler.syncInProgress)
-	handler.mutex.Unlock()
-	if remaining != 0 {
-		t.Fatal("idle runner left state behind")
-	}
-	// A request after the transition to idle must start a new runner.
-	afterIdle := handler.requestCheckoutSessionSync(input)
+	afterIdle := requestSyncForTest(t, handler, input)
 	nextSyncRetrieve(t, calls).complete <- syncRetrieveResult{session: queuedSession(stripe.CheckoutSessionPaymentStatusPaid, stripe.PaymentIntentStatusSucceeded)}
 	if _, err := awaitSyncResult(t, afterIdle); err != nil {
 		t.Fatal(err)
@@ -134,6 +123,9 @@ func TestSyncQueueCoalescesAndRetrievesAgainForRequestsDuringEveryPass(t *testin
 	iterator := log.GetEventIterator(context.Background(), eventlog.GetEventIteratorInput{})
 	for iterator.Next(context.Background()) {
 		counts[iterator.Event().Type]++
+	}
+	if err := iterator.Err(); err != nil {
+		t.Fatal(err)
 	}
 	for _, eventType := range []eventlog.EventType{events.TypeProvisionalLicenseGranted, events.TypeProvisionalLicenseRevoked, events.TypePerpetualLicenseGranted} {
 		if counts[eventType] != 1 {
@@ -160,9 +152,10 @@ func TestSyncQueueRunsPendingPassAfterRetrievalOrPersistenceFailure(t *testing.T
 			}}
 			handler, calls := newQueuedSyncTestHandler(t, intercepted)
 			input := SyncCheckoutSessionInput{CheckoutSessionID: "cs_queue"}
-			first := handler.requestCheckoutSessionSync(input)
+			first := requestSyncForTest(t, handler, input)
 			firstCall := nextSyncRetrieve(t, calls)
-			pending := handler.requestCheckoutSessionSync(input)
+			pending := requestSyncForTest(t, handler, input)
+			waitForQueuedSync(t, handler)
 			result := syncRetrieveResult{session: queuedSession(stripe.CheckoutSessionPaymentStatusPaid, stripe.PaymentIntentStatusSucceeded)}
 			if !persistence {
 				result.err = failure
@@ -172,8 +165,8 @@ func TestSyncQueueRunsPendingPassAfterRetrievalOrPersistenceFailure(t *testing.T
 			if _, err := awaitSyncResult(t, first); !errors.Is(err, failure) {
 				t.Fatalf("error=%v want %v", err, failure)
 			}
-			if output, err := awaitSyncResult(t, pending); err != nil || !output.Paid {
-				t.Fatalf("queued retry=%+v %v", output, err)
+			if _, err := awaitSyncResult(t, pending); err != nil {
+				t.Fatal(err)
 			}
 		})
 	}
@@ -189,8 +182,8 @@ func waitForQueuedSync(t *testing.T, handler *CommandHandler) {
 	defer tick.Stop()
 	for {
 		handler.mutex.Lock()
-		state := handler.syncInProgress["cs_queue"]
-		queued := state != nil && state.pending != nil
+		state := handler.coalescingSyncQueueByCheckoutSessionID["cs_queue"]
+		queued := state != nil && state.next != nil
 		handler.mutex.Unlock()
 		if queued {
 			return
@@ -203,13 +196,11 @@ func waitForQueuedSync(t *testing.T, handler *CommandHandler) {
 	}
 }
 
-func TestWebhookWaitsForFreshDurableSyncAndBrowserCancellationDoesNotStopIt(t *testing.T) {
+func TestWebhookWaitsForFreshDurableSync(t *testing.T) {
 	handler, calls := newQueuedSyncTestHandler(t, newRestartTestLog(t))
-	browserCtx, cancelBrowser := context.WithCancel(context.Background())
-	defer cancelBrowser()
 	browserDone := make(chan error, 1)
 	go func() {
-		browserDone <- handler.SyncCheckoutSession(browserCtx, SyncCheckoutSessionInput{CheckoutSessionID: "cs_queue"})
+		browserDone <- handler.SyncCheckoutSession(context.Background(), SyncCheckoutSessionInput{CheckoutSessionID: "cs_queue"})
 	}()
 	firstCall := nextSyncRetrieve(t, calls)
 	webhookDone := make(chan error, 1)
@@ -217,24 +208,16 @@ func TestWebhookWaitsForFreshDurableSyncAndBrowserCancellationDoesNotStopIt(t *t
 		webhookDone <- handler.RecordCheckoutSessionEvent(context.Background(), RecordCheckoutSessionEventInput{})
 	}()
 	waitForQueuedSync(t, handler)
-	cancelBrowser()
+	firstCall.complete <- syncRetrieveResult{session: queuedSession(stripe.CheckoutSessionPaymentStatusUnpaid, stripe.PaymentIntentStatusProcessing)}
+	followup := nextSyncRetrieve(t, calls)
 	select {
 	case err := <-browserDone:
-		if !errors.Is(err, context.Canceled) {
+		if err != nil {
 			t.Fatal(err)
 		}
 	case <-time.After(5 * time.Second):
-		t.Fatal("browser wait did not cancel")
+		t.Fatal("browser sync did not finish")
 	}
-	if firstCall.ctx.Err() != nil {
-		t.Fatal("browser cancellation canceled shared retrieval")
-	}
-	deadline, ok := firstCall.ctx.Deadline()
-	if !ok || time.Until(deadline) > checkoutSessionSyncTimeout {
-		t.Fatal("shared pass has no bounded deadline")
-	}
-	firstCall.complete <- syncRetrieveResult{session: queuedSession(stripe.CheckoutSessionPaymentStatusUnpaid, stripe.PaymentIntentStatusProcessing)}
-	followup := nextSyncRetrieve(t, calls)
 	select {
 	case err := <-webhookDone:
 		t.Fatalf("webhook acknowledged before fresh fulfillment: %v", err)
@@ -251,35 +234,11 @@ func TestWebhookWaitsForFreshDurableSyncAndBrowserCancellationDoesNotStopIt(t *t
 	}
 }
 
-func TestSyncQueueServiceCancellationStopsRunningAndQueuedPasses(t *testing.T) {
-	lifetime, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	entered := make(chan struct{})
-	handler := NewCommandHandler(NewCommandHandlerInput{Context: lifetime, EventLog: &emptyPaymentEventLog{}, CheckoutSessionRepository: &checkoutSessionRepositoryStub{retrieve: func(ctx context.Context, _ string) (*stripe.CheckoutSession, error) {
-		close(entered)
-		<-ctx.Done()
-		return nil, ctx.Err()
-	}}})
-	first := handler.requestCheckoutSessionSync(SyncCheckoutSessionInput{CheckoutSessionID: "cs_queue"})
-	select {
-	case <-entered:
-	case <-time.After(5 * time.Second):
-		t.Fatal("retrieve did not start")
-	}
-	queued := handler.requestCheckoutSessionSync(SyncCheckoutSessionInput{CheckoutSessionID: "cs_queue"})
-	cancel()
-	for _, result := range []*future.Future[*SyncCheckoutSessionOutput]{first, queued} {
-		if _, err := awaitSyncResult(t, result); !errors.Is(err, context.Canceled) {
-			t.Fatalf("err=%v", err)
-		}
-	}
-}
-
 func TestConcurrentSyncRequestsAcrossIdleTransitionsAllComplete(t *testing.T) {
 	lifetime, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	var inFlight, retrieves atomic.Int32
-	handler := NewCommandHandler(NewCommandHandlerInput{Context: lifetime, EventLog: &emptyPaymentEventLog{}, CheckoutSessionRepository: &checkoutSessionRepositoryStub{retrieve: func(ctx context.Context, id string) (*stripe.CheckoutSession, error) {
+	handler := NewCommandHandler(NewCommandHandlerInput{EventLog: &emptyPaymentEventLog{}, CheckoutSessionRepository: &checkoutSessionRepositoryStub{retrieve: func(ctx context.Context, id string) (*stripe.CheckoutSession, error) {
 		if current := inFlight.Add(1); current != 1 {
 			t.Errorf("same-session concurrent retrievals=%d", current)
 		}
@@ -294,7 +253,7 @@ func TestConcurrentSyncRequestsAcrossIdleTransitionsAllComplete(t *testing.T) {
 		finished := make(chan error, 20)
 		for caller := 0; caller < 20; caller++ {
 			go func() {
-				_, err := handler.SyncCheckoutSessionWithResult(ctx, SyncCheckoutSessionInput{CheckoutSessionID: "cs_queue"})
+				err := handler.SyncCheckoutSession(ctx, SyncCheckoutSessionInput{CheckoutSessionID: "cs_queue"})
 				finished <- err
 			}()
 		}
@@ -311,5 +270,32 @@ func TestConcurrentSyncRequestsAcrossIdleTransitionsAllComplete(t *testing.T) {
 	}
 	if retrieves.Load() < 20 || retrieves.Load() > 400 {
 		t.Fatalf("retrieves=%d", retrieves.Load())
+	}
+}
+
+// requestSyncForTest invokes the public command and exposes its eventual error.
+func requestSyncForTest(t *testing.T, handler *CommandHandler, input SyncCheckoutSessionInput) *syncx.Future[struct{}] {
+	t.Helper()
+	promise := syncx.NewPromise[struct{}]()
+	go func() {
+		err := handler.SyncCheckoutSession(context.Background(), input)
+		promise.Resolve(struct{}{}, err)
+	}()
+	return promise.Future()
+}
+
+func TestSequentialSyncRequestsAlwaysRetrieveFreshState(t *testing.T) {
+	retrieves := 0
+	handler := NewCommandHandler(NewCommandHandlerInput{EventLog: &emptyPaymentEventLog{}, CheckoutSessionRepository: &checkoutSessionRepositoryStub{retrieve: func(_ context.Context, id string) (*stripe.CheckoutSession, error) {
+		retrieves++
+		return &stripe.CheckoutSession{ID: id, Status: stripe.CheckoutSessionStatusOpen}, nil
+	}}})
+	for request := 0; request < 3; request++ {
+		if err := handler.SyncCheckoutSession(context.Background(), SyncCheckoutSessionInput{CheckoutSessionID: "cs_queue"}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if retrieves != 3 {
+		t.Fatalf("three sequential sync requests retrieved %d times; a completed next future was reused", retrieves)
 	}
 }
