@@ -312,7 +312,7 @@ func (handler *CommandHandler) grantPerpetualLicense(ctx context.Context, accoun
 	_, err = handler.eventLog.Append(ctx, eventlog.AppendInput{
 		Type:      events.TypePerpetualLicenseGranted,
 		AccountID: accountID,
-		Data:      fatal.UnlessMarshalJSON(events.LicenseEventDetail{SessionID: sessionID}),
+		Data:      fatal.UnlessMarshalJSON(events.LicenseEventDetail{StripeCheckoutSessionID: sessionID}),
 	})
 	return
 }
@@ -334,7 +334,7 @@ func (handler *CommandHandler) grantProvisionalLicense(ctx context.Context, acco
 	_, err = handler.eventLog.Append(ctx, eventlog.AppendInput{
 		Type:      events.TypeProvisionalLicenseGranted,
 		AccountID: accountID,
-		Data:      fatal.UnlessMarshalJSON(events.LicenseEventDetail{SessionID: sessionID}),
+		Data:      fatal.UnlessMarshalJSON(events.LicenseEventDetail{StripeCheckoutSessionID: sessionID}),
 	})
 	return
 }
@@ -356,7 +356,7 @@ func (handler *CommandHandler) revokeProvisionalLicense(ctx context.Context, acc
 	_, err = handler.eventLog.Append(ctx, eventlog.AppendInput{
 		Type:      events.TypeProvisionalLicenseRevoked,
 		AccountID: accountID,
-		Data:      fatal.UnlessMarshalJSON(events.LicenseEventDetail{SessionID: sessionID}),
+		Data:      fatal.UnlessMarshalJSON(events.LicenseEventDetail{StripeCheckoutSessionID: sessionID}),
 	})
 	return
 }
@@ -421,7 +421,7 @@ func (handler *CommandHandler) applyAccountCreatedV2(ctx context.Context, event 
 func (handler *CommandHandler) applyPerpetualLicenseGranted(ctx context.Context, event *eventlog.Event) {
 	var detail events.LicenseEventDetail
 	fatal.OnError(json.Unmarshal(event.Data, &detail))
-	handler.removeSessionInfo(event.AccountID, detail.SessionID)
+	handler.removeSessionInfo(event.AccountID, detail.StripeCheckoutSessionID)
 	delete(handler.eligibleAccounts, event.AccountID)
 }
 
@@ -442,7 +442,7 @@ func (handler *CommandHandler) applyProvisionalLicenseGranted(ctx context.Contex
 func (handler *CommandHandler) applyProvisionalLicenseRevoked(ctx context.Context, event *eventlog.Event) {
 	var detail events.LicenseEventDetail
 	fatal.OnError(json.Unmarshal(event.Data, &detail))
-	handler.removeSessionInfo(event.AccountID, detail.SessionID)
+	handler.removeSessionInfo(event.AccountID, detail.StripeCheckoutSessionID)
 	license, eligible := handler.eligibleAccounts[event.AccountID]
 	if !eligible || license.Type != models.LicenseTypeProvisional {
 		return

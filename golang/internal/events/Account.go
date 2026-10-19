@@ -40,5 +40,5 @@ type AccountPasswordResetDetail struct {
 
 // LicenseEventDetail identifies the checkout responsible for a payment-driven license change.
 type LicenseEventDetail struct {
-	SessionID string `json:"session_id"`
+	StripeCheckoutSessionID string `json:"stripe_checkout_session_id"`
 }

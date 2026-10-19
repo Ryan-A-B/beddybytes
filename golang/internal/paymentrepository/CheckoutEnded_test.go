@@ -93,12 +93,22 @@ func TestCompletedCheckoutSessionInfoLifecycle(t *testing.T) {
 						continue
 					}
 					gotEvents = append(gotEvents, event.Type)
-					var detail events.LicenseEventDetail
-					if err := json.Unmarshal(event.Data, &detail); err != nil {
-						t.Fatal(err)
+					var sessionID string
+					if event.Type == events.TypeStripeCheckoutSessionEnded {
+						var detail events.StripeCheckoutSessionEndedDetail
+						if err := json.Unmarshal(event.Data, &detail); err != nil {
+							t.Fatal(err)
+						}
+						sessionID = detail.SessionID
+					} else {
+						var detail events.LicenseEventDetail
+						if err := json.Unmarshal(event.Data, &detail); err != nil {
+							t.Fatal(err)
+						}
+						sessionID = detail.StripeCheckoutSessionID
 					}
-					if detail.SessionID != original.CheckoutSessionID {
-						t.Fatalf("event %s session=%q", event.Type, detail.SessionID)
+					if sessionID != original.CheckoutSessionID {
+						t.Fatalf("event %s session=%q", event.Type, sessionID)
 					}
 				}
 				if err := iterator.Err(); err != nil {
@@ -142,7 +152,14 @@ func TestOldCheckoutEndDoesNotRemoveNewSessionInfo(t *testing.T) {
 					t.Fatal(err)
 				}
 			}
-			data, _ := json.Marshal(events.LicenseEventDetail{SessionID: "cs_old"})
+			var detail interface{} = events.LicenseEventDetail{StripeCheckoutSessionID: "cs_old"}
+			if eventType == events.TypeStripeCheckoutSessionEnded {
+				detail = events.StripeCheckoutSessionEndedDetail{SessionID: "cs_old"}
+			}
+			data, err := json.Marshal(detail)
+			if err != nil {
+				t.Fatal(err)
+			}
 			if _, err := log.Append(ctx, eventlog.AppendInput{Type: eventType, AccountID: "account-1", Data: data}); err != nil {
 				t.Fatal(err)
 			}
