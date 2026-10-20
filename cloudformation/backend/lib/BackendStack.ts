@@ -63,6 +63,7 @@ export class BackendStack extends cdk.Stack {
             environment: {
                 'API_ORIGIN': `https://${host_names.api}`,
                 'FRONTEND_AUTH_REDIRECT': `https://${host_names.app}/auth/callback`,
+                'FRONTEND_PAYMENT_CALLBACK_URL': `https://${host_names.app}/payments/callback`,
                 'COOKIE_DOMAIN': `.${domain_name}`,
                 'SERVER_ADDR': ':9000',
                 'FILE_EVENT_LOG_FOLDER_PATH': '/opt/eventlog',
@@ -81,6 +82,9 @@ export class BackendStack extends cdk.Stack {
                 'GOOGLE_CLIENT_ID': cdk.aws_ecs.Secret.fromSecretsManager(props.secrets_bundle, 'GOOGLE_CLIENT_ID'),
                 'GOOGLE_CLIENT_SECRET': cdk.aws_ecs.Secret.fromSecretsManager(props.secrets_bundle, 'GOOGLE_CLIENT_SECRET'),
                 'ENCRYPTION_KEY': cdk.aws_ecs.Secret.fromSecretsManager(props.secrets_bundle, 'ENCRYPTION_KEY'),
+                'STRIPE_SECRET_KEY': cdk.aws_ecs.Secret.fromSecretsManager(props.secrets_bundle, 'STRIPE_SECRET_KEY'),
+                'STRIPE_WEBHOOK_SECRET': cdk.aws_ecs.Secret.fromSecretsManager(props.secrets_bundle, 'STRIPE_WEBHOOK_SECRET'),
+                'STRIPE_PERPETUAL_PRICE_ID': cdk.aws_ecs.Secret.fromSecretsManager(props.secrets_bundle, 'STRIPE_PERPETUAL_PRICE_ID'),
             },
             dockerLabels: {
                 'traefik.enable': 'true',

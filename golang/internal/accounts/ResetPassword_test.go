@@ -14,6 +14,7 @@ import (
 	"github.com/Ryan-A-B/beddybytes/golang/internal/accountrepository"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/accounts"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/mailer"
+	"github.com/Ryan-A-B/beddybytes/golang/internal/models"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/resetpassword"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/gorilla/mux"
@@ -42,7 +43,7 @@ func TestResetPassword(t *testing.T) {
 		router := mux.NewRouter()
 		handlers.AddRoutes(router)
 		_, err := handlers.AccountCommandHandler.CreateAccount(ctx, accountrepository.CreateAccountInput{
-			UserID: accountrepository.UserID{Issuer: accountrepository.IssuerBeddybytes, Subject: email},
+			UserID: models.UserID{Issuer: accountrepository.IssuerBeddybytes, Subject: email},
 			Email:  email, Password: uuid.NewV4().String(),
 		})
 		So(err, ShouldBeNil)

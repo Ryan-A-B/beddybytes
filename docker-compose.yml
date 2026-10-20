@@ -57,6 +57,10 @@ services:
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:?GOOGLE_CLIENT_SECRET must be set}
       - API_ORIGIN=https://api.local.beddybytes.com
       - FRONTEND_AUTH_REDIRECT=https://app.beddybytes.local/auth/callback
+      - FRONTEND_PAYMENT_CALLBACK_URL=https://app.beddybytes.local/payments/callback
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY:-}
+      - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET:-}
+      - STRIPE_PERPETUAL_PRICE_ID=${STRIPE_PERPETUAL_PRICE_ID:-}
       - SERVER_ADDR=:9000
       - FILE_EVENT_LOG_FOLDER_PATH=/opt/eventlog
       - MAILER_IMPLEMENTATION=console
@@ -79,6 +83,23 @@ services:
       watch:
         - action: rebuild
           path: ./golang
+  stripe-cli:
+    image: stripe/stripe-cli:v1.54.0
+    hostname: beddybytes-stripe-cli
+    profiles:
+      - payments
+    restart: unless-stopped
+    depends_on:
+      - api
+    command:
+      - listen
+      - --events-from=@self
+      - --events=v1.checkout.session.completed,v1.checkout.session.expired,v1.checkout.session.async_payment_succeeded,v1.checkout.session.async_payment_failed
+      - --forward-to=http://api:9000/payments/stripe/webhook
+    volumes:
+      - stripe_cli_config:/root/.config/stripe
+    labels:
+      - "traefik.enable=false"
   mosquitto:
     image: eclipse-mosquitto:2
     restart: always
@@ -166,6 +187,7 @@ services:
 volumes:
   # TODO influx_storage + set up script
   grafana_storage:
+  stripe_cli_config:
 
 include:
   - selenium.docker-compose.yml

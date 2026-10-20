@@ -4,6 +4,7 @@ import (
 	"log"
 	"net/url"
 	"os"
+	"time"
 
 	"github.com/Ryan-A-B/beddybytes/golang/internal/fatal"
 )
@@ -29,4 +30,16 @@ func EnvURLOrFatal(key string) *url.URL {
 	target, err := url.Parse(value)
 	fatal.OnError(err)
 	return target
+}
+
+func EnvDuration(key string, defaultValue time.Duration) time.Duration {
+	value := os.Getenv(key)
+	if value == "" {
+		return defaultValue
+	}
+	duration, err := time.ParseDuration(value)
+	if err != nil {
+		log.Fatalf("invalid duration for %s: %v", key, err)
+	}
+	return duration
 }

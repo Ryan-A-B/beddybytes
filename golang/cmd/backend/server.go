@@ -196,23 +196,23 @@ func (handlers *Handlers) AddRoutes(router *mux.Router) {
 	router.HandleFunc("/stats/total_hours", handlers.GetTotalHours).Methods(http.MethodGet).Name("GetTotalDuration")
 
 	clientRouter := router.PathPrefix("/clients").Subrouter()
-	clientRouter.Use(internal.NewAuthorizationMiddleware(handlers.Key).Middleware)
+	clientRouter.Use(internal.NewAuthorizationMiddleware(handlers.Key, "monitor").Middleware)
 	clientRouter.HandleFunc("", handlers.ListClients).Methods(http.MethodGet).Name("ListClients")
 	clientRouter.HandleFunc("/{client_id}/websocket", handlers.HandleWebsocket).Methods(http.MethodGet).Name("HandleWebsocket")
 	clientRouter.HandleFunc("/{client_id}/connections/{connection_id}", handlers.HandleConnection).Methods(http.MethodGet).Name("HandleConnection")
 
 	sessionRouter := router.PathPrefix("/sessions").Subrouter()
-	sessionRouter.Use(internal.NewAuthorizationMiddleware(handlers.Key).Middleware)
+	sessionRouter.Use(internal.NewAuthorizationMiddleware(handlers.Key, "monitor").Middleware)
 	sessionRouter.HandleFunc("", handlers.ListSessions).Methods(http.MethodGet).Name("ListSessions")
 	sessionRouter.HandleFunc("/{session_id}", handlers.StartSession).Methods(http.MethodPut).Name("StartSession")
 	sessionRouter.HandleFunc("/{session_id}", handlers.EndSession).Methods(http.MethodDelete).Name("EndSession")
 
 	eventsRouter := router.PathPrefix("/events").Subrouter()
-	eventsRouter.Use(internal.NewAuthorizationMiddleware(handlers.Key).Middleware)
+	eventsRouter.Use(internal.NewAuthorizationMiddleware(handlers.Key, "monitor").Middleware)
 	eventsRouter.HandleFunc("", handlers.GetEvents).Methods(http.MethodGet).Name("GetEvents")
 
 	babyStationRouter := router.PathPrefix("/baby_station_list_snapshot").Subrouter()
-	babyStationRouter.Use(internal.NewAuthorizationMiddleware(handlers.Key).Middleware)
+	babyStationRouter.Use(internal.NewAuthorizationMiddleware(handlers.Key, "monitor").Middleware)
 	babyStationRouter.HandleFunc("", handlers.GetBabyStationListSnapshot).Methods(http.MethodGet).Name("GetBabyStationListSnapshot")
 }
 
@@ -336,6 +336,7 @@ func main() {
 	router.Use(internal.LoggingMiddleware)
 	handlers.AddRoutes(router.NewRoute().Subrouter())
 	accountHandlers.AddRoutes(router.NewRoute().Subrouter())
+	addPaymentRoutes(router.NewRoute().Subrouter(), eventLog, key)
 	addr := internal.EnvStringOrFatal("SERVER_ADDR")
 	server := http.Server{
 		Addr:    addr,

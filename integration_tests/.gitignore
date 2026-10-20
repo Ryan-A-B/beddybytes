@@ -1,2 +1,4 @@
 venv
 recordings/*.mp4
+artifacts/
+fixtures/accounts.local.json

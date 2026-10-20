@@ -1,4 +1,4 @@
-package accountrepository
+package models
 
 import (
 	"bytes"

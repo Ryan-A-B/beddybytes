@@ -21,6 +21,7 @@ const default_token_output: TokenOutput = {
 
 const default_account: Account = {
     id: "test_account_id",
+    license: { type: "perpetual", start_unix_seconds: 1700000000 },
 };
 
 const mocked_mqtt = mqtt as unknown as { connect: jest.Mock };

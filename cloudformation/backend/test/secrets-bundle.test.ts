@@ -46,17 +46,25 @@ test('environment bundles retain the legacy export and wire ECS and MQTT to matc
             const tasks = Object.values(template.findResources('AWS::ECS::TaskDefinition')) as any[];
             const container = tasks[0].Properties.ContainerDefinitions[0];
             const names = container.Secrets.map((s: any) => s.Name).sort();
-            assert.deepEqual(names, ['ENCRYPTION_KEY', 'GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET']);
+            assert.deepEqual(names, [
+                'ENCRYPTION_KEY', 'GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET',
+                'STRIPE_PERPETUAL_PRICE_ID', 'STRIPE_SECRET_KEY', 'STRIPE_WEBHOOK_SECRET',
+            ]);
             for (const secret of container.Secrets) {
                 assert.deepEqual(secret.ValueFrom, stack.resolve(cdk.Fn.join('', [bundle.secretArn, `:${secret.Name}::`])));
             }
-            assert.equal(container.Environment.some((e: any) => e.Name === 'GOOGLE_CLIENT_ID'), false);
+            for (const name of names) {
+                assert.equal(container.Environment.some((entry: any) => entry.Name === name), false);
+            }
             const hostPrefix = env === 'qa' ? 'qa.' : '';
             assert.deepEqual(container.Environment.find((e: any) => e.Name === 'API_ORIGIN'), {
                 Name: 'API_ORIGIN', Value: `https://api.${hostPrefix}beddybytes.com`,
             });
             assert.deepEqual(container.Environment.find((e: any) => e.Name === 'FRONTEND_AUTH_REDIRECT'), {
                 Name: 'FRONTEND_AUTH_REDIRECT', Value: `https://app.${hostPrefix}beddybytes.com/auth/callback`,
+            });
+            assert.deepEqual(container.Environment.find((entry: any) => entry.Name === 'FRONTEND_PAYMENT_CALLBACK_URL'), {
+                Name: 'FRONTEND_PAYMENT_CALLBACK_URL', Value: `https://app.${hostPrefix}beddybytes.com/payments/callback`,
             });
             template.hasResourceProperties('AWS::Lambda::Function', {
                 Environment: { Variables: Match.objectLike({

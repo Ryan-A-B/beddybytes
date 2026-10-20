@@ -5,21 +5,26 @@ import (
 	"encoding/json"
 	"errors"
 	"sync"
+	"time"
 
 	"github.com/Ryan-A-B/beddybytes/golang/internal/eventlog"
+	"github.com/Ryan-A-B/beddybytes/golang/internal/events"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/fatal"
+	"github.com/Ryan-A-B/beddybytes/golang/internal/models"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/subscription"
 )
 
 var ErrAccountNotFound = errors.New("account not found")
 var ErrPasswordRequired = errors.New("password required")
+var ErrInvalidPassword = models.ErrInvalidPassword
 
 type QueryHandler struct {
 	eventLog               eventlog.EventLog
 	cursor                 int64
 	mutex                  sync.Mutex
-	accountIDForUser       map[UserID]string
-	hashedPasswordForEmail map[string]HashedPassword
+	accountIDForUser       map[models.UserID]string
+	licenseForAccount      map[string]models.License
+	hashedPasswordForEmail map[string]models.HashedPassword
 }
 
 type NewQueryHandlerInput struct {
@@ -29,13 +34,14 @@ type NewQueryHandlerInput struct {
 func NewQueryHandler(input NewQueryHandlerInput) (handler *QueryHandler) {
 	handler = &QueryHandler{
 		eventLog:               input.EventLog,
-		accountIDForUser:       make(map[UserID]string),
-		hashedPasswordForEmail: make(map[string]HashedPassword),
+		accountIDForUser:       make(map[models.UserID]string),
+		licenseForAccount:      make(map[string]models.License),
+		hashedPasswordForEmail: make(map[string]models.HashedPassword),
 	}
 	return
 }
 
-func (handler *QueryHandler) GetAccountIDForUser(ctx context.Context, userID UserID) (accountID string, err error) {
+func (handler *QueryHandler) GetAccountIDForUser(ctx context.Context, userID models.UserID) (accountID string, err error) {
 	handler.mutex.Lock()
 	defer handler.mutex.Unlock()
 	err = handler.catchup(ctx)
@@ -48,6 +54,34 @@ func (handler *QueryHandler) GetAccountIDForUser(ctx context.Context, userID Use
 		return
 	}
 	return
+}
+
+func (handler *QueryHandler) GetLicenseForAccount(ctx context.Context, accountID string) (*models.License, error) {
+	handler.mutex.Lock()
+	defer handler.mutex.Unlock()
+	var err error
+	err = handler.catchup(ctx)
+	if err != nil {
+		return nil, err
+	}
+	license, exists := handler.licenseForAccount[accountID]
+	if !exists {
+		return nil, ErrAccountNotFound
+	}
+	return &license, nil
+}
+
+// HasActiveAccount reports whether the account's current license permits monitoring.
+func (handler *QueryHandler) HasActiveAccount(ctx context.Context, accountID string) (bool, error) {
+	license, err := handler.GetLicenseForAccount(ctx, accountID)
+	if err != nil {
+		return false, err
+	}
+	return hasActiveLicense(*license, time.Now()), nil
+}
+
+func hasActiveLicense(license models.License, now time.Time) bool {
+	return license.TrialDetail == nil || now.Unix() < license.TrialDetail.EndUnixSeconds
 }
 
 type CheckCredentialsInput struct {
@@ -101,57 +135,90 @@ func (handler *QueryHandler) catchup(ctx context.Context) (err error) {
 
 func (handler *QueryHandler) apply(ctx context.Context, event *eventlog.Event) {
 	switch event.Type {
-	case EventTypeAccountCreatedV1:
+	case events.TypeAccountCreatedV1:
 		handler.applyAccountCreatedV1(ctx, event)
-	case EventTypeAccountCreatedV2:
+	case events.TypeAccountCreatedV2:
 		handler.applyAccountCreatedV2(ctx, event)
-	case EventTypeAccountPasswordReset:
+	case events.TypeAccountPasswordReset:
 		handler.applyAccountPasswordReset(ctx, event)
-	case EventTypeUserPasswordReset:
+	case events.TypeUserPasswordReset:
 		handler.applyUserPasswordReset(ctx, event)
+	case events.TypePerpetualLicenseGranted:
+		handler.applyPerpetualLicenseGranted(ctx, event)
+	case events.TypeProvisionalLicenseGranted:
+		handler.applyProvisionalLicenseGranted(ctx, event)
+	case events.TypeProvisionalLicenseRevoked:
+		handler.applyProvisionalLicenseRevoked(ctx, event)
 	}
 }
 
 func (handler *QueryHandler) applyAccountCreatedV1(ctx context.Context, event *eventlog.Event) {
-	var detail AccountCreatedV1Detail
+	var detail events.AccountCreatedV1Detail
 	err := json.Unmarshal(event.Data, &detail)
 	fatal.OnError(err)
-	userID := UserID{
+	userID := models.UserID{
 		Issuer:  IssuerBeddybytes,
 		Subject: detail.User.Email,
 	}
 	handler.accountIDForUser[userID] = detail.AccountID
-	handler.hashedPasswordForEmail[detail.User.Email] = HashedPassword{
+	handler.licenseForAccount[detail.AccountID] = models.License{
+		Type:             models.LicenseTypePerpetual,
+		StartUnixSeconds: event.UnixTimestamp,
+	}
+	handler.hashedPasswordForEmail[detail.User.Email] = models.HashedPassword{
 		Salt:   detail.User.PasswordSalt,
 		Digest: detail.User.PasswordHash,
 	}
 }
 
 func (handler *QueryHandler) applyAccountCreatedV2(ctx context.Context, event *eventlog.Event) {
-	var detail AccountCreatedV2Detail
+	var detail events.AccountCreatedV2Detail
 	err := json.Unmarshal(event.Data, &detail)
 	fatal.OnError(err)
 	handler.accountIDForUser[detail.User.ID] = detail.AccountID
-	if detail.User.ID.Issuer != IssuerBeddybytes {
-		return
+	handler.licenseForAccount[detail.AccountID] = models.NewTrialLicense(event.UnixTimestamp)
+	if detail.User.ID.Issuer == IssuerBeddybytes {
+		email := detail.User.ID.Subject
+		handler.hashedPasswordForEmail[email] = *detail.User.HashedPassword
 	}
-	email := detail.User.ID.Subject
-	handler.hashedPasswordForEmail[email] = *detail.User.HashedPassword
 }
 
 func (handler *QueryHandler) applyAccountPasswordReset(ctx context.Context, event *eventlog.Event) {
-	var detail AccountPasswordResetDetail
+	var detail events.AccountPasswordResetDetail
 	err := json.Unmarshal(event.Data, &detail)
 	fatal.OnError(err)
-	handler.hashedPasswordForEmail[detail.Email] = HashedPassword{
+	handler.hashedPasswordForEmail[detail.Email] = models.HashedPassword{
 		Salt:   detail.PasswordSalt,
 		Digest: detail.PasswordHash,
 	}
 }
 
 func (handler *QueryHandler) applyUserPasswordReset(ctx context.Context, event *eventlog.Event) {
-	var detail UserPasswordResetDetail
+	var detail events.UserPasswordResetDetail
 	err := json.Unmarshal(event.Data, &detail)
 	fatal.OnError(err)
 	handler.hashedPasswordForEmail[detail.Email] = detail.HashedPassword
+}
+
+func (handler *QueryHandler) applyPerpetualLicenseGranted(ctx context.Context, event *eventlog.Event) {
+	handler.licenseForAccount[event.AccountID] = models.License{
+		Type:             models.LicenseTypePerpetual,
+		StartUnixSeconds: event.UnixTimestamp,
+	}
+}
+
+func (handler *QueryHandler) applyProvisionalLicenseGranted(ctx context.Context, event *eventlog.Event) {
+	license := handler.licenseForAccount[event.AccountID]
+	handler.licenseForAccount[event.AccountID] = models.License{
+		Type:             models.LicenseTypeProvisional,
+		StartUnixSeconds: event.UnixTimestamp,
+		ProvisionalDetail: &models.ProvisionalLicenseDetail{
+			TrialStartUnixSeconds: license.StartUnixSeconds,
+		},
+	}
+}
+
+func (handler *QueryHandler) applyProvisionalLicenseRevoked(ctx context.Context, event *eventlog.Event) {
+	license := handler.licenseForAccount[event.AccountID]
+	handler.licenseForAccount[event.AccountID] = models.NewTrialLicense(license.ProvisionalDetail.TrialStartUnixSeconds)
 }
