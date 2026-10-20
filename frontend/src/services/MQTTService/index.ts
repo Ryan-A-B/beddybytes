@@ -9,7 +9,7 @@ import settings from "../../settings";
 import { clientStatusTopic } from "./topics";
 import { ConnectedPayload, DisconnectedPayload, new_webrtc_inbox_payload, newParentStationAnnouncementPayload } from "./payloads";
 
-export type MQTTServiceState = AwaitingLogin | WaitingForAccessTokenToBeReady | WaitingForAccessTokenToConnect | Ready | Connecting | Offline | OfflineAndReconnecting | SubscribingOnConnect | SubscribingAfterConnected | Connected;
+export type MQTTServiceState = WaitingForMonitorScope | AwaitingLogin | WaitingForAccessTokenToBeReady | WaitingForAccessTokenToConnect | Ready | Connecting | Offline | OfflineAndReconnecting | SubscribingOnConnect | SubscribingAfterConnected | Connected;
 
 interface SubscribeCommand {
     action: "subscribe";
@@ -37,6 +37,7 @@ const AWS_IOT_MINIMUM_KEEPALIVE_SECONDS = 30;
 interface ServiceProxy {
     authorization_service: AuthorizationService;
     logging_service: LoggingService;
+    set_client(client: MQTTClient): void;
     dispatch_event(event: Event): void;
     call_subscriptions(message: MessageReceived): void;
     set_state(state: MQTTServiceState): void;
@@ -128,6 +129,15 @@ abstract class AbstractState {
     public handle_authorization_service_state_changed(proxy: ServiceProxy, event: ServiceStateChangedEvent<AuthorizationServiceState>): void {
         // Default is to ignore authorization changes.
     }
+}
+
+// Keep subscriptions locally while monitoring is unavailable. Drop outgoing
+// signaling so expired session messages cannot be replayed after purchase.
+class WaitingForMonitorScope extends AbstractState {
+    public readonly name = "WaitingForMonitorScope";
+    public subscribe = (): void => {};
+    public publish = (): void => {};
+    public publish_parent_station_announcement = (): void => {};
 }
 
 class AwaitingLogin extends AbstractState {
@@ -226,6 +236,10 @@ class Ready extends AbstractState {
 }
 
 const connect_mqtt = (proxy: ServiceProxy, account_id: string, commands: List<Command>): void => {
+    if (!proxy.authorization_service.has_scope("monitor")) {
+        proxy.set_state(new WaitingForMonitorScope());
+        return;
+    }
     const connectionID = uuid();
     const requestID = uuid();
     const client = mqtt.connect(`wss://${settings.MQTT.host}`, {
@@ -257,6 +271,7 @@ const connect_mqtt = (proxy: ServiceProxy, account_id: string, commands: List<Co
             return transformedURL.toString();
         },
     });
+    proxy.set_client(client);
     client.on("connect", () => proxy.handle_connect(connectionID));
     client.on("message", proxy.handle_message);
     client.on("reconnect", () => proxy.handle_reconnect(connectionID));
@@ -914,6 +929,8 @@ class MQTTService extends Service<MQTTServiceState> {
     protected readonly name = "MQTTService";
     private readonly authorization_service: AuthorizationService;
     private readonly proxy: ServiceProxy;
+    private client: MQTTClient | null = null;
+    private connection_requested = false;
     private readonly subscriptions: Map<string, Subscription> = new Map();
     private readonly topic_filter_ref_counts: Map<string, number> = new Map();
 
@@ -926,6 +943,7 @@ class MQTTService extends Service<MQTTServiceState> {
         this.proxy = {
             authorization_service: input.authorization_service,
             logging_service: input.logging_service,
+            set_client: (client) => { this.client = client; },
             dispatch_event: this.dispatch_event,
             call_subscriptions: this.call_subscriptions,
             set_state: this.set_state,
@@ -946,6 +964,7 @@ class MQTTService extends Service<MQTTServiceState> {
     }
 
     public connect = (): void => {
+        this.connection_requested = true;
         this.get_state().connect(this.proxy);
     }
 
@@ -984,7 +1003,9 @@ class MQTTService extends Service<MQTTServiceState> {
     }
 
     public disconnect = (): void => {
+        this.connection_requested = false;
         this.get_state().disconnect(this.proxy);
+        this.client = null;
     }
 
     public subscribe_to_webrtc_inbox = (callback: MessageHandler): Subscription => {
@@ -1032,6 +1053,24 @@ class MQTTService extends Service<MQTTServiceState> {
     }
 
     private handle_authorization_service_state_changed = (event: ServiceStateChangedEvent<AuthorizationServiceState>): void => {
+        if (event.current_state.access_token_available && !event.current_state.has_scope("monitor")) {
+            const client = this.client;
+            this.client = null;
+            if (!(this.get_state() instanceof WaitingForMonitorScope)) {
+                this.set_state(new WaitingForMonitorScope());
+            }
+            // Force end to cancel MQTT.js retries and queued messages. Do not
+            // publish a clean disconnect: established RTC sessions must survive.
+            client?.end(true);
+            return;
+        }
+        if (this.get_state() instanceof WaitingForMonitorScope) {
+            this.set_state(new_initial_state(this.authorization_service));
+            if (event.current_state.has_scope("monitor") && this.connection_requested) {
+                this.get_state().connect(this.proxy);
+            }
+            return;
+        }
         this.get_state().handle_authorization_service_state_changed(this.proxy, event);
     }
 
@@ -1193,7 +1232,10 @@ const load_account_id = (): string => {
 
 const new_initial_state = (authorization_service: AuthorizationService): MQTTServiceState => {
     if (authorization_service.login_required) return new AwaitingLogin();
-    if (authorization_service.access_token_available) return new Ready(load_account_id());
+    if (authorization_service.access_token_available) {
+        if (!authorization_service.has_scope("monitor")) return new WaitingForMonitorScope();
+        return new Ready(load_account_id());
+    }
     return new WaitingForAccessTokenToBeReady();
 };
 
@@ -1223,7 +1265,7 @@ interface MQTTClient {
     subscribe(topics: string[], callback: MQTTSubscribeCallback): void;
     unsubscribe(topic: string): void;
     publish(topic: string, payload: string): void;
-    end(): void;
+    end(force?: boolean): void;
 }
 
 type MQTTSubscribeCallback = (error: Optional<Error>) => void;

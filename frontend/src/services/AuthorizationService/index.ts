@@ -22,6 +22,18 @@ abstract class AbstractState {
     public abstract readonly access_token_available: boolean;
     public abstract readonly login_required: boolean;
 
+    public has_scope = (scope: string): boolean => {
+        if (!this.access_token_available) return false;
+        try {
+            const payload = this.get_access_token().split('.')[1];
+            const base64 = payload.replace(/-/g, '+').replace(/_/g, '/');
+            const claims = JSON.parse(atob(base64.padEnd(Math.ceil(base64.length / 4) * 4, '=')));
+            return typeof claims.scope === 'string' && claims.scope.split(/\s+/).includes(scope);
+        } catch {
+            return false;
+        }
+    };
+
     public get_access_token = (): string => {
         throw new Error(`can not get access token in ${this.name} state`);
     };
@@ -219,6 +231,10 @@ class AuthorizationService extends Service<AuthorizationServiceState> {
 
     public get_access_token = (): string => {
         return this.get_state().get_access_token();
+    }
+
+    public has_scope = (scope: string): boolean => {
+        return this.get_state().has_scope(scope);
     }
 
     public apply_token_output = (token_output: TokenOutput): void => {

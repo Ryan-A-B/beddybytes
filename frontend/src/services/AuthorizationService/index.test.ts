@@ -171,3 +171,38 @@ describe('AuthorizationService', () => {
         });
     });
 });
+
+describe('token scopes', () => {
+    beforeEach(() => localStorage.removeItem('account'));
+
+    test.each([
+        ['account monitor', true],
+        ['monitor account', true],
+        ['account  monitor', true],
+        ['account', false],
+        ['monitoring monitor:read', false],
+        [undefined, false],
+        [['monitor'], false],
+        [null, false],
+    ])('checks exact scope membership for %s', (scope, expected) => {
+        const service = new_authorization_service();
+        service.apply_token_output({
+            ...default_token_output,
+            access_token: `header.${btoa(JSON.stringify({ scope }))}.signature`,
+        });
+        expect(service.has_scope('monitor')).toBe(expected);
+        expect(service.get_state().has_scope('monitor')).toBe(expected);
+    });
+
+    test.each(['malformed', 'header.!.signature', 'header.bnVsbA.signature'])(
+        'fails closed for malformed token %s', (access_token) => {
+            const service = new_authorization_service();
+            service.apply_token_output({ ...default_token_output, access_token });
+            expect(service.has_scope('monitor')).toBe(false);
+        },
+    );
+
+    test('has no scopes while unauthorized', () => {
+        expect(new_authorization_service().has_scope('monitor')).toBe(false);
+    });
+});

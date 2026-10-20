@@ -14,6 +14,7 @@ import BabyStation from './pages/BabyStation';
 import ParentStation from './pages/ParentStation';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
+import TrialExpiredBanner from './components/TrialExpiredBanner';
 
 import './App.scss';
 import RequestPasswordReset from './pages/Login/RequestPasswordReset';
@@ -33,6 +34,7 @@ const App: React.FunctionComponent = () => {
     <ServicesContext.Provider value={services}>
       <div className="wrapper">
         <Navbar />
+        <TrialExpiredBanner />
         <div className="position-relative">
           <Routes>
             <Route path="/auth/callback" element={<AuthCallback />} />

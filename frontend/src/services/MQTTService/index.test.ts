@@ -12,10 +12,11 @@ import AuthorizationService from "../AuthorizationService";
 import { AuthorizationClient, TokenOutput } from "../AuthorizationService/AuthorizationClient";
 import { Account } from "../AuthorizationService/Account";
 import settings from "../../settings";
+import { wait_for_state_change } from "../Service";
 
 const default_token_output: TokenOutput = {
     token_type: "Bearer",
-    access_token: "test_access_token",
+    access_token: `header.${btoa(JSON.stringify({ scope: "account monitor" }))}.signature`,
     expires_in: 60 * 60,
 };
 
@@ -40,6 +41,91 @@ describe("MQTTService", () => {
     afterEach(() => {
         date_now_spy.mockRestore();
     });
+
+    test.each([undefined, "account", "account monitoring", "monitor:read"])(
+        "does not connect without exact monitor scope (%s)", (scope) => {
+            const authorization_service = new_authorization_service();
+            authorization_service.apply_token_output({
+                ...default_token_output,
+                access_token: `header.${btoa(JSON.stringify({ scope }))}.signature`,
+            });
+            const service = new MQTTService({ authorization_service, logging_service: new MockLoggingService() });
+            service.connect();
+            service.subscribe_to_baby_stations(jest.fn());
+            service.publish_parent_station_announcement();
+            expect(service.get_state().name).toBe("WaitingForMonitorScope");
+            expect(mocked_mqtt.connect).not.toHaveBeenCalled();
+        },
+    );
+
+    test("does not connect when a pending login supplies an account-only token", () => {
+        const authorization_service = new_authorization_service();
+        const service = new MQTTService({ authorization_service, logging_service: new MockLoggingService() });
+        service.connect();
+        authorization_service.apply_token_output({
+            ...default_token_output,
+            access_token: `header.${btoa(JSON.stringify({ scope: "account" }))}.signature`,
+        });
+        service.connect();
+        expect(service.get_state().name).toBe("WaitingForMonitorScope");
+        expect(mocked_mqtt.connect).not.toHaveBeenCalled();
+    });
+
+    test.each(["Connecting", "Connected", "Offline"])(
+        "scope loss stops retries in %s and scope restoration reconnects", async (state) => {
+            date_now_spy.mockRestore();
+            const client = make_authorization_client();
+            const account_only_output = {
+                ...default_token_output,
+                access_token: `header.${btoa(JSON.stringify({ scope: "account" }))}.signature`,
+                expires_in: 0,
+            };
+            (client.refresh_token_with_retry as jest.Mock)
+                .mockResolvedValueOnce(account_only_output)
+                .mockResolvedValueOnce(default_token_output);
+            const listener_spy = jest.spyOn(window, "addEventListener");
+            const authorization_service = new AuthorizationService({ authorization_client: client, logging_service: new MockLoggingService() });
+            const refresh_on_focus = listener_spy.mock.calls.find(([type]) => type === "focus")![1] as EventListener;
+            listener_spy.mockRestore();
+            authorization_service.apply_token_output({ ...default_token_output, expires_in: 0 });
+            localStorage.setItem("account", JSON.stringify(default_account));
+            const service = new MQTTService({ authorization_service, logging_service: new MockLoggingService() });
+            service.connect();
+            service.subscribe_to_baby_stations(jest.fn());
+            if (state !== "Connecting") mqtt_client.emit("connect");
+            await flush_promises();
+            if (state === "Offline") mqtt_client.emit("offline");
+            const calls_before_expiry = mqtt_client.publish.mock.calls.length;
+
+            refresh_on_focus(new Event("focus"));
+            expect(client.refresh_token_with_retry).toHaveBeenCalledTimes(1);
+            await wait_for_state_change(authorization_service);
+            expect(authorization_service.get_state().name).toBe("Authorized");
+            expect(authorization_service.has_scope("monitor")).toBe(false);
+            expect(service.get_state().name).toBe("WaitingForMonitorScope");
+            expect(mqtt_client.end).toHaveBeenCalledWith(true);
+            expect(mqtt_client.publish).toHaveBeenCalledTimes(calls_before_expiry);
+            mqtt_client.emit("close");
+            mqtt_client.emit("connect");
+            service.connect();
+            expect(mocked_mqtt.connect).toHaveBeenCalledTimes(1);
+            expect(authorization_service.login_required).toBe(false);
+
+            mqtt_client = new MockMQTTClient();
+            mocked_mqtt.connect.mockReturnValue(mqtt_client);
+            refresh_on_focus(new Event("focus"));
+            await wait_for_state_change(authorization_service);
+            expect(authorization_service.has_scope("monitor")).toBe(true);
+            expect(service.get_state().name).toBe("Connecting");
+            expect(mocked_mqtt.connect).toHaveBeenCalledTimes(2);
+            mqtt_client.emit("connect");
+            await flush_promises();
+            expect(service.get_state().name).toBe("Connected");
+            expect(mqtt_client.subscribe).toHaveBeenCalledWith(
+                [`accounts/${default_account.id}/baby_stations`], expect.any(Function),
+            );
+        },
+    );
 
     test("starts awaiting login when login is required", () => {
         const service = new MQTTService({
@@ -180,7 +266,7 @@ describe("MQTTService", () => {
             },
         });
         const transformedURL = options.transformWsUrl("wss://mqtt.example.test/mqtt");
-        expect(transformedURL).toBe("wss://mqtt.example.test/mqtt?access_token=test_access_token");
+        expect(new URL(transformedURL).searchParams.get("access_token")).toBe(default_token_output.access_token);
         expect(mqtt_client.listenersByEvent.connect).toHaveLength(1);
         expect(mqtt_client.listenersByEvent.message).toHaveLength(1);
         expect(mqtt_client.listenersByEvent.reconnect).toHaveLength(1);
