@@ -41,17 +41,19 @@ new BackendStack(app, 'beddybytes-backend-prod', {
   secrets_bundle: secrets_stack.backend_bundles.prod,
   elastic_ip: core_stack.elastic_ip,
   bucket: core_stack.bucket,
+  trial_duration: 7 * 24 + 'h',
 });
 
 new BackendStack(app, 'beddybytes-backend-qa', {
   deploy_env: 'qa',
   docker_repository: ci_stack.docker_repository,
-  docker_image_digest: 'sha256:b006d90d077d4187b7714ec1bebd9e54a99eb54f68fc23915c35742f1c3fc718',
-  iot_authorizer_sha: '103066f58b7587791e9ea15f5fc1387f665c38790dc7705574f7c6aae513a538',
+  docker_image_digest: 'sha256:c0edb3f2f97e85cb5a136935fc80c93c76e6b3423e0f7b3bcdec7aef7ad7edc9',
+  iot_authorizer_sha: 'f34a48664ad637c0c3d7a77821a17357d26d0b9936f31b6300ef96ac215fe05d',
   cluster: core_stack.cluster,
   secrets_bundle: secrets_stack.backend_bundles.qa,
   elastic_ip: core_stack.elastic_ip,
   bucket: core_stack.bucket,
+  trial_duration: '2h',
 });
 
 new LocalStack(app, 'beddybytes-backend-local', {

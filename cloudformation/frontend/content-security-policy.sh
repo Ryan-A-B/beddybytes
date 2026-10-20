@@ -10,7 +10,7 @@ policies=(
     "media-src 'self'"
     "manifest-src 'self'"
     "base-uri 'self'"
-    "form-action 'self'"
+    "form-action 'self' https://*.beddybytes.com"
     "frame-src https://www.youtube.com/embed/uQHlMu7m5us"
 )
 

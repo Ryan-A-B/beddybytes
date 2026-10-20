@@ -19,6 +19,7 @@ interface StackProps extends cdk.StackProps {
     secrets_bundle: cdk.aws_secretsmanager.ISecret;
     elastic_ip: cdk.aws_ec2.CfnEIP;
     bucket: cdk.aws_s3.IBucket;
+    trial_duration: string;
 }
 
 export class BackendStack extends cdk.Stack {
@@ -77,6 +78,7 @@ export class BackendStack extends cdk.Stack {
                 'MQTT_AWS_IOT_ROOT_CA_FILE': 'keys/AmazonRootCA1.pem',
                 'MQTT_AWS_IOT_CERT_FILE': 'keys/certificate.crt',
                 'MQTT_AWS_IOT_KEY_FILE': 'keys/private_key.pem',
+                'TRIAL_DURATION': props.trial_duration,
             },
             secrets: {
                 'GOOGLE_CLIENT_ID': cdk.aws_ecs.Secret.fromSecretsManager(props.secrets_bundle, 'GOOGLE_CLIENT_ID'),
