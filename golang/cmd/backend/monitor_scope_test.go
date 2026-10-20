@@ -42,7 +42,9 @@ func TestMonitoringRoutesRequireMonitorScope(t *testing.T) {
 			want                  int
 		}{
 			{"account only", "account", internal.TokenUseAccess, 403},
-			{"missing scope", "", internal.TokenUseAccess, 403},
+			{"missing scope", "", internal.TokenUseAccess, 204},
+			{"blank scope", " \t\n", internal.TokenUseAccess, 204},
+			{"unscoped refresh", "", internal.TokenUseRefresh, 401},
 			{"scope prefix", "account monitoring", internal.TokenUseAccess, 403},
 			{"monitor", "account monitor", internal.TokenUseAccess, 204},
 			{"scope order", "monitor account", internal.TokenUseAccess, 204},

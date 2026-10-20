@@ -10,6 +10,7 @@ import (
 	"github.com/Ryan-A-B/beddybytes/golang/internal/contextx"
 	"github.com/Ryan-A-B/beddybytes/golang/internal/httpx"
 	"github.com/dgrijalva/jwt-go"
+	"github.com/gorilla/mux"
 )
 
 func TestAuthorizationRejectsRefreshTokens(t *testing.T) {
@@ -45,12 +46,19 @@ func TestAuthorizationRejectsRefreshTokens(t *testing.T) {
 func TestAuthorizationRequiresMonitorScope(t *testing.T) {
 	key := []byte("test-key")
 	for _, test := range []struct {
-		name, scope, tokenUse string
-		expired               bool
-		want                  int
+		name, scope, tokenUse         string
+		expired, legacy, badSignature bool
+		accountID                     string
+		want                          int
 	}{
 		{name: "account only", scope: "account", want: 403},
-		{name: "missing scope", want: 403},
+		{name: "missing scope", want: 204},
+		{name: "blank scope", scope: " \t\n", want: 204},
+		{name: "legacy unscoped access", legacy: true, want: 204},
+		{name: "unscoped refresh", tokenUse: TokenUseRefresh, want: 401},
+		{name: "unscoped expired", expired: true, want: 401},
+		{name: "unscoped invalid signature", badSignature: true, want: 401},
+		{name: "unscoped wrong account", accountID: "other-account", want: 403},
 		{name: "scope prefix", scope: "account monitoring", want: 403},
 		{name: "scope suffix", scope: "account not_monitor", want: 403},
 		{name: "monitor", scope: "account monitor", want: 204},
@@ -65,16 +73,23 @@ func TestAuthorizationRequiresMonitorScope(t *testing.T) {
 				expiry = time.Now().Add(-time.Hour).Unix()
 			}
 			tokenUse := test.tokenUse
-			if tokenUse == "" {
+			if tokenUse == "" && !test.legacy {
 				tokenUse = TokenUseAccess
 			}
 			claims := Claims{Issuer: "beddybytes", Audience: "beddybytes", Subject: URN{Service: "iam", AccountID: "account", ResourceType: "user", ResourceID: "user"}, TokenUse: tokenUse, Scope: test.scope, Expiry: expiry}
-			token, err := jwt.NewWithClaims(jwt.SigningMethodHS256, &claims).SignedString(key)
+			signingKey := key
+			if test.badSignature {
+				signingKey = []byte("wrong-key")
+			}
+			token, err := jwt.NewWithClaims(jwt.SigningMethodHS256, &claims).SignedString(signingKey)
 			if err != nil {
 				t.Fatal(err)
 			}
 			request := httptest.NewRequest(http.MethodGet, "/", nil)
 			request.Header.Set("Authorization", "Bearer "+token)
+			if test.accountID != "" {
+				request = mux.SetURLVars(request, map[string]string{"account_id": test.accountID})
+			}
 			response := httptest.NewRecorder()
 			called := false
 			NewAuthorizationMiddleware(key, "monitor").Middleware(http.HandlerFunc(func(responseWriter http.ResponseWriter, request *http.Request) {
@@ -87,7 +102,7 @@ func TestAuthorizationRequiresMonitorScope(t *testing.T) {
 			if response.Code != test.want || called != (test.want == 204) {
 				t.Fatalf("status=%d called=%v, want %d", response.Code, called, test.want)
 			}
-			if test.want == 403 {
+			if test.want == 403 && test.accountID == "" {
 				var output httpx.ErrorFrame
 				if err := json.Unmarshal(response.Body.Bytes(), &output); err != nil {
 					t.Fatal(err)
