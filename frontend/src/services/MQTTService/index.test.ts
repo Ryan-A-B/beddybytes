@@ -16,7 +16,7 @@ import { wait_for_state_change } from "../Service";
 
 const default_token_output: TokenOutput = {
     token_type: "Bearer",
-    access_token: `header.${btoa(JSON.stringify({ scope: "account monitor" }))}.signature`,
+    access_token: `header.${btoa(JSON.stringify({ scp: "account monitor" }))}.signature`,
     expires_in: 60 * 60,
 };
 
@@ -42,12 +42,12 @@ describe("MQTTService", () => {
         date_now_spy.mockRestore();
     });
 
-    test.each([undefined, "account", "account monitoring", "monitor:read"])(
+    test.each(["account", "account monitoring", "monitor:read"])(
         "does not connect without exact monitor scope (%s)", (scope) => {
             const authorization_service = new_authorization_service();
             authorization_service.apply_token_output({
                 ...default_token_output,
-                access_token: `header.${btoa(JSON.stringify({ scope }))}.signature`,
+                access_token: `header.${btoa(JSON.stringify({ scp: scope }))}.signature`,
             });
             const service = new MQTTService({ authorization_service, logging_service: new MockLoggingService() });
             service.connect();
@@ -58,13 +58,26 @@ describe("MQTTService", () => {
         },
     );
 
+    test.each([undefined, "", "  "])("connects with a pre-release token without scope (%s)", (scope) => {
+        const authorization_service = new_authorization_service();
+        authorization_service.apply_token_output({
+            ...default_token_output,
+            access_token: `header.${btoa(JSON.stringify({ scp: scope }))}.signature`,
+        });
+        localStorage.setItem("account", JSON.stringify(default_account));
+        const service = new MQTTService({ authorization_service, logging_service: new MockLoggingService() });
+        service.connect();
+        expect(mocked_mqtt.connect).toHaveBeenCalledTimes(1);
+        expect(service.get_state().name).toBe("Connecting");
+    });
+
     test("does not connect when a pending login supplies an account-only token", () => {
         const authorization_service = new_authorization_service();
         const service = new MQTTService({ authorization_service, logging_service: new MockLoggingService() });
         service.connect();
         authorization_service.apply_token_output({
             ...default_token_output,
-            access_token: `header.${btoa(JSON.stringify({ scope: "account" }))}.signature`,
+            access_token: `header.${btoa(JSON.stringify({ scp: "account" }))}.signature`,
         });
         service.connect();
         expect(service.get_state().name).toBe("WaitingForMonitorScope");
@@ -77,7 +90,7 @@ describe("MQTTService", () => {
             const client = make_authorization_client();
             const account_only_output = {
                 ...default_token_output,
-                access_token: `header.${btoa(JSON.stringify({ scope: "account" }))}.signature`,
+                access_token: `header.${btoa(JSON.stringify({ scp: "account" }))}.signature`,
                 expires_in: 0,
             };
             (client.refresh_token_with_retry as jest.Mock)

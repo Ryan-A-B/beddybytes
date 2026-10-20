@@ -181,14 +181,16 @@ describe('token scopes', () => {
         ['account  monitor', true],
         ['account', false],
         ['monitoring monitor:read', false],
-        [undefined, false],
+        [undefined, true],
+        ['', true],
+        ['  ', true],
         [['monitor'], false],
         [null, false],
     ])('checks exact scope membership for %s', (scope, expected) => {
         const service = new_authorization_service();
         service.apply_token_output({
             ...default_token_output,
-            access_token: `header.${btoa(JSON.stringify({ scope }))}.signature`,
+            access_token: `header.${btoa(JSON.stringify({ scp: scope }))}.signature`,
         });
         expect(service.has_scope('monitor')).toBe(expected);
         expect(service.get_state().has_scope('monitor')).toBe(expected);

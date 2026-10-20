@@ -28,7 +28,12 @@ abstract class AbstractState {
             const payload = this.get_access_token().split('.')[1];
             const base64 = payload.replace(/-/g, '+').replace(/_/g, '/');
             const claims = JSON.parse(atob(base64.padEnd(Math.ceil(base64.length / 4) * 4, '=')));
-            return typeof claims.scope === 'string' && claims.scope.split(/\s+/).includes(scope);
+            if (claims === null || typeof claims !== 'object' || Array.isArray(claims)) return false;
+            // Pre-release access tokens did not carry scopes. Preserve their
+            // access while enforcing exact membership for scoped tokens.
+            const scopes = claims.scp;
+            return scopes === undefined || (typeof scopes === 'string' &&
+                (scopes.trim() === '' || scopes.split(/\s+/).includes(scope)));
         } catch {
             return false;
         }
