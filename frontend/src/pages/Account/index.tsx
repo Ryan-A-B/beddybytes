@@ -70,14 +70,14 @@ const Account: React.FC = () => {
                     </div>
                     {loading && <p role="status">Loading account…</p>}
                     {error && <div role="alert" className="alert alert-danger">{error}</div>}
-                    {account && <>
-                        <h3 className="h4 mb-3">{licenseLabels[account.license.type]}</h3>
+                    {account && <div id="section-license-info">
+                        <h3 id="license-type" data-license-type={account.license.type} className="h4 mb-3">{licenseLabels[account.license.type]}</h3>
                         <dl className="row mb-3">
                             <dt className="col-3 fw-normal">Started</dt>
-                            <dd className="col-9"><LicenseTime seconds={account.license.start_unix_seconds} /></dd>
+                            <dd id="license-start" data-license-start={account.license.start_unix_seconds} className="col-9"><LicenseTime seconds={account.license.start_unix_seconds} /></dd>
                             {account.license.type === 'trial' && <>
                                 <dt className="col-3 fw-normal">Ends</dt>
-                                <dd className="col-9"><LicenseTime seconds={account.license.trial_detail.end_unix_seconds} /></dd>
+                                <dd id="license-end" data-license-end={account.license.trial_detail.end_unix_seconds} className="col-9"><LicenseTime seconds={account.license.trial_detail.end_unix_seconds} /></dd>
                             </>}
                         </dl>
                         <p className="text-body-secondary small">Times shown in your local time zone.</p>
@@ -88,7 +88,7 @@ const Account: React.FC = () => {
                                 {checkoutPending ? 'Opening checkout…' : 'Buy lifetime access'}
                             </button>
                         </form>}
-                    </>}
+                    </div>}
                 </section>
             </div>
         </main>

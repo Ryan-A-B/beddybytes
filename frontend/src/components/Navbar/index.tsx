@@ -54,7 +54,7 @@ const Navbar: React.FunctionComponent = () => {
                             </NavLink>
                         </li>
                         <li className="nav-item">
-                            <NavLink to="/account" onClick={onNavLinkClick}>
+                            <NavLink id="nav-link-account" to="/account" onClick={onNavLinkClick}>
                                 Account
                             </NavLink>
                         </li>
