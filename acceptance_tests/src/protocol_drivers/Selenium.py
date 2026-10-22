@@ -1,7 +1,10 @@
+import os
+
+from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.wait import WebDriverWait
 
-from dsl.WebApp import LicenseInfo
+from dsl.WebApp import LicenseInfo, TrialDetail
 from utils import DefaultTimeoutSeconds
 
 
@@ -56,5 +59,27 @@ class SeleniumWebApp:
         if license_type == "trial":
             license_end_element = license_info_section.find_element(By.ID, "license-end")
             license_end_unix_timestamp = int(license_end_element.get_attribute("data-license-end"))
-            license_info.end_unix_timestamp = license_end_unix_timestamp
+            license_info.trial_detail = TrialDetail(
+                end_unix_timestamp=license_end_unix_timestamp
+            )
         return license_info
+
+
+# Selenium WebDriver configuration for Chrome
+
+hub_url = os.getenv('SELENIUM_HUB_URL', 'http://localhost:4444')
+app_base_url = 'https://app.beddybytes.local'
+api_base_url = os.getenv('API_BASE_URL', 'https://api.beddybytes.local')
+api_websocket_base_url = os.getenv('API_WEBSOCKET_BASE_URL', 'wss://api.beddybytes.local')
+
+chrome_options = webdriver.ChromeOptions()
+# allow self-signed certificates
+chrome_options.add_argument("--ignore-certificate-errors")
+# Recommended by https://webrtc.org/getting-started/testing
+chrome_options.add_argument("--allow-file-access-from-files")
+chrome_options.add_argument("--disable-translate")
+chrome_options.add_argument("--use-fake-ui-for-media-stream")
+chrome_options.add_argument("--use-fake-device-for-media-stream")
+chrome_options.add_argument("--mute-audio")
+# --use-file-for-fake-audio-capture=<filename> - Provide a file to use when capturing audio.
+# --use-file-for-fake-video-capture=<filename> - Provide a file to use when capturing video.

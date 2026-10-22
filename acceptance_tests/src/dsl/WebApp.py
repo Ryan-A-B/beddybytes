@@ -15,7 +15,11 @@ class WebApp(Protocol):
         ...
 
 @dataclass
-class LicenseInfo(Protocol):
+class LicenseInfo:
     license_type: str
     start_unix_timestamp: int
+    trial_detail: TrialDetail | None = None
+
+@dataclass
+class TrialDetail:
     end_unix_timestamp: int
