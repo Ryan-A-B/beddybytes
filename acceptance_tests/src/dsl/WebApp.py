@@ -14,6 +14,9 @@ class WebApp(Protocol):
     def get_license_info(self) -> LicenseInfo:
         ...
 
+    def trial_expired_banner_is_displayed(self) -> bool:
+        ...
+
 @dataclass
 class LicenseInfo:
     license_type: str

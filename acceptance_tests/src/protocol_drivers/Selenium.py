@@ -3,6 +3,8 @@ import os
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.wait import WebDriverWait
+from selenium.webdriver.support import expected_conditions as conditions
+from selenium.common.exceptions import TimeoutException
 
 from dsl.WebApp import LicenseInfo, TrialDetail
 from utils import DefaultTimeoutSeconds
@@ -44,6 +46,13 @@ class SeleniumWebApp:
         submit_button_element.click()
 
         self.wait.until(lambda driver: driver.find_element(By.ID, "page-index"))
+
+    def trial_expired_banner_is_displayed(self) -> bool:
+        try:
+            self.wait.until(conditions.visibility_of_element_located((By.ID, "trial-expired-banner")))
+            return True
+        except TimeoutException:
+            return False
 
     def get_license_info(self) -> LicenseInfo:
         self.driver.find_element(By.ID, "nav-link-account").click()

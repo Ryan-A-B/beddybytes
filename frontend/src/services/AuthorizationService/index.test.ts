@@ -208,3 +208,115 @@ describe('token scopes', () => {
         expect(new_authorization_service().has_scope('monitor')).toBe(false);
     });
 });
+
+describe('trial expiry refresh', () => {
+    const monitor_token = `header.${btoa(JSON.stringify({ scp: 'account monitor' }))}.signature`;
+    const account_token = `header.${btoa(JSON.stringify({ scp: 'account' }))}.signature`;
+
+    beforeEach(() => {
+        jest.useFakeTimers();
+        jest.setSystemTime(new Date('2026-10-22T12:00:00Z'));
+        localStorage.removeItem('account');
+    });
+
+    afterEach(() => {
+        jest.clearAllTimers();
+        jest.useRealTimers();
+        localStorage.removeItem('account');
+    });
+
+    const save_trial = (expires_in_seconds: number) => {
+        localStorage.setItem('account', JSON.stringify({
+            ...default_account,
+            license: {
+                type: 'trial', start_unix_seconds: Date.now() / 1000,
+                trial_detail: { end_unix_seconds: Date.now() / 1000 + expires_in_seconds },
+            },
+        }));
+    };
+
+    test('refreshes at trial expiry and applies the returned scopes without waiting for JWT expiry', async () => {
+        const client = make_default_authorization_client();
+        (client.refresh_token_with_retry as jest.Mock).mockResolvedValue({ ...default_token_output, access_token: account_token });
+        const authorization = new_authorization_service(client);
+        save_trial(5);
+        authorization.apply_token_output({ ...default_token_output, access_token: monitor_token });
+        jest.advanceTimersByTime(4999);
+        expect(client.refresh_token_with_retry).not.toHaveBeenCalled();
+        expect(authorization.has_scope('monitor')).toBe(true);
+        jest.advanceTimersByTime(1);
+        await wait_for_state_change(authorization);
+        expect(client.refresh_token_with_retry).toHaveBeenCalledTimes(1);
+        expect(authorization.has_scope('monitor')).toBe(false);
+        expect(authorization.login_required).toBe(false);
+        jest.advanceTimersByTime(60 * 1000);
+        expect(client.refresh_token_with_retry).toHaveBeenCalledTimes(1);
+    });
+
+    test('startup token refresh also schedules the trial deadline', async () => {
+        save_trial(5);
+        const client = make_default_authorization_client();
+        (client.refresh_token_with_retry as jest.Mock)
+            .mockResolvedValueOnce({ ...default_token_output, access_token: monitor_token })
+            .mockResolvedValueOnce({ ...default_token_output, access_token: account_token });
+        const authorization = new_authorization_service(client);
+        await wait_for_state_change(authorization);
+        jest.advanceTimersByTime(5000);
+        await wait_for_state_change(authorization);
+        expect(client.refresh_token_with_retry).toHaveBeenCalledTimes(2);
+        expect(authorization.has_scope('monitor')).toBe(false);
+    });
+
+    test('checks trial expiry on foreground return when the timer was suspended', async () => {
+        const client = make_default_authorization_client();
+        (client.refresh_token_with_retry as jest.Mock).mockResolvedValue({ ...default_token_output, access_token: account_token });
+        const listener_spy = jest.spyOn(window, 'addEventListener');
+        const authorization = new_authorization_service(client);
+        const on_focus = listener_spy.mock.calls.find(([type]) => type === 'focus')![1] as EventListener;
+        listener_spy.mockRestore();
+        save_trial(5);
+        authorization.apply_token_output({ ...default_token_output, access_token: monitor_token });
+        jest.setSystemTime(Date.now() + 5000);
+        on_focus(new Event('focus'));
+        await wait_for_state_change(authorization);
+        expect(authorization.has_scope('monitor')).toBe(false);
+        expect(client.refresh_token_with_retry).toHaveBeenCalledTimes(1);
+    });
+
+    test('refreshes again if an earlier refresh crosses the trial deadline', async () => {
+        const client = make_default_authorization_client();
+        let complete_refresh!: (output: TokenOutput) => void;
+        (client.refresh_token_with_retry as jest.Mock)
+            .mockImplementationOnce(() => new Promise<TokenOutput>(resolve => { complete_refresh = resolve; }))
+            .mockResolvedValueOnce({ ...default_token_output, access_token: account_token });
+        const listener_spy = jest.spyOn(window, 'addEventListener');
+        const authorization = new_authorization_service(client);
+        const on_focus = listener_spy.mock.calls.find(([type]) => type === 'focus')![1] as EventListener;
+        listener_spy.mockRestore();
+        save_trial(5);
+        authorization.apply_token_output({ ...default_token_output, access_token: monitor_token, expires_in: 301 });
+        jest.advanceTimersByTime(1000);
+        on_focus(new Event('focus'));
+        jest.advanceTimersByTime(4000);
+        expect(client.refresh_token_with_retry).toHaveBeenCalledTimes(1);
+        complete_refresh({ ...default_token_output, access_token: monitor_token });
+        await wait_for_state_change(authorization);
+        jest.advanceTimersByTime(0);
+        await wait_for_state_change(authorization);
+        expect(authorization.has_scope('monitor')).toBe(false);
+        expect(client.refresh_token_with_retry).toHaveBeenCalledTimes(2);
+    });
+
+    test('retains monitoring if the refreshed token allows it and avoids a refresh loop with stale cached trial data', async () => {
+        const client = make_default_authorization_client();
+        (client.refresh_token_with_retry as jest.Mock).mockResolvedValue({ ...default_token_output, access_token: monitor_token });
+        const authorization = new_authorization_service(client);
+        save_trial(5);
+        authorization.apply_token_output({ ...default_token_output, access_token: monitor_token });
+        jest.advanceTimersByTime(5000);
+        await wait_for_state_change(authorization);
+        jest.advanceTimersByTime(60 * 1000);
+        expect(authorization.has_scope('monitor')).toBe(true);
+        expect(client.refresh_token_with_retry).toHaveBeenCalledTimes(1);
+    });
+});
