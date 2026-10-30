@@ -96,6 +96,32 @@ class WebAppSeleniumDriver:
         self.wait.until(lambda driver: driver.find_element(By.ID, "select-video-device").get_attribute("value") == camera_name)
         self.wait.until(conditions.presence_of_element_located((By.CSS_SELECTOR, ".baby-station .video-container canvas")))
 
+    def stop_baby_station_session(self) -> None:
+        def stop_button(driver):
+            try:
+                session_toggle = driver.find_element(By.ID, "session-toggle")
+                if session_toggle.text.strip() == "Stop" and session_toggle.is_displayed() and session_toggle.is_enabled():
+                    return session_toggle
+            except StaleElementReferenceException:
+                pass
+            return False
+
+        self.wait.until(stop_button).click()
+        self.wait.until(conditions.text_to_be_present_in_element((By.ID, "session-toggle"), "Start"))
+
+    def baby_station_start_disabled(self) -> bool:
+        def start_is_disabled(driver):
+            try:
+                session_toggle = driver.find_element(By.ID, "session-toggle")
+                return session_toggle.text.strip() == "Start" and session_toggle.is_displayed() and not session_toggle.is_enabled()
+            except StaleElementReferenceException:
+                return False
+
+        try:
+            return self.wait.until(start_is_disabled)
+        except TimeoutException:
+            return False
+
     def start_baby_station(self) -> None:
         self.driver.find_element(By.ID, "nav-link-baby").click()
         session_toggle = self.wait.until(conditions.element_to_be_clickable((By.ID, "session-toggle")))
