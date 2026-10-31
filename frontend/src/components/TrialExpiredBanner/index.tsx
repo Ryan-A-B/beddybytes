@@ -7,9 +7,11 @@ const TrialExpiredBanner: React.FunctionComponent = () => {
     const authorization = useServiceState(useAuthorizationService());
     if (!authorization.access_token_available || authorization.has_scope('monitor')) return null;
     return (
-        <div id="trial-expired-banner" className="alert alert-warning m-3" role="alert">
-            Your trial has expired. New monitoring connections are no longer possible.{' '}
-            <Link to="/account">Buy lifetime access</Link> to continue monitoring.
+        <div id="trial-expired-banner" className="alert alert-warning mb-0 px-0 border-0 rounded-0" role="alert">
+            <div className="container">
+                Your trial has expired. New monitoring connections are no longer possible.{' '}
+                <Link to="/account">Buy lifetime access</Link> to continue monitoring.
+            </div>
         </div>
     );
 };
