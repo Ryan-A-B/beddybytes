@@ -12,6 +12,11 @@ $danger: $red;
 @import "bootstrap";
 @import "@fortawesome/fontawesome-svg-core/styles";
 
+#trial-expired-banner {
+    --bs-alert-bg: #fff0b3;
+    --bs-alert-color: #664d03;
+}
+
 .debug-message {
     display: none;
 }
