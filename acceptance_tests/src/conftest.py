@@ -1,19 +1,20 @@
 import pytest
 from selenium import webdriver
+from dataclasses import dataclass
+import protocol.web_app
+import protocol.api_client
+from protocol_drivers.api_client_http_driver import APIClientHTTPDriverFactory
+from protocol_drivers.web_app_selenium_driver import WebAppSeleniumDriverFactory
 
-from protocol_drivers.Selenium import (
-    SeleniumWebApp,
-    app_base_url,
-    chrome_options,
-    hub_url,
-)
-
+@dataclass
+class TestInput:
+    __test__ = False
+    web_app_factory: protocol.web_app.WebAppFactory
+    api_client_factory: protocol.api_client.APIClientFactory
 
 @pytest.fixture
-def webapp():
-    with webdriver.Remote(
-        command_executor=hub_url,
-        options=chrome_options,
-    ) as driver:
-        driver.get(app_base_url)
-        yield SeleniumWebApp(driver)
+def input():
+    return TestInput(
+        web_app_factory=WebAppSeleniumDriverFactory(),
+        api_client_factory=APIClientHTTPDriverFactory(),
+    )
