@@ -51,6 +51,9 @@ class WebApp(Protocol):
     def pick_baby_station_camera(self, camera_name: str) -> None:
         ...
 
+    def baby_station_active(self) -> bool:
+        ...
+
     def start_parent_station(self) -> None:
         ...
 

@@ -209,6 +209,9 @@ class WebAppSeleniumDriver:
         session_toggle.click()
         self.wait.until(lambda driver: driver.find_element(By.ID, "session-toggle").text.strip() == "Stop")
 
+    def baby_station_active(self) -> bool:
+        return self.driver.find_element(By.ID, "session-toggle").text.strip() == "Stop"
+
     def start_parent_station(self) -> None:
         self.driver.find_element(By.ID, "nav-link-parent").click()
 
