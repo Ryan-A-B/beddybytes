@@ -31,7 +31,7 @@ type Handlers struct {
 
 func (handlers *Handlers) AddRoutes(router *mux.Router) {
 	start := router.PathPrefix("/payments/start").Subrouter()
-	start.Use(internal.NewAuthorizationMiddleware(handlers.Key).Middleware)
+	start.Use(internal.NewAuthorizationMiddleware(handlers.Key, "account").Middleware)
 	start.HandleFunc("", handlers.Start).Methods(http.MethodPost)
 
 	router.HandleFunc("/payments/stripe/success", handlers.Success).Methods(http.MethodGet)
