@@ -3,6 +3,8 @@ import LoggingService, { Severity } from '../LoggingService';
 import { AuthorizationClient, load_account_from_local_storage, remove_account_from_local_storage, TokenOutput } from "./AuthorizationClient";
 import Service from "../Service";
 import { AuthCallbackPath } from './AuthCodeFlow';
+import { Claims, NoClaims, parse_claims } from './Claims';
+export type { Claims } from './Claims';
 
 const InitialRetryDelay = 1000;
 
@@ -22,22 +24,7 @@ abstract class AbstractState {
     public abstract readonly access_token_available: boolean;
     public abstract readonly login_required: boolean;
 
-    public has_scope = (scope: string): boolean => {
-        if (!this.access_token_available) return false;
-        try {
-            const payload = this.get_access_token().split('.')[1];
-            const base64 = payload.replace(/-/g, '+').replace(/_/g, '/');
-            const claims = JSON.parse(atob(base64.padEnd(Math.ceil(base64.length / 4) * 4, '=')));
-            if (claims === null || typeof claims !== 'object' || Array.isArray(claims)) return false;
-            // Pre-release access tokens did not carry scopes. Preserve their
-            // access while enforcing exact membership for scoped tokens.
-            const scopes = claims.scp;
-            return scopes === undefined || (typeof scopes === 'string' &&
-                (scopes.trim() === '' || scopes.split(/\s+/).includes(scope)));
-        } catch {
-            return false;
-        }
-    };
+    public get_claims = (): Claims => NoClaims;
 
     public get_access_token = (): string => {
         throw new Error(`can not get access token in ${this.name} state`);
@@ -103,20 +90,24 @@ class Authorized extends AbstractState {
     public readonly access_token_available = true;
     public readonly login_required = false;
     private readonly access_token: string;
+    private readonly claims: Claims;
     private readonly access_token_expiry: moment.Moment;
 
     constructor(access_token: string, access_token_expiry: moment.Moment) {
         super();
         this.access_token = access_token;
+        this.claims = parse_claims(access_token);
         this.access_token_expiry = access_token_expiry;
     }
+
+    get_claims = (): Claims => this.claims;
 
     get_access_token = (): string => {
         return this.access_token;
     }
 
     refresh_token = async (proxy: ServiceProxy): Promise<void> => {
-        proxy.set_state(new RefreshingToContinueSession(this.access_token));
+        proxy.set_state(new RefreshingToContinueSession(this.access_token, this.claims));
         try {
             const token_output = await proxy.authorization_client.refresh_token_with_retry(InitialRetryDelay);
             proxy.handle_refresh_token_success(token_output);
@@ -141,11 +132,15 @@ class RefreshingToContinueSession extends AbstractState {
     public readonly access_token_available = true;
     public readonly login_required = false;
     private readonly access_token: string;
+    private readonly claims: Claims;
 
-    constructor(access_token: string) {
+    constructor(access_token: string, claims: Claims) {
         super();
         this.access_token = access_token;
+        this.claims = claims;
     }
+
+    get_claims = (): Claims => this.claims;
 
     get_access_token = (): string => {
         return this.access_token;
@@ -241,8 +236,8 @@ class AuthorizationService extends Service<AuthorizationServiceState> {
         return this.get_state().get_access_token();
     }
 
-    public has_scope = (scope: string): boolean => {
-        return this.get_state().has_scope(scope);
+    public get_claims = (): Claims => {
+        return this.get_state().get_claims();
     }
 
     public apply_token_output = (token_output: TokenOutput): void => {
@@ -266,7 +261,7 @@ class AuthorizationService extends Service<AuthorizationServiceState> {
         this.trial_expiry_timer = null;
         this.trial_expiry_millis = null;
         this.set_state(state);
-        if (!(state instanceof Authorized) || !state.has_scope('monitor')) return;
+        if (!(state instanceof Authorized) || !state.get_claims().has_scope('monitor')) return;
         const account = load_account_from_local_storage();
         if (account?.license?.type !== 'trial') return;
         const expiry_millis = account.license.trial_detail.end_unix_seconds * 1000;

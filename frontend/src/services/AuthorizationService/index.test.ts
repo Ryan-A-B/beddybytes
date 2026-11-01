@@ -192,20 +192,77 @@ describe('token scopes', () => {
             ...default_token_output,
             access_token: `header.${btoa(JSON.stringify({ scp: scope }))}.signature`,
         });
-        expect(service.has_scope('monitor')).toBe(expected);
-        expect(service.get_state().has_scope('monitor')).toBe(expected);
+        expect(service.get_claims().has_scope('monitor')).toBe(expected);
+        expect(service.get_state().get_claims().has_scope('monitor')).toBe(expected);
+        expect(service.get_claims().has_empty_scope()).toBe(scope === undefined || scope === '' || scope === '  ');
     });
 
     test.each(['malformed', 'header.!.signature', 'header.bnVsbA.signature'])(
         'fails closed for malformed token %s', (access_token) => {
             const service = new_authorization_service();
             service.apply_token_output({ ...default_token_output, access_token });
-            expect(service.has_scope('monitor')).toBe(false);
+            expect(service.get_claims().has_scope('monitor')).toBe(false);
         },
     );
 
+    test('prepares claims once and retains them until refreshed tokens arrive', async () => {
+        jest.useFakeTimers();
+        const client = make_default_authorization_client();
+        let complete_refresh!: (output: TokenOutput) => void;
+        (client.refresh_token_with_retry as jest.Mock).mockImplementation(() => new Promise<TokenOutput>(resolve => {
+            complete_refresh = resolve;
+        }));
+        const authorization = new_authorization_service(client);
+        const decode = jest.spyOn(window, 'atob');
+        try {
+            authorization.apply_token_output({
+                ...default_token_output,
+                access_token: `header.${btoa(JSON.stringify({ scp: 'account monitor' }))}.signature`,
+            });
+            expect(decode).toHaveBeenCalledTimes(1);
+            decode.mockClear();
+            const claims = authorization.get_claims();
+            expect(authorization.get_state().get_claims()).toBe(claims);
+            expect(claims.has_scope('monitor')).toBe(true);
+            expect(claims.has_scope('account')).toBe(true);
+            jest.advanceTimersByTime(default_token_output.expires_in * 1000);
+            expect(authorization.get_state().name).toBe('RefreshingToContinueSession');
+            expect(authorization.get_claims()).toBe(claims);
+            expect(decode).not.toHaveBeenCalled();
+            complete_refresh({
+                ...default_token_output,
+                access_token: `header.${btoa(JSON.stringify({ scp: 'account' }))}.signature`,
+            });
+            await wait_for_state_change(authorization);
+            expect(decode).toHaveBeenCalledTimes(1);
+            expect(authorization.get_claims()).not.toBe(claims);
+            expect(authorization.get_claims().has_scope('monitor')).toBe(false);
+        } finally {
+            decode.mockRestore();
+            jest.clearAllTimers();
+            jest.useRealTimers();
+        }
+    });
+
+    test('has no claims during initial refresh or after refresh failure', async () => {
+        localStorage.setItem('account', JSON.stringify(default_account));
+        const client = make_default_authorization_client();
+        let fail_refresh!: (error: Error) => void;
+        (client.refresh_token_with_retry as jest.Mock).mockImplementation(() => new Promise<TokenOutput>((resolve, reject) => {
+            fail_refresh = reject;
+        }));
+        const authorization = new_authorization_service(client);
+        expect(authorization.get_state().name).toBe('RefreshingForNewSession');
+        expect(authorization.get_claims().has_scope('monitor')).toBe(false);
+        expect(authorization.get_claims().has_empty_scope()).toBe(false);
+        fail_refresh(new Error('session expired'));
+        await wait_for_state_change(authorization);
+        expect(authorization.get_state().name).toBe('Unauthorized');
+        expect(authorization.get_claims().has_scope('monitor')).toBe(false);
+    });
+
     test('has no scopes while unauthorized', () => {
-        expect(new_authorization_service().has_scope('monitor')).toBe(false);
+        expect(new_authorization_service().get_claims().has_scope('monitor')).toBe(false);
     });
 });
 
@@ -243,11 +300,11 @@ describe('trial expiry refresh', () => {
         authorization.apply_token_output({ ...default_token_output, access_token: monitor_token });
         jest.advanceTimersByTime(4999);
         expect(client.refresh_token_with_retry).not.toHaveBeenCalled();
-        expect(authorization.has_scope('monitor')).toBe(true);
+        expect(authorization.get_claims().has_scope('monitor')).toBe(true);
         jest.advanceTimersByTime(1);
         await wait_for_state_change(authorization);
         expect(client.refresh_token_with_retry).toHaveBeenCalledTimes(1);
-        expect(authorization.has_scope('monitor')).toBe(false);
+        expect(authorization.get_claims().has_scope('monitor')).toBe(false);
         expect(authorization.login_required).toBe(false);
         jest.advanceTimersByTime(60 * 1000);
         expect(client.refresh_token_with_retry).toHaveBeenCalledTimes(1);
@@ -264,7 +321,7 @@ describe('trial expiry refresh', () => {
         jest.advanceTimersByTime(5000);
         await wait_for_state_change(authorization);
         expect(client.refresh_token_with_retry).toHaveBeenCalledTimes(2);
-        expect(authorization.has_scope('monitor')).toBe(false);
+        expect(authorization.get_claims().has_scope('monitor')).toBe(false);
     });
 
     test('checks trial expiry on foreground return when the timer was suspended', async () => {
@@ -279,7 +336,7 @@ describe('trial expiry refresh', () => {
         jest.setSystemTime(Date.now() + 5000);
         on_focus(new Event('focus'));
         await wait_for_state_change(authorization);
-        expect(authorization.has_scope('monitor')).toBe(false);
+        expect(authorization.get_claims().has_scope('monitor')).toBe(false);
         expect(client.refresh_token_with_retry).toHaveBeenCalledTimes(1);
     });
 
@@ -303,7 +360,7 @@ describe('trial expiry refresh', () => {
         await wait_for_state_change(authorization);
         jest.advanceTimersByTime(0);
         await wait_for_state_change(authorization);
-        expect(authorization.has_scope('monitor')).toBe(false);
+        expect(authorization.get_claims().has_scope('monitor')).toBe(false);
         expect(client.refresh_token_with_retry).toHaveBeenCalledTimes(2);
     });
 
@@ -316,7 +373,7 @@ describe('trial expiry refresh', () => {
         jest.advanceTimersByTime(5000);
         await wait_for_state_change(authorization);
         jest.advanceTimersByTime(60 * 1000);
-        expect(authorization.has_scope('monitor')).toBe(true);
+        expect(authorization.get_claims().has_scope('monitor')).toBe(true);
         expect(client.refresh_token_with_retry).toHaveBeenCalledTimes(1);
     });
 });

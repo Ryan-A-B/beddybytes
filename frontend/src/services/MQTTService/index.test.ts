@@ -114,7 +114,7 @@ describe("MQTTService", () => {
             expect(client.refresh_token_with_retry).toHaveBeenCalledTimes(1);
             await wait_for_state_change(authorization_service);
             expect(authorization_service.get_state().name).toBe("Authorized");
-            expect(authorization_service.has_scope("monitor")).toBe(false);
+            expect(authorization_service.get_claims().has_scope("monitor")).toBe(false);
             expect(service.get_state().name).toBe("WaitingForMonitorScope");
             expect(mqtt_client.end).toHaveBeenCalledWith(true);
             expect(mqtt_client.publish).toHaveBeenCalledTimes(calls_before_expiry);
@@ -128,7 +128,7 @@ describe("MQTTService", () => {
             mocked_mqtt.connect.mockReturnValue(mqtt_client);
             refresh_on_focus(new Event("focus"));
             await wait_for_state_change(authorization_service);
-            expect(authorization_service.has_scope("monitor")).toBe(true);
+            expect(authorization_service.get_claims().has_scope("monitor")).toBe(true);
             expect(service.get_state().name).toBe("Connecting");
             expect(mocked_mqtt.connect).toHaveBeenCalledTimes(2);
             mqtt_client.emit("connect");

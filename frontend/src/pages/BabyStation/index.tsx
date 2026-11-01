@@ -55,11 +55,11 @@ const BabyStation: React.FunctionComponent = () => {
         return media_device_service.stop;
     }, [media_devices_permission_state, media_device_service]);
     const canActivateSession = React.useMemo(() => {
-        return sessionName !== '' && authorization_state.has_scope('monitor');
+        return sessionName !== '' && authorization_state.get_claims().has_scope('monitor');
     }, [sessionName, authorization_state]);
     useWakeLock(baby_station_session_state.name !== 'Ready');
     const startSession = React.useCallback(async () => {
-        if (!authorization_service.get_state().has_scope('monitor')) return;
+        if (!authorization_service.get_state().get_claims().has_scope('monitor')) return;
         await session_service.start_session({
             name: sessionName,
         });
