@@ -4,9 +4,10 @@ import { useAuthorizationService } from '../../services';
 import useServiceState from '../../hooks/useServiceState';
 
 const TrialExpiredBanner: React.FunctionComponent = () => {
-    const authorization = useServiceState(useAuthorizationService());
-    if (!authorization.access_token_available) return null;
-    if (authorization.get_claims().has_scope('monitor')) return null;
+    const authorization_service = useAuthorizationService();
+    useServiceState(authorization_service);
+    const claims = authorization_service.get_claims();
+    if (!claims.has_scope('account') || claims.has_scope('monitor')) return null;
     return (
         <div id="trial-expired-banner" className="alert alert-warning mb-0 px-0 border-0 rounded-0" role="alert">
             <div className="container">

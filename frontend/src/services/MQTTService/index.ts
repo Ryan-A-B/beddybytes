@@ -1053,12 +1053,10 @@ class MQTTService extends Service<MQTTServiceState> {
     }
 
     private handle_authorization_service_state_changed = (event: ServiceStateChangedEvent<AuthorizationServiceState>): void => {
-        if (event.current_state.access_token_available && !event.current_state.get_claims().has_scope("monitor")) {
+        if (!this.authorization_service.get_claims().has_scope("monitor")) {
             const client = this.client;
             this.client = null;
-            if (!(this.get_state() instanceof WaitingForMonitorScope)) {
-                this.set_state(new WaitingForMonitorScope());
-            }
+            this.set_state(new_initial_state(this.authorization_service));
             // Force end to cancel MQTT.js retries and queued messages. Do not
             // publish a clean disconnect: established RTC sessions must survive.
             client?.end(true);
@@ -1066,7 +1064,7 @@ class MQTTService extends Service<MQTTServiceState> {
         }
         if (this.get_state() instanceof WaitingForMonitorScope) {
             this.set_state(new_initial_state(this.authorization_service));
-            if (event.current_state.get_claims().has_scope("monitor") && this.connection_requested) {
+            if (this.connection_requested) {
                 this.get_state().connect(this.proxy);
             }
             return;
@@ -1232,10 +1230,8 @@ const load_account_id = (): string => {
 
 const new_initial_state = (authorization_service: AuthorizationService): MQTTServiceState => {
     if (authorization_service.login_required) return new AwaitingLogin();
-    if (authorization_service.access_token_available) {
-        if (!authorization_service.get_claims().has_scope("monitor")) return new WaitingForMonitorScope();
-        return new Ready(load_account_id());
-    }
+    if (authorization_service.get_claims().has_scope("monitor")) return new Ready(load_account_id());
+    if (authorization_service.access_token_available) return new WaitingForMonitorScope();
     return new WaitingForAccessTokenToBeReady();
 };
 

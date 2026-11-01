@@ -40,8 +40,7 @@ class TrialExpiryService {
 
     private schedule_refresh = (): void => {
         this.clear_timer();
-        const state = this.authorization_service.get_state();
-        if (!state.access_token_available || !state.get_claims().has_scope('monitor')) return;
+        if (!this.authorization_service.get_claims().has_scope('monitor')) return;
         const account = load_account_from_local_storage();
         if (account?.license?.type !== 'trial') return;
         const expiry_millis = account.license.trial_detail.end_unix_seconds * 1000;

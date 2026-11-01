@@ -11,14 +11,15 @@ jest.mock('../../services', () => ({ useAuthorizationService: jest.fn() }));
 class AuthorizationStub extends Service<any> {
     protected name = 'AuthorizationStub';
     protected to_string = () => this.name;
-    public update = (access_token_available: boolean, monitor: boolean) => {
-        this.set_state({ access_token_available, get_claims: () => ({ has_scope: () => monitor }) });
+    public get_claims = () => this.get_state().claims;
+    public update = (account: boolean, monitor: boolean) => {
+        this.set_state({ claims: { has_scope: (scope: string) => scope === 'account' ? account : monitor } });
     };
 }
 
 test('reacts to scope loss and restoration without hiding account access', () => {
     const authorization = new AuthorizationStub({
-        initial_state: { access_token_available: false, get_claims: () => ({ has_scope: () => false }) },
+        initial_state: { claims: { has_scope: () => false } },
         logging_service: { log: jest.fn() } as any,
     });
     (useAuthorizationService as jest.Mock).mockReturnValue(authorization);
@@ -37,9 +38,11 @@ test('reacts to scope loss and restoration without hiding account access', () =>
 });
 
 test.each([
-    [undefined, true],
-    ['', true],
+    [undefined, false],
+    ['', false],
     ['account monitor', false],
+    ['monitor', false],
+    ['wrong_scope', false],
     ['account', true],
 ])('uses the backend scp claim to control the banner (%s)', (scope, expired) => {
     localStorage.removeItem('account');
