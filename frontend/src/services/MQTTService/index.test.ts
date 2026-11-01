@@ -53,7 +53,7 @@ describe("MQTTService", () => {
             service.connect();
             service.subscribe_to_baby_stations(jest.fn());
             service.publish_parent_station_announcement();
-            expect(service.get_state().name).toBe("WaitingForMonitorScope");
+            expect(service.get_state().name).toBe("MonitoringDisabled");
             expect(mocked_mqtt.connect).not.toHaveBeenCalled();
         },
     );
@@ -68,7 +68,7 @@ describe("MQTTService", () => {
         const service = new MQTTService({ authorization_service, logging_service: new MockLoggingService() });
         service.connect();
         expect(mocked_mqtt.connect).not.toHaveBeenCalled();
-        expect(service.get_state().name).toBe("WaitingForMonitorScope");
+        expect(service.get_state().name).toBe("MonitoringDisabled");
     });
 
     test("does not connect when a pending login supplies an account-only token", () => {
@@ -80,7 +80,7 @@ describe("MQTTService", () => {
             access_token: `header.${btoa(JSON.stringify({ scp: "account" }))}.signature`,
         });
         service.connect();
-        expect(service.get_state().name).toBe("WaitingForMonitorScope");
+        expect(service.get_state().name).toBe("MonitoringDisabled");
         expect(mocked_mqtt.connect).not.toHaveBeenCalled();
     });
 
@@ -115,7 +115,7 @@ describe("MQTTService", () => {
             await wait_for_state_change(authorization_service);
             expect(authorization_service.get_state().name).toBe("Authorized");
             expect(authorization_service.get_claims().has_scope("monitor")).toBe(false);
-            expect(service.get_state().name).toBe("WaitingForMonitorScope");
+            expect(service.get_state().name).toBe("MonitoringDisabled");
             expect(mqtt_client.end).toHaveBeenCalledWith(true);
             expect(mqtt_client.publish).toHaveBeenCalledTimes(calls_before_expiry);
             mqtt_client.emit("close");

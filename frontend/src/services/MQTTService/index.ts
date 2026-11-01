@@ -9,7 +9,7 @@ import settings from "../../settings";
 import { clientStatusTopic } from "./topics";
 import { ConnectedPayload, DisconnectedPayload, new_webrtc_inbox_payload, newParentStationAnnouncementPayload } from "./payloads";
 
-export type MQTTServiceState = WaitingForMonitorScope | AwaitingLogin | WaitingForAccessTokenToBeReady | WaitingForAccessTokenToConnect | Ready | Connecting | Offline | OfflineAndReconnecting | SubscribingOnConnect | SubscribingAfterConnected | Connected;
+export type MQTTServiceState = MonitoringDisabled | AwaitingLogin | WaitingForAccessTokenToBeReady | WaitingForAccessTokenToConnect | Ready | Connecting | Offline | OfflineAndReconnecting | SubscribingOnConnect | SubscribingAfterConnected | Connected;
 
 interface SubscribeCommand {
     action: "subscribe";
@@ -133,8 +133,8 @@ abstract class AbstractState {
 
 // Keep subscriptions locally while monitoring is unavailable. Drop outgoing
 // signaling so expired session messages cannot be replayed after purchase.
-class WaitingForMonitorScope extends AbstractState {
-    public readonly name = "WaitingForMonitorScope";
+class MonitoringDisabled extends AbstractState {
+    public readonly name = "MonitoringDisabled";
     public subscribe = (): void => {};
     public publish = (): void => {};
     public publish_parent_station_announcement = (): void => {};
@@ -237,7 +237,7 @@ class Ready extends AbstractState {
 
 const connect_mqtt = (proxy: ServiceProxy, account_id: string, commands: List<Command>): void => {
     if (!proxy.authorization_service.get_claims().has_scope("monitor")) {
-        proxy.set_state(new WaitingForMonitorScope());
+        proxy.set_state(new MonitoringDisabled());
         return;
     }
     const connectionID = uuid();
@@ -1062,7 +1062,7 @@ class MQTTService extends Service<MQTTServiceState> {
             client?.end(true);
             return;
         }
-        if (this.get_state() instanceof WaitingForMonitorScope) {
+        if (this.get_state() instanceof MonitoringDisabled) {
             this.set_state(new_initial_state(this.authorization_service));
             if (this.connection_requested) {
                 this.get_state().connect(this.proxy);
@@ -1231,7 +1231,7 @@ const load_account_id = (): string => {
 const new_initial_state = (authorization_service: AuthorizationService): MQTTServiceState => {
     if (authorization_service.login_required) return new AwaitingLogin();
     if (authorization_service.get_claims().has_scope("monitor")) return new Ready(load_account_id());
-    if (authorization_service.access_token_available) return new WaitingForMonitorScope();
+    if (authorization_service.access_token_available) return new MonitoringDisabled();
     return new WaitingForAccessTokenToBeReady();
 };
 
