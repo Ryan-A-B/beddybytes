@@ -43,22 +43,24 @@ describe("MQTTService", () => {
     });
 
     test.each(["account", "account monitoring", "monitor:read"])(
-        "does not connect without exact monitor scope (%s)", (scope) => {
+        "does not connect without exact monitor scope (%s)", async (scope) => {
             const authorization_service = new_authorization_service();
             authorization_service.apply_token_output({
                 ...default_token_output,
                 access_token: `header.${btoa(JSON.stringify({ scp: scope }))}.signature`,
             });
+            localStorage.setItem("account", JSON.stringify(default_account));
             const service = new MQTTService({ authorization_service, logging_service: new MockLoggingService() });
             service.connect();
             service.subscribe_to_baby_stations(jest.fn());
             service.publish_parent_station_announcement();
-            expect(service.get_state().name).toBe("MonitoringDisabled");
+            await new Promise(resolve => setTimeout(resolve, 0));
+            expect(service.get_state().name).toBe("Connected");
             expect(mocked_mqtt.connect).not.toHaveBeenCalled();
         },
     );
 
-    test.each([undefined, "", "  "])("does not connect without an explicit monitor scope (%s)", (scope) => {
+    test.each([undefined, "", "  "])("does not connect without an explicit monitor scope (%s)", async (scope) => {
         const authorization_service = new_authorization_service();
         authorization_service.apply_token_output({
             ...default_token_output,
@@ -68,23 +70,26 @@ describe("MQTTService", () => {
         const service = new MQTTService({ authorization_service, logging_service: new MockLoggingService() });
         service.connect();
         expect(mocked_mqtt.connect).not.toHaveBeenCalled();
-        expect(service.get_state().name).toBe("MonitoringDisabled");
+        await new Promise(resolve => setTimeout(resolve, 0));
+        expect(service.get_state().name).toBe("Connected");
     });
 
-    test("does not connect when a pending login supplies an account-only token", () => {
+    test("does not connect when a pending login supplies an account-only token", async () => {
         const authorization_service = new_authorization_service();
         const service = new MQTTService({ authorization_service, logging_service: new MockLoggingService() });
         service.connect();
+        localStorage.setItem("account", JSON.stringify(default_account));
         authorization_service.apply_token_output({
             ...default_token_output,
             access_token: `header.${btoa(JSON.stringify({ scp: "account" }))}.signature`,
         });
         service.connect();
-        expect(service.get_state().name).toBe("MonitoringDisabled");
+        await new Promise(resolve => setTimeout(resolve, 0));
+        expect(service.get_state().name).toBe("Connected");
         expect(mocked_mqtt.connect).not.toHaveBeenCalled();
     });
 
-    test.each(["Connecting", "Connected", "Offline"])(
+    test.each(["Connecting", "Connected", "Offline", "OfflineAndReconnecting", "SubscribingOnConnect", "SubscribingAfterConnected"])(
         "scope loss stops retries in %s and scope restoration reconnects", async (state) => {
             date_now_spy.mockRestore();
             const client = make_authorization_client();
@@ -104,10 +109,18 @@ describe("MQTTService", () => {
             localStorage.setItem("account", JSON.stringify(default_account));
             const service = new MQTTService({ authorization_service, logging_service: new MockLoggingService() });
             service.connect();
-            service.subscribe_to_baby_stations(jest.fn());
+            const on_baby_stations = jest.fn();
+            service.subscribe_to_baby_stations(on_baby_stations);
+            if (state === "SubscribingOnConnect") mqtt_client.auto_ack_subscribe = false;
             if (state !== "Connecting") mqtt_client.emit("connect");
             await flush_promises();
-            if (state === "Offline") mqtt_client.emit("offline");
+            if (state === "Offline" || state === "OfflineAndReconnecting") mqtt_client.emit("offline");
+            if (state === "OfflineAndReconnecting") mqtt_client.emit("reconnect");
+            if (state === "SubscribingAfterConnected") {
+                mqtt_client.auto_ack_subscribe = false;
+                service.subscribe_to_parent_stations(jest.fn());
+            }
+            expect(service.get_state().name).toBe(state);
             const calls_before_expiry = mqtt_client.publish.mock.calls.length;
 
             refresh_on_focus(new Event("focus"));
@@ -115,12 +128,18 @@ describe("MQTTService", () => {
             await wait_for_state_change(authorization_service);
             expect(authorization_service.get_state().name).toBe("Authorized");
             expect(authorization_service.get_claims().has_scope("monitor")).toBe(false);
-            expect(service.get_state().name).toBe("MonitoringDisabled");
+            await new Promise(resolve => setTimeout(resolve, 0));
+            expect(service.get_state().name).toBe("Connected");
             expect(mqtt_client.end).toHaveBeenCalledWith(true);
             expect(mqtt_client.publish).toHaveBeenCalledTimes(calls_before_expiry);
             mqtt_client.emit("close");
             mqtt_client.emit("connect");
+            mqtt_client.emit("message", `accounts/${default_account.id}/baby_stations`, Buffer.from("stale message"));
+            mqtt_client.ack_subscribe(`accounts/${default_account.id}/baby_stations`);
+            service.publish_control_inbox("peer", "stale signaling");
+            service.publish_parent_station_announcement();
             service.connect();
+            expect(on_baby_stations).not.toHaveBeenCalled();
             expect(mocked_mqtt.connect).toHaveBeenCalledTimes(1);
             expect(authorization_service.login_required).toBe(false);
 
@@ -135,10 +154,31 @@ describe("MQTTService", () => {
             await flush_promises();
             expect(service.get_state().name).toBe("Connected");
             expect(mqtt_client.subscribe).toHaveBeenCalledWith(
-                [`accounts/${default_account.id}/baby_stations`], expect.any(Function),
+                expect.arrayContaining([`accounts/${default_account.id}/baby_stations`]), expect.any(Function),
             );
+            expect(mqtt_client.publish.mock.calls.some(([, payload]) => payload.includes("stale signaling"))).toBe(false);
+            mqtt_client.emit("message", `accounts/${default_account.id}/baby_stations`, Buffer.from("fresh message"));
+            expect(on_baby_stations).toHaveBeenCalledTimes(1);
         },
     );
+
+    test("disconnecting the null client prevents reconnection after scope restoration", async () => {
+        const client = make_authorization_client();
+        (client.refresh_token_with_retry as jest.Mock).mockResolvedValue(default_token_output);
+        const authorization_service = new AuthorizationService({ authorization_client: client, logging_service: new MockLoggingService() });
+        localStorage.setItem("account", JSON.stringify(default_account));
+        authorization_service.apply_token_output({
+            ...default_token_output,
+            access_token: `header.${btoa(JSON.stringify({ scp: "account" }))}.signature`,
+        });
+        const service = new MQTTService({ authorization_service, logging_service: new MockLoggingService() });
+        service.connect();
+        await new Promise(resolve => setTimeout(resolve, 0));
+        service.disconnect();
+        await authorization_service.refresh_token();
+        expect(mocked_mqtt.connect).not.toHaveBeenCalled();
+        expect(service.get_state().name).toBe("Ready");
+    });
 
     test("starts awaiting login when login is required", () => {
         const service = new MQTTService({
