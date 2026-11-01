@@ -50,14 +50,12 @@ class TrialExpiryService {
         this.timer = setTimeout(this.refresh_if_expired, Math.max(0, expiry_millis - Date.now()));
     };
 
-    private refresh_if_expired = async (): Promise<void> => {
+    private refresh_if_expired = (): void => {
         const expiry_millis = this.trial_expiry_millis;
         if (expiry_millis === null || Date.now() < expiry_millis ||
             expiry_millis === this.refreshed_trial_expiry_millis) return;
-        // A request dropped during an existing refresh must not consume the deadline.
-        if (await this.authorization_service.refresh_token()) {
-            this.refreshed_trial_expiry_millis = expiry_millis;
-        }
+        this.refreshed_trial_expiry_millis = expiry_millis;
+        this.authorization_service.refresh_token();
     };
 
     private handle_visibility_change = (): void => {

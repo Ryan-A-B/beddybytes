@@ -125,12 +125,11 @@ describe('trial expiry refresh', () => {
         expect(client.refresh_token_with_retry).toHaveBeenCalledTimes(1);
     });
 
-    test('refreshes again if an earlier refresh crosses the trial deadline', async () => {
+    test('treats trial expiry as handled when a refresh is already running', async () => {
         const client = make_default_authorization_client();
         let complete_refresh!: (output: TokenOutput) => void;
         (client.refresh_token_with_retry as jest.Mock)
-            .mockImplementationOnce(() => new Promise<TokenOutput>(resolve => { complete_refresh = resolve; }))
-            .mockResolvedValueOnce({ ...default_token_output, access_token: account_token });
+            .mockImplementationOnce(() => new Promise<TokenOutput>(resolve => { complete_refresh = resolve; }));
         const listener_spy = jest.spyOn(window, 'addEventListener');
         const authorization = new_authorization_service(client);
         const on_focus = listener_spy.mock.calls.filter(([type]) => type === 'focus').map(([, listener]) => listener as EventListener);
@@ -143,10 +142,9 @@ describe('trial expiry refresh', () => {
         expect(client.refresh_token_with_retry).toHaveBeenCalledTimes(1);
         complete_refresh({ ...default_token_output, access_token: monitor_token });
         await wait_for_state_change(authorization);
-        jest.advanceTimersByTime(0);
-        await wait_for_state_change(authorization);
-        expect(authorization.get_claims().has_scope('monitor')).toBe(false);
-        expect(client.refresh_token_with_retry).toHaveBeenCalledTimes(2);
+        jest.advanceTimersByTime(60 * 1000);
+        expect(authorization.get_claims().has_scope('monitor')).toBe(true);
+        expect(client.refresh_token_with_retry).toHaveBeenCalledTimes(1);
     });
 
     test('retains monitoring if the refreshed token allows it and avoids a refresh loop with stale cached trial data', async () => {

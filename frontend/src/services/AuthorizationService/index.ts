@@ -41,12 +41,11 @@ abstract class AbstractState {
         // default is to do nothing
     }
 
-    public refresh_token = async (proxy: ServiceProxy): Promise<boolean> => {
+    public refresh_token = async (proxy: ServiceProxy): Promise<void> => {
         proxy.logging_service.log({
             severity: Severity.Error,
             message: `Attempted to refresh token in ${this.name} state`
         });
-        return false;
     };
 
     public handle_refresh_token_success = (proxy: ServiceProxy, token_output: TokenOutput): void => {
@@ -74,7 +73,7 @@ class RefreshingForNewSession extends AbstractState {
     public readonly access_token_available = false;
     public readonly login_required = false;
 
-    refresh_token = async (): Promise<boolean> => false;
+    refresh_token = async (): Promise<void> => {};
 
     handle_refresh_token_success = (proxy: ServiceProxy, token_output: TokenOutput) => {
         const access_token_expiry = moment().add(token_output.expires_in, 'seconds').add(-GracePeriod);
@@ -109,7 +108,7 @@ class Authorized extends AbstractState {
         return this.access_token;
     }
 
-    refresh_token = async (proxy: ServiceProxy): Promise<boolean> => {
+    refresh_token = async (proxy: ServiceProxy): Promise<void> => {
         proxy.set_state(new RefreshingToContinueSession(this.access_token, this.claims));
         try {
             const token_output = await proxy.authorization_client.refresh_token_with_retry(InitialRetryDelay);
@@ -117,7 +116,6 @@ class Authorized extends AbstractState {
         } catch (error) {
             proxy.handle_refresh_token_failure();
         }
-        return true;
     }
 
     refresh_token_if_needed = (proxy: ServiceProxy): void => {
@@ -150,7 +148,7 @@ class RefreshingToContinueSession extends AbstractState {
         return this.access_token;
     }
 
-    refresh_token = async (): Promise<boolean> => false;
+    refresh_token = async (): Promise<void> => {};
 
     handle_refresh_token_success = (proxy: ServiceProxy, token_output: TokenOutput) => {
         const access_token_expiry = get_access_token_expiry(token_output.expires_in);
@@ -247,8 +245,7 @@ class AuthorizationService extends Service<AuthorizationServiceState> {
         return this.get_state().apply_token_output(this.proxy, token_output);
     }
 
-    // Returns false when the current state drops the request.
-    public refresh_token = async (): Promise<boolean> => {
+    public refresh_token = async (): Promise<void> => {
         return this.get_state().refresh_token(this.proxy);
     }
 

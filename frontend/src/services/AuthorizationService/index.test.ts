@@ -271,10 +271,10 @@ describe('token scopes', () => {
         const refresh = authorization.refresh_token();
         expect(authorization.access_token_available).toBe(true);
         expect(authorization.get_claims()).toBe(claims);
-        expect(await authorization.refresh_token()).toBe(false);
+        await authorization.refresh_token();
         expect(client.refresh_token_with_retry).toHaveBeenCalledTimes(1);
         complete_refresh(default_token_output);
-        expect(await refresh).toBe(true);
+        await refresh;
     });
 
     test('has no scopes while unauthorized', () => {
