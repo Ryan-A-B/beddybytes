@@ -41,11 +41,12 @@ abstract class AbstractState {
         // default is to do nothing
     }
 
-    public refresh_token = async (proxy: ServiceProxy): Promise<void> => {
+    public refresh_token = async (proxy: ServiceProxy): Promise<boolean> => {
         proxy.logging_service.log({
             severity: Severity.Error,
             message: `Attempted to refresh token in ${this.name} state`
         });
+        return false;
     };
 
     public handle_refresh_token_success = (proxy: ServiceProxy, token_output: TokenOutput): void => {
@@ -72,6 +73,8 @@ class RefreshingForNewSession extends AbstractState {
     public readonly name = 'RefreshingForNewSession';
     public readonly access_token_available = false;
     public readonly login_required = false;
+
+    refresh_token = async (): Promise<boolean> => false;
 
     handle_refresh_token_success = (proxy: ServiceProxy, token_output: TokenOutput) => {
         const access_token_expiry = moment().add(token_output.expires_in, 'seconds').add(-GracePeriod);
@@ -106,7 +109,7 @@ class Authorized extends AbstractState {
         return this.access_token;
     }
 
-    refresh_token = async (proxy: ServiceProxy): Promise<void> => {
+    refresh_token = async (proxy: ServiceProxy): Promise<boolean> => {
         proxy.set_state(new RefreshingToContinueSession(this.access_token, this.claims));
         try {
             const token_output = await proxy.authorization_client.refresh_token_with_retry(InitialRetryDelay);
@@ -114,6 +117,7 @@ class Authorized extends AbstractState {
         } catch (error) {
             proxy.handle_refresh_token_failure();
         }
+        return true;
     }
 
     refresh_token_if_needed = (proxy: ServiceProxy): void => {
@@ -146,6 +150,8 @@ class RefreshingToContinueSession extends AbstractState {
         return this.access_token;
     }
 
+    refresh_token = async (): Promise<boolean> => false;
+
     handle_refresh_token_success = (proxy: ServiceProxy, token_output: TokenOutput) => {
         const access_token_expiry = get_access_token_expiry(token_output.expires_in);
         proxy.set_state(new Authorized(token_output.access_token, access_token_expiry));
@@ -174,9 +180,6 @@ class AuthorizationService extends Service<AuthorizationServiceState> {
     protected readonly name = 'AuthorizationService';
     public readonly authorization_client: AuthorizationClient;
     private proxy: ServiceProxy;
-    private trial_expiry_timer: ReturnType<typeof setTimeout> | null = null;
-    private trial_expiry_millis: number | null = null;
-    private refreshed_trial_expiry_millis: number | null = null;
 
     private static get_initial_state(): AuthorizationServiceState {
         // The callback must redeem its own code before publishing account/token
@@ -205,7 +208,7 @@ class AuthorizationService extends Service<AuthorizationServiceState> {
         this.proxy = {
             logging_service: this.logging_service,
             authorization_client: input.authorization_client,
-            set_state: this.update_state,
+            set_state: this.set_state,
             refresh_token: this.refresh_token,
             handle_refresh_token_success: this.handle_refresh_token_success,
             handle_refresh_token_failure: this.handle_refresh_token_failure,
@@ -244,8 +247,9 @@ class AuthorizationService extends Service<AuthorizationServiceState> {
         return this.get_state().apply_token_output(this.proxy, token_output);
     }
 
-    private refresh_token = async (): Promise<void> => {
-        await this.get_state().refresh_token(this.proxy);
+    // Returns false when the current state drops the request.
+    public refresh_token = async (): Promise<boolean> => {
+        return this.get_state().refresh_token(this.proxy);
     }
 
     private handle_refresh_token_success = (token_output: TokenOutput): void => {
@@ -256,28 +260,7 @@ class AuthorizationService extends Service<AuthorizationServiceState> {
         this.get_state().handle_refresh_token_failure(this.proxy);
     }
 
-    private update_state = (state: AuthorizationServiceState): void => {
-        if (this.trial_expiry_timer !== null) clearTimeout(this.trial_expiry_timer);
-        this.trial_expiry_timer = null;
-        this.trial_expiry_millis = null;
-        this.set_state(state);
-        if (!(state instanceof Authorized) || !state.get_claims().has_scope('monitor')) return;
-        const account = load_account_from_local_storage();
-        if (account?.license?.type !== 'trial') return;
-        const expiry_millis = account.license.trial_detail.end_unix_seconds * 1000;
-        if (expiry_millis === this.refreshed_trial_expiry_millis) return;
-        this.trial_expiry_millis = expiry_millis;
-        // Refresh at trial expiry instead of waiting for the normal JWT refresh.
-        // The refreshed token remains the source of monitoring permission.
-        this.trial_expiry_timer = setTimeout(this.refresh_token_if_needed, Math.max(0, expiry_millis - Date.now()));
-    }
-
     private refresh_token_if_needed = (): void => {
-        if (this.trial_expiry_millis !== null && Date.now() >= this.trial_expiry_millis) {
-            this.refreshed_trial_expiry_millis = this.trial_expiry_millis;
-            this.refresh_token();
-            return;
-        }
         this.get_state().refresh_token_if_needed(this.proxy);
     }
 }

@@ -58,7 +58,7 @@ describe("MQTTService", () => {
         },
     );
 
-    test.each([undefined, "", "  "])("connects with a pre-release token without scope (%s)", (scope) => {
+    test.each([undefined, "", "  "])("does not connect without an explicit monitor scope (%s)", (scope) => {
         const authorization_service = new_authorization_service();
         authorization_service.apply_token_output({
             ...default_token_output,
@@ -67,8 +67,8 @@ describe("MQTTService", () => {
         localStorage.setItem("account", JSON.stringify(default_account));
         const service = new MQTTService({ authorization_service, logging_service: new MockLoggingService() });
         service.connect();
-        expect(mocked_mqtt.connect).toHaveBeenCalledTimes(1);
-        expect(service.get_state().name).toBe("Connecting");
+        expect(mocked_mqtt.connect).not.toHaveBeenCalled();
+        expect(service.get_state().name).toBe("WaitingForMonitorScope");
     });
 
     test("does not connect when a pending login supplies an account-only token", () => {

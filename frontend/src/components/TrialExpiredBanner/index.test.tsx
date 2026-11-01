@@ -12,13 +12,13 @@ class AuthorizationStub extends Service<any> {
     protected name = 'AuthorizationStub';
     protected to_string = () => this.name;
     public update = (access_token_available: boolean, monitor: boolean) => {
-        this.set_state({ access_token_available, get_claims: () => ({ has_scope: () => monitor, has_empty_scope: () => false }) });
+        this.set_state({ access_token_available, get_claims: () => ({ has_scope: () => monitor }) });
     };
 }
 
 test('reacts to scope loss and restoration without hiding account access', () => {
     const authorization = new AuthorizationStub({
-        initial_state: { access_token_available: false, get_claims: () => ({ has_scope: () => false, has_empty_scope: () => false }) },
+        initial_state: { access_token_available: false, get_claims: () => ({ has_scope: () => false }) },
         logging_service: { log: jest.fn() } as any,
     });
     (useAuthorizationService as jest.Mock).mockReturnValue(authorization);
@@ -37,8 +37,8 @@ test('reacts to scope loss and restoration without hiding account access', () =>
 });
 
 test.each([
-    [undefined, false],
-    ['', false],
+    [undefined, true],
+    ['', true],
     ['account monitor', false],
     ['account', true],
 ])('uses the backend scp claim to control the banner (%s)', (scope, expired) => {
