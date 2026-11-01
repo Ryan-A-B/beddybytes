@@ -1,13 +1,14 @@
 import os
 from typing import Iterator
 from contextlib import contextmanager
+from urllib.parse import urlsplit
 
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as conditions
 from selenium.webdriver.support.ui import Select
 from selenium.webdriver.support.wait import WebDriverWait
-from selenium.common.exceptions import TimeoutException, StaleElementReferenceException
+from selenium.common.exceptions import ElementClickInterceptedException, TimeoutException, StaleElementReferenceException
 
 from protocol.web_app import LicenseInfo, TrialDetail
 from utils import DefaultTimeoutSeconds
@@ -34,6 +35,7 @@ class WebAppSeleniumDriver:
         submit_button_element.click()
 
         self.wait.until(lambda driver: driver.find_element(By.ID, "page-index"))
+        self.account_email = email
 
     def login(self, email: str, password: str) -> None:
         form_element = self.wait.until(lambda driver: driver.find_element(By.ID, "form-login"))
@@ -48,6 +50,7 @@ class WebAppSeleniumDriver:
         submit_button_element.click()
 
         self.wait.until(lambda driver: driver.find_element(By.ID, "page-index"))
+        self.account_email = email
 
     def trial_expired_banner_is_displayed(self) -> bool:
         try:
@@ -56,8 +59,14 @@ class WebAppSeleniumDriver:
         except TimeoutException:
             return False
 
+    def open_account_screen(self) -> None:
+        self.wait.until(conditions.element_to_be_clickable((By.ID, "nav-link-account"))).click()
+        self.wait.until(lambda driver: urlsplit(driver.current_url).path == '/account')
+        self.wait.until(conditions.visibility_of_element_located((By.ID, "section-license-info")))
+
     def get_license_info(self) -> LicenseInfo:
-        self.driver.find_element(By.ID, "nav-link-account").click()
+        if self.get_current_screen() != 'account':
+            raise AssertionError('Open the account screen before reading license information')
         license_info_section = self.wait.until(lambda driver: driver.find_element(By.ID, "section-license-info"))
         license_type_element = license_info_section.find_element(By.ID, "license-type")
         license_type = license_type_element.get_attribute("data-license-type")
@@ -74,6 +83,78 @@ class WebAppSeleniumDriver:
                 end_unix_timestamp=license_end_unix_timestamp
             )
         return license_info
+
+    def open_checkout(self) -> None:
+        if self.get_current_screen() != 'account':
+            raise AssertionError('Open the account screen before opening checkout')
+        self.wait.until(conditions.element_to_be_clickable((
+            By.XPATH, "//main//button[normalize-space(.)='Buy lifetime access']"
+        ))).click()
+        WebDriverWait(self.driver, timeout=30).until(
+            lambda driver: urlsplit(driver.current_url).hostname == 'checkout.stripe.com'
+        )
+        self._require_sandbox_checkout()
+
+    def _require_sandbox_checkout(self) -> None:
+        checkout_url = urlsplit(self.driver.current_url)
+        if checkout_url.hostname != 'checkout.stripe.com' or not checkout_url.path.startswith('/c/pay/cs_test_'):
+            raise AssertionError('Expected a Stripe sandbox Checkout session')
+
+    def pay(self) -> None:
+        self._require_sandbox_checkout()
+        checkout_wait = WebDriverWait(self.driver, timeout=60)
+        email_input = checkout_wait.until(conditions.element_to_be_clickable((By.NAME, 'email')))
+        email_input.clear()
+        email_input.send_keys(self.account_email)
+        for checkbox in self.driver.find_elements(By.NAME, 'enableStripePass'):
+            if checkbox.is_selected():
+                self._click_checkout_control((By.CSS_SELECTOR, 'label[for="enableStripePass"]'))
+        for name, value in (
+            ('cardNumber', '4242424242424242'),
+            ('cardExpiry', '1234'),
+            ('cardCvc', '123'),
+            ('billingName', 'BeddyBytes Acceptance Test'),
+        ):
+            field = checkout_wait.until(conditions.element_to_be_clickable((By.NAME, name)))
+            field.clear()
+            field.send_keys(value)
+        Select(self.driver.find_element(By.NAME, 'billingCountry')).select_by_value('AU')
+        self._require_sandbox_checkout()
+        self._click_checkout_control((By.CSS_SELECTOR, "button[type='submit']"))
+        checkout_wait.until(lambda driver: (
+            urlsplit(driver.current_url).netloc == urlsplit(app_base_url).netloc
+            and urlsplit(driver.current_url).path == '/payments/callback'
+        ))
+        checkout_wait.until(conditions.visibility_of_element_located((By.CSS_SELECTOR, 'main h1')))
+
+    def _click_checkout_control(self, locator) -> None:
+        def click_when_ready(driver):
+            try:
+                element = conditions.element_to_be_clickable(locator)(driver)
+                if not element:
+                    return False
+                driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", element)
+                element.click()
+                return True
+            except (ElementClickInterceptedException, StaleElementReferenceException):
+                return False
+
+        WebDriverWait(self.driver, timeout=60).until(click_when_ready)
+
+    def get_current_screen(self) -> str:
+        current_url = urlsplit(self.driver.current_url)
+        if current_url.netloc != urlsplit(app_base_url).netloc:
+            return 'checkout' if current_url.hostname == 'checkout.stripe.com' else 'external'
+        if current_url.path == '/payments/callback':
+            headings = self.driver.find_elements(By.CSS_SELECTOR, 'main h1')
+            if headings and headings[0].text == 'Payment Successful':
+                return 'payment_success'
+            if headings and headings[0].text == 'Payment Failed':
+                return 'payment_failed'
+            return 'payment_loading'
+        return {'/account': 'account', '/baby': 'baby_station', '/parent': 'parent_station', '/': 'home'}.get(
+            current_url.path, 'unknown'
+        )
 
     def open_baby_station(self) -> None:
         self.driver.find_element(By.ID, "nav-link-baby").click()
@@ -181,6 +262,7 @@ class WebAppSeleniumDriverFactory:
             command_executor=hub_url,
             options=chrome_options,
         ) as driver:
+            driver.set_window_size(1440, 1000)
             driver.get(app_base_url)
             yield WebAppSeleniumDriver(driver)
 

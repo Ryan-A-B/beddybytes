@@ -12,6 +12,19 @@ class WebApp(Protocol):
         ...
 
     def get_license_info(self) -> LicenseInfo:
+        """Read license details from an already-open account screen."""
+        ...
+
+    def open_account_screen(self) -> None:
+        ...
+
+    def open_checkout(self) -> None:
+        ...
+
+    def pay(self) -> None:
+        ...
+
+    def get_current_screen(self) -> str:
         ...
 
     def trial_expired_banner_is_displayed(self) -> bool:
