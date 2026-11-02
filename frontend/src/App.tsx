@@ -6,7 +6,7 @@ import { Severity } from './services/LoggingService';
 import logging_service from "./services/instances/logging_service"
 import authorization_service from "./services/instances/authorization_service"
 import mqtt_service from "./services/instances/mqtt_service"
-import trial_expiry_service from "./services/instances/trial_expiry_service"
+import "./services/instances/trial_expiry_service"
 import error_service from "./services/instances/error_service"
 
 import Login from './pages/Login';
@@ -31,10 +31,6 @@ export const services: Services = {
 };
 
 const App: React.FunctionComponent = () => {
-  React.useEffect(() => {
-    trial_expiry_service.start();
-    return trial_expiry_service.stop;
-  }, []);
   return (
     <ServicesContext.Provider value={services}>
       <div className="wrapper">
