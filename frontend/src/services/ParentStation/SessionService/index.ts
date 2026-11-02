@@ -243,6 +243,6 @@ export default SessionService;
 interface ClientStatusPayload {
     type: "connected" | "disconnected";
     disconnected: {
-        reason: "clean" | "unexpected" | "trial_expired";
+        reason: "clean" | "unexpected" | "authorization_scope_lost";
     };
 }

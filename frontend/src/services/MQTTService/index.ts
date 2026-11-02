@@ -370,7 +370,7 @@ class Connecting extends AbstractState {
     }
 
     public disconnect = (proxy: ServiceProxy, reason: DisconnectReason): void => {
-        this.client.end(reason === "trial_expired");
+        this.client.end(reason === "authorization_scope_lost");
         proxy.set_state(new Ready(this.accountID));
     }
 
@@ -457,7 +457,7 @@ class Offline extends AbstractState {
     }
 
     public disconnect = (proxy: ServiceProxy, reason: DisconnectReason): void => {
-        this.client.end(reason === "trial_expired");
+        this.client.end(reason === "authorization_scope_lost");
         proxy.set_state(new Ready(this.accountID));
     }
 }
@@ -574,7 +574,7 @@ class OfflineAndReconnecting extends AbstractState {
     }
 
     public disconnect = (proxy: ServiceProxy, reason: DisconnectReason): void => {
-        this.client.end(reason === "trial_expired");
+        this.client.end(reason === "authorization_scope_lost");
         proxy.set_state(new Ready(this.accountID));
     }
 }
@@ -650,7 +650,7 @@ abstract class AbstractSubscribing extends AbstractState {
     }
 
     public disconnect = (proxy: ServiceProxy, reason: DisconnectReason): void => {
-        this.client.end(reason === "trial_expired");
+        this.client.end(reason === "authorization_scope_lost");
         proxy.set_state(new Ready(this.account_id));
     }
 

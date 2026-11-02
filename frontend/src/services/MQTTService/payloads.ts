@@ -5,7 +5,7 @@ export interface ConnectedPayload {
     at_millis: number;
 }
 
-export type DisconnectReason = "clean" | "unexpected" | "trial_expired";
+export type DisconnectReason = "clean" | "unexpected" | "authorization_scope_lost";
 
 export interface DisconnectedPayload {
     type: "disconnected";

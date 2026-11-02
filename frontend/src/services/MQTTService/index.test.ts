@@ -87,7 +87,7 @@ describe("MQTTService", () => {
             expect(service.get_state().name).toBe("Ready");
             expect(mqtt_client.end).toHaveBeenCalledTimes(1);
             if (state === "Connected") {
-                expect(JSON.parse(mqtt_client.calls[mqtt_client.calls.length - 1].payload ?? "").disconnected.reason).toBe("trial_expired");
+                expect(JSON.parse(mqtt_client.calls[mqtt_client.calls.length - 1].payload ?? "").disconnected.reason).toBe("authorization_scope_lost");
                 expect(mqtt_client.publish).toHaveBeenCalledTimes(calls_before_expiry + 1);
             } else {
                 expect(mqtt_client.end).toHaveBeenCalledWith(true);
@@ -136,7 +136,7 @@ describe("MQTTService", () => {
         const service = new MQTTService({ authorization_service, logging_service: new MockLoggingService() });
         service.connect();
         service.publish_control_inbox('peer', 'discarded');
-        service.disconnect({ reason: 'trial_expired' });
+        service.disconnect({ reason: 'authorization_scope_lost' });
         complete_refresh(default_token_output);
         await wait_for_state_change(authorization_service);
         expect(service.get_state().name).toBe('Ready');

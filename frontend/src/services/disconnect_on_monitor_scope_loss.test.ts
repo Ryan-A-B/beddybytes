@@ -17,7 +17,7 @@ test('disconnects once per loss of monitor scope and detaches on cleanup', () =>
     update(false);
     update(false);
     expect(mqtt_service.disconnect).toHaveBeenCalledTimes(1);
-    expect(mqtt_service.disconnect).toHaveBeenCalledWith({ reason: 'trial_expired' });
+    expect(mqtt_service.disconnect).toHaveBeenCalledWith({ reason: 'authorization_scope_lost' });
     stop();
     update(true);
     update(false);

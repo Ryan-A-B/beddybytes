@@ -81,7 +81,7 @@ describe("ParentStation SessionService", () => {
         expect(mqtt_service.client_status_subscription.close).toHaveBeenCalledTimes(1);
     });
 
-    test.each(["unexpected", "trial_expired"] as const)("%s disconnect preserves the active session", reason => {
+    test.each(["unexpected", "authorization_scope_lost"] as const)("%s disconnect preserves the active session", reason => {
         const mqtt_service = new MockMQTTService();
         const service = new_service(mqtt_service);
         service.join_session(baby_station("baby-client", "session-1"));
@@ -225,7 +225,7 @@ const baby_station = (client_id: string, session_id: string): BabyStation => ({
     },
 });
 
-const disconnected_payload = (reason: "clean" | "unexpected" | "trial_expired"): unknown => ({
+const disconnected_payload = (reason: "clean" | "unexpected" | "authorization_scope_lost"): unknown => ({
     type: "disconnected",
     disconnected: {
         reason,
