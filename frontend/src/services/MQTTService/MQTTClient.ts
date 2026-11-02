@@ -1,7 +1,6 @@
 export type MQTTSubscribeCallback = (error: Error | null) => void;
 
 export interface MQTTClient {
-    readonly disconnecting: boolean;
     on(event: 'connect', listener: () => void): MQTTClient;
     on(event: 'message', listener: (topic: string, payload: Buffer) => void): MQTTClient;
     on(event: 'reconnect', listener: () => void): MQTTClient;

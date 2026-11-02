@@ -46,12 +46,12 @@ interface ServiceProxy {
     call_subscriptions(message: MessageReceived): void;
     set_state(state: MQTTServiceState): void;
     handle_connect(connection_id: string): void;
-    handle_message(topic: string, payload: Buffer): void;
+    handle_message(connection_id: string, topic: string, payload: Buffer): void;
     handle_reconnect(connection_id: string): void;
     handle_close(connection_id: string): void;
     handle_offline(connection_id: string): void;
     handle_error(connection_id: string, error: Error): void;
-    handle_subscribe_callback(topic_filters: string[], error: Optional<Error>): void;
+    handle_subscribe_callback(connection_id: string, topic_filters: string[], error: Optional<Error>): void;
     list_topic_filters(): string[];
 }
 
@@ -94,7 +94,7 @@ abstract class AbstractState {
         });
     }
 
-    public handle_subscribe_callback(proxy: ServiceProxy, topic_filters: string[], error: Optional<Error>): void {
+    public handle_subscribe_callback(proxy: ServiceProxy, connection_id: string, topic_filters: string[], error: Optional<Error>): void {
         // Default is to ignore MQTT subscribe callbacks.
     }
 
@@ -126,7 +126,7 @@ abstract class AbstractState {
         // Default is to ignore disconnect requests.
     }
 
-    public handle_message(proxy: ServiceProxy, topic: string, payload: Buffer): void {
+    public handle_message(proxy: ServiceProxy, connection_id: string, topic: string, payload: Buffer): void {
         // Default is to ignore MQTT messages.
     }
 
@@ -266,12 +266,12 @@ const connect_mqtt = (proxy: ServiceProxy, account_id: string, commands: List<Co
             return transformedURL.toString();
         },
     });
-    client.on("connect", () => { if (!client.disconnecting) proxy.handle_connect(connectionID); });
-    client.on("message", (topic, payload) => { if (!client.disconnecting) proxy.handle_message(topic, payload); });
-    client.on("reconnect", () => { if (!client.disconnecting) proxy.handle_reconnect(connectionID); });
-    client.on("close", () => { if (!client.disconnecting) proxy.handle_close(connectionID); });
-    client.on("offline", () => { if (!client.disconnecting) proxy.handle_offline(connectionID); });
-    client.on("error", (error) => { if (!client.disconnecting) proxy.handle_error(connectionID, error); });
+    client.on("connect", () => proxy.handle_connect(connectionID));
+    client.on("message", (topic, payload) => proxy.handle_message(connectionID, topic, payload));
+    client.on("reconnect", () => proxy.handle_reconnect(connectionID));
+    client.on("close", () => proxy.handle_close(connectionID));
+    client.on("offline", () => proxy.handle_offline(connectionID));
+    client.on("error", (error) => proxy.handle_error(connectionID, error));
     proxy.set_state(new Connecting({
         client,
         accountID: account_id,
@@ -615,7 +615,7 @@ abstract class AbstractSubscribing extends AbstractState {
     public start_subscribing = (proxy: ServiceProxy): void => {
         const topic_filters = Array.from(this.pending_topic_filters);
         const topics = topic_filters.map((topic_filter) => this.account_scope + topic_filter);
-        this.client.subscribe(topics, make_subscribe_callback(proxy, topic_filters, this.client));
+        this.client.subscribe(topics, make_subscribe_callback(proxy, this.connection_id, topic_filters));
     }
 
     public publish = (proxy: ServiceProxy, topic: string, payload: string): void => {
@@ -634,7 +634,7 @@ abstract class AbstractSubscribing extends AbstractState {
     public subscribe = (proxy: ServiceProxy, topic_filter: string): void => {
         if (this.pending_topic_filters.has(topic_filter)) return;
         this.set_subscribing_state(proxy, this.commands, [...Array.from(this.pending_topic_filters), topic_filter]);
-        this.client.subscribe([this.account_scope + topic_filter], make_subscribe_callback(proxy, [topic_filter], this.client));
+        this.client.subscribe([this.account_scope + topic_filter], make_subscribe_callback(proxy, this.connection_id, [topic_filter]));
     }
 
     public unsubscribe = (proxy: ServiceProxy, topic_filter: string): void => {
@@ -654,13 +654,15 @@ abstract class AbstractSubscribing extends AbstractState {
         proxy.set_state(new Ready(this.account_id));
     }
 
-    public handle_message = (proxy: ServiceProxy, topic: string, payload: Buffer): void => {
+    public handle_message = (proxy: ServiceProxy, connection_id: string, topic: string, payload: Buffer): void => {
+        if (connection_id !== this.connection_id) return;
         const message = new MessageReceived(topic, payload.toString());
         proxy.dispatch_event(message);
         proxy.call_subscriptions(message);
     }
 
-    public handle_subscribe_callback = (proxy: ServiceProxy, topic_filters: string[], error: Optional<Error>): void => {
+    public handle_subscribe_callback = (proxy: ServiceProxy, connection_id: string, topic_filters: string[], error: Optional<Error>): void => {
+        if (connection_id !== this.connection_id) return;
         if (error !== null) {
             proxy.logging_service.log({
                 severity: Severity.Warning,
@@ -838,7 +840,8 @@ class Connected extends AbstractState {
         proxy.set_state(new Ready(this.account_id));
     }
 
-    public handle_message = (proxy: ServiceProxy, topic: string, payload: Buffer): void => {
+    public handle_message = (proxy: ServiceProxy, connection_id: string, topic: string, payload: Buffer): void => {
+        if (connection_id !== this.connection_id) return;
         const message = new MessageReceived(topic, payload.toString());
         proxy.dispatch_event(message);
         proxy.call_subscriptions(message);
@@ -905,10 +908,10 @@ const transition_to_subscribing_after_connect = (proxy: ServiceProxy, input: New
     state.start_subscribing(proxy);
 };
 
-const make_subscribe_callback = (proxy: ServiceProxy, topic_filters: string[], client: MQTTClient): MQTTSubscribeCallback => {
+const make_subscribe_callback = (proxy: ServiceProxy, connection_id: string, topic_filters: string[]): MQTTSubscribeCallback => {
     return (error) => {
         // Prevent re-entrant state transitions if a client/mock invokes the subscribe callback synchronously.
-        queueMicrotask(() => { if (!client.disconnecting) proxy.handle_subscribe_callback(topic_filters, error); });
+        queueMicrotask(() => proxy.handle_subscribe_callback(connection_id, topic_filters, error));
     };
 };
 
@@ -1046,8 +1049,8 @@ class MQTTService extends Service<MQTTServiceState> {
         this.get_state().handle_connect(this.proxy, connection_id);
     }
 
-    private handle_message = (topic: string, payload: Buffer): void => {
-        this.get_state().handle_message(this.proxy, topic, payload);
+    private handle_message = (connection_id: string, topic: string, payload: Buffer): void => {
+        this.get_state().handle_message(this.proxy, connection_id, topic, payload);
     }
 
     private handle_reconnect = (connection_id: string): void => {
@@ -1066,8 +1069,8 @@ class MQTTService extends Service<MQTTServiceState> {
         this.get_state().handle_error(this.proxy, connection_id, error);
     }
 
-    private handle_subscribe_callback = (topic_filters: string[], error: Optional<Error>): void => {
-        this.get_state().handle_subscribe_callback(this.proxy, topic_filters, error);
+    private handle_subscribe_callback = (connection_id: string, topic_filters: string[], error: Optional<Error>): void => {
+        this.get_state().handle_subscribe_callback(this.proxy, connection_id, topic_filters, error);
     }
 
     private dispatch_event = (event: Event): void => {

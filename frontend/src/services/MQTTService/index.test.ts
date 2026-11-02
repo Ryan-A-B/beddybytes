@@ -103,7 +103,9 @@ describe("MQTTService", () => {
             expect(mocked_mqtt.connect).toHaveBeenCalledTimes(1);
             expect(authorization_service.login_required).toBe(false);
 
+            const ended_client = mqtt_client;
             mqtt_client = new MockMQTTClient();
+            mqtt_client.auto_ack_subscribe = false;
             mocked_mqtt.connect.mockReturnValue(mqtt_client);
             refresh_on_focus(new Event("focus"));
             await wait_for_state_change(authorization_service);
@@ -113,12 +115,21 @@ describe("MQTTService", () => {
             expect(service.get_state().name).toBe("Connecting");
             expect(mocked_mqtt.connect).toHaveBeenCalledTimes(2);
             mqtt_client.emit("connect");
+            ended_client.ack_subscribe(`accounts/${default_account.id}/baby_stations`);
+            ended_client.emit("message", `accounts/${default_account.id}/baby_stations`, Buffer.from("stale message"));
+            await flush_promises();
+            expect(service.get_state().name).toBe("SubscribingOnConnect");
+            expect(on_baby_stations).not.toHaveBeenCalled();
+            const topics = mqtt_client.subscribe.mock.calls[0][0];
+            mqtt_client.ack_subscribe(topics.join(","));
             await flush_promises();
             expect(service.get_state().name).toBe("Connected");
             expect(mqtt_client.subscribe).toHaveBeenCalledWith(
                 expect.arrayContaining([`accounts/${default_account.id}/baby_stations`]), expect.any(Function),
             );
             expect(mqtt_client.publish.mock.calls.some(([, payload]) => payload.includes("stale signaling"))).toBe(false);
+            ended_client.emit("message", `accounts/${default_account.id}/baby_stations`, Buffer.from("stale message"));
+            expect(on_baby_stations).not.toHaveBeenCalled();
             mqtt_client.emit("message", `accounts/${default_account.id}/baby_stations`, Buffer.from("fresh message"));
             expect(on_baby_stations).toHaveBeenCalledTimes(1);
             stop_watching();
@@ -1331,7 +1342,6 @@ const new_connected_service = (logging_service: LoggingService = new MockLogging
 class MockMQTTClient {
     public readonly listenersByEvent: Record<string, Function[]> = {};
     public readonly calls: Array<{ name: string; topic: string; payload?: string }> = [];
-    public disconnecting = false;
     public auto_ack_subscribe = true;
     public record_subscribe_after_callback = false;
     private readonly subscribe_callbacks: Map<string, MQTTSubscribeCallback> = new Map();
@@ -1358,7 +1368,7 @@ class MockMQTTClient {
         this.calls.push({ name: "publish", topic, payload });
     });
 
-    end = jest.fn(() => { this.disconnecting = true; });
+    end = jest.fn();
 
     emit(event: string, ...args: unknown[]): void {
         for (const listener of this.listenersByEvent[event] ?? []) {
