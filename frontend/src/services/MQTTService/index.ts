@@ -1,4 +1,4 @@
-import create_mqtt_client from "./create_mqtt_client";
+import mqtt from "mqtt";
 import { MQTTClient, MQTTSubscribeCallback } from "./MQTTClient";
 import { v4 as uuid } from "uuid";
 import { List } from "immutable";
@@ -8,7 +8,7 @@ import AuthorizationService, { AuthorizationServiceState } from "../Authorizatio
 import { load_account_from_local_storage } from "../AuthorizationService/AuthorizationClient";
 import settings from "../../settings";
 import { clientStatusTopic } from "./topics";
-import { ConnectedPayload, DisconnectedPayload, new_webrtc_inbox_payload, newParentStationAnnouncementPayload } from "./payloads";
+import { ConnectedPayload, DisconnectedPayload, DisconnectReason, new_webrtc_inbox_payload, newParentStationAnnouncementPayload } from "./payloads";
 
 export type MQTTServiceState = AwaitingLogin | WaitingForAccessTokenToBeReady | WaitingForAccessTokenToConnect | Ready | Connecting | Offline | OfflineAndReconnecting | SubscribingOnConnect | SubscribingAfterConnected | Connected;
 
@@ -32,6 +32,10 @@ interface PublishParentStationAnnouncementCommand {
 }
 
 type Command = SubscribeCommand | PublishCommand | PublishParentStationAnnouncementCommand;
+
+export interface DisconnectInput {
+    reason?: DisconnectReason;
+}
 
 const AWS_IOT_MINIMUM_KEEPALIVE_SECONDS = 30;
 
@@ -118,7 +122,7 @@ abstract class AbstractState {
         // Default is to ignore unsubscribe requests.
     }
 
-    public disconnect(proxy: ServiceProxy): void {
+    public disconnect(proxy: ServiceProxy, reason: DisconnectReason): void {
         // Default is to ignore disconnect requests.
     }
 
@@ -197,6 +201,10 @@ class WaitingForAccessTokenToConnect extends AbstractState {
         })));
     }
 
+    public disconnect = (proxy: ServiceProxy): void => {
+        proxy.set_state(new WaitingForAccessTokenToBeReady());
+    }
+
     public handle_authorization_service_state_changed = (proxy: ServiceProxy, event: ServiceStateChangedEvent<AuthorizationServiceState>): void => {
         if (event.current_state.login_required) {
             proxy.set_state(new AwaitingLogin());
@@ -229,7 +237,7 @@ class Ready extends AbstractState {
 const connect_mqtt = (proxy: ServiceProxy, account_id: string, commands: List<Command>): void => {
     const connectionID = uuid();
     const requestID = uuid();
-    const client = create_mqtt_client(proxy.authorization_service, `wss://${settings.MQTT.host}`, {
+    const client = mqtt.connect(`wss://${settings.MQTT.host}`, {
         keepalive: AWS_IOT_MINIMUM_KEEPALIVE_SECONDS,
         timerVariant: "native",
         protocolId: "MQTT",
@@ -258,23 +266,12 @@ const connect_mqtt = (proxy: ServiceProxy, account_id: string, commands: List<Co
             return transformedURL.toString();
         },
     });
-    client.on("transport_changed", () => {
-        // Reuse the connection states with fresh queues; registrations remain
-        // in the service and are subscribed again by the next connect event.
-        proxy.set_state(new Connecting({
-            client,
-            accountID: account_id,
-            connectionID,
-            requestID: uuid(),
-            commands: List(),
-        }));
-    });
-    client.on("connect", () => proxy.handle_connect(connectionID));
-    client.on("message", proxy.handle_message);
-    client.on("reconnect", () => proxy.handle_reconnect(connectionID));
-    client.on("close", () => proxy.handle_close(connectionID));
-    client.on("offline", () => proxy.handle_offline(connectionID));
-    client.on("error", (error) => proxy.handle_error(connectionID, error));
+    client.on("connect", () => { if (!client.disconnecting) proxy.handle_connect(connectionID); });
+    client.on("message", (topic, payload) => { if (!client.disconnecting) proxy.handle_message(topic, payload); });
+    client.on("reconnect", () => { if (!client.disconnecting) proxy.handle_reconnect(connectionID); });
+    client.on("close", () => { if (!client.disconnecting) proxy.handle_close(connectionID); });
+    client.on("offline", () => { if (!client.disconnecting) proxy.handle_offline(connectionID); });
+    client.on("error", (error) => { if (!client.disconnecting) proxy.handle_error(connectionID, error); });
     proxy.set_state(new Connecting({
         client,
         accountID: account_id,
@@ -372,8 +369,8 @@ class Connecting extends AbstractState {
         }));
     }
 
-    public disconnect = (proxy: ServiceProxy): void => {
-        this.client.end();
+    public disconnect = (proxy: ServiceProxy, reason: DisconnectReason): void => {
+        this.client.end(reason === "trial_expired");
         proxy.set_state(new Ready(this.accountID));
     }
 
@@ -459,8 +456,8 @@ class Offline extends AbstractState {
         }));
     }
 
-    public disconnect = (proxy: ServiceProxy): void => {
-        this.client.end();
+    public disconnect = (proxy: ServiceProxy, reason: DisconnectReason): void => {
+        this.client.end(reason === "trial_expired");
         proxy.set_state(new Ready(this.accountID));
     }
 }
@@ -576,8 +573,8 @@ class OfflineAndReconnecting extends AbstractState {
         }));
     }
 
-    public disconnect = (proxy: ServiceProxy): void => {
-        this.client.end();
+    public disconnect = (proxy: ServiceProxy, reason: DisconnectReason): void => {
+        this.client.end(reason === "trial_expired");
         proxy.set_state(new Ready(this.accountID));
     }
 }
@@ -618,7 +615,7 @@ abstract class AbstractSubscribing extends AbstractState {
     public start_subscribing = (proxy: ServiceProxy): void => {
         const topic_filters = Array.from(this.pending_topic_filters);
         const topics = topic_filters.map((topic_filter) => this.account_scope + topic_filter);
-        this.client.subscribe(topics, make_subscribe_callback(proxy, topic_filters));
+        this.client.subscribe(topics, make_subscribe_callback(proxy, topic_filters, this.client));
     }
 
     public publish = (proxy: ServiceProxy, topic: string, payload: string): void => {
@@ -637,7 +634,7 @@ abstract class AbstractSubscribing extends AbstractState {
     public subscribe = (proxy: ServiceProxy, topic_filter: string): void => {
         if (this.pending_topic_filters.has(topic_filter)) return;
         this.set_subscribing_state(proxy, this.commands, [...Array.from(this.pending_topic_filters), topic_filter]);
-        this.client.subscribe([this.account_scope + topic_filter], make_subscribe_callback(proxy, [topic_filter]));
+        this.client.subscribe([this.account_scope + topic_filter], make_subscribe_callback(proxy, [topic_filter], this.client));
     }
 
     public unsubscribe = (proxy: ServiceProxy, topic_filter: string): void => {
@@ -652,8 +649,8 @@ abstract class AbstractSubscribing extends AbstractState {
         this.transition_to_connected(proxy, this.commands);
     }
 
-    public disconnect = (proxy: ServiceProxy): void => {
-        this.client.end();
+    public disconnect = (proxy: ServiceProxy, reason: DisconnectReason): void => {
+        this.client.end(reason === "trial_expired");
         proxy.set_state(new Ready(this.account_id));
     }
 
@@ -828,15 +825,13 @@ class Connected extends AbstractState {
         this.client.unsubscribe(this.account_scope + topic_filter);
     }
 
-    public disconnect = (proxy: ServiceProxy): void => {
+    public disconnect = (proxy: ServiceProxy, reason: DisconnectReason): void => {
         const payload = JSON.stringify({
             type: "disconnected",
             connection_id: this.connection_id,
             request_id: this.requestID,
             at_millis: Date.now(),
-            disconnected: {
-                reason: "clean",
-            },
+            disconnected: { reason },
         } satisfies DisconnectedPayload);
         this.client.publish(clientStatusTopic(this.account_id, settings.API.clientID), payload);
         this.client.end();
@@ -910,10 +905,10 @@ const transition_to_subscribing_after_connect = (proxy: ServiceProxy, input: New
     state.start_subscribing(proxy);
 };
 
-const make_subscribe_callback = (proxy: ServiceProxy, topic_filters: string[]): MQTTSubscribeCallback => {
+const make_subscribe_callback = (proxy: ServiceProxy, topic_filters: string[], client: MQTTClient): MQTTSubscribeCallback => {
     return (error) => {
         // Prevent re-entrant state transitions if a client/mock invokes the subscribe callback synchronously.
-        queueMicrotask(() => proxy.handle_subscribe_callback(topic_filters, error));
+        queueMicrotask(() => { if (!client.disconnecting) proxy.handle_subscribe_callback(topic_filters, error); });
     };
 };
 
@@ -995,8 +990,8 @@ class MQTTService extends Service<MQTTServiceState> {
         this.get_state().unsubscribe(this.proxy, topic_filter);
     }
 
-    public disconnect = (): void => {
-        this.get_state().disconnect(this.proxy);
+    public disconnect = ({ reason = "clean" }: DisconnectInput = {}): void => {
+        this.get_state().disconnect(this.proxy, reason);
     }
 
     public subscribe_to_webrtc_inbox = (callback: MessageHandler): Subscription => {
@@ -1128,6 +1123,8 @@ class MQTTService extends Service<MQTTServiceState> {
     }
 
     private publish_webrtc = (peer_client_id: string, data: WebRTCSignalData, error_message: string): void => {
+        // ICE candidates can arrive after expiry has disconnected signaling.
+        if (!this.authorization_service.get_claims().has_scope("monitor")) return;
         try {
             this.publish(
                 `clients/${peer_client_id}/webrtc_inbox`,

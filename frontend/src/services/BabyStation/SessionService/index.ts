@@ -1,3 +1,4 @@
+import AuthorizationService from "../../AuthorizationService";
 import { v4 as uuid } from "uuid";
 import Service from "../../Service";
 import { ServiceStateChangedEvent } from "../../Service";
@@ -71,6 +72,10 @@ class SessionStarting extends AbstractState {
     }
 
     public handle_mqtt_service_state_changed(proxy: ServiceProxy, event: ServiceStateChangedEvent<MQTTServiceState>): void {
+        if (event.current_state.name === "Ready") {
+            proxy.set_state(new Ready());
+            return;
+        }
         if (event.current_state.name !== "Connected") return;
         const connected = event.current_state;
         const startedAtMillis = Date.now();
@@ -119,6 +124,7 @@ class SessionRunning extends AbstractState {
 }
 
 interface NewSessionServiceInput {
+    authorization_service: Pick<AuthorizationService, "get_claims">;
     logging_service: LoggingService;
     mqtt_service: MQTTService;
 }
@@ -126,12 +132,14 @@ interface NewSessionServiceInput {
 class SessionService extends Service<SessionState> {
     protected readonly name = "BabyStationSessionService";
     private readonly proxy: ServiceProxy;
+    private readonly authorization_service: Pick<AuthorizationService, "get_claims">;
 
     constructor(input: NewSessionServiceInput) {
         super({
             logging_service: input.logging_service,
             initial_state: new Ready(),
         });
+        this.authorization_service = input.authorization_service;
         this.proxy = {
             mqtt_service: input.mqtt_service,
             set_state: this.set_state,
@@ -145,6 +153,7 @@ class SessionService extends Service<SessionState> {
     }
 
     public start_session = (input: StartSessionInput): void => {
+        if (!this.authorization_service.get_claims().has_scope('monitor')) return;
         this.get_state().start_session(this.proxy, input);
     }
 
@@ -157,6 +166,7 @@ class SessionService extends Service<SessionState> {
     }
 
     private handle_message = (event: MessageReceived): void => {
+        if (!this.authorization_service.get_claims().has_scope('monitor')) return;
         const announcement = parse_parent_station_announcement(event.topic, event.payload);
         if (announcement === null) return;
         this.get_state().handle_parent_station_announcement(this.proxy, announcement);

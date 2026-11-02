@@ -47,6 +47,23 @@ describe("ParentStation", () => {
         expect(mock_rtc_connections[0].reconnect).toHaveBeenCalledTimes(1);
     });
 
+    test('defers discovery until monitor scope becomes available and stops watching on unmount', () => {
+        const mqtt_service = new MockMQTTService();
+        const authorization_service = new MockAuthorizationService();
+        authorization_service.monitor = false;
+        const parent_station = new_parent_station(mqtt_service, authorization_service);
+        parent_station.start();
+        expect(mqtt_service.connect).not.toHaveBeenCalled();
+        expect(parent_station.baby_station_list_service.get_state().name).toBe('Stopped');
+        authorization_service.update(true);
+        expect(mqtt_service.connect).toHaveBeenCalledTimes(1);
+        expect(parent_station.baby_station_list_service.get_state().name).toBe('Running');
+        parent_station.stop();
+        authorization_service.update(false);
+        authorization_service.update(true);
+        expect(mqtt_service.connect).toHaveBeenCalledTimes(1);
+    });
+
     test("start connects MQTT without publishing parent station announcement immediately", () => {
         const mqtt_service = new MockMQTTService();
         const parent_station = new_parent_station(mqtt_service);
@@ -132,6 +149,15 @@ describe("ParentStation", () => {
     });
 });
 
+class MockAuthorizationService extends EventTarget {
+    public monitor = true;
+    public get_claims = () => ({ has_scope: () => this.monitor });
+    public update = (monitor: boolean) => {
+        this.monitor = monitor;
+        this.dispatchEvent(new Event('state_changed'));
+    };
+}
+
 class MockLoggingService implements LoggingService {
     public readonly logs: LogInput[] = [];
 
@@ -203,10 +229,10 @@ class MockWakeLockService {
     get_state = jest.fn(() => ({ name: "locked" }));
 }
 
-const new_parent_station = (mqtt_service: MockMQTTService): ParentStation => {
+const new_parent_station = (mqtt_service: MockMQTTService, authorization_service = new MockAuthorizationService()): ParentStation => {
     return new ParentStation({
         logging_service: new MockLoggingService(),
-        authorization_service: {} as any,
+        authorization_service: authorization_service as any,
         mqtt_service: mqtt_service as any,
         wake_lock_service: new MockWakeLockService() as any,
     });

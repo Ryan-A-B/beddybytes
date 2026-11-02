@@ -1,4 +1,5 @@
 import React from "react";
+import { useAuthorizationService } from "../../services";
 import parent_station from "../../services/instances/parent_station";
 import useServiceState from "../../hooks/useServiceState";
 import ConnectionStateAlert from "../../components/ConnectionStateAlert";
@@ -22,6 +23,9 @@ const useParentStation = () => {
 
 const ParentStation: React.FunctionComponent = () => {
     useParentStation();
+    const authorization_service = useAuthorizationService();
+    useServiceState(authorization_service);
+    const can_monitor = authorization_service.get_claims().has_scope('monitor');
     const session_service = parent_station.session_service;
     const session_state = useServiceState(session_service);
     const media_stream_track_state = useServiceState(parent_station.media_stream_track_monitor);
@@ -32,7 +36,7 @@ const ParentStation: React.FunctionComponent = () => {
 
     return (
         <main className={`container wrapper-content parent-station ${media_stream_track_state}`}>
-            <BabyStationDropdown session_service={session_service} baby_station_list_service={parent_station.baby_station_list_service} />
+            <BabyStationDropdown disabled={!can_monitor} session_service={session_service} baby_station_list_service={parent_station.baby_station_list_service} />
             <ConnectionStateAlert />
             <StopWatch />
             {session !== null && <SessionDuration started_at={session.started_at} />}

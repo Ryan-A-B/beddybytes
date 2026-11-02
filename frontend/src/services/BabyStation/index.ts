@@ -29,6 +29,7 @@ class BabyStation {
             media_device_permission_service: this.media_device_permission_service
         });
         this.session_service = new SessionService({
+            authorization_service: input.authorization_service,
             logging_service: input.logging_service,
             mqtt_service: input.mqtt_service,
         });

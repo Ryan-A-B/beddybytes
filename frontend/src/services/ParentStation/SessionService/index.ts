@@ -1,3 +1,4 @@
+import AuthorizationService from "../../AuthorizationService";
 import Service, { SetStateFunction } from "../../Service";
 import LoggingService from '../../LoggingService';
 import RTCConnection from "./Connection/RTCConnection";
@@ -159,6 +160,7 @@ class Joined extends AbstractState {
 export type SessionState = NotJoined | Joined;
 
 interface NewSessionServiceInput {
+    authorization_service: Pick<AuthorizationService, "get_claims">;
     logging_service: LoggingService;
     mqtt_service: MQTTService;
     parent_station_media_stream: MediaStream;
@@ -167,12 +169,14 @@ interface NewSessionServiceInput {
 class SessionService extends Service<SessionState> {
     protected readonly name = 'SessionService';
     private readonly proxy: ServiceProxy;
+    private readonly authorization_service: Pick<AuthorizationService, "get_claims">;
 
     constructor(input: NewSessionServiceInput) {
         super({
             logging_service: input.logging_service,
             initial_state: new NotJoined(),
         });
+        this.authorization_service = input.authorization_service;
         this.proxy = {
             logging_service: input.logging_service,
             mqtt_service: input.mqtt_service,
@@ -203,6 +207,7 @@ class SessionService extends Service<SessionState> {
     }
 
     public join_session = (baby_station: BabyStation) => {
+        if (!this.authorization_service.get_claims().has_scope('monitor')) return;
         const state = this.get_state();
         state.join_session(this.proxy, baby_station);
     }
@@ -218,10 +223,12 @@ class SessionService extends Service<SessionState> {
     }
 
     public reconnect = () => {
+        if (!this.authorization_service.get_claims().has_scope('monitor')) return;
         this.get_state().reconnect(this.proxy);
     }
 
     public reconnect_if_needed = (session_exists: SessionExistsFunction) => {
+        if (!this.authorization_service.get_claims().has_scope('monitor')) return;
         const state = this.get_state();
         state.reconnect_if_needed(this.proxy, session_exists);
     }
@@ -236,6 +243,6 @@ export default SessionService;
 interface ClientStatusPayload {
     type: "connected" | "disconnected";
     disconnected: {
-        reason: "clean" | "unexpected";
+        reason: "clean" | "unexpected" | "trial_expired";
     };
 }

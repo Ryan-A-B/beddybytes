@@ -13,8 +13,57 @@ describe("BabyStation SessionService", () => {
         date_now_spy.mockRestore();
     });
 
+    test.each(['account', 'monitoring', ''])('denies starting without monitor scope (%s)', scope => {
+        const mqtt_service = new MockMQTTService();
+        const service = new SessionService({
+        authorization_service: { get_claims: () => ({ has_scope: requested => scope.split(' ').includes(requested) }) },
+            logging_service: new MockLoggingService(),
+            mqtt_service,
+        });
+        service.start_session({ name: 'Nursery' });
+        expect(mqtt_service.connect).not.toHaveBeenCalled();
+        expect(service.get_state().name).toBe('Ready');
+    });
+
+    test('allows local Stop after expiry and rejects another Start', () => {
+        let monitor = true;
+        const mqtt_service = new MockMQTTService();
+        const service = new SessionService({
+        authorization_service: { get_claims: () => ({ has_scope: () => monitor }) },
+            logging_service: new MockLoggingService(),
+            mqtt_service,
+        });
+        service.start_session({ name: 'Nursery' });
+        mqtt_service.set_connected();
+        monitor = false;
+        expect(service.get_state().name).toBe('SessionRunning');
+        service.end_session();
+        service.start_session({ name: 'Nursery' });
+        expect(service.get_state().name).toBe('Ready');
+        expect(mqtt_service.disconnect).toHaveBeenCalledTimes(1);
+        expect(mqtt_service.connect).toHaveBeenCalledTimes(1);
+    });
+
+    test('expiry cancels a pending session start and blocks another start', () => {
+        let monitor = true;
+        const mqtt_service = new MockMQTTService();
+        const service = new SessionService({
+            authorization_service: { get_claims: () => ({ has_scope: () => monitor }) },
+            logging_service: new MockLoggingService(),
+            mqtt_service,
+        });
+        service.start_session({ name: 'Nursery' });
+        expect(service.get_state().name).toBe('SessionStarting');
+        monitor = false;
+        mqtt_service.dispatch_state_change('Connecting', 'Ready');
+        expect(service.get_state().name).toBe('Ready');
+        service.start_session({ name: 'Nursery' });
+        expect(mqtt_service.connect).toHaveBeenCalledTimes(1);
+    });
+
     test("starts ready", () => {
         const service = new SessionService({
+        authorization_service: { get_claims: () => ({ has_scope: () => true }) },
             logging_service: new MockLoggingService(),
             mqtt_service: new MockMQTTService(),
         });
@@ -25,6 +74,7 @@ describe("BabyStation SessionService", () => {
     test("start session connects MQTT and transitions to session starting", () => {
         const mqtt_service = new MockMQTTService();
         const service = new SessionService({
+        authorization_service: { get_claims: () => ({ has_scope: () => true }) },
             logging_service: new MockLoggingService(),
             // @ts-ignore
             mqtt_service,
@@ -39,6 +89,7 @@ describe("BabyStation SessionService", () => {
     test("when MQTT connects, subscribes to parent stations and publishes baby station announcement", () => {
         const mqtt_service = new MockMQTTService();
         const service = new SessionService({
+        authorization_service: { get_claims: () => ({ has_scope: () => true }) },
             logging_service: new MockLoggingService(),
             // @ts-ignore
             mqtt_service,
@@ -230,6 +281,7 @@ class MockMQTTService extends EventTarget {
 
 const new_started_service = (mqtt_service: MockMQTTService): SessionService => {
     const service = new SessionService({
+        authorization_service: { get_claims: () => ({ has_scope: () => true }) },
         logging_service: new MockLoggingService(),
         // @ts-ignore
         mqtt_service,
