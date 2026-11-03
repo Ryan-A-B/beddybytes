@@ -6,7 +6,7 @@ import { Severity } from './services/LoggingService';
 import logging_service from "./services/instances/logging_service"
 import authorization_service from "./services/instances/authorization_service"
 import mqtt_service from "./services/instances/mqtt_service"
-import "./services/instances/trial_expiry_service"
+import "./services/instances/trial_expiry"
 import error_service from "./services/instances/error_service"
 
 import Login from './pages/Login';
@@ -17,12 +17,13 @@ import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import TrialExpiredBanner from './components/TrialExpiredBanner';
 
-import './App.scss';
 import RequestPasswordReset from './pages/Login/RequestPasswordReset';
 import ResetPassword from './pages/Login/ResetPassword';
 import AuthCallback from './pages/Login/AuthCallback';
 import Account from './pages/Account';
 import PaymentCallback from './pages/Payment/Callback';
+
+import './App.scss';
 
 export const services: Services = {
   logging_service,
