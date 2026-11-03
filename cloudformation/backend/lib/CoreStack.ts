@@ -10,8 +10,6 @@ const instance_type = cdk.aws_ec2.InstanceType.of(
     cdk.aws_ec2.InstanceSize.SMALL,
 );
 
-const my_ip_address = cdk.aws_ec2.Peer.ipv4(env_string_or_throw('MY_IP_ADDRESS'));
-
 export class CoreStack extends cdk.Stack {
     public readonly bucket: cdk.aws_s3.IBucket;
     public readonly vpc: cdk.aws_ec2.IVpc;
@@ -78,18 +76,6 @@ export class CoreStack extends cdk.Stack {
             'Allow HTTPS traffic from anywhere',
         );
 
-        const ssh_security_group = new cdk.aws_ec2.SecurityGroup(this, `ssh_security_group`, {
-            vpc: this.vpc,
-            allowAllOutbound: true,
-            description: 'Security group for SSH',
-            securityGroupName: 'ssh_security_group',
-        });
-        ssh_security_group.addIngressRule(
-            my_ip_address,
-            cdk.aws_ec2.Port.tcp(22),
-            'Allow SSH traffic from IP address',
-        );
-
         const key_pair = new cdk.aws_ec2.KeyPair(this, "key-pair", {
             keyPairName: `key-pair`,
             publicKeyMaterial: process.env.PUBLIC_KEY_MATERIAL!,
@@ -111,7 +97,6 @@ export class CoreStack extends cdk.Stack {
             }),
             role: instance_profile_role,
         });
-        launch_template.addSecurityGroup(ssh_security_group);
 
         const auto_scaling_group = new cdk.aws_autoscaling.AutoScalingGroup(this, `auto-scaling-group`, {
             vpc: this.vpc,
@@ -145,7 +130,8 @@ const add_instance_profile_role = (input: AddInstanceProfileRoleInput): cdk.aws_
     return new cdk.aws_iam.Role(input.scope, `instance-profile-role`, {
         assumedBy: new cdk.aws_iam.ServicePrincipal('ec2.amazonaws.com'),
         managedPolicies: [
-            cdk.aws_iam.ManagedPolicy.fromAwsManagedPolicyName('service-role/AmazonEC2ContainerServiceforEC2Role')
+            cdk.aws_iam.ManagedPolicy.fromAwsManagedPolicyName('service-role/AmazonEC2ContainerServiceforEC2Role'),
+            cdk.aws_iam.ManagedPolicy.fromAwsManagedPolicyName('AmazonSSMManagedInstanceCore'),
         ],
         inlinePolicies: {
             EC2AddressAssociation: new cdk.aws_iam.PolicyDocument({

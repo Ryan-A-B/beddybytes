@@ -24,7 +24,5 @@ sops exec-file "$encrypted_env" '
     -v "$PWD:$PWD" \
     -w "$PWD" \
     --env-file "{}" \
-    --dns 8.8.8.8 \
-    --dns 8.8.4.4 \
     node:22 /bin/bash
 '
