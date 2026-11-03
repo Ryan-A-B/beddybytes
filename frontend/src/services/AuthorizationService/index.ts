@@ -3,6 +3,8 @@ import LoggingService, { Severity } from '../LoggingService';
 import { AuthorizationClient, load_account_from_local_storage, remove_account_from_local_storage, TokenOutput } from "./AuthorizationClient";
 import Service from "../Service";
 import { AuthCallbackPath } from './AuthCodeFlow';
+import { Claims, NoClaims, parse_claims } from './Claims';
+export type { Claims } from './Claims';
 
 const InitialRetryDelay = 1000;
 
@@ -21,6 +23,8 @@ abstract class AbstractState {
     public abstract readonly name: string;
     public abstract readonly access_token_available: boolean;
     public abstract readonly login_required: boolean;
+
+    public get_claims = (): Claims => NoClaims;
 
     public get_access_token = (): string => {
         throw new Error(`can not get access token in ${this.name} state`);
@@ -69,6 +73,8 @@ class RefreshingForNewSession extends AbstractState {
     public readonly access_token_available = false;
     public readonly login_required = false;
 
+    refresh_token = async (): Promise<void> => {};
+
     handle_refresh_token_success = (proxy: ServiceProxy, token_output: TokenOutput) => {
         const access_token_expiry = moment().add(token_output.expires_in, 'seconds').add(-GracePeriod);
         proxy.set_state(new Authorized(token_output.access_token, access_token_expiry));
@@ -86,20 +92,24 @@ class Authorized extends AbstractState {
     public readonly access_token_available = true;
     public readonly login_required = false;
     private readonly access_token: string;
+    private readonly claims: Claims;
     private readonly access_token_expiry: moment.Moment;
 
     constructor(access_token: string, access_token_expiry: moment.Moment) {
         super();
         this.access_token = access_token;
+        this.claims = parse_claims(access_token);
         this.access_token_expiry = access_token_expiry;
     }
+
+    get_claims = (): Claims => this.claims;
 
     get_access_token = (): string => {
         return this.access_token;
     }
 
     refresh_token = async (proxy: ServiceProxy): Promise<void> => {
-        proxy.set_state(new RefreshingToContinueSession(this.access_token));
+        proxy.set_state(new RefreshingToContinueSession(this.access_token, this.claims));
         try {
             const token_output = await proxy.authorization_client.refresh_token_with_retry(InitialRetryDelay);
             proxy.handle_refresh_token_success(token_output);
@@ -124,15 +134,21 @@ class RefreshingToContinueSession extends AbstractState {
     public readonly access_token_available = true;
     public readonly login_required = false;
     private readonly access_token: string;
+    private readonly claims: Claims;
 
-    constructor(access_token: string) {
+    constructor(access_token: string, claims: Claims) {
         super();
         this.access_token = access_token;
+        this.claims = claims;
     }
+
+    get_claims = (): Claims => this.claims;
 
     get_access_token = (): string => {
         return this.access_token;
     }
+
+    refresh_token = async (): Promise<void> => {};
 
     handle_refresh_token_success = (proxy: ServiceProxy, token_output: TokenOutput) => {
         const access_token_expiry = get_access_token_expiry(token_output.expires_in);
@@ -221,12 +237,16 @@ class AuthorizationService extends Service<AuthorizationServiceState> {
         return this.get_state().get_access_token();
     }
 
+    public get_claims = (): Claims => {
+        return this.get_state().get_claims();
+    }
+
     public apply_token_output = (token_output: TokenOutput): void => {
         return this.get_state().apply_token_output(this.proxy, token_output);
     }
 
-    private refresh_token = async (): Promise<void> => {
-        await this.get_state().refresh_token(this.proxy);
+    public refresh_token = async (): Promise<void> => {
+        return this.get_state().refresh_token(this.proxy);
     }
 
     private handle_refresh_token_success = (token_output: TokenOutput): void => {

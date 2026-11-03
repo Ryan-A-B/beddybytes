@@ -57,7 +57,7 @@ func (handlers *Handlers) AddRoutes(router *mux.Router) {
 	router.HandleFunc("/auth/start", handlers.StartAuth).Methods(http.MethodGet)
 	router.HandleFunc(googleCallbackPath, handlers.GoogleCallback).Methods(http.MethodGet)
 	authenticatedRouter := router.PathPrefix("/accounts/{account_id}").Subrouter()
-	authenticatedRouter.Use(internal.NewAuthorizationMiddleware(handlers.Key).Middleware)
+	authenticatedRouter.Use(internal.NewAuthorizationMiddleware(handlers.Key, "account").Middleware)
 	authenticatedRouter.HandleFunc("", handlers.GetAccount).Methods(http.MethodGet).Name("GetAccount")
 }
 

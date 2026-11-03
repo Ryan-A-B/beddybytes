@@ -25,6 +25,7 @@ interface NewParentStationInput {
 
 class ParentStation {
     readonly logging_service: LoggingService;
+    private readonly authorization_service: AuthorizationService;
     readonly media_stream: MediaStream = new MediaStream();
     readonly mqtt_service: MQTTService;
     readonly baby_station_list_service: BabyStationListService;
@@ -37,12 +38,14 @@ class ParentStation {
 
     constructor({ logging_service, authorization_service, mqtt_service, wake_lock_service }: NewParentStationInput) {
         this.logging_service = logging_service;
+        this.authorization_service = authorization_service;
         this.mqtt_service = mqtt_service;
         this.baby_station_list_service = new BabyStationListService({
             logging_service,
             mqtt_service,
         });
         this.session_service = new SessionService({
+            authorization_service,
             logging_service,
             mqtt_service,
             parent_station_media_stream: this.media_stream,
@@ -67,18 +70,25 @@ class ParentStation {
         if (this.running) return;
         this.running = true;
         this.mqtt_service.addEventListener(EventTypeStateChanged, this.handle_mqtt_state_changed);
-        this.mqtt_service.connect();
-        this.baby_station_list_service.start();
+        this.authorization_service.addEventListener(EventTypeStateChanged, this.start_monitoring_if_allowed);
+        this.start_monitoring_if_allowed();
         this.wake_lock_service.lock();
     }
 
     public stop = () => {
         if (!this.running) return;
         this.running = false;
+        this.authorization_service.removeEventListener(EventTypeStateChanged, this.start_monitoring_if_allowed);
         this.mqtt_service.removeEventListener(EventTypeStateChanged, this.handle_mqtt_state_changed);
         this.baby_station_list_service.stop();
         this.mqtt_service.disconnect();
         this.wake_lock_service.unlock();
+    }
+
+    private start_monitoring_if_allowed = (): void => {
+        if (!this.running || !this.authorization_service.get_claims().has_scope('monitor')) return;
+        this.mqtt_service.connect();
+        this.baby_station_list_service.start();
     }
 
     private handle_visibilitychange = () => {

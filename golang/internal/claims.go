@@ -23,8 +23,12 @@ type Claims struct {
 	TokenUse string `json:"token_use,omitempty"`
 }
 
-// HasScope matches a complete scope name in the token's scope list.
+// HasScope permits legacy unscoped tokens, otherwise matching a complete scope
+// name. Callers must validate the token and require access-token use first.
 func (claims *Claims) HasScope(requiredScope string) bool {
+	if strings.TrimSpace(claims.Scope) == "" {
+		return true
+	}
 	for _, scope := range strings.Fields(claims.Scope) {
 		if scope == requiredScope {
 			return true

@@ -68,6 +68,7 @@ services:
       - MQTT_CLIENT_ID=backend-local
       - MQTT_IMPLEMENTATION=mosquitto
       - MQTT_BROKER=wss://mqtt.beddybytes.local
+      - TRIAL_DURATION=5m
       # - MQTT_IMPLEMENTATION=aws_iot
       # - MQTT_BROKER=ssl://a2g6cxhf9lu5os-ats.iot.us-east-1.amazonaws.com:8883
       # - MQTT_AWS_IOT_ROOT_CA_FILE=AmazonRootCA1.pem

@@ -210,11 +210,13 @@ func TestMQTTRejectsRefreshTokens(t *testing.T) {
 		{"scope order", "access", "monitor account", true},
 		{"monitor only", "access", "monitor", true},
 		{"account only", "access", "account", false},
-		{"missing scope", "access", "", false},
+		{"missing scope", "access", "", true},
+		{"blank scope", "access", " \t\n", true},
+		{"unscoped refresh", "refresh", "", false},
 		{"scope prefix", "access", "monitoring", false},
 		{"scope suffix", "access", "not_monitor", false},
 		{"legacy access with monitor", "", "account monitor", true},
-		{"legacy access without scope", "", "", false},
+		{"legacy access without scope", "", "", true},
 		{"refresh", "refresh", "account monitor", false},
 		{"legacy refresh", "", "refresh_token", false},
 		{"unknown type", "other", "account", false},
@@ -229,8 +231,37 @@ func TestMQTTRejectsRefreshTokens(t *testing.T) {
 			if (err == nil) != tc.allowed {
 				t.Fatalf("allowed=%v, error=%v", tc.allowed, err)
 			}
+			if tc.allowed && (!response.IsAuthenticated || len(response.PolicyDocuments) == 0) {
+				t.Fatal("allowed token did not receive an MQTT policy")
+			}
 			if !tc.allowed && (response.IsAuthenticated || len(response.PolicyDocuments) != 0) {
 				t.Fatal("denied token received an MQTT policy")
+			}
+		})
+	}
+}
+
+func TestAuthorizeRejectsInvalidUnscopedAccessTokens(t *testing.T) {
+	for _, test := range []struct {
+		name, signingKey string
+		expiresIn        time.Duration
+	}{
+		{name: "expired", signingKey: testSigningKey, expiresIn: -time.Hour},
+		{name: "invalid signature", signingKey: "wrong-key", expiresIn: time.Hour},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			claims := internal.Claims{
+				Issuer: "beddybytes", Audience: "beddybytes",
+				Expiry:  time.Now().Add(test.expiresIn).Unix(),
+				Subject: internal.URN{Service: "iam", AccountID: "account", ResourceType: "user", ResourceID: "user"},
+			}
+			token, err := jwt.NewWithClaims(jwt.SigningMethodHS256, &claims).SignedString([]byte(test.signingKey))
+			if err != nil {
+				t.Fatal(err)
+			}
+			response, err := authorize(newRequest(token, "client-1"), testConfig())
+			if err == nil || response.IsAuthenticated || len(response.PolicyDocuments) != 0 {
+				t.Fatal("invalid unscoped token must not receive an MQTT policy")
 			}
 		})
 	}

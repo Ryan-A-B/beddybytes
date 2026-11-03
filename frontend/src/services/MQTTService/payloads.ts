@@ -5,13 +5,15 @@ export interface ConnectedPayload {
     at_millis: number;
 }
 
+export type DisconnectReason = "clean" | "unexpected" | "authorization_scope_lost";
+
 export interface DisconnectedPayload {
     type: "disconnected";
     connection_id: string;
     request_id: string;
     at_millis: number;
     disconnected: {
-        reason: "clean" | "unexpected";
+        reason: DisconnectReason;
     }
 }
 

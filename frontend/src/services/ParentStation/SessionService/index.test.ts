@@ -23,6 +23,32 @@ describe("ParentStation SessionService", () => {
         mock_rtc_connections.length = 0;
     });
 
+    test('blocks joining without permission', () => {
+        const mqtt_service = new MockMQTTService();
+        const service = new_service(mqtt_service, { get_claims: () => ({ has_scope: () => false }) });
+        service.join_session(baby_station('baby-client', 'session-1'));
+        expect(mock_rtc_connections).toHaveLength(0);
+        expect(mqtt_service.subscribe_to_client_status).not.toHaveBeenCalled();
+    });
+
+    test('expiry preserves media and blocks switching sessions or reconnecting', () => {
+        let monitor = true;
+        const service = new_service(new MockMQTTService(), { get_claims: () => ({ has_scope: () => monitor }) });
+        const station = baby_station('baby-client', 'session-1');
+        service.join_session(station);
+        monitor = false;
+        mock_rtc_connections[0].get_state.mockReturnValue({ state: 'failed' });
+        service.join_session(baby_station('other-client', 'session-2'));
+        service.reconnect();
+        service.reconnect_if_needed(() => true);
+        expect(service.get_baby_station()).toBe(station);
+        expect(mock_rtc_connections).toHaveLength(1);
+        expect(mock_rtc_connections[0].close).not.toHaveBeenCalled();
+        expect(mock_rtc_connections[0].reconnect).not.toHaveBeenCalled();
+        service.leave_session();
+        expect(mock_rtc_connections[0].close).toHaveBeenCalledTimes(1);
+    });
+
     test("subscribes to active baby station status when joining a session", () => {
         const mqtt_service = new MockMQTTService();
         const service = new_service(mqtt_service);
@@ -55,12 +81,12 @@ describe("ParentStation SessionService", () => {
         expect(mqtt_service.client_status_subscription.close).toHaveBeenCalledTimes(1);
     });
 
-    test("unexpected disconnect from active baby station does not end the session", () => {
+    test.each(["unexpected", "authorization_scope_lost"] as const)("%s disconnect preserves the active session", reason => {
         const mqtt_service = new MockMQTTService();
         const service = new_service(mqtt_service);
         service.join_session(baby_station("baby-client", "session-1"));
 
-        mqtt_service.dispatch_client_status("baby-client", disconnected_payload("unexpected"));
+        mqtt_service.dispatch_client_status("baby-client", disconnected_payload(reason));
 
         expect(service.get_state().name).toBe("joined");
         expect(mock_rtc_connections[0].close).not.toHaveBeenCalled();
@@ -181,8 +207,9 @@ class MockSubscription implements Subscription {
     constructor(public readonly topic_filter: string) { }
 }
 
-const new_service = (mqtt_service: MockMQTTService): SessionService => {
+const new_service = (mqtt_service: MockMQTTService, authorization_service = { get_claims: () => ({ has_scope: () => true }) }): SessionService => {
     return new SessionService({
+        authorization_service,
         logging_service: new MockLoggingService(),
         mqtt_service: mqtt_service as any,
         parent_station_media_stream: {} as MediaStream,
@@ -198,7 +225,7 @@ const baby_station = (client_id: string, session_id: string): BabyStation => ({
     },
 });
 
-const disconnected_payload = (reason: "clean" | "unexpected"): unknown => ({
+const disconnected_payload = (reason: "clean" | "unexpected" | "authorization_scope_lost"): unknown => ({
     type: "disconnected",
     disconnected: {
         reason,

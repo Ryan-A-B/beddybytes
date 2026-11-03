@@ -6,6 +6,7 @@ import SessionService from '../../services/BabyStation/SessionService';
 import useMediaDevicesPermissionStatus from '../../hooks/useMediaDevicePermissionStatus';
 import useWakeLock from '../../hooks/useWakeLock';
 import useServiceState from '../../hooks/useServiceState';
+import { useAuthorizationService } from '../../services';
 import Input from '../../components/Input';
 import SelectVideoDevice from './SelectVideoDevice';
 import SelectAudioDevice from './SelectAudioDevice';
@@ -43,6 +44,8 @@ const BabyStation: React.FunctionComponent = () => {
     const { session_service, media_device_service } = baby_station;
     const media_device_state = useServiceState(media_device_service);
     const baby_station_session_state = useServiceState(session_service);
+    const authorization_service = useAuthorizationService();
+    useServiceState(authorization_service);
 
     const media_devices_permission_state = useMediaDevicesPermissionStatus();
     const [sessionName, setSessionName] = useSessionName();
@@ -51,15 +54,14 @@ const BabyStation: React.FunctionComponent = () => {
         media_device_service.start();
         return media_device_service.stop;
     }, [media_devices_permission_state, media_device_service]);
-    const canActivateSession = React.useMemo(() => {
-        return sessionName !== '';
-    }, [sessionName]);
+    const canActivateSession = sessionName !== '' && authorization_service.get_claims().has_scope('monitor');
     useWakeLock(baby_station_session_state.name !== 'Ready');
     const startSession = React.useCallback(async () => {
+        if (!authorization_service.get_claims().has_scope('monitor')) return;
         await session_service.start_session({
             name: sessionName,
         });
-    }, [session_service, sessionName]);
+    }, [session_service, sessionName, authorization_service]);
     useEndSessionOnUnmount(session_service);
     return (
         <MediaStreamPermissionCheck media_device_permission_service={baby_station.media_device_permission_service}>
