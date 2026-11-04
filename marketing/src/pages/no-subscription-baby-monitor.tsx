@@ -190,6 +190,7 @@ const NoSubscriptionBabyMonitorPage: React.FunctionComponent = () => (
             ]}
         />
         <UseCasePricingSection
+            variant="purple"
             title="Stop paying for baby monitor subscriptions"
             description="Choose yearly or lifetime access and use BeddyBytes across all your devices with one account."
         />

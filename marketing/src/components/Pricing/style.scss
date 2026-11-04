@@ -60,7 +60,7 @@
     }
 }
 
-.trial-pricing .trial-pricing__button {
+.trial-pricing a.trial-pricing__button {
     background: var(--pricing-button-background, #{$color-purple});
     border-color: var(--pricing-button-background, #{$color-purple});
     border-radius: $radius;

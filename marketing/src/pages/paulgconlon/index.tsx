@@ -109,7 +109,7 @@ const PaulGConlon = () => (
             <Features backgroundClassName="bg-tertiary">
                 <h2>Features</h2>
             </Features>
-            <PricingSection />
+            <PricingSection variant="purple" />
             <DemoSection />
             <SocialProofSection />
             <FAQSection />

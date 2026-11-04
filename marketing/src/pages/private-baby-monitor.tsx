@@ -198,6 +198,7 @@ const PrivateBabyMonitorPage: React.FunctionComponent = () => (
             ]}
         />
         <UseCasePricingSection
+            variant="purple"
             title="Start your 7 day free trial"
             description="One purchase covers your account across all your devices. If it is not a fit at home, there is a 30-day refund policy."
         />

@@ -207,7 +207,7 @@ const LaunchPage: React.FunctionComponent = () => {
                     className="page-bands"
                 />
 
-                <PricingSection className="page-bands" />
+                <PricingSection variant="purple" className="page-bands" />
 
                 <FAQSection items={launchFAQItems} className="page-bands" />
 
