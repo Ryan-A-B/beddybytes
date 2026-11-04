@@ -9,9 +9,7 @@
 }
 
 #page-pricing.pricing-section {
-    padding: space(24) 0;
-
-    @media (min-width: 768px) {
+    @media (min-width: 992px) {
         padding: space(40) 0;
     }
 }
