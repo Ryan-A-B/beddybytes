@@ -1,18 +1,15 @@
 import React from 'react'
 import type { HeadFC } from "gatsby"
 import { StaticImage } from 'gatsby-plugin-image'
-import { lifetime_price } from '../../services/price'
 import { Promotion } from '../../services/promotion'
 import SEOHead from '../../components/SEOHead'
 import DefaultPageWrapper from '../../components/DefaultPageWrapper'
 import FAQSection from '../../components/LandingPage/FAQSection'
 import Features from '../../components/Features'
-import DiscountedPrice from '../../components/Pricing/DiscountedPrice'
+import PricingSection from '../../components/LandingPage/PricingSection'
 import DemoSection from '../../components/LandingPage/DemoSection'
 import SocialProofSection from '../../components/SocialProof/Section'
 import CallToAction from '../../components/CallToAction'
-import PricingCallToAction from '../../components/Pricing/CallToAction'
-import { RedirectToPaymentProcessor, TrialPeriod } from '../../components/Pricing/Messages'
 
 import "./style.scss"
 
@@ -128,34 +125,7 @@ const PaulGConlon = () => (
             <Features backgroundClassName="bg-tertiary">
                 <h2>Features</h2>
             </Features>
-            <section id="pricing">
-                <div className="container">
-                    <h6 className="text-center">Pricing</h6>
-                    <h2 className="text-center">No subscription</h2>
-                    <TrialPeriod />
-                    <div className="row justify-content-center">
-                        <div className="col-sm-auto my-3">
-                            <section className="card card-pricing">
-                                <div className="card-body">
-                                    <h3 className="card-title">
-                                        Lifetime access
-                                    </h3>
-                                    <h5 className="card-subtitle mb-3">
-                                        Buy once, use forever
-                                    </h5>
-                                    <DiscountedPrice price={lifetime_price} discount={promotion.discount} />
-                                    <PricingCallToAction
-                                        product="lifetime"
-                                        coupon_code={promotion.code}
-                                        discount={promotion.discount}
-                                    />
-                                </div>
-                            </section>
-                        </div>
-                    </div>
-                    <RedirectToPaymentProcessor />
-                </div>
-            </section>
+            <PricingSection />
             <DemoSection />
             <SocialProofSection />
             <FAQSection />

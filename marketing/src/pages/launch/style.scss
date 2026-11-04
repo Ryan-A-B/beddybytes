@@ -147,7 +147,6 @@
 }
 
 .launch-page__section-heading h2,
-.launch-page > #pricing > .container > h2,
 .launch-page > #faq h2 {
     font-size: clamp(2.1rem, 3.5vw, 3.1rem);
     font-weight: 700;
@@ -253,8 +252,7 @@
 
 .launch-page .use-case-page__proof-stat,
 .launch-page .use-case-page__proof-quote,
-.launch-page .card,
-.launch-page > #pricing > .container > div {
+.launch-page .card {
     background: $color-white;
     border: 1px solid $color-grey;
     border-radius: $radius;
@@ -288,41 +286,18 @@
     color: $color-green;
 }
 
-.launch-page > #pricing {
-    background: $gradient-purple-dark-to-base !important;
-    color: $color-white;
-}
-
 .launch-page > section.bg-primary {
     background: $color-purple-dark !important;
     color: $color-white;
 }
 
-.launch-page > #pricing > .container > h2,
 .launch-page > section.bg-primary h2 {
     color: $color-white;
 }
 
-.launch-page > #pricing > .container > h2,
 .launch-page > #faq h2 {
     margin-bottom: space(8);
     text-align: center;
-}
-
-.launch-page > #pricing > .container > div {
-    padding: space(4) !important;
-}
-
-.launch-page #all-plans-include {
-    background: $color-white;
-    border-radius: $radius;
-    color: $color-black;
-}
-
-.launch-page .card.card-pricing {
-    margin: 0 0 space(4);
-    min-width: 0;
-    width: 100%;
 }
 
 .launch-page .badge.text-bg-primary {
@@ -353,8 +328,6 @@
     color: $color-purple;
 }
 
-.launch-page > #pricing .btn-primary:hover,
-.launch-page > #pricing .btn-primary:focus-visible,
 .launch-page .btn-light:hover,
 .launch-page .btn-light:focus-visible {
     background: $color-green;
@@ -417,11 +390,6 @@
     }
 }
 
-@media (min-width: 992px) {
-    .launch-page .card.card-pricing {
-        margin: 0 space(4) space(4);
-    }
-}
 
 @media (prefers-reduced-motion: reduce) {
     .launch-page__primary-button {
