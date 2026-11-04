@@ -1,5 +1,4 @@
 import React from "react";
-import promotion from "../../services/promotion";
 import CallToAction from "../CallToAction";
 
 import "./style.scss";
@@ -17,8 +16,6 @@ const DefaultHeroSection: React.FunctionComponent<Props> = ({ children: [copy, i
                     <CallToAction
                         to="/pricing"
                         color="light"
-                        coupon_code={promotion.code}
-                        discount={promotion.discount}
                         click_id="cta-hero-section"
                     />
                 </div>

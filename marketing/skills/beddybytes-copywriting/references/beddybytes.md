@@ -80,11 +80,9 @@ Terminology note:
 
 ## Confirmed Public Pricing (marketing code)
 
-- `1 year access`: `$35`
-- `Lifetime access`: `$55`
-- Permanent promotion currently active: `50% off` coupon code (confirm exact code before publishing code-specific copy)
-
-Pricing and promotion codes are configurable in the site, so confirm current live values before publishing time-sensitive pricing copy.
+- `Lifetime access`: `$35 USD`, with no subscription.
+- New accounts receive a seven-day free trial, with no credit card required.
+- Marketing does not manage promotion codes or discounts. Paid upgrades belong to the app.
 
 ## Likely Audience Segments
 
@@ -289,6 +287,6 @@ For trust/technical pages, prefer the article's explicit architecture and threat
 - `No STUN/TURN` is true in production and intended to remain true.
 - Session history is technically persisted in an event store, but completed sessions are removed from the session-list projection (user-visible ephemerality).
 - Supported/tested platforms include iOS Safari, Android Chrome, and desktop browsers.
-- Current pricing remains `$35` yearly and `$55` lifetime, with a permanent `50% off` coupon active.
+- Current pricing is `$35 USD` for lifetime access after a seven-day free trial. Marketing does not offer promotion codes or discounts.
 - Monitored-hours social proof claim can be updated to `20,000+ hours monitored`.
-- Primary conversion CTA is `Use Baby Monitor`, which sends users to pricing to purchase.
+- Pricing CTA is `Start your 7 day free trial`, linking directly to app account creation.

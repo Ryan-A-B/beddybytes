@@ -1,7 +1,6 @@
 import React from 'react';
 import CallToAction from '../CallToAction';
 import { To } from '../CallToAction/types';
-import promotion from '../../services/promotion';
 
 interface Props {
     to: To
@@ -17,8 +16,6 @@ const CallToActionSection: React.FunctionComponent<Props> = ({ to, className, la
                 to={to}
                 color="light"
                 click_id="cta-cta-section"
-                coupon_code={promotion.code}
-                discount={promotion.discount}
                 label={label}
             />
         </div>

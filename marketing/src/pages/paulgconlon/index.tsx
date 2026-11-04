@@ -1,7 +1,6 @@
 import React from 'react'
 import type { HeadFC } from "gatsby"
 import { StaticImage } from 'gatsby-plugin-image'
-import { Promotion } from '../../services/promotion'
 import SEOHead from '../../components/SEOHead'
 import DefaultPageWrapper from '../../components/DefaultPageWrapper'
 import FAQSection from '../../components/LandingPage/FAQSection'
@@ -12,14 +11,6 @@ import SocialProofSection from '../../components/SocialProof/Section'
 import CallToAction from '../../components/CallToAction'
 
 import "./style.scss"
-
-const promotion: Promotion = {
-    code: "PAULGCONLON",
-    discount: 0.8,
-    availibility: {
-        type: "indefinite",
-    },
-}
 
 const CitizenOneLink: React.FunctionComponent = () => <a href="https://paulgconlon.com" target="_blank" className="link-secondary">Citizen One</a>
 
@@ -38,7 +29,7 @@ const PaulGConlon = () => (
                                 />
                             </div>
                             <div className="col text-center">
-                                <h1>Special Offer</h1>
+                                <h1>Privacy with BeddyBytes and Citizen One</h1>
                                 <h5>Celebrate Privacy with BeddyBytes and <CitizenOneLink /></h5>
                                 <p>
                                     BeddyBytes transforms your smartphone and laptop into a private and convenient baby monitor.
@@ -48,8 +39,6 @@ const PaulGConlon = () => (
                                 <CallToAction
                                     to="#pricing"
                                     color="light"
-                                    coupon_code={promotion.code}
-                                    discount={promotion.discount}
                                     click_id="cta-hero-section"
                                 />
                             </div>
@@ -90,12 +79,11 @@ const PaulGConlon = () => (
                                     because we use it for ours.
                                 </p>
                                 <p>
-                                    Ready to take control of the cameras that watch over you with an exclusive offer?
+                                    Ready to take control of the cameras that watch over you?
                                 </p>
                                 <p>
                                     With Citizen One, you will understand why digital privacy matters, and with
-                                    BeddyByes you can do something about it! To celebrate the release of Citizen One,
-                                    we're excited to offer a special discount on BeddyBytes for a limited time.
+                                    BeddyBytes you can do something about it.
                                 </p>
                                 <p>
                                     Gifting your children a clean digital slate as they enter adulthood is maybe the most
@@ -106,8 +94,6 @@ const PaulGConlon = () => (
                                 <CallToAction
                                     to="#pricing"
                                     color="light"
-                                    coupon_code={promotion.code}
-                                    discount={promotion.discount}
                                     click_id="cta-solution-section"
                                 />
                             </div>
@@ -135,8 +121,6 @@ const PaulGConlon = () => (
                     <CallToAction
                         to="#pricing"
                         color="light"
-                        coupon_code={promotion.code}
-                        discount={promotion.discount}
                         click_id="cta-cta-section"
                     />
                 </div>

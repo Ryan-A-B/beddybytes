@@ -2,21 +2,22 @@
 
 #pricing.pricing-section,
 #page-pricing.pricing-section {
-    background: $color-white !important;
+    background: var(--pricing-background, #{$color-white}) !important;
     color: $color-black;
     min-height: 0;
     padding: space(16) 0;
 }
 
 .trial-pricing {
-    background: $color-white;
-    color: $color-black;
+    color: var(--pricing-text, #{$color-black});
     display: grid;
     gap: space(8);
+    margin: 0 auto;
+    max-width: 64rem;
 }
 
 .trial-pricing .trial-pricing__heading {
-    color: $color-purple-dark;
+    color: var(--pricing-heading, #{$color-purple-dark});
     font-size: clamp(2rem, 4vw, 3.25rem);
     font-weight: 700;
     line-height: 1.15;
@@ -39,7 +40,7 @@
 
 .trial-pricing__action {
     align-self: center;
-    border-top: 1px solid $color-grey-light;
+    border-top: 1px solid var(--pricing-divider, #{$color-grey-light});
     min-width: 0;
     padding-top: space(8);
     text-align: center;
@@ -54,16 +55,16 @@
     margin: 0 0 space(4);
 
     svg {
-        color: $color-purple;
+        color: var(--pricing-heading, #{$color-purple});
         height: 1.25em;
     }
 }
 
 .trial-pricing .trial-pricing__button {
-    background: $color-purple;
-    border-color: $color-purple;
+    background: var(--pricing-button-background, #{$color-purple});
+    border-color: var(--pricing-button-background, #{$color-purple});
     border-radius: $radius;
-    color: $color-white;
+    color: var(--pricing-button-text, #{$color-white});
     font-size: clamp(1rem, 2vw, 1.35rem);
     font-weight: 700;
     padding: space(4);
@@ -71,13 +72,13 @@
 
     &:hover,
     &:focus-visible {
-        background: $color-purple-dark;
-        border-color: $color-purple-dark;
-        color: $color-white;
+        background: var(--pricing-button-hover, #{$color-purple-dark});
+        border-color: var(--pricing-button-hover, #{$color-purple-dark});
+        color: var(--pricing-button-text, #{$color-white});
     }
 
     &:focus-visible {
-        outline: 2px solid $color-purple;
+        outline: 2px solid var(--pricing-heading, #{$color-purple});
         outline-offset: space(1);
     }
 }
@@ -94,8 +95,18 @@
     }
 
     .trial-pricing__action {
-        border-left: 1px solid $color-grey-light;
+        border-left: 1px solid var(--pricing-divider, #{$color-grey-light});
         border-top: 0;
         padding: space(6) 0 space(6) space(12);
     }
+}
+
+.pricing-section--purple {
+    --pricing-background: #{$color-purple};
+    --pricing-text: #{$color-white};
+    --pricing-heading: #{$color-white};
+    --pricing-divider: #{$color-purple-light};
+    --pricing-button-background: #{$color-white};
+    --pricing-button-text: #{$color-purple};
+    --pricing-button-hover: #{$color-purple-light};
 }

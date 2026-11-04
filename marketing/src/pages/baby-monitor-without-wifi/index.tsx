@@ -10,7 +10,6 @@ import FeaturesCurrent from '../../components/FeaturesCurrent'
 import SocialProofSection from '../../components/SocialProof/Section'
 import SEOHead from '../../components/SEOHead'
 import CallToAction from '../../components/CallToAction'
-import promotion from '../../services/promotion'
 
 const PrivateBabyMonitorPage: React.FunctionComponent = () => (
     <DefaultPageWrapper have_pricing_section>
@@ -31,8 +30,6 @@ const PrivateBabyMonitorPage: React.FunctionComponent = () => (
                                 <CallToAction
                                     to="#pricing"
                                     color="light"
-                                    coupon_code={promotion.code}
-                                    discount={promotion.discount}
                                     click_id="cta-hero-section"
                                 />
                             </div>

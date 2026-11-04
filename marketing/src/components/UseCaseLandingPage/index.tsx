@@ -4,7 +4,6 @@ import { StaticImage } from 'gatsby-plugin-image'
 import DefaultPageWrapper from '../DefaultPageWrapper'
 import CallToAction from '../CallToAction'
 import FAQSection from '../LandingPage/FAQSection'
-import promotion from '../../services/promotion'
 
 import './style.scss'
 
@@ -129,8 +128,6 @@ export const UseCaseHero: React.FunctionComponent<HeroProps> = ({ eyebrow, title
                     <CallToAction
                         to="/pricing"
                         color="light"
-                        coupon_code={promotion.code}
-                        discount={promotion.discount}
                         click_id="cta-use-case-hero"
                     />
                 </div>
@@ -313,8 +310,6 @@ export const UseCasePricingSection: React.FunctionComponent<PricingCtaSectionPro
                 <CallToAction
                     to="/pricing"
                     color="light"
-                    coupon_code={promotion.code}
-                    discount={promotion.discount}
                     click_id="cta-use-case-pricing"
                 />
             </div>

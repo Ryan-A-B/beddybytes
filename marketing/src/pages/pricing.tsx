@@ -9,7 +9,7 @@ import FAQSection from "../components/LandingPage/FAQSection"
 const PricingPage: React.FunctionComponent<PageProps> = () => {
     return (
         <DefaultPageWrapper without_call_to_action>
-            <main id="page-pricing" className="pricing-section">
+            <main id="page-pricing" className="pricing-section pricing-section--purple">
                 <div className="container">
                     <Pricing heading="h1" />
                 </div>

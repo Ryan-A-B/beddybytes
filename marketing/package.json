@@ -31,7 +31,6 @@
     "gatsby-source-filesystem": "^5.13.1",
     "gatsby-transformer-remark": "^6.13.1",
     "gatsby-transformer-sharp": "^5.13.1",
-    "numeral": "^2.0.6",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "sass": "^1.74.1",
@@ -39,7 +38,6 @@
   },
   "devDependencies": {
     "@types/node": "^20.11.19",
-    "@types/numeral": "^2.0.5",
     "@types/react": "^18.2.55",
     "@types/react-dom": "^18.2.19",
     "typescript": "^5.3.3"
