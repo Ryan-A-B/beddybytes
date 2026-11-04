@@ -8,6 +8,14 @@
     padding: space(16) 0;
 }
 
+#page-pricing.pricing-section {
+    padding: space(24) 0;
+
+    @media (min-width: 768px) {
+        padding: space(40) 0;
+    }
+}
+
 .trial-pricing {
     color: var(--pricing-text, #{$color-black});
     display: grid;
