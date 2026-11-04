@@ -44,7 +44,7 @@ const faqItems = [
     {
         question: 'Is there a free trial?',
         answer: [
-            'No. There is no free trial, but there is a 30-day refund policy, no questions asked.',
+            'Yes. You can try BeddyBytes free for 7 days. No credit card required. After the trial, lifetime access costs $35 USD with no subscription.',
         ],
     },
     {
@@ -192,7 +192,7 @@ const NoSubscriptionBabyMonitorPage: React.FunctionComponent = () => (
         <UseCasePricingSection
             variant="purple"
             title="Stop paying for baby monitor subscriptions"
-            description="Choose yearly or lifetime access and use BeddyBytes across all your devices with one account."
+            description="Try BeddyBytes free for 7 days. Then get lifetime access for $35 USD. One purchase covers all your devices."
         />
         <UseCaseFAQSection items={faqItems} />
         <UseCaseRelatedLinksSection

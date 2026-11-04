@@ -189,7 +189,7 @@ const BabyMonitorAppIphoneAndAndroidPage: React.FunctionComponent = () => (
         <UseCasePricingSection
             variant="purple"
             title="Use BeddyBytes across iPhone and Android"
-            description="One purchase covers all your devices, with yearly and lifetime options and a 30-day refund policy."
+            description="Try BeddyBytes free for 7 days. Then get lifetime access for $35 USD. One purchase covers all your devices."
         />
         <UseCaseFAQSection items={faqItems} />
         <UseCaseRelatedLinksSection

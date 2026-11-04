@@ -46,7 +46,7 @@ const faqItems = [
     {
         question: 'Is there a free trial?',
         answer: [
-            'No. There is no free trial, but every purchase is covered by a 30-day refund policy, no questions asked.',
+            'Yes. You can try BeddyBytes free for 7 days. No credit card required. After the trial, lifetime access costs $35 USD with no subscription.',
         ],
     },
     {
