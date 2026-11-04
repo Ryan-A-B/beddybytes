@@ -1,5 +1,6 @@
 import React from 'react'
-import { HeadFC, Link } from 'gatsby'
+import { HeadFC } from 'gatsby'
+import { trial_signup_url, trial_signup_label } from '../../services/trial'
 import DefaultPageWrapper from '../../components/DefaultPageWrapper'
 import SEOHead from '../../components/SEOHead'
 import CallToActionSection from '../../components/CallToActionSection'
@@ -106,13 +107,13 @@ const LaunchPage: React.FunctionComponent = () => {
                                 </p>
 
                                 <div className="launch-page__hero-action">
-                                    <Link
-                                        to="#pricing"
+                                    <a
+                                        href={trial_signup_url}
                                         className="launch-page__primary-button"
                                         onClick={onHeroCtaClick}
                                     >
-                                        Get BeddyBytes
-                                    </Link>
+                                        {trial_signup_label}
+                                    </a>
                                     <p>
                                         One purchase works across all your devices.
                                         <span>30-day money-back guarantee.</span>
@@ -210,7 +211,7 @@ const LaunchPage: React.FunctionComponent = () => {
 
                 <FAQSection items={launchFAQItems} className="page-bands" />
 
-                <CallToActionSection to="#pricing" className="page-bands" label="Get BeddyBytes" />
+                <CallToActionSection className="page-bands" />
             </main>
         </DefaultPageWrapper>
     )

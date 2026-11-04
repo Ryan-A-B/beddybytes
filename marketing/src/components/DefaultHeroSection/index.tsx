@@ -14,7 +14,6 @@ const DefaultHeroSection: React.FunctionComponent<Props> = ({ children: [copy, i
                 <div className="col-lg-6">
                     {copy}
                     <CallToAction
-                        to="/pricing"
                         color="light"
                         click_id="cta-hero-section"
                     />

@@ -198,7 +198,7 @@ const PrivateBabyMonitorPage: React.FunctionComponent = () => (
             ]}
         />
         <UseCasePricingSection
-            title="See pricing and try BeddyBytes at home"
+            title="Start your 7 day free trial"
             description="One purchase covers your account across all your devices. If it is not a fit at home, there is a 30-day refund policy."
         />
         <UseCaseFAQSection items={faqItems} />

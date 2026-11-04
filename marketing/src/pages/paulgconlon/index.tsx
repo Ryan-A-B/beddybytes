@@ -37,7 +37,6 @@ const PaulGConlon = () => (
                                     We keep your data safe by never handling it in the first place.
                                 </p>
                                 <CallToAction
-                                    to="#pricing"
                                     color="light"
                                     click_id="cta-hero-section"
                                 />
@@ -92,7 +91,6 @@ const PaulGConlon = () => (
                                     tomorrow.
                                 </p>
                                 <CallToAction
-                                    to="#pricing"
                                     color="light"
                                     click_id="cta-solution-section"
                                 />
@@ -119,7 +117,6 @@ const PaulGConlon = () => (
                 <div className="container text-center">
                     <h2>Get started today</h2>
                     <CallToAction
-                        to="#pricing"
                         color="light"
                         click_id="cta-cta-section"
                     />

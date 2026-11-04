@@ -1,4 +1,5 @@
 import React from "react";
+import { trial_signup_url, trial_signup_label } from "../../services/trial";
 import useOnClick from "../../hooks/useOnClick";
 
 const CallToAction: React.FunctionComponent = () => {
@@ -6,11 +7,11 @@ const CallToAction: React.FunctionComponent = () => {
 
     return (
         <a
-            href="https://app.beddybytes.com/#create_account"
+            href={trial_signup_url}
             onClick={onClick}
             className="btn btn-primary btn-lg trial-pricing__button"
         >
-            Start your 7 day free trial
+            {trial_signup_label}
         </a>
     );
 };

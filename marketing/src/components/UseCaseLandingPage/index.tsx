@@ -126,7 +126,6 @@ export const UseCaseHero: React.FunctionComponent<HeroProps> = ({ eyebrow, title
                     <h1>{title}</h1>
                     <p className="use-case-page__lead">{description}</p>
                     <CallToAction
-                        to="/pricing"
                         color="light"
                         click_id="cta-use-case-hero"
                     />
@@ -308,7 +307,6 @@ export const UseCasePricingSection: React.FunctionComponent<PricingCtaSectionPro
                     <p>{description}</p>
                 </div>
                 <CallToAction
-                    to="/pricing"
                     color="light"
                     click_id="cta-use-case-pricing"
                 />

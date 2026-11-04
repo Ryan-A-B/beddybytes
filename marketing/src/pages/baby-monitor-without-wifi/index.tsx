@@ -12,7 +12,7 @@ import SEOHead from '../../components/SEOHead'
 import CallToAction from '../../components/CallToAction'
 
 const PrivateBabyMonitorPage: React.FunctionComponent = () => (
-    <DefaultPageWrapper have_pricing_section>
+    <DefaultPageWrapper>
         <div className="landing-page">
             <main id="main">
                 <section id="hero">
@@ -28,7 +28,6 @@ const PrivateBabyMonitorPage: React.FunctionComponent = () => (
                                     Video is streamed directly between your smartphone and laptop.
                                 </p>
                                 <CallToAction
-                                    to="#pricing"
                                     color="light"
                                     click_id="cta-hero-section"
                                 />
