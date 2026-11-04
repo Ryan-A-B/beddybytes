@@ -9,7 +9,6 @@ import FAQSection, { FAQItem } from '../../components/LandingPage/FAQSection'
 import PricingSection from '../../components/LandingPage/PricingSection'
 import TrustSection from '../../components/TrustSection'
 import { UseCaseProofSection } from '../../components/UseCaseLandingPage'
-import useOnClick from '../../hooks/useOnClick'
 
 import './style.scss'
 
@@ -81,8 +80,6 @@ const launchFAQItems: FAQItem[] = [
 ]
 
 const LaunchPage: React.FunctionComponent = () => {
-    const onHeroCtaClick = useOnClick('cta-launch-hero')
-
     return (
         <DefaultPageWrapper without_call_to_action>
             <main id="main" className="launch-page">
@@ -91,8 +88,8 @@ const LaunchPage: React.FunctionComponent = () => {
                         <div className="row align-items-center gy-5 gx-0 gx-lg-5">
                             <div className="col-lg-6">
                                 <div className="launch-page__proof-badge">
-                                    <strong>20,000+ hours monitored across 60+ families</strong>
-                                    <span>As of August 2026</span>
+                                    <strong>25,000+ hours monitored across 60+ families</strong>
+                                    <span>As of November 2026</span>
                                 </div>
 
                                 <h1>
@@ -110,7 +107,6 @@ const LaunchPage: React.FunctionComponent = () => {
                                     <a
                                         href={trial_signup_url}
                                         className="launch-page__primary-button"
-                                        onClick={onHeroCtaClick}
                                     >
                                         {trial_signup_label}
                                     </a>
@@ -201,7 +197,7 @@ const LaunchPage: React.FunctionComponent = () => {
 
                 <UseCaseProofSection
                     statsLabel="Real-world use"
-                    title="20,000+ hours monitored"
+                    title="25,000+ hours monitored"
                     quote="BeddyBytes is very easy to use and I love that it's flexible. I can open the parent station on my phone or laptop depending on whether I'm studying or doing housework without lugging around an extra screen. Knowing that images of our family life are completely private is very reassuring too."
                     quoteLabel="What a customer told me"
                     className="page-bands"
