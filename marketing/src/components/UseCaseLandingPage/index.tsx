@@ -4,7 +4,6 @@ import { StaticImage } from 'gatsby-plugin-image'
 import DefaultPageWrapper from '../DefaultPageWrapper'
 import CallToAction from '../CallToAction'
 import FAQSection from '../LandingPage/FAQSection'
-import promotion from '../../services/promotion'
 
 import './style.scss'
 
@@ -98,6 +97,7 @@ interface TradeoffsSectionProps {
 }
 
 interface PricingCtaSectionProps {
+    variant?: "white" | "purple"
     title: string
     description: React.ReactNode
 }
@@ -127,10 +127,7 @@ export const UseCaseHero: React.FunctionComponent<HeroProps> = ({ eyebrow, title
                     <h1>{title}</h1>
                     <p className="use-case-page__lead">{description}</p>
                     <CallToAction
-                        to="/pricing"
                         color="light"
-                        coupon_code={promotion.code}
-                        discount={promotion.discount}
                         click_id="cta-use-case-hero"
                     />
                 </div>
@@ -302,8 +299,8 @@ export const UseCaseTradeoffsSection: React.FunctionComponent<TradeoffsSectionPr
     </section>
 )
 
-export const UseCasePricingSection: React.FunctionComponent<PricingCtaSectionProps> = ({ title, description }) => (
-    <section id="pricing-cta" className="use-case-page__pricing-cta">
+export const UseCasePricingSection: React.FunctionComponent<PricingCtaSectionProps> = ({ title, description, variant = "white" }) => (
+    <section id="pricing-cta" className={`use-case-page__pricing-cta${variant === "purple" ? " use-case-page__pricing-cta--purple" : ""}`}>
         <div className="container">
             <div className="use-case-page__pricing-panel">
                 <div>
@@ -311,10 +308,7 @@ export const UseCasePricingSection: React.FunctionComponent<PricingCtaSectionPro
                     <p>{description}</p>
                 </div>
                 <CallToAction
-                    to="/pricing"
                     color="light"
-                    coupon_code={promotion.code}
-                    discount={promotion.discount}
                     click_id="cta-use-case-pricing"
                 />
             </div>

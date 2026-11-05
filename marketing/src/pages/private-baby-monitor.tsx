@@ -46,7 +46,7 @@ const faqItems = [
     {
         question: 'Is there a free trial?',
         answer: [
-            'No. There is no free trial, but every purchase is covered by a 30-day refund policy, no questions asked.',
+            'Yes. You can try BeddyBytes free for 7 days. No credit card required. After the trial, lifetime access costs $35 USD with no subscription.',
         ],
     },
     {
@@ -164,7 +164,7 @@ const PrivateBabyMonitorPage: React.FunctionComponent = () => (
         />
         <UseCaseProofSection
             statsLabel="Real-world use"
-            title="20,000+ hours monitored"
+            title="25,000+ hours monitored"
             quote="BeddyBytes is very easy to use and I love that it's flexible. I can open the parent station on my phone or laptop depending on whether I'm studying or doing housework without lugging around an extra screen. Knowing that images of our family life are completely private is very reassuring too."
             quoteLabel="What a customer told me"
         />
@@ -198,7 +198,8 @@ const PrivateBabyMonitorPage: React.FunctionComponent = () => (
             ]}
         />
         <UseCasePricingSection
-            title="See pricing and try BeddyBytes at home"
+            variant="purple"
+            title="Start your 7 day free trial"
             description="One purchase covers your account across all your devices. If it is not a fit at home, there is a 30-day refund policy."
         />
         <UseCaseFAQSection items={faqItems} />

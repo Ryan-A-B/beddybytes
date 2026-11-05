@@ -1,62 +1,118 @@
-@use "sass:math";
-@import "../../scss/configuration";
 @import "../../scss/simple-design-system";
 
-.card.card-pricing {
-    overflow: hidden;
-    min-width: 335px;
-    max-width: 385px;
-    margin: {
-        bottom: $spacer;
-        left: $spacer;
-        right: $spacer;
+#pricing.pricing-section,
+#page-pricing.pricing-section {
+    background: var(--pricing-background, #{$color-white}) !important;
+    color: $color-black;
+    min-height: 0;
+    padding: space(16) 0;
+}
+
+#page-pricing.pricing-section {
+    @media (min-width: 992px) {
+        padding: space(40) 0;
     }
 }
 
-.pricing-card__header {
+.trial-pricing {
+    color: var(--pricing-text, #{$color-black});
+    display: grid;
+    gap: space(8);
+    margin: 0 auto;
+    max-width: 64rem;
+}
+
+.trial-pricing .trial-pricing__heading {
+    color: var(--pricing-heading, #{$color-purple-dark});
+    font-size: clamp(2rem, 4vw, 3.25rem);
+    font-weight: 700;
+    line-height: 1.15;
+    margin: 0 0 space(6);
+}
+
+.trial-pricing__price {
+    align-items: baseline;
+    display: flex;
+    font-size: clamp(3.5rem, 7vw, 5rem);
+    font-weight: 700;
+    gap: space(3);
+    line-height: 1;
+    margin: 0;
+}
+
+.trial-pricing__currency {
+    font-size: 0.5em;
+}
+
+.trial-pricing__action {
+    align-self: center;
+    border-top: 1px solid var(--pricing-divider, #{$color-grey-light});
+    min-width: 0;
+    padding-top: space(8);
+    text-align: center;
+}
+
+.trial-pricing__trust {
     align-items: center;
     display: flex;
-    gap: space(2);
-    height: space(12);
-    padding: 0 space(4);
+    font-size: 1.125rem;
+    gap: space(3);
+    justify-content: center;
+    margin: 0 0 space(4);
+
+    svg {
+        color: var(--pricing-heading, #{$color-purple});
+        height: 1.25em;
+    }
 }
 
-.pricing-card__header--popular {
-    background: $color-purple-light;
-    color: $color-purple;
-    font-weight: 700;
-}
-
-.pricing-discount {
-    background: $color-green-light;
+.trial-pricing a.trial-pricing__button {
+    background: var(--pricing-button-background, #{$color-purple});
+    border-color: var(--pricing-button-background, #{$color-purple});
     border-radius: $radius;
-    color: $color-black;
-    display: inline-block;
-    font-size: 0.75rem;
+    color: var(--pricing-button-text, #{$color-white});
+    font-size: clamp(1rem, 2vw, 1.35rem);
     font-weight: 700;
-    line-height: 1;
-    margin-top: space(2);
-    padding: space(1) space(2);
-    white-space: nowrap;
-}
+    padding: space(4);
+    width: 100%;
 
-@include media-breakpoint-down(lg) {
-    .pricing-card__header--placeholder {
-        display: none;
+    &:hover,
+    &:focus-visible {
+        background: var(--pricing-button-hover, #{$color-purple-dark});
+        border-color: var(--pricing-button-hover, #{$color-purple-dark});
+        color: var(--pricing-button-text, #{$color-white});
+    }
+
+    &:focus-visible {
+        outline: 2px solid var(--pricing-heading, #{$color-purple});
+        outline-offset: space(1);
     }
 }
 
-section#all-plans-include {
-    ul {
-        margin: {
-            left: auto;
-            right: auto;
-        }
-        max-width: 800px;
+.trial-pricing__reassurance {
+    margin: space(3) 0 0;
+}
+
+@media (min-width: 768px) {
+    .trial-pricing {
+        align-items: center;
+        gap: space(12);
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     }
 
-    li {
-        padding-top: math.div($spacer, 2);
-        min-width: 200px;
+    .trial-pricing__action {
+        border-left: 1px solid var(--pricing-divider, #{$color-grey-light});
+        border-top: 0;
+        padding: space(6) 0 space(6) space(12);
     }
+}
+
+.pricing-section--purple {
+    --pricing-background: #{$color-purple};
+    --pricing-text: #{$color-white};
+    --pricing-heading: #{$color-white};
+    --pricing-divider: #{$color-purple-light};
+    --pricing-button-background: #{$color-white};
+    --pricing-button-text: #{$color-purple};
+    --pricing-button-hover: #{$color-purple-light};
 }

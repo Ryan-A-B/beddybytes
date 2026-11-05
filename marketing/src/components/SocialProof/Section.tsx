@@ -5,7 +5,7 @@ const SocialProofSection: React.FunctionComponent = () => (
     <section id="social-proof" className="bg-secondary text-bg-secondary py-5 ">
         <div className="container">
             <h2 className="text-center mb-4">
-                Over <span className="text-light">20,000+</span> hours monitored!
+                Over <span className="text-light">25,000+</span> hours monitored!
             </h2>
             <h3 className="text-center mb-3">
                 Here's what some of our users have to say

@@ -10,10 +10,9 @@ import FeaturesCurrent from '../../components/FeaturesCurrent'
 import SocialProofSection from '../../components/SocialProof/Section'
 import SEOHead from '../../components/SEOHead'
 import CallToAction from '../../components/CallToAction'
-import promotion from '../../services/promotion'
 
 const PrivateBabyMonitorPage: React.FunctionComponent = () => (
-    <DefaultPageWrapper have_pricing_section>
+    <DefaultPageWrapper>
         <div className="landing-page">
             <main id="main">
                 <section id="hero">
@@ -29,10 +28,7 @@ const PrivateBabyMonitorPage: React.FunctionComponent = () => (
                                     Video is streamed directly between your smartphone and laptop.
                                 </p>
                                 <CallToAction
-                                    to="#pricing"
                                     color="light"
-                                    coupon_code={promotion.code}
-                                    discount={promotion.discount}
                                     click_id="cta-hero-section"
                                 />
                             </div>

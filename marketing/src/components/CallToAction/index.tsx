@@ -1,33 +1,19 @@
 import React from 'react'
-import { Link } from 'gatsby'
-import numeral from 'numeral'
-import useOnClick from '../../hooks/useOnClick'
-import { DiscountFormat, To } from './types'
-import promotion from '../../services/promotion'
+import { trial_signup_url, trial_signup_label } from '../../services/trial'
 
 interface Props {
-    to: To
     color?: 'primary' | 'light'
-    coupon_code: string
-    discount: number
     click_id: string
-    label?: string
 }
 
 const DefaultColor = 'primary'
 
-const CallToAction: React.FunctionComponent<Props> = ({ to, color = DefaultColor, coupon_code = promotion.code, discount = promotion.discount, click_id, label = 'See pricing' }) => {
-    const onClick = useOnClick(click_id)
-    const target = to.startsWith('#') ? undefined : '_blank'
+const CallToAction: React.FunctionComponent<Props> = ({ color = DefaultColor, click_id }) => {
     return (
         <div className={`call-to-action mt-3`}>
-            <small>
-                Use coupon code <code>{coupon_code}</code> for {numeral(discount).format(DiscountFormat)} off.
-            </small>
-            <br />
-            <Link to={to} onClick={onClick} target={target} className={`btn btn-${color} btn-lg w-100`}>
-                {label}
-            </Link>
+            <a href={trial_signup_url} className={`btn btn-${color} btn-lg w-100`}>
+                {trial_signup_label}
+            </a>
         </div>
     )
 }

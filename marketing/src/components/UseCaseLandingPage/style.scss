@@ -412,3 +412,16 @@
         transform: translateY(-1px);
     }
 }
+
+// Use a full purple band when the neighbouring section is white.
+.use-case-page__pricing-cta--purple {
+    background: $purple;
+
+    .use-case-page__pricing-panel {
+        background: transparent;
+    }
+
+    .btn-light {
+        color: $purple;
+    }
+}

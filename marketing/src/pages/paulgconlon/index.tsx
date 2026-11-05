@@ -1,28 +1,16 @@
 import React from 'react'
 import type { HeadFC } from "gatsby"
 import { StaticImage } from 'gatsby-plugin-image'
-import { lifetime_price } from '../../services/price'
-import { Promotion } from '../../services/promotion'
 import SEOHead from '../../components/SEOHead'
 import DefaultPageWrapper from '../../components/DefaultPageWrapper'
 import FAQSection from '../../components/LandingPage/FAQSection'
 import Features from '../../components/Features'
-import DiscountedPrice from '../../components/Pricing/DiscountedPrice'
+import PricingSection from '../../components/LandingPage/PricingSection'
 import DemoSection from '../../components/LandingPage/DemoSection'
 import SocialProofSection from '../../components/SocialProof/Section'
 import CallToAction from '../../components/CallToAction'
-import PricingCallToAction from '../../components/Pricing/CallToAction'
-import { RedirectToPaymentProcessor, TrialPeriod } from '../../components/Pricing/Messages'
 
 import "./style.scss"
-
-const promotion: Promotion = {
-    code: "PAULGCONLON",
-    discount: 0.8,
-    availibility: {
-        type: "indefinite",
-    },
-}
 
 const CitizenOneLink: React.FunctionComponent = () => <a href="https://paulgconlon.com" target="_blank" className="link-secondary">Citizen One</a>
 
@@ -41,7 +29,7 @@ const PaulGConlon = () => (
                                 />
                             </div>
                             <div className="col text-center">
-                                <h1>Special Offer</h1>
+                                <h1>Privacy with BeddyBytes and Citizen One</h1>
                                 <h5>Celebrate Privacy with BeddyBytes and <CitizenOneLink /></h5>
                                 <p>
                                     BeddyBytes transforms your smartphone and laptop into a private and convenient baby monitor.
@@ -49,10 +37,7 @@ const PaulGConlon = () => (
                                     We keep your data safe by never handling it in the first place.
                                 </p>
                                 <CallToAction
-                                    to="#pricing"
                                     color="light"
-                                    coupon_code={promotion.code}
-                                    discount={promotion.discount}
                                     click_id="cta-hero-section"
                                 />
                             </div>
@@ -93,12 +78,11 @@ const PaulGConlon = () => (
                                     because we use it for ours.
                                 </p>
                                 <p>
-                                    Ready to take control of the cameras that watch over you with an exclusive offer?
+                                    Ready to take control of the cameras that watch over you?
                                 </p>
                                 <p>
                                     With Citizen One, you will understand why digital privacy matters, and with
-                                    BeddyByes you can do something about it! To celebrate the release of Citizen One,
-                                    we're excited to offer a special discount on BeddyBytes for a limited time.
+                                    BeddyBytes you can do something about it.
                                 </p>
                                 <p>
                                     Gifting your children a clean digital slate as they enter adulthood is maybe the most
@@ -107,10 +91,7 @@ const PaulGConlon = () => (
                                     tomorrow.
                                 </p>
                                 <CallToAction
-                                    to="#pricing"
                                     color="light"
-                                    coupon_code={promotion.code}
-                                    discount={promotion.discount}
                                     click_id="cta-solution-section"
                                 />
                             </div>
@@ -128,34 +109,7 @@ const PaulGConlon = () => (
             <Features backgroundClassName="bg-tertiary">
                 <h2>Features</h2>
             </Features>
-            <section id="pricing">
-                <div className="container">
-                    <h6 className="text-center">Pricing</h6>
-                    <h2 className="text-center">No subscription</h2>
-                    <TrialPeriod />
-                    <div className="row justify-content-center">
-                        <div className="col-sm-auto my-3">
-                            <section className="card card-pricing">
-                                <div className="card-body">
-                                    <h3 className="card-title">
-                                        Lifetime access
-                                    </h3>
-                                    <h5 className="card-subtitle mb-3">
-                                        Buy once, use forever
-                                    </h5>
-                                    <DiscountedPrice price={lifetime_price} discount={promotion.discount} />
-                                    <PricingCallToAction
-                                        product="lifetime"
-                                        coupon_code={promotion.code}
-                                        discount={promotion.discount}
-                                    />
-                                </div>
-                            </section>
-                        </div>
-                    </div>
-                    <RedirectToPaymentProcessor />
-                </div>
-            </section>
+            <PricingSection variant="purple" />
             <DemoSection />
             <SocialProofSection />
             <FAQSection />
@@ -163,10 +117,7 @@ const PaulGConlon = () => (
                 <div className="container text-center">
                     <h2>Get started today</h2>
                     <CallToAction
-                        to="#pricing"
                         color="light"
-                        coupon_code={promotion.code}
-                        discount={promotion.discount}
                         click_id="cta-cta-section"
                     />
                 </div>

@@ -190,6 +190,7 @@ const OldPhoneBabyMonitorPage: React.FunctionComponent = () => (
             ]}
         />
         <UseCasePricingSection
+            variant="purple"
             title="Turn your old phone into a baby monitor with BeddyBytes"
             description="Use the devices you already own, skip the subscription, and keep live media on your local network."
         />
